@@ -244,6 +244,9 @@
   .detail-panel-refund .detail-table td:nth-child(3) { color: #dc2626; }
   .detail-table tr:hover { background: var(--metric-box-bg); }
   .date-chip { display: inline-block; background: var(--metric-box-bg); color: var(--text-muted); font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
+
+  .admin-footer-row { display: flex; gap: 10px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
+  .admin-footer-note { text-align: center; margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -272,16 +275,6 @@
 
   <div id="repList"></div>
 
-  <div class="section-toggle" id="toggleGoals">▸ Edit monthly goals</div>
-  <div class="section-body" id="goalsBody">
-    <div class="card">
-      <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Goal tag (optional)</div></div>
-      <div id="goalsForm"></div>
-      <button id="saveGoals">Save goals</button>
-      <div class="meta-note">Goals persist on this device. Update at the start of each month.</div>
-    </div>
-  </div>
-
   <div class="section-toggle" id="toggleData">▸ Update actuals from ledger export</div>
   <div class="section-body" id="dataBody">
     <div class="card">
@@ -292,27 +285,11 @@
     </div>
   </div>
 
-  <div class="section-toggle" id="toggleSip">▸ Historical Performance (SIP)</div>
-  <div class="section-body" id="sipBody">
-    <div class="card">
-      <h2>Select a month</h2>
-      <select class="sip-select" id="sipMonthSelect"></select>
-      <div id="sipMonthSummary" style="margin-top:14px;"></div>
-    </div>
-    <div class="card">
-      <h2>Date range average</h2>
-      <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:12.5px; color:var(--text-muted);">
-        <label>From <select class="sip-select" id="sipFromSelect"></select></label>
-        <label>To <select class="sip-select" id="sipToSelect"></select></label>
-      </div>
-      <div id="sipRangeSummary" style="margin-top:14px;"></div>
-    </div>
-    <div class="card">
-      <h2>Month-over-month team attainment</h2>
-      <div style="height:280px;"><canvas id="sipChart"></canvas></div>
-      <div class="meta-note">Chart reflects the date range selected above. Dashed purple/gold lines mark 110% (Level 2) and 120% (Level 3) promotion thresholds; the dotted red line marks the selected range's average. All figures are raw sessions + members totals, not an average of monthly averages. Nov 2024 and the current Live month are excluded — Nov 2024's tab is a stale duplicate of Live in the source sheet.</div>
-    </div>
+  <div class="admin-footer-row">
+    <button class="theme-btn" id="footerGoalsBtn" type="button">⚙️ Edit Monthly Goals</button>
+    <button class="theme-btn" id="footerSipBtn" type="button">📊 Historical Performance (SIP)</button>
   </div>
+  <div class="meta-note admin-footer-note">These will be restricted to Aaron once company sign-in is live — open to everyone for now.</div>
 
 </div>
 
@@ -350,6 +327,28 @@
             </table>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div style="margin-top:28px;">
+      <h2>Historical Performance</h2>
+      <div class="meta-note" style="margin-top:0;">Month-over-month pacing for this rep. Dashed lines mark 115% (Level 2) and 150% (Level 3); the dotted red line marks the selected range's average.</div>
+      <div class="card">
+        <h2>Select a month</h2>
+        <select class="sip-select" id="repSipMonthSelect"></select>
+        <div id="repSipMonthSummary" style="margin-top:14px;"></div>
+      </div>
+      <div class="card">
+        <h2>Date range average</h2>
+        <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:12.5px; color:var(--text-muted);">
+          <label>From <select class="sip-select" id="repSipFromSelect"></select></label>
+          <label>To <select class="sip-select" id="repSipToSelect"></select></label>
+        </div>
+        <div id="repSipRangeSummary" style="margin-top:14px;"></div>
+      </div>
+      <div class="card">
+        <h2>Month-over-month pacing</h2>
+        <div style="height:280px;"><canvas id="repSipChart"></canvas></div>
       </div>
     </div>
   </div>
@@ -408,6 +407,50 @@
           </table>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin-only (eventually) pages, reached via the footer buttons. Not actually
+     access-restricted yet — open to everyone until real company sign-in is live. -->
+<div class="detail-overlay" id="goalsOverlay">
+  <div class="detail-page">
+    <div class="detail-header">
+      <button class="theme-btn" id="goalsBackBtn" type="button">← Back to dashboard</button>
+      <h2>Edit Monthly Goals</h2>
+    </div>
+    <div class="card">
+      <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Goal tag (optional)</div></div>
+      <div id="goalsForm"></div>
+      <button id="saveGoals">Save goals</button>
+      <div class="meta-note">Goals persist on this device. Update at the start of each month.</div>
+    </div>
+  </div>
+</div>
+
+<div class="detail-overlay" id="sipOverlay">
+  <div class="detail-page">
+    <div class="detail-header">
+      <button class="theme-btn" id="sipBackBtn" type="button">← Back to dashboard</button>
+      <h2>Historical Performance (SIP)</h2>
+    </div>
+    <div class="card">
+      <h2>Select a month</h2>
+      <select class="sip-select" id="sipMonthSelect"></select>
+      <div id="sipMonthSummary" style="margin-top:14px;"></div>
+    </div>
+    <div class="card">
+      <h2>Date range average</h2>
+      <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:12.5px; color:var(--text-muted);">
+        <label>From <select class="sip-select" id="sipFromSelect"></select></label>
+        <label>To <select class="sip-select" id="sipToSelect"></select></label>
+      </div>
+      <div id="sipRangeSummary" style="margin-top:14px;"></div>
+    </div>
+    <div class="card">
+      <h2>Month-over-month team attainment</h2>
+      <div style="height:280px;"><canvas id="sipChart"></canvas></div>
+      <div class="meta-note">Chart reflects the date range selected above. Dashed purple/gold lines mark 110% (Level 2) and 120% (Level 3) promotion thresholds; the dotted red line marks the selected range's average. All figures are raw sessions + members totals, not an average of monthly averages. Nov 2024 and the current Live month are excluded — Nov 2024's tab is a stale duplicate of Live in the source sheet.</div>
     </div>
   </div>
 </div>
@@ -697,8 +740,6 @@ function buildNowBoxHTML(label, mm, expectedPct, uid, curDay, curDim) {
         <div class="mini-bar-tick" style="left:${Math.min(expectedPct,100)}%;"></div>
       </div>
       <div class="stat-grid">
-        <div class="stat-chip"><span class="stat-label">Actual</span><span class="stat-val">${fmt(mm.actual,1)}</span></div>
-        <div class="stat-chip"><span class="stat-label">Goal</span><span class="stat-val">${mm.goalIsZero ? '—' : fmt(mm.goal, mm.goal % 1 === 0 ? 0 : 1)}</span></div>
         <div class="stat-chip"><span class="stat-label">Remaining</span><span class="stat-val">${mm.goalIsZero ? '—' : (remaining <= 0 ? '✓ Met' : fmt(remaining,1))}</span></div>
         <div class="stat-chip"><span class="stat-label">Avg/Day to Goal</span><span class="stat-val">${mm.goalIsZero ? '—' : (remaining <= 0 ? '✓ Met' : fmt(neededPerDay,1))}</span></div>
       </div>
@@ -1112,13 +1153,11 @@ function sipMonthCardHTML(m) {
   const rows = m.reps.map(r => {
     const sp = r.sG > 0 ? (r.sA / r.sG) * 100 : null;
     const mp = r.mG > 0 ? (r.mA / r.mG) * 100 : null;
-    const pt = promoTier(r.pct);
     return `<tr>
       <td>${r.name}</td>
       <td>${fmt(r.sA,1)} / ${fmt(r.sG,1)}${sp !== null ? ` <span style="color:var(--text-faint);">(${fmt(sp,0)}%)</span>` : ''}</td>
       <td>${fmt(r.mA,1)} / ${fmt(r.mG,1)}${mp !== null ? ` <span style="color:var(--text-faint);">(${fmt(mp,0)}%)</span>` : ''}</td>
       <td>${r.pct === null ? '—' : fmt(r.pct,1) + '%'}</td>
-      <td><span class="status-pill small ${pt.cls}">${pt.label}</span></td>
     </tr>`;
   }).join('');
   return `
@@ -1128,7 +1167,7 @@ function sipMonthCardHTML(m) {
     </div>
     <div class="sip-table-wrap">
       <table class="sip-table">
-        <thead><tr><th>Rep</th><th>Sessions</th><th>Members</th><th>Composite</th><th>Tier</th></tr></thead>
+        <thead><tr><th>Rep</th><th>Sessions</th><th>Members</th><th>Composite</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
@@ -1237,6 +1276,194 @@ function renderSipChart(slice, rangeAvg) {
   });
 }
 
+// ---------- Per-rep Historical Performance (Client Detail page) ----------
+// Same raw actual/goal math as the team section, just scoped to one rep's own
+// row within each month's `reps[]` array. Uses different promotion thresholds
+// (115% / 150%) than the team-level 110%/120%, per Aaron's request.
+function repPromoTier(pct) {
+  if (pct === null || pct === undefined || isNaN(pct)) return { cls: 'st-na', label: '—' };
+  if (pct >= 150) return { cls: 'st-gold', label: '🥇 Level 3' };
+  if (pct >= 115) return { cls: 'st-l2', label: '🥈 Level 2' };
+  if (pct >= 100) return { cls: 'st-gradient', label: '🏆 Goal Met' };
+  if (pct >= 80) return { cls: 'st-ontrack', label: 'On Track' };
+  if (pct >= 50) return { cls: 'st-behind', label: 'Behind' };
+  return { cls: 'st-far', label: 'Far Behind' };
+}
+
+// SIP_HISTORY rep names are the "formal" ledger-style names (e.g. "Christopher
+// Jones", "Timothy Carr") rather than the dashboard's nickname display names —
+// match on ROSTER's existing `csv` alias key (already used for ledger matching)
+// rather than the display name.
+function repMonthEntry(m, csvKey) {
+  return m.reps.find(r => r.name.toLowerCase() === csvKey) || null;
+}
+
+function repMonthAttainment(m, csvKey) {
+  const r = repMonthEntry(m, csvKey);
+  if (!r) return { sessionsPct: null, membersPct: null, compositePct: null, sA: 0, sG: 0, mA: 0, mG: 0 };
+  const sessionsPct = r.sG > 0 ? (r.sA / r.sG) * 100 : null;
+  const membersPct = r.mG > 0 ? (r.mA / r.mG) * 100 : null;
+  const parts = [sessionsPct, membersPct].filter(v => v !== null);
+  const compositePct = parts.length ? parts.reduce((s, v) => s + v, 0) / parts.length : null;
+  return { sessionsPct, membersPct, compositePct, sA: r.sA, sG: r.sG, mA: r.mA, mG: r.mG };
+}
+
+function repAggregateMonths(months, csvKey) {
+  let totalSA = 0, totalSG = 0, totalMA = 0, totalMG = 0;
+  months.forEach(m => {
+    const r = repMonthEntry(m, csvKey);
+    if (r) { totalSA += r.sA; totalSG += r.sG; totalMA += r.mA; totalMG += r.mG; }
+  });
+  const sessionsPct = totalSG > 0 ? (totalSA / totalSG) * 100 : null;
+  const membersPct = totalMG > 0 ? (totalMA / totalMG) * 100 : null;
+  const parts = [sessionsPct, membersPct].filter(v => v !== null);
+  const compositePct = parts.length ? parts.reduce((s, v) => s + v, 0) / parts.length : null;
+  return { totalSA, totalSG, totalMA, totalMG, sessionsPct, membersPct, compositePct };
+}
+
+function repSipMonthCardHTML(m, csvKey) {
+  if (!m) return '<div class="meta-note">No data for that month.</div>';
+  const a = repMonthAttainment(m, csvKey);
+  if (a.sG === 0 && a.mG === 0 && a.sA === 0 && a.mA === 0) {
+    return `<div class="meta-note">No data for this rep in ${m.l}.</div>`;
+  }
+  const pt = repPromoTier(a.compositePct);
+  return `
+    <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:10px;">
+      <div style="font-size:13px; color:var(--text-muted);">
+        Sessions ${fmt(a.sA,1)} / ${fmt(a.sG,1)}${a.sessionsPct !== null ? ` (${fmt(a.sessionsPct,0)}%)` : ''} ·
+        Members ${fmt(a.mA,1)} / ${fmt(a.mG,1)}${a.membersPct !== null ? ` (${fmt(a.membersPct,0)}%)` : ''}
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-weight:800; font-size:20px;">${a.compositePct === null ? '—' : fmt(a.compositePct,1) + '%'}</div>
+        <span class="status-pill small ${pt.cls}">${pt.label}</span>
+      </div>
+    </div>`;
+}
+
+function renderRepSipMonth() {
+  const sel = document.getElementById('repSipMonthSelect');
+  if (!sel.value) return;
+  const m = sipMonthObj(sel.value);
+  document.getElementById('repSipMonthSummary').innerHTML = repSipMonthCardHTML(m, currentRepSipCsv);
+}
+
+function renderRepSipRange() {
+  const fromSel = document.getElementById('repSipFromSelect');
+  const toSel = document.getElementById('repSipToSelect');
+  const slice = sipRangeSlice(fromSel.value, toSel.value);
+  const el = document.getElementById('repSipRangeSummary');
+  if (!slice) {
+    el.innerHTML = '<div class="meta-note">"From" must be on or before "To".</div>';
+    renderRepSipChart(null, currentRepSipCsv, null);
+    return;
+  }
+  const att = repAggregateMonths(slice, currentRepSipCsv);
+  const avg = att.compositePct;
+  const pt = repPromoTier(avg);
+  el.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:10px;">
+      <div style="font-size:13px; color:var(--text-muted);">Attainment across ${slice.length} month${slice.length === 1 ? '' : 's'} (${slice[0].l} – ${slice[slice.length-1].l})</div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-weight:800; font-size:20px;">${avg === null ? '—' : fmt(avg,1) + '%'}</div>
+        <span class="status-pill small ${pt.cls}">${pt.label}</span>
+      </div>
+    </div>
+  `;
+  renderRepSipChart(slice, currentRepSipCsv, avg);
+}
+
+let repSipChartInstance = null;
+let currentRepSipCsv = null;
+function renderRepSipChart(slice, csvKey, rangeAvg) {
+  const ctx = document.getElementById('repSipChart');
+  if (!ctx || typeof Chart === 'undefined') return;
+  if (!slice) slice = SIP_HISTORY;
+  const labels = slice.map(m => m.l);
+  const data = slice.map(m => {
+    const a = repMonthAttainment(m, csvKey);
+    return a.compositePct === null ? null : Math.round(a.compositePct * 10) / 10;
+  });
+  if (repSipChartInstance) repSipChartInstance.destroy();
+  repSipChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Composite attainment %',
+        data,
+        borderColor: '#7c3aed',
+        backgroundColor: 'rgba(124,58,237,0.12)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+        pointBackgroundColor: '#7c3aed',
+        spanGaps: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { maxRotation: 60, minRotation: 60, font: { size: 9 } } },
+        y: { title: { display: true, text: 'Attainment %' } }
+      }
+    },
+    plugins: [{
+      id: 'refLinesRep',
+      afterDraw(chart) {
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea) return;
+        const lines = [[115, '#7c3aed', 'L2 · 115%', [5, 4]], [150, '#f59e0b', 'L3 · 150%', [5, 4]]];
+        if (rangeAvg !== null && rangeAvg !== undefined) {
+          lines.push([rangeAvg, '#dc2626', `Range avg · ${fmt(rangeAvg,1)}%`, [2, 3]]);
+        }
+        lines.forEach(([val, color, label, dash]) => {
+          const y = scales.y.getPixelForValue(val);
+          if (y < chartArea.top || y > chartArea.bottom) return;
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.setLineDash(dash);
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(chartArea.left, y);
+          ctx.lineTo(chartArea.right, y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = color;
+          ctx.font = '10px sans-serif';
+          ctx.fillText(label, chartArea.right - 70, y - 4);
+          ctx.restore();
+        });
+      }
+    }]
+  });
+}
+
+// Re-populates the month/range dropdowns and re-renders for whichever rep's
+// Client Detail page is currently open. Change listeners are wired ONCE, below,
+// and just read the live `currentRepSipCsv` each time they fire.
+function initRepSip(repDisplay) {
+  const rosterEntry = ROSTER.find(r => r.display === repDisplay);
+  currentRepSipCsv = rosterEntry ? rosterEntry.csv : String(repDisplay || '').toLowerCase();
+  const monthSel = document.getElementById('repSipMonthSelect');
+  const fromSel = document.getElementById('repSipFromSelect');
+  const toSel = document.getElementById('repSipToSelect');
+  const opts = SIP_HISTORY.map(m => `<option value="${m.k}">${m.l}</option>`).join('');
+  monthSel.innerHTML = opts;
+  fromSel.innerHTML = opts;
+  toSel.innerHTML = opts;
+  monthSel.value = SIP_HISTORY[SIP_HISTORY.length - 1].k;
+  fromSel.value = SIP_HISTORY[0].k;
+  toSel.value = SIP_HISTORY[SIP_HISTORY.length - 1].k;
+  renderRepSipMonth();
+  renderRepSipRange();
+}
+document.getElementById('repSipMonthSelect').addEventListener('change', renderRepSipMonth);
+document.getElementById('repSipFromSelect').addEventListener('change', renderRepSipRange);
+document.getElementById('repSipToSelect').addEventListener('change', renderRepSipRange);
+
 function initSip() {
   const monthSel = document.getElementById('sipMonthSelect');
   const fromSel = document.getElementById('sipFromSelect');
@@ -1265,9 +1492,32 @@ function setupToggle(toggleId, bodyId, label) {
     toggle.textContent = (open ? '▾ ' : '▸ ') + label;
   });
 }
-setupToggle('toggleGoals', 'goalsBody', 'Edit monthly goals');
 setupToggle('toggleData', 'dataBody', 'Update actuals from ledger export');
-setupToggle('toggleSip', 'sipBody', 'Historical Performance (SIP)');
+
+// ---------- Admin-only (eventually) footer pages: Edit Goals / Historical SIP ----------
+// Not actually access-restricted yet — everyone can reach these until real company
+// sign-in is live, per Aaron's request. When that's ready, gate these two hash
+// routes (and hide the footer buttons) behind an isAdmin check.
+function renderGoalsOverlay() {
+  const overlay = document.getElementById('goalsOverlay');
+  if (location.hash === '#edit-goals') { overlay.classList.add('open'); window.scrollTo(0, 0); }
+  else overlay.classList.remove('open');
+}
+function renderSipOverlay() {
+  const overlay = document.getElementById('sipOverlay');
+  if (location.hash === '#historical-sip') { overlay.classList.add('open'); window.scrollTo(0, 0); }
+  else overlay.classList.remove('open');
+}
+window.addEventListener('hashchange', renderGoalsOverlay);
+window.addEventListener('hashchange', renderSipOverlay);
+document.getElementById('footerGoalsBtn').addEventListener('click', () => { location.hash = 'edit-goals'; });
+document.getElementById('footerSipBtn').addEventListener('click', () => { location.hash = 'historical-sip'; });
+document.getElementById('goalsBackBtn').addEventListener('click', () => {
+  if (location.hash) history.back(); else document.getElementById('goalsOverlay').classList.remove('open');
+});
+document.getElementById('sipBackBtn').addEventListener('click', () => {
+  if (location.hash) history.back(); else document.getElementById('sipOverlay').classList.remove('open');
+});
 
 // ---------- Per-rep Client Detail drill-down page ----------
 // Hash-routed (#client-detail=<rep name>) so it behaves like navigating to its own
@@ -1324,6 +1574,9 @@ function renderClientDetail() {
     document.getElementById('detailAttrBody').innerHTML = attributions.length ? attributions.map(detailRowHTML).join('') : detailEmptyRowHTML('No attributions');
     document.getElementById('detailRefundBody').innerHTML = refunds.length ? refunds.map(detailRowHTML).join('') : detailEmptyRowHTML('No refunds 🎉');
   }
+  // Historical Performance is sourced from SIP_HISTORY (separate from the ledger
+  // paste above), so it renders regardless of whether client line items exist yet.
+  initRepSip(repName);
   window.scrollTo(0, 0);
 }
 window.addEventListener('hashchange', renderClientDetail);
@@ -1491,12 +1744,21 @@ document.getElementById('submitAttribution').addEventListener('click', async () 
   }
 });
 
+// TEMPORARY: force the request form visible even without a real signed-in user,
+// since Netlify Identity/Google sign-in isn't live yet and Aaron wants to be able
+// to see and click through the Manual Attribution UI in the meantime. Submitting
+// will still fail server-side with "Not signed in" until real auth exists — this
+// only unlocks the VIEW, not actual submission. Remove TEMP_SHOW_ATTRIBUTION_FORM
+// (and the `|| TEMP_SHOW_ATTRIBUTION_FORM` below) once sign-in actually works.
+const TEMP_SHOW_ATTRIBUTION_FORM = true;
+
 function updateIdentityUI(user) {
   document.querySelectorAll('.identity-btn').forEach((btn) => {
     btn.textContent = user ? ('👤 ' + user.email + ' · Sign out') : '🔐 Sign in';
   });
-  document.getElementById('attributionSignedOutNote').style.display = user ? 'none' : '';
-  document.getElementById('attributionSignedInArea').style.display = user ? '' : 'none';
+  const showForm = TEMP_SHOW_ATTRIBUTION_FORM || !!user;
+  document.getElementById('attributionSignedOutNote').style.display = showForm ? 'none' : '';
+  document.getElementById('attributionSignedInArea').style.display = showForm ? '' : 'none';
 }
 
 function wireIdentityButton(btn) {
@@ -1514,6 +1776,10 @@ if (window.netlifyIdentity) {
   netlifyIdentity.init();
 }
 document.querySelectorAll('.identity-btn').forEach(wireIdentityButton);
+// Run once immediately on load too (not just on netlifyIdentity events) so the
+// TEMP_SHOW_ATTRIBUTION_FORM override takes effect even where the Identity widget
+// never loads at all (e.g. this Cowork preview, blocked by CSP).
+updateIdentityUI(window.netlifyIdentity ? netlifyIdentity.currentUser() : null);
 
 async function boot() {
   APPROVED_TOTALS = await fetchApprovedTotals();
