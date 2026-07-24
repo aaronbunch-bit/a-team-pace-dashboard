@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f6f5fb;
+    --text: #1a1a2e;
+    --text-muted: #6b6b80;
+    --text-faint: #9a97ad;
+    --card-bg: #ffffff;
+    --card-border: #f0eef9;
+    --pill-border: #ece9f7;
+    --track-bg: #eeecf7;
+    --metric-box-bg: #fafaff;
+    --divider: #f0eef9;
+    --shadow: rgba(90,70,160,0.08);
+  }
+  body.dark {
+    --bg: #131120;
+    --text: #f1eefb;
+    --text-muted: #a9a5c4;
+    --text-faint: #86819f;
+    --card-bg: #1e1b30;
+    --card-border: #2c2844;
+    --pill-border: #322e4a;
+    --track-bg: #2a2640;
+    --metric-box-bg: #1a1729;
+    --divider: #2c2844;
+    --shadow: rgba(0,0,0,0.45);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 28px;
+    transition: background 0.25s ease, color 0.25s ease;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+
+  .top-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .grad-text {
+    background: linear-gradient(90deg, #f472b6, #a855f7 45%, #6366f1 75%, #38bdf8);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  h1 { font-size: 30px; margin: 0 0 2px 0; font-weight: 800; letter-spacing: -0.02em; }
+  h2 { font-size: 15px; margin: 0 0 10px 0; font-weight: 700; }
+  .subtitle { color: var(--text-muted); font-size: 13px; margin-bottom: 18px; }
+
+  .theme-btn {
+    background: var(--card-bg); color: var(--text); border: 1px solid var(--pill-border);
+    border-radius: 999px; padding: 8px 14px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 1px 2px var(--shadow); flex: none; margin-top: 2px;
+  }
+  .theme-btn:hover { opacity: 0.85; }
+  .btn-group { display: flex; gap: 8px; flex: none; }
+
+  .mini-bar-track { overflow: hidden; }
+
+  .pill-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--card-bg); border: 1px solid var(--pill-border); border-radius: 999px;
+    padding: 6px 14px; font-size: 12.5px; font-weight: 600; color: var(--text-muted);
+    box-shadow: 0 1px 2px var(--shadow);
+  }
+  .pill b { color: var(--text); font-weight: 800; }
+
+  .card {
+    background: var(--card-bg); border-radius: 18px; padding: 18px 20px;
+    box-shadow: 0 2px 14px var(--shadow); border: 1px solid var(--card-border);
+    margin-bottom: 14px;
+  }
+  .team-card {
+    border: 1.5px solid transparent;
+    background:
+      linear-gradient(var(--card-bg), var(--card-bg)) padding-box,
+      linear-gradient(120deg, #f472b6, #a855f7, #6366f1, #38bdf8) border-box;
+  }
+
+  .rep-header { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 800; font-size: 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  }
+  .rep-meta { flex: 1; min-width: 0; }
+  .rep-name-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .metric-pill-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+  .rep-name { font-weight: 700; font-size: 14.5px; }
+  .rep-tag { font-size: 10.5px; color: var(--text-faint); font-weight: 600; background: var(--metric-box-bg); padding: 1px 8px; border-radius: 999px; }
+
+  .bar-track {
+    position: relative; height: 12px; background: var(--track-bg); border-radius: 999px;
+    margin-top: 8px; overflow: hidden;
+  }
+  .bar-fill {
+    position: absolute; top: 0; left: 0; height: 100%; border-radius: 999px;
+    width: 0%; transition: width 1s cubic-bezier(.16,.9,.28,1);
+  }
+  .bar-tick {
+    position: absolute; top: -3px; width: 2px; height: 18px; background: var(--text); opacity: 0.35;
+  }
+  .composite-num { font-weight: 800; font-size: 18px; min-width: 62px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .status-pill {
+    display: inline-block; font-size: 10.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+    color: white; white-space: nowrap;
+  }
+  .st-ahead { background: linear-gradient(90deg,#22c55e,#16a34a); }
+  .st-ontrack { background: linear-gradient(90deg,#60a5fa,#6366f1); }
+  .st-behind { background: linear-gradient(90deg,#fb923c,#f97316); }
+  .st-far { background: linear-gradient(90deg,#f87171,#dc2626); }
+  .st-na { background: #c7c5d6; }
+  .st-gradient { background: linear-gradient(90deg, #f472b6, #a855f7 35%, #6366f1 65%, #38bdf8); }
+  .st-l2 { background: linear-gradient(90deg,#a78bfa,#7c3aed); }
+  .st-gold { background: linear-gradient(90deg,#fbbf24,#f59e0b); }
+
+  .sip-table-wrap { max-height: 340px; overflow-y: auto; }
+  .sip-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .sip-table th { text-align: center; color: var(--text-faint); font-size: 10px; text-transform: uppercase; padding: 4px 6px; position: sticky; top: 0; background: var(--card-bg); }
+  .sip-table th:first-child { text-align: left; }
+  .sip-table td { text-align: center; padding: 5px 6px; border-top: 1px solid var(--divider); }
+  .sip-table td:first-child { text-align: left; font-weight: 600; }
+  .sip-select { padding: 6px 10px; border: 1px solid var(--card-border); border-radius: 8px; font-size: 13px; background: var(--card-bg); color: var(--text); }
+
+  @keyframes shimmerMove { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+  .bar-shimmer { background-size: 200% 100% !important; animation: shimmerMove 2.5s linear infinite; }
+
+  .legend-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; font-size: 11.5px; color: var(--text-muted); }
+  .legend-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+
+  .chevron { transition: transform 0.25s ease; color: var(--text-faint); font-size: 12px; flex: none; }
+  .chevron.open { transform: rotate(90deg); }
+
+  .details-wrapper { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.3s ease; }
+  .details-wrapper.open { grid-template-rows: 1fr; }
+  .details-inner { overflow: hidden; }
+  .details-content { padding-top: 14px; margin-top: 12px; border-top: 1px solid var(--divider); }
+
+  .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .metric-box { background: var(--metric-box-bg); border-radius: 14px; padding: 14px 16px; border: 1px solid var(--card-border); }
+  .metric-box-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .metric-box-head .m-label { font-size: 11px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.04em; }
+  .status-pill.small { font-size: 9.5px; padding: 2px 8px; }
+  .metric-hero { text-align: center; margin-bottom: 10px; }
+  .metric-hero-num { display: block; font-size: 28px; font-weight: 800; line-height: 1.1; }
+  .metric-hero-sub { display: block; font-size: 10.5px; color: var(--text-faint); margin-top: 3px; }
+  .mini-bar-track { position: relative; height: 8px; background: var(--track-bg); border-radius: 999px; margin: 0 0 12px 0; }
+  .mini-bar-fill { position: absolute; top:0; left:0; height:100%; border-radius:999px; width:0%; transition: width 1s cubic-bezier(.16,.9,.28,1); }
+  .mini-bar-tick { position: absolute; top: -2px; width: 2px; height: 12px; background: var(--text); opacity: 0.3; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .stat-chip { background: var(--card-bg); border: 1px solid var(--pill-border); border-radius: 10px; padding: 6px 4px; text-align: center; }
+  .stat-chip .stat-label { display: block; font-size: 9px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em; }
+  .stat-chip .stat-val { display: block; font-size: 13px; font-weight: 700; margin-top: 2px; color: var(--text); }
+
+  .sub-toggle {
+    cursor: pointer; user-select: none; font-size: 11.5px; font-weight: 700; color: var(--text-muted);
+    margin: 4px 0 0 0; display: flex; align-items: center; gap: 5px;
+  }
+  .sub-toggle .chevron { font-size: 10px; }
+
+  .section-toggle {
+    cursor: pointer; user-select: none; font-size: 13px; font-weight: 700; color: var(--text-muted);
+    margin: 22px 0 10px 0; display: flex; align-items: center; gap: 6px;
+  }
+  .section-body { display: none; }
+  .section-body.open { display: block; }
+  textarea { width: 100%; height: 130px; font-family: ui-monospace, monospace; font-size: 11px; padding: 8px; border: 1px solid var(--card-border); border-radius: 10px; background: var(--metric-box-bg); color: var(--text); }
+  button {
+    background: linear-gradient(90deg,#a855f7,#6366f1); color: white; border: none;
+    padding: 9px 18px; border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer; margin-top: 10px;
+  }
+  button.secondary { background: var(--metric-box-bg); color: var(--text-muted); }
+  button:hover { opacity: 0.88; }
+  .goal-grid { display: grid; grid-template-columns: 1.3fr 0.9fr 0.9fr 1.1fr; gap: 8px; align-items: center; margin-bottom: 6px; font-size: 13px; }
+  .goal-grid input { width: 100%; padding: 6px 9px; border: 1px solid var(--card-border); border-radius: 8px; font-size: 13px; background: var(--card-bg); color: var(--text); }
+  .goal-grid.header { font-weight: 700; color: var(--text-faint); font-size: 11px; text-transform: uppercase; }
+  .meta-note { font-size: 11.5px; color: var(--text-faint); margin-top: 8px; line-height: 1.5; }
+
+  .attribution-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .attribution-form-grid label, #attributionSignedInArea > .card > label {
+    display: flex; flex-direction: column; gap: 5px; font-size: 11px; font-weight: 700;
+    color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .attribution-form-grid input, #attributionSignedInArea input, #attributionSignedInArea textarea {
+    font-size: 13px; font-weight: 400; text-transform: none; letter-spacing: normal; color: var(--text);
+    padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 8px; background: var(--card-bg);
+    font-family: inherit;
+  }
+  .status-pill.st-pending { background: var(--metric-box-bg); color: var(--text-muted); border: 1px solid var(--card-border); }
+  .status-pill.st-approved { background: linear-gradient(90deg,#22c55e,#16a34a); }
+  .status-pill.st-rejected { background: linear-gradient(90deg,#f87171,#dc2626); }
+  .approve-btn, .reject-btn { padding: 5px 12px; font-size: 11px; margin-top: 0; }
+  .reject-btn { background: var(--metric-box-bg); color: #dc2626; }
+
+  .client-detail-btn {
+    display: block; width: 100%; margin-top: 16px;
+    background: var(--metric-box-bg); color: var(--text); border: 1px solid var(--card-border);
+  }
+  .client-detail-btn:hover { opacity: 1; border-color: #a855f7; color: #a855f7; }
+
+  .detail-overlay {
+    display: none; position: fixed; inset: 0; z-index: 50; background: var(--bg); overflow-y: auto;
+  }
+  .detail-overlay.open { display: block; }
+  .detail-page { max-width: 1080px; margin: 0 auto; padding: 32px 20px 60px; }
+  .detail-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .detail-header h2 { font-size: 19px; margin: 0; }
+  .detail-summary { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+
+  .detail-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .detail-stat {
+    background: var(--metric-box-bg); border: 1px solid var(--card-border); border-radius: 14px;
+    padding: 14px 16px; text-align: center;
+  }
+  .detail-stat-label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); margin-bottom: 6px; }
+  .detail-stat-val { display: block; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .detail-stat-val.positive { background: linear-gradient(90deg,#22c55e,#16a34a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .detail-stat-val.negative { color: #dc2626; }
+
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 760px) { .detail-grid { grid-template-columns: 1fr; } }
+  .detail-panel { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 18px; padding: 18px 20px; box-shadow: 0 1px 3px var(--shadow); }
+  .detail-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .detail-panel-title { font-size: 13.5px; font-weight: 800; }
+  .detail-panel-count { font-size: 10.5px; font-weight: 700; color: var(--text-faint); background: var(--metric-box-bg); padding: 3px 11px; border-radius: 999px; }
+  .detail-panel-refund .detail-panel-title { color: #dc2626; }
+  .detail-table-wrap { max-height: 460px; }
+  .detail-table td:nth-child(2), .detail-table td:nth-child(3) { font-variant-numeric: tabular-nums; font-weight: 700; }
+  .detail-panel:not(.detail-panel-refund) .detail-table td:nth-child(2),
+  .detail-panel:not(.detail-panel-refund) .detail-table td:nth-child(3) { color: #16a34a; }
+  .detail-panel-refund .detail-table td:nth-child(2),
+  .detail-panel-refund .detail-table td:nth-child(3) { color: #dc2626; }
+  .detail-table tr:hover { background: var(--metric-box-bg); }
+  .date-chip { display: inline-block; background: var(--metric-box-bg); color: var(--text-muted); font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-row">
+    <div>
+      <h1><span class="grad-text">A-Team</span> Pace to Monthly Goal</h1>
+      <div class="subtitle">Composite score = average of Members and Sessions pacing %. Colors reflect where each metric is projected to land by month end at the current rate.</div>
+    </div>
+    <div class="btn-group">
+      <button class="theme-btn" id="identityBtn" type="button">🔐 Sign in</button>
+      <button class="theme-btn" id="themeToggle" type="button">🌙 Dark</button>
+    </div>
+  </div>
+
+  <div class="pill-row" id="banner"></div>
+  <div class="legend-row">
+    <span><span class="legend-dot" style="background:linear-gradient(90deg,#f472b6,#6366f1);"></span>Goal met or on pace for 100%+</span>
+    <span><span class="legend-dot" style="background:#6366f1;"></span>Projected 80–100%</span>
+    <span><span class="legend-dot" style="background:#f97316;"></span>Projected 50–80%</span>
+    <span><span class="legend-dot" style="background:#dc2626;"></span>Projected under 50%</span>
+  </div>
+
+  <div class="card team-card" id="teamCard"></div>
+
+  <div id="repList"></div>
+
+  <div class="section-toggle" id="toggleGoals">▸ Edit monthly goals</div>
+  <div class="section-body" id="goalsBody">
+    <div class="card">
+      <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Goal tag (optional)</div></div>
+      <div id="goalsForm"></div>
+      <button id="saveGoals">Save goals</button>
+      <div class="meta-note">Goals persist on this device. Update at the start of each month.</div>
+    </div>
+  </div>
+
+  <div class="section-toggle" id="toggleData">▸ Update actuals from ledger export</div>
+  <div class="section-body" id="dataBody">
+    <div class="card">
+      <div class="meta-note" style="margin-top:0;">Paste the full contents of your ledger CSV export below (including the header row), then click Update. (Once the Supabase connector is live, this can pull automatically instead.)</div>
+      <textarea id="csvInput" placeholder="Paste ledger CSV here..."></textarea>
+      <button id="updateActuals">Update actuals</button>
+      <div class="meta-note" id="updateStatus"></div>
+    </div>
+  </div>
+
+  <div class="section-toggle" id="toggleAttribution">▸ Request Manual Attribution</div>
+  <div class="section-body" id="attributionBody">
+    <div class="card" id="attributionSignedOutNote">
+      <div class="meta-note" style="margin-top:0;">Sign in with your company Google account (top right) to request credit for a sale the system didn't auto-attribute to you.</div>
+    </div>
+    <div id="attributionSignedInArea" style="display:none;">
+      <div class="card">
+        <h2>New request</h2>
+        <div class="attribution-form-grid">
+          <label>Client ID<input type="text" id="attrClientId" placeholder="e.g. 8563249"></label>
+          <label>Members sold<input type="number" step="0.01" id="attrMembers" value="0"></label>
+          <label>Sessions sold<input type="number" step="0.01" id="attrSessions" value="0"></label>
+          <label>Sale date<input type="date" id="attrDate"></label>
+        </div>
+        <label style="display:block; margin-top:10px;">Reason it wasn't auto-attributed
+          <textarea id="attrReason" style="height:70px;" placeholder="Briefly explain what happened..."></textarea>
+        </label>
+        <button id="submitAttribution">Submit request</button>
+        <div class="meta-note" id="attrSubmitStatus"></div>
+      </div>
+      <div class="card">
+        <h2>My requests</h2>
+        <div class="sip-table-wrap">
+          <table class="sip-table">
+            <thead><tr><th>Client ID</th><th>Members</th><th>Sessions</th><th>Sale Date</th><th>Status</th></tr></thead>
+            <tbody id="myAttributionsBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card" id="adminApprovalsCard" style="display:none;">
+        <h2>Pending approvals (all reps)</h2>
+        <div class="sip-table-wrap">
+          <table class="sip-table">
+            <thead><tr><th>Rep</th><th>Client ID</th><th>Members</th><th>Sessions</th><th>Sale Date</th><th>Reason</th><th>Action</th></tr></thead>
+            <tbody id="pendingApprovalsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-toggle" id="toggleSip">▸ Historical Performance (SIP)</div>
+  <div class="section-body" id="sipBody">
+    <div class="card">
+      <h2>Select a month</h2>
+      <select class="sip-select" id="sipMonthSelect"></select>
+      <div id="sipMonthSummary" style="margin-top:14px;"></div>
+    </div>
+    <div class="card">
+      <h2>Date range average</h2>
+      <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:12.5px; color:var(--text-muted);">
+        <label>From <select class="sip-select" id="sipFromSelect"></select></label>
+        <label>To <select class="sip-select" id="sipToSelect"></select></label>
+      </div>
+      <div id="sipRangeSummary" style="margin-top:14px;"></div>
+    </div>
+    <div class="card">
+      <h2>Month-over-month team attainment</h2>
+      <div style="height:280px;"><canvas id="sipChart"></canvas></div>
+      <div class="meta-note">Chart reflects the date range selected above. Dashed purple/gold lines mark 110% (Level 2) and 120% (Level 3) promotion thresholds; the dotted red line marks the selected range's average. All figures are raw sessions + members totals, not an average of monthly averages. Nov 2024 and the current Live month are excluded — Nov 2024's tab is a stale duplicate of Live in the source sheet.</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="detail-overlay" id="clientDetailOverlay">
+  <div class="detail-page">
+    <div class="detail-header">
+      <button class="theme-btn" id="detailBackBtn" type="button">← Back to dashboard</button>
+      <h2 id="detailRepName"></h2>
+    </div>
+    <div class="detail-summary" id="detailSummary"></div>
+    <div id="detailContent">
+      <div class="detail-stats" id="detailStats"></div>
+      <div class="detail-grid">
+        <div class="detail-panel">
+          <div class="detail-panel-head">
+            <span class="detail-panel-title">✅ Attributions</span>
+            <span class="detail-panel-count" id="detailAttrCount"></span>
+          </div>
+          <div class="sip-table-wrap detail-table-wrap">
+            <table class="sip-table detail-table">
+              <thead><tr><th>Client ID</th><th>Members</th><th>Sessions</th><th>Date</th></tr></thead>
+              <tbody id="detailAttrBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="detail-panel detail-panel-refund">
+          <div class="detail-panel-head">
+            <span class="detail-panel-title">↩️ Refunds</span>
+            <span class="detail-panel-count" id="detailRefundCount"></span>
+          </div>
+          <div class="sip-table-wrap detail-table-wrap">
+            <table class="sip-table detail-table">
+              <thead><tr><th>Client ID</th><th>Members</th><th>Sessions</th><th>Date</th></tr></thead>
+              <tbody id="detailRefundBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<!-- Netlify Identity only works when this file is actually served from the Netlify site
+     (it calls that site's own /.netlify/identity/* endpoints) — it will not function inside
+     a Cowork/chat preview of this artifact. Requires Identity to be enabled, with Google as
+     the external provider and sign-up restricted to the company domain, in the Netlify
+     dashboard under Site settings > Identity. -->
+<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+<script>
+const GOALS_KEY = 'pace_dashboard_goals_v3';
+const ACTUALS_KEY = 'pace_dashboard_actuals_v3';
+const THEME_KEY = 'pace_dashboard_theme_v1';
+
+const ROSTER = [
+  { display: 'Becky Ruffer', csv: 'becky ruffer' },
+  { display: 'Brenda Wong', csv: 'brenda wong' },
+  { display: 'Chris Jones', csv: 'christopher jones' },
+  { display: 'David Valverde', csv: 'david valverde' },
+  { display: 'Del Ali', csv: 'del ali' },
+  { display: 'Domenica Sorrentino', csv: 'domenica sorrentino' },
+  { display: 'Jenna Salupo', csv: 'jenna salupo' },
+  { display: 'Liz Weiss', csv: 'liz weiss' },
+  { display: 'Tim Carr', csv: 'timothy carr' },
+];
+
+const AVATAR_GRADIENTS = [
+  'linear-gradient(135deg,#f472b6,#a855f7)',
+  'linear-gradient(135deg,#818cf8,#38bdf8)',
+  'linear-gradient(135deg,#34d399,#0ea5e9)',
+  'linear-gradient(135deg,#fb923c,#f472b6)',
+  'linear-gradient(135deg,#a78bfa,#6366f1)',
+  'linear-gradient(135deg,#38bdf8,#22c55e)',
+];
+
+const DEFAULT_GOALS = {
+  'Becky Ruffer': { sessions: 276, members: 51, tag: 'HS-100 (LC4)' },
+  'Brenda Wong': { sessions: 276, members: 51, tag: 'HS-100 (LC4)' },
+  'Chris Jones': { sessions: 276, members: 51, tag: 'HS-100 (LC4)' },
+  'David Valverde': { sessions: 276, members: 51, tag: 'HS-100 (LC4)' },
+  'Del Ali': { sessions: 276, members: 51, tag: 'HS-100 (LC4)' },
+  'Domenica Sorrentino': { sessions: 138, members: 26, tag: 'HS-50 (LC4)' },
+  'Jenna Salupo': { sessions: 207, members: 39, tag: 'HS-75 (LC4, PTO)' },
+  'Liz Weiss': { sessions: 69, members: 13, tag: 'HS-25 (LC4, SC)' },
+  'Tim Carr': { sessions: 276, members: 51, tag: 'HS-100 (LC4)' },
+};
+
+// Seeded from the ledger export Aaron uploaded on 2026-07-22, so the dashboard
+// isn't empty on first load. Replace by pasting a fresh export any time.
+// membersCancels / sessionsCancels are the sum of NEGATIVE-only line items (attrition),
+// already netted into members/sessions above.
+const DEFAULT_ACTUALS = {
+  asOf: '2026-07-22',
+  perRep: {
+    'Liz Weiss': { members: 17.00, sessions: 116.00, membersCancels: -2.00, sessionsCancels: -12.00 },
+    'David Valverde': { members: 22.00, sessions: 142.00, membersCancels: -4.00, sessionsCancels: -32.00 },
+    'Tim Carr': { members: 32.50, sessions: 200.00, membersCancels: 0, sessionsCancels: 0 },
+    'Chris Jones': { members: 45.00, sessions: 300.00, membersCancels: -8.50, sessionsCancels: -56.00 },
+    'Del Ali': { members: 43.00, sessions: 266.00, membersCancels: -4.50, sessionsCancels: -28.00 },
+    'Jenna Salupo': { members: 18.50, sessions: 142.00, membersCancels: -6.00, sessionsCancels: -30.00 },
+    'Brenda Wong': { members: 47.00, sessions: 287.33, membersCancels: -5.00, sessionsCancels: -28.00 },
+    'Becky Ruffer': { members: 40.50, sessions: 298.00, membersCancels: -4.00, sessionsCancels: -32.00 },
+    'Domenica Sorrentino': { members: 14.50, sessions: 114.00, membersCancels: -2.50, sessionsCancels: -24.00 },
+  }
+};
+
+// Historical monthly SIP data pulled from Aaron's "SIP Calculations" Google Sheet
+// (March 2024 - June 2026). Each month's roster is whatever was actually on the
+// team that month (segments varied over time), not filtered to the current 9.
+// Excludes 2024-03/2024-05 (blank template sheets), 2024-11 (confirmed to be a
+// stale duplicate of the Live tab), and Live/2026-07 (current in-progress month).
+// k=monthKey, l=label, avg=team avg composite %, n=reps counted in avg,
+// reps[].sA/sG/mA/mG = sessions/members actual/goal, pct = that rep's composite %.
+const SIP_HISTORY = [{"k":"2024-04","l":"April 2024","avg":124.2626,"n":15,"reps":[{"name":"Abigail Gonzales","sA":99.7,"sG":175.0,"mA":25.0,"mG":30.0,"pct":70.1524},{"name":"Amanda Bennett","sA":183.4,"sG":191.0,"mA":44.0,"mG":27.0,"pct":129.492},{"name":"Angela Mattina","sA":139.2,"sG":175.0,"mA":40.0,"mG":30.0,"pct":106.4381},{"name":"Autumn Klesch","sA":207.0,"sG":254.0,"mA":42.0,"mG":36.0,"pct":99.0814},{"name":"Belinda Macias","sA":98.1,"sG":175.0,"mA":37.0,"mG":30.0,"pct":89.6952},{"name":"Devon Roesener","sA":86.2,"sG":88.0,"mA":39.0,"mG":15.0,"pct":178.9773},{"name":"Italia Giordano","sA":106.7,"sG":175.0,"mA":24.0,"mG":30.0,"pct":70.4857},{"name":"Jason Hamor","sA":271.5,"sG":175.0,"mA":63.0,"mG":30.0,"pct":182.5714},{"name":"Jeimi Baird","sA":93.8,"sG":175.0,"mA":27.0,"mG":30.0,"pct":71.8},{"name":"Joseph Perry","sA":249.9,"sG":175.0,"mA":48.0,"mG":30.0,"pct":151.4},{"name":"Liza Ford","sA":418.1,"sG":304.0,"mA":74.0,"mG":63.0,"pct":127.4966},{"name":"Natalia Dughbaj","sA":157.7,"sG":175.0,"mA":55.0,"mG":30.0,"pct":136.7238},{"name":"Sandra McIntyre","sA":291.9,"sG":175.0,"mA":65.0,"mG":30.0,"pct":191.7333},{"name":"Tiffany Pellegrini","sA":331.5,"sG":304.0,"mA":56.0,"mG":63.0,"pct":98.9675},{"name":"William Stewart","sA":217.9,"sG":175.0,"mA":58.0,"mG":30.0,"pct":158.9238}]},{"k":"2024-06","l":"June 2024","avg":93.1486,"n":10,"reps":[{"name":"Ashley Curtis","sA":204.5,"sG":187.0,"mA":25.0,"mG":28.0,"pct":99.322},{"name":"Brenda Wong","sA":295.3,"sG":125.0,"mA":54.0,"mG":19.0,"pct":260.2253},{"name":"Brittney Perry","sA":206.6,"sG":346.0,"mA":26.0,"mG":53.0,"pct":54.3838},{"name":"Evan Jones","sA":169.9,"sG":125.0,"mA":30.0,"mG":19.0,"pct":146.9074},{"name":"Kayla Lathan","sA":37.3,"sG":249.0,"mA":7.0,"mG":38.0,"pct":16.7005},{"name":"Marc Labarraque","sA":75.1,"sG":249.0,"mA":16.0,"mG":38.0,"pct":36.133},{"name":"Megan Stump","sA":70.1,"sG":249.0,"mA":11.0,"mG":38.0,"pct":28.55},{"name":"Nena Charlot","sA":377.2,"sG":346.0,"mA":45.0,"mG":53.0,"pct":96.9615},{"name":"Rahel Araya","sA":280.3,"sG":249.0,"mA":57.0,"mG":38.0,"pct":131.2851},{"name":"Rebekah Baker","sA":133.5,"sG":249.0,"mA":26.0,"mG":38.0,"pct":61.0178},{"name":"Terecita Gil","sA":-29.7,"sG":0.0,"mA":-8.0,"mG":0.0,"pct":null}]},{"k":"2024-07","l":"July 2024","avg":127.9567,"n":14,"reps":[{"name":"Adrienne Francowic","sA":371.2,"sG":96.0,"mA":56.0,"mG":18.0,"pct":348.8889},{"name":"Rebekah Baker","sA":76.2,"sG":29.0,"mA":12.0,"mG":6.0,"pct":231.3793},{"name":"Kurt Stein","sA":198.9,"sG":96.0,"mA":40.0,"mG":18.0,"pct":214.7049},{"name":"Kiara McInnis","sA":153.3,"sG":96.0,"mA":32.0,"mG":18.0,"pct":168.7326},{"name":"Evan Jones","sA":228.2,"sG":144.0,"mA":34.0,"mG":27.0,"pct":142.1991},{"name":"Brenda Wong","sA":141.5,"sG":96.0,"mA":27.0,"mG":18.0,"pct":148.6979},{"name":"Ashley Curtis","sA":393.0,"sG":393.0,"mA":65.0,"mG":65.0,"pct":100.0},{"name":"Brittney Perry","sA":520.0,"sG":520.0,"mA":86.0,"mG":86.0,"pct":100.0},{"name":"Marc Labarraque","sA":520.0,"sG":520.0,"mA":86.0,"mG":86.0,"pct":100.0},{"name":"Nena Charlot","sA":520.0,"sG":520.0,"mA":86.0,"mG":86.0,"pct":100.0},{"name":"Rahel Araya","sA":149.4,"sG":181.0,"mA":20.0,"mG":34.0,"pct":70.6825},{"name":"Asher Bryan","sA":68.5,"sG":142.0,"mA":8.0,"mG":29.0,"pct":37.9128},{"name":"Kayla Lathan","sA":54.2,"sG":181.0,"mA":8.0,"mG":34.0,"pct":26.7371},{"name":"Megan Stump","sA":4.2,"sG":144.0,"mA":0.0,"mG":27.0,"pct":1.4583},{"name":"Terecita Gil","sA":0.0,"sG":0.0,"mA":0.0,"mG":0.0,"pct":null}]},{"k":"2024-08","l":"August 2024","avg":79.177,"n":12,"reps":[{"name":"Asher Bryan","sA":50.2,"sG":0.0,"mA":3.0,"mG":0.0,"pct":null},{"name":"Evan Jones","sA":195.0,"sG":188.4375,"mA":37.0,"mG":33.0,"pct":107.8019},{"name":"Kayla Lathan","sA":400.0,"sG":400.0,"mA":68.0,"mG":68.0,"pct":100.0},{"name":"Kiara McInnis","sA":-10.0,"sG":133.0,"mA":-6.0,"mG":23.0,"pct":-16.8029},{"name":"Kurt Stein","sA":294.5,"sG":201.0,"mA":48.0,"mG":35.0,"pct":141.8301},{"name":"Rahel Araya","sA":318.9,"sG":267.0,"mA":52.0,"mG":46.0,"pct":116.2408},{"name":"Rhonda Bunce","sA":271.8,"sG":254.8636,"mA":44.0,"mG":44.0,"pct":103.3226},{"name":"Alexa Neretich","sA":41.2,"sG":267.0,"mA":12.0,"mG":46.0,"pct":20.7588},{"name":"Tiffany Kent","sA":125.6,"sG":267.0,"mA":26.0,"mG":46.0,"pct":51.7815},{"name":"Daniella Smook","sA":137.8,"sG":133.0,"mA":31.0,"mG":23.0,"pct":119.1958},{"name":"Sade Stansbury","sA":51.6,"sG":133.0,"mA":5.0,"mG":23.0,"pct":30.2681},{"name":"Sherrie Massie","sA":59.9,"sG":133.0,"mA":14.0,"mG":23.0,"pct":52.9536},{"name":"Tammy Scaggs","sA":153.1,"sG":133.0,"mA":30.0,"mG":23.0,"pct":122.7738}]},{"k":"2024-09","l":"September 2024","avg":114.2465,"n":20,"reps":[{"name":"Alexis Inguaggiato","sA":468.3,"sG":206.0,"mA":90.0,"mG":38.0,"pct":232.0861},{"name":"Alicia Williams","sA":231.2,"sG":206.0,"mA":40.0,"mG":38.0,"pct":108.7481},{"name":"Brittney Perry","sA":360.3,"sG":309.0,"mA":62.0,"mG":57.0,"pct":112.6869},{"name":"Daniella Smook","sA":303.6,"sG":278.1,"mA":57.0,"mG":51.0,"pct":110.467},{"name":"Evan Jones","sA":171.8,"sG":180.25,"mA":28.0,"mG":33.0,"pct":90.0803},{"name":"Jamie DeGenova","sA":329.0,"sG":206.0,"mA":56.0,"mG":38.0,"pct":153.5386},{"name":"Kindell Blackwood","sA":239.2,"sG":206.0,"mA":35.0,"mG":38.0,"pct":104.1109},{"name":"Kurt Stein","sA":586.2,"sG":411.0,"mA":115.0,"mG":75.0,"pct":147.9805},{"name":"Madelyn Smith","sA":250.7,"sG":185.4,"mA":40.0,"mG":34.0,"pct":126.4341},{"name":"Marc Labarraque","sA":281.1,"sG":309.0,"mA":42.0,"mG":57.0,"pct":82.3275},{"name":"Nena Charlot","sA":330.7,"sG":309.0,"mA":56.0,"mG":57.0,"pct":102.6341},{"name":"Nicole Davis","sA":269.5,"sG":195.7,"mA":41.0,"mG":36.0,"pct":125.7998},{"name":"Priscilla McCollough","sA":247.6,"sG":206.0,"mA":51.0,"mG":38.0,"pct":127.2024},{"name":"Rahel Araya","sA":386.7,"sG":411.0,"mA":62.0,"mG":75.0,"pct":88.3771},{"name":"Rhonda Bunce","sA":471.1,"sG":411.0,"mA":87.0,"mG":75.0,"pct":115.3114},{"name":"Sade Stansbury","sA":64.1,"sG":206.0,"mA":10.0,"mG":38.0,"pct":28.7161},{"name":"Sherrie Massie","sA":171.8,"sG":206.0,"mA":28.0,"mG":38.0,"pct":78.5411},{"name":"Tammy Scaggs","sA":300.0,"sG":212.0,"mA":53.0,"mG":37.0,"pct":142.3763},{"name":"Tessa Gil","sA":328.8,"sG":411.0,"mA":60.0,"mG":75.0,"pct":80.0},{"name":"Tiffany Kent","sA":-0.6,"sG":0.0,"mA":-4.0,"mG":0.0,"pct":null},{"name":"Vanessa Alfaro","sA":281.4,"sG":206.0,"mA":45.0,"mG":38.0,"pct":127.5115}]},{"k":"2024-10","l":"October 2024","avg":100.1774,"n":20,"reps":[{"name":"Alexis Inguaggiato","sA":583.7,"sG":207.0,"mA":112.0,"mG":42.0,"pct":274.3237},{"name":"Rhonda Bunce","sA":523.5,"sG":275.0,"mA":93.0,"mG":55.0,"pct":179.7273},{"name":"Kurt Stein","sA":472.3,"sG":275.0,"mA":80.0,"mG":55.0,"pct":158.6},{"name":"Evan Jones","sA":343.8,"sG":204.75,"mA":57.0,"mG":42.0,"pct":151.8132},{"name":"Rahel Araya","sA":440.5,"sG":275.0,"mA":67.0,"mG":55.0,"pct":141.0},{"name":"Tessa Gil","sA":323.8,"sG":275.0,"mA":47.0,"mG":55.0,"pct":101.6},{"name":"Alicia Williams","sA":230.0,"sG":207.0,"mA":45.0,"mG":42.0,"pct":109.127},{"name":"Nicole Davis","sA":198.1,"sG":198.0,"mA":40.0,"mG":40.0,"pct":100.0253},{"name":"Jamie DeGenova","sA":182.5,"sG":189.0,"mA":29.0,"mG":38.0,"pct":86.4383},{"name":"Brittney Perry","sA":198.9,"sG":207.0,"mA":39.0,"mG":42.0,"pct":94.472},{"name":"Tammy Scaggs","sA":192.5,"sG":223.6957,"mA":36.0,"mG":43.0,"pct":84.8877},{"name":"Daniella Smook","sA":205.6,"sG":239.1304,"mA":36.0,"mG":48.0,"pct":80.4891},{"name":"Madelyn Smith","sA":129.8,"sG":153.0,"mA":17.0,"mG":31.0,"pct":69.8377},{"name":"Sherrie Massie","sA":111.4,"sG":138.0,"mA":16.0,"mG":28.0,"pct":68.9337},{"name":"Nena Charlot","sA":201.5,"sG":275.0,"mA":33.0,"mG":55.0,"pct":66.6364},{"name":"Priscilla McCollough","sA":89.4,"sG":126.0,"mA":18.0,"mG":26.0,"pct":70.0916},{"name":"Marc Labarraque","sA":167.5,"sG":275.0,"mA":38.0,"mG":55.0,"pct":65.0},{"name":"Vanessa Alfaro","sA":101.6,"sG":207.0,"mA":19.0,"mG":42.0,"pct":47.1601},{"name":"Kindell Blackwood","sA":58.8,"sG":207.0,"mA":14.0,"mG":42.0,"pct":30.8696},{"name":"Sade Stansbury","sA":37.5,"sG":138.0,"mA":5.0,"mG":28.0,"pct":22.5155}]},{"k":"2024-12","l":"December 2024","avg":102.696,"n":16,"reps":[{"name":"Alicia Williams","sA":196.0,"sG":192.6,"mA":40.0,"mG":38.0,"pct":103.5142},{"name":"Brittney Perry","sA":271.3,"sG":214.0,"mA":50.0,"mG":42.0,"pct":122.9117},{"name":"Daniella Smook","sA":148.4,"sG":153.2737,"mA":28.0,"mG":30.0,"pct":95.0768},{"name":"Nena Charlot","sA":155.3,"sG":214.0,"mA":29.0,"mG":42.0,"pct":70.8089},{"name":"Nicole Davis","sA":215.5,"sG":192.6,"mA":37.0,"mG":38.0,"pct":104.6292},{"name":"Tessa Gil","sA":178.9,"sG":171.2,"mA":35.0,"mG":34.0,"pct":103.7194},{"name":"Alexis Inguaggiato","sA":318.2,"sG":161.0,"mA":49.0,"mG":32.0,"pct":175.3824},{"name":"Jamie DeGenova","sA":128.6,"sG":128.8,"mA":23.0,"mG":26.0,"pct":94.1531},{"name":"Kurt Stein","sA":139.6,"sG":136.85,"mA":24.0,"mG":27.0,"pct":95.4492},{"name":"Laura Hay","sA":52.2,"sG":161.0,"mA":19.0,"mG":32.0,"pct":45.8987},{"name":"Madelyn Smith","sA":83.8,"sG":127.1053,"mA":19.0,"mG":25.0,"pct":70.9648},{"name":"Marc Labarraque","sA":136.0,"sG":128.8,"mA":23.0,"mG":26.0,"pct":97.0258},{"name":"Rahel Araya","sA":260.6,"sG":161.0,"mA":42.0,"mG":32.0,"pct":146.5567},{"name":"Rhonda Bunce","sA":158.6,"sG":128.8,"mA":29.0,"mG":26.0,"pct":117.3376},{"name":"Tammy Scaggs","sA":131.7,"sG":136.85,"mA":29.0,"mG":27.0,"pct":101.8221},{"name":"Vanessa Alfaro","sA":118.4,"sG":128.8,"mA":27.0,"mG":26.0,"pct":97.8858}]},{"k":"2025-01","l":"January 2025","avg":94.1424,"n":17,"reps":[{"name":"Alexis Inguaggiato","sA":381.0,"sG":245.0,"mA":84.0,"mG":48.0,"pct":165.2551},{"name":"Alicia Williams","sA":439.0,"sG":326.0,"mA":81.0,"mG":64.0,"pct":130.6125},{"name":"Brittney Perry","sA":232.0,"sG":326.0,"mA":43.0,"mG":64.0,"pct":69.1766},{"name":"Daniella Smook","sA":83.0,"sG":326.0,"mA":20.0,"mG":64.0,"pct":28.3551},{"name":"Jamie DeGenova","sA":323.0,"sG":326.0,"mA":54.0,"mG":64.0,"pct":91.7274},{"name":"Kurt Stein","sA":259.0,"sG":326.0,"mA":46.0,"mG":64.0,"pct":75.6614},{"name":"Laura Hay","sA":319.0,"sG":326.0,"mA":54.0,"mG":64.0,"pct":91.1139},{"name":"Madelyn Smith","sA":171.0,"sG":210.0,"mA":30.0,"mG":41.0,"pct":77.2997},{"name":"Marc Labarraque","sA":329.0,"sG":326.0,"mA":56.0,"mG":64.0,"pct":94.2101},{"name":"Michelle Park","sA":244.0,"sG":245.0,"mA":49.0,"mG":48.0,"pct":100.8376},{"name":"Nena Charlot","sA":180.0,"sG":245.0,"mA":31.0,"mG":48.0,"pct":69.0264},{"name":"Nicole Davis","sA":365.0,"sG":245.0,"mA":62.0,"mG":48.0,"pct":139.0731},{"name":"Rahel Araya","sA":356.0,"sG":326.0,"mA":68.0,"mG":64.0,"pct":107.7262},{"name":"Rhonda Bunce","sA":477.0,"sG":326.0,"mA":80.0,"mG":64.0,"pct":135.6595},{"name":"Tammy Scaggs","sA":256.0,"sG":326.0,"mA":44.0,"mG":64.0,"pct":73.6388},{"name":"Tessa Gil","sA":265.0,"sG":326.0,"mA":52.0,"mG":64.0,"pct":81.2692},{"name":"Vanessa Alfaro","sA":199.0,"sG":245.0,"mA":28.0,"mG":48.0,"pct":69.7789}]},{"k":"2025-02","l":"February 2025","avg":126.6415,"n":14,"reps":[{"name":"Alexis Inguaggiato","sA":294.4,"sG":116.0,"mA":62.0,"mG":22.0,"pct":267.8056},{"name":"Alicia Williams","sA":386.4,"sG":232.0,"mA":71.0,"mG":43.0,"pct":165.834},{"name":"Daniella Smook","sA":0.0,"sG":0.0,"mA":0.0,"mG":0.0,"pct":null},{"name":"Elexa Rendla","sA":269.6,"sG":353.0,"mA":49.0,"mG":59.0,"pct":79.7124},{"name":"Emilio Tatis","sA":286.1,"sG":353.0,"mA":49.0,"mG":59.0,"pct":82.0495},{"name":"Jaime Axthelm","sA":301.1,"sG":265.0,"mA":47.0,"mG":44.0,"pct":110.2204},{"name":"Jamie DeGenova","sA":239.4,"sG":232.0,"mA":42.0,"mG":43.0,"pct":100.432},{"name":"Jeffrey Brandt","sA":384.6,"sG":232.0,"mA":79.0,"mG":43.0,"pct":174.7484},{"name":"Kathy Osiel","sA":470.3,"sG":353.0,"mA":76.0,"mG":59.0,"pct":131.0215},{"name":"Katie Jones","sA":30.0,"sG":353.0,"mA":4.0,"mG":59.0,"pct":7.6391},{"name":"Laura Hay","sA":232.6,"sG":232.0,"mA":41.0,"mG":43.0,"pct":97.8037},{"name":"Lynn Watkins","sA":0.0,"sG":0.0,"mA":0.0,"mG":0.0,"pct":null},{"name":"Rachel Hostetter","sA":-34.5,"sG":0.0,"mA":-7.0,"mG":0.0,"pct":null},{"name":"Rachele Leach","sA":306.0,"sG":265.0,"mA":45.0,"mG":44.0,"pct":108.8722},{"name":"Rhonda Bunce","sA":313.0,"sG":232.0,"mA":51.0,"mG":43.0,"pct":126.7592},{"name":"Sabeen Chhipa","sA":427.0,"sG":353.0,"mA":68.0,"mG":59.0,"pct":118.1087},{"name":"Stacy Crayder","sA":299.6,"sG":132.75,"mA":41.0,"mG":23.0,"pct":201.9741}]},{"k":"2025-03","l":"March 2025","avg":120.1033,"n":13,"reps":[{"name":"Alexis Inguaggiato","sA":288.8,"sG":136.0,"mA":66.0,"mG":26.0,"pct":233.0995},{"name":"Alicia Williams","sA":251.5,"sG":204.0,"mA":49.0,"mG":39.0,"pct":124.4627},{"name":"Elexa Rendla","sA":89.0,"sG":0.0,"mA":12.0,"mG":0.0,"pct":null},{"name":"Emilio Tatis","sA":275.1,"sG":395.0,"mA":49.0,"mG":64.0,"pct":73.104},{"name":"Jaime Axthelm","sA":344.6,"sG":297.0,"mA":48.0,"mG":48.0,"pct":108.0135},{"name":"Jamie DeGenova","sA":249.6,"sG":272.0,"mA":50.0,"mG":52.0,"pct":93.9593},{"name":"Jeffrey Brandt","sA":507.7,"sG":395.0,"mA":97.0,"mG":64.0,"pct":140.0471},{"name":"Kathy Osiel","sA":533.2,"sG":395.0,"mA":83.0,"mG":64.0,"pct":132.3374},{"name":"Laura Hay","sA":251.0,"sG":395.0,"mA":42.0,"mG":64.0,"pct":64.5847},{"name":"Lynn Watkins","sA":0.0,"sG":0.0,"mA":0.0,"mG":0.0,"pct":null},{"name":"Rachel Hostetter","sA":31.8,"sG":0.0,"mA":3.0,"mG":0.0,"pct":null},{"name":"Rachele Leach","sA":385.2,"sG":395.0,"mA":59.0,"mG":64.0,"pct":94.8532},{"name":"Rhonda Bunce","sA":406.8,"sG":272.0,"mA":79.6,"mG":52.0,"pct":151.3179},{"name":"Sabeen Chhipa","sA":587.8,"sG":395.0,"mA":102.0,"mG":64.0,"pct":154.0926},{"name":"Stacy Crayder","sA":478.8,"sG":395.0,"mA":77.0,"mG":64.0,"pct":120.7638},{"name":"Megan Patterson-White","sA":222.0,"sG":297.0,"mA":32.0,"mG":48.0,"pct":70.7071}]},{"k":"2025-04","l":"April 2025","avg":100.0945,"n":13,"reps":[{"name":"Alexis Inguaggiato","sA":289.8,"sG":140.0,"mA":60.0,"mG":27.0,"pct":214.6111},{"name":"Alicia Williams","sA":296.9,"sG":254.0,"mA":48.0,"mG":42.0,"pct":115.5877},{"name":"Emilio Tatis","sA":209.8,"sG":264.0,"mA":34.0,"mG":43.0,"pct":79.2697},{"name":"Jaime Axthelm","sA":282.2,"sG":264.0,"mA":40.0,"mG":43.0,"pct":99.9586},{"name":"Jamie DeGenova","sA":88.6,"sG":140.0,"mA":21.0,"mG":27.0,"pct":70.5317},{"name":"Jeffrey Brandt","sA":241.0,"sG":264.0,"mA":39.0,"mG":43.0,"pct":90.9928},{"name":"Kathy Osiel","sA":238.0,"sG":264.0,"mA":27.0,"mG":43.0,"pct":76.4711},{"name":"Laura Hay","sA":152.0,"sG":198.0,"mA":29.0,"mG":32.0,"pct":83.6963},{"name":"Lynn Watkins","sA":0.0,"sG":0.0,"mA":0.0,"mG":0.0,"pct":null},{"name":"Megan Patterson-White","sA":206.9,"sG":264.0,"mA":32.0,"mG":43.0,"pct":76.3949},{"name":"Rachele Leach","sA":279.43,"sG":264.0,"mA":38.0,"mG":43.0,"pct":97.1084},{"name":"Rhonda Bunce","sA":107.1,"sG":186.0,"mA":12.0,"mG":36.0,"pct":45.457},{"name":"Sabeen Chhipa","sA":314.3,"sG":264.0,"mA":48.0,"mG":43.0,"pct":115.3405},{"name":"Stacy Crayder","sA":348.7,"sG":264.0,"mA":60.0,"mG":43.0,"pct":135.8091}]},{"k":"2025-05","l":"May 2025","avg":92.3774,"n":15,"reps":[{"name":"Alexis Inguaggiato","sA":152.1,"sG":96.0,"mA":36.0,"mG":19.0,"pct":173.9556},{"name":"Bekie Smith","sA":248.7,"sG":151.0,"mA":31.0,"mG":25.0,"pct":144.351},{"name":"Emilio Tatis","sA":180.6,"sG":301.0,"mA":40.0,"mG":50.0,"pct":70.0},{"name":"Jaime Axthelm","sA":288.7,"sG":301.0,"mA":40.0,"mG":50.0,"pct":87.9568},{"name":"Jamie DeGenova","sA":181.1,"sG":192.0,"mA":32.0,"mG":37.0,"pct":90.4047},{"name":"Jeffrey Brandt","sA":270.6,"sG":301.0,"mA":42.0,"mG":50.0,"pct":86.9502},{"name":"Kathy Osiel","sA":199.5,"sG":301.0,"mA":30.0,"mG":50.0,"pct":63.1395},{"name":"Laura Hay","sA":276.7,"sG":301.0,"mA":41.0,"mG":50.0,"pct":86.9635},{"name":"Megan Patterson-White","sA":180.8,"sG":226.0,"mA":19.0,"mG":38.0,"pct":65.0},{"name":"Nate Finley","sA":137.2,"sG":144.0,"mA":25.0,"mG":28.0,"pct":92.2817},{"name":"Rachele Leach","sA":234.8,"sG":283.8977,"mA":38.0,"mG":47.0,"pct":81.7785},{"name":"Rhonda Bunce","sA":189.8,"sG":192.0,"mA":37.0,"mG":37.0,"pct":99.4271},{"name":"Sabeen Chhipa","sA":241.3,"sG":301.0,"mA":40.0,"mG":50.0,"pct":80.0831},{"name":"Stacy Crayder","sA":322.0,"sG":301.0,"mA":44.0,"mG":50.0,"pct":97.4884},{"name":"Susan Duncan","sA":149.1,"sG":226.0,"mA":25.0,"mG":38.0,"pct":65.8815}]},{"k":"2025-06","l":"June 2025","avg":91.1667,"n":17,"reps":[{"name":"Angela Thomas","sA":136.0,"sG":157.0,"mA":27.0,"mG":25.0,"pct":97.3121},{"name":"Bekie Smith","sA":204.1,"sG":235.0,"mA":35.0,"mG":38.0,"pct":89.4782},{"name":"Chris Cole","sA":328.1,"sG":313.0,"mA":44.0,"mG":50.0,"pct":96.4121},{"name":"Emilio Tatis","sA":163.4,"sG":313.0,"mA":30.0,"mG":50.0,"pct":56.1022},{"name":"Jaci Parong","sA":363.8,"sG":235.0,"mA":51.0,"mG":38.0,"pct":144.5095},{"name":"Jaime Axthelm","sA":283.0,"sG":313.0,"mA":39.0,"mG":50.0,"pct":84.2077},{"name":"Jeffrey Brandt","sA":311.8,"sG":313.0,"mA":52.0,"mG":50.0,"pct":101.8083},{"name":"Kathy Osiel","sA":177.2,"sG":235.0,"mA":26.0,"mG":38.0,"pct":71.9127},{"name":"Kayla Haag","sA":242.1,"sG":223.0,"mA":38.0,"mG":37.0,"pct":105.6339},{"name":"Laura Hay","sA":261.3,"sG":313.0,"mA":38.0,"mG":50.0,"pct":79.7412},{"name":"Margaret Middelhede","sA":210.7,"sG":235.0,"mA":39.0,"mG":38.0,"pct":96.1456},{"name":"Megan Patterson-White","sA":178.6,"sG":313.0,"mA":22.0,"mG":50.0,"pct":50.5304},{"name":"Rachele Leach","sA":167.8,"sG":157.0,"mA":22.0,"mG":25.0,"pct":97.4395},{"name":"Rhonda Bunce","sA":263.6,"sG":235.0,"mA":28.0,"mG":38.0,"pct":92.9272},{"name":"Sabeen Chhipa","sA":260.5,"sG":235.0,"mA":33.0,"mG":38.0,"pct":98.8466},{"name":"Stacy Crayder","sA":376.5,"sG":313.0,"mA":60.0,"mG":50.0,"pct":120.1438},{"name":"Susan Duncan","sA":202.9,"sG":310.4,"mA":34.0,"mG":50.0,"pct":66.6836}]},{"k":"2025-07","l":"July 2025","avg":104.2118,"n":19,"reps":[{"name":"Angela Thomas","sA":199.3,"sG":117.0,"mA":24.0,"mG":19.0,"pct":148.3288},{"name":"Bekie Smith","sA":226.9,"sG":176.0,"mA":31.0,"mG":28.0,"pct":119.8174},{"name":"Chris Cole","sA":159.6,"sG":140.8,"mA":25.0,"mG":22.0,"pct":113.4943},{"name":"Courtney Ortwein","sA":197.8,"sG":176.0,"mA":24.0,"mG":28.0,"pct":99.0503},{"name":"Emilio Tatis","sA":106.0,"sG":176.0,"mA":15.0,"mG":28.0,"pct":56.8994},{"name":"Jaci Parong","sA":114.0,"sG":117.0,"mA":13.0,"mG":19.0,"pct":82.9285},{"name":"Jaime Axthelm","sA":286.0,"sG":176.0,"mA":34.0,"mG":28.0,"pct":141.9643},{"name":"Jeffrey Brandt","sA":179.0,"sG":235.0,"mA":32.0,"mG":37.0,"pct":81.3283},{"name":"Kathy Osiel","sA":204.7,"sG":235.0,"mA":29.0,"mG":37.0,"pct":82.7424},{"name":"Kayla Haag","sA":-0.1,"sG":0.0,"mA":-1.0,"mG":0.0,"pct":null},{"name":"Laura Hay","sA":169.0,"sG":140.8,"mA":24.0,"mG":22.0,"pct":114.5597},{"name":"Margaret Middelhede","sA":157.9,"sG":176.0,"mA":27.0,"mG":28.0,"pct":93.0722},{"name":"Megan Patterson-White","sA":-6.3,"sG":0.0,"mA":-4.0,"mG":0.0,"pct":null},{"name":"Rachele Leach","sA":173.4,"sG":176.0,"mA":26.0,"mG":28.0,"pct":95.6899},{"name":"Rebecca Lappen","sA":152.8,"sG":176.0,"mA":25.0,"mG":28.0,"pct":88.0519},{"name":"Rhonda Bunce","sA":97.7,"sG":140.8,"mA":14.0,"mG":22.0,"pct":66.5128},{"name":"Sabeen Chhipa","sA":293.4,"sG":235.0,"mA":42.0,"mG":37.0,"pct":119.1823},{"name":"Sarah Jones","sA":102.6,"sG":176.0,"mA":18.0,"mG":28.0,"pct":61.2906},{"name":"Sonia Koosha","sA":226.8,"sG":176.0,"mA":37.0,"mG":28.0,"pct":130.5032},{"name":"Stacy Crayder","sA":316.1,"sG":176.0,"mA":40.0,"mG":28.0,"pct":161.2297},{"name":"Susan Duncan","sA":246.3,"sG":211.5,"mA":43.0,"mG":33.0,"pct":123.3785}]},{"k":"2025-08","l":"August 2025","avg":95.3628,"n":17,"reps":[{"name":"Bekie Smith","sA":207.99,"sG":197.0,"mA":27.0,"mG":31.0,"pct":96.3377},{"name":"Chris Cole","sA":210.0,"sG":197.0,"mA":31.5,"mG":31.0,"pct":104.1059},{"name":"Courtney Ortwein","sA":196.0,"sG":148.0,"mA":30.5,"mG":24.0,"pct":129.7579},{"name":"Ezra Morris","sA":161.32,"sG":197.0,"mA":26.5,"mG":31.0,"pct":83.6861},{"name":"Jaci Parong","sA":162.0,"sG":148.0,"mA":22.5,"mG":24.0,"pct":101.6047},{"name":"Jaime Axthelm","sA":222.0,"sG":197.0,"mA":35.5,"mG":31.0,"pct":113.6032},{"name":"Jeffrey Brandt","sA":152.0,"sG":197.0,"mA":30.5,"mG":31.0,"pct":87.7722},{"name":"Julia Shapiro","sA":96.67,"sG":148.0,"mA":18.0,"mG":24.0,"pct":70.1588},{"name":"Laura Hay","sA":220.0,"sG":197.0,"mA":36.0,"mG":31.0,"pct":113.9021},{"name":"Margaret Middelhede","sA":64.0,"sG":148.0,"mA":11.0,"mG":24.0,"pct":44.5383},{"name":"Megan Patterson-White","sA":0.0,"sG":0.0,"mA":0.0,"mG":0.0,"pct":null},{"name":"Rebecca Lappen","sA":60.0,"sG":148.0,"mA":13.0,"mG":24.0,"pct":47.3536},{"name":"Rhonda Bunce","sA":226.0,"sG":197.0,"mA":34.0,"mG":31.0,"pct":112.1991},{"name":"Sabeen Chhipa","sA":178.0,"sG":197.0,"mA":29.0,"mG":31.0,"pct":91.9519},{"name":"Sarah Jones","sA":134.0,"sG":148.0,"mA":35.5,"mG":24.0,"pct":119.2286},{"name":"Sonia Koosha","sA":144.0,"sG":148.0,"mA":24.5,"mG":24.0,"pct":99.6903},{"name":"Stacy Crayder","sA":216.0,"sG":148.0,"mA":36.5,"mG":24.0,"pct":149.0146},{"name":"Susan Duncan","sA":120.0,"sG":197.0,"mA":16.0,"mG":31.0,"pct":56.2633}]},{"k":"2025-09","l":"September 2025","avg":104.3152,"n":21,"reps":[{"name":"Alex Burley","sA":396.0,"sG":259.0,"mA":74.0,"mG":43.0,"pct":162.4944},{"name":"Angela Thomas","sA":226.0,"sG":199.0,"mA":42.0,"mG":33.0,"pct":120.4203},{"name":"Bekie Smith","sA":194.0,"sG":397.0,"mA":28.0,"mG":66.0,"pct":45.6454},{"name":"Chris Cole","sA":508.67,"sG":397.0,"mA":83.5,"mG":66.0,"pct":127.3218},{"name":"Courtney Ortwein","sA":418.0,"sG":397.0,"mA":67.5,"mG":66.0,"pct":103.7812},{"name":"Derek Bieber","sA":132.0,"sG":259.0,"mA":22.0,"mG":43.0,"pct":51.064},{"name":"Emilio Tatis","sA":266.0,"sG":256.0,"mA":48.0,"mG":42.8571,"pct":107.9531},{"name":"Ezra Morris","sA":320.0,"sG":397.0,"mA":51.0,"mG":66.0,"pct":78.9386},{"name":"Jaci Parong","sA":276.0,"sG":397.0,"mA":42.0,"mG":66.0,"pct":66.5789},{"name":"Jaime Axthelm","sA":460.0,"sG":397.0,"mA":64.0,"mG":66.0,"pct":106.4194},{"name":"Jeffrey Brandt","sA":220.0,"sG":397.0,"mA":40.5,"mG":66.0,"pct":58.3896},{"name":"Julia Shapiro","sA":302.0,"sG":298.0,"mA":45.0,"mG":50.0,"pct":95.6711},{"name":"Laura Hay","sA":416.0,"sG":397.0,"mA":66.5,"mG":66.0,"pct":102.7717},{"name":"Margaret Middelhede","sA":280.0,"sG":397.0,"mA":59.5,"mG":66.0,"pct":80.3402},{"name":"Megan Patterson-White","sA":0.0,"sG":0.0,"mA":0.0,"mG":0.0,"pct":null},{"name":"Rachele Leach","sA":413.59,"sG":397.0,"mA":60.0,"mG":66.0,"pct":97.544},{"name":"Rebecca Lappen","sA":301.5,"sG":338.0,"mA":62.0,"mG":57.0,"pct":98.9866},{"name":"Rhonda Bunce","sA":462.0,"sG":397.0,"mA":65.0,"mG":66.0,"pct":107.4288},{"name":"Sabeen Chhipa","sA":445.33,"sG":397.0,"mA":68.0,"mG":66.0,"pct":107.6021},{"name":"Sarah Jones","sA":274.0,"sG":338.0,"mA":46.0,"mG":57.0,"pct":80.8834},{"name":"Sonia Koosha","sA":460.0,"sG":397.0,"mA":77.0,"mG":66.0,"pct":116.2678},{"name":"Stacy Crayder","sA":260.0,"sG":100.0,"mA":49.0,"mG":17.0,"pct":274.1176}]},{"k":"2025-10","l":"October 2025","avg":122.4013,"n":17,"reps":[{"name":"Alicia Williams","sA":129.32,"sG":85.0,"mA":24.5,"mG":14.0,"pct":163.5706},{"name":"Del Ali","sA":494.0,"sG":289.0,"mA":91.5,"mG":47.0,"pct":182.8076},{"name":"Stephanie Landrem","sA":325.33,"sG":170.0,"mA":54.5,"mG":28.0,"pct":193.0067},{"name":"Liza Ford","sA":495.99,"sG":339.0,"mA":80.5,"mG":55.0,"pct":146.3367},{"name":"Becky Ruffer","sA":475.33,"sG":339.0,"mA":82.0,"mG":55.0,"pct":144.6531},{"name":"Caroline Poole","sA":266.66,"sG":221.0,"mA":51.5,"mG":36.0,"pct":131.8581},{"name":"Kallie Palmer","sA":258.0,"sG":221.0,"mA":44.5,"mG":36.0,"pct":120.1766},{"name":"Timothy Carr","sA":244.67,"sG":221.0,"mA":46.0,"mG":36.0,"pct":119.2441},{"name":"Jenna Bass","sA":222.66,"sG":221.0,"mA":43.0,"mG":36.0,"pct":110.0978},{"name":"Monique Partee-Saddler","sA":205.34,"sG":221.0,"mA":40.0,"mG":36.0,"pct":102.0126},{"name":"Kyle Turner","sA":198.0,"sG":221.0,"mA":40.5,"mG":36.0,"pct":101.0464},{"name":"Riley Adam","sA":209.33,"sG":221.0,"mA":38.5,"mG":36.0,"pct":100.832},{"name":"Elizabeth Ward","sA":212.0,"sG":221.0,"mA":35.5,"mG":36.0,"pct":97.2694},{"name":"Christopher Jones","sA":234.0,"sG":255.0,"mA":42.0,"mG":42.0,"pct":95.8824},{"name":"Kristen Taylor","sA":217.33,"sG":221.0,"mA":33.0,"mG":36.0,"pct":95.003},{"name":"Ashley Crum","sA":204.0,"sG":255.0,"mA":34.0,"mG":42.0,"pct":80.4762},{"name":"Isabel DeRanieri","sA":169.34,"sG":199.0,"mA":35.5,"mG":32.8696,"pct":96.5491}]},{"k":"2025-11","l":"November 2025","avg":136.2871,"n":15,"reps":[{"name":"Alicia Williams","sA":290.0,"sG":83.0,"mA":53.0,"mG":14.0,"pct":363.9845},{"name":"Ashley Crum","sA":186.0,"sG":283.0,"mA":29.5,"mG":46.0,"pct":64.9274},{"name":"Becky Ruffer","sA":444.0,"sG":249.0,"mA":70.5,"mG":41.0,"pct":175.1322},{"name":"Caroline Poole","sA":194.0,"sG":187.0,"mA":33.0,"mG":31.0,"pct":105.0975},{"name":"Christopher Jones","sA":482.0,"sG":283.0,"mA":83.0,"mG":46.0,"pct":175.3764},{"name":"Del Ali","sA":352.83,"sG":332.0,"mA":64.0,"mG":54.0,"pct":112.3963},{"name":"Elizabeth Ward","sA":272.0,"sG":249.0,"mA":46.5,"mG":41.0,"pct":111.3258},{"name":"Jenna Bass","sA":308.67,"sG":249.0,"mA":62.0,"mG":41.0,"pct":137.5917},{"name":"Kristen Taylor","sA":176.0,"sG":249.0,"mA":33.0,"mG":41.0,"pct":75.5853},{"name":"Kyle Turner","sA":280.0,"sG":249.0,"mA":50.0,"mG":41.0,"pct":117.2005},{"name":"Liza Ford","sA":346.0,"sG":249.0,"mA":55.0,"mG":41.0,"pct":136.5511},{"name":"Monique Partee-Saddler","sA":211.99,"sG":249.0,"mA":35.0,"mG":41.0,"pct":85.2512},{"name":"Riley Adam","sA":172.0,"sG":249.0,"mA":30.0,"mG":41.0,"pct":71.1235},{"name":"Stephanie Landrem","sA":-4.0,"sG":0.0,"mA":-1.0,"mG":0.0,"pct":null},{"name":"Taheem Perez","sA":357.99,"sG":216.0,"mA":58.55,"mG":36.0,"pct":164.1875},{"name":"Timothy Carr","sA":360.33,"sG":249.0,"mA":62.5,"mG":41.0,"pct":148.5749}]},{"k":"2025-12","l":"December 2025","avg":111.0275,"n":13,"reps":[{"name":"Alicia Williams","sA":72.0,"sG":52.0,"mA":13.5,"mG":9.0,"pct":144.2308},{"name":"Ashley Crum","sA":62.0,"sG":106.0,"mA":11.0,"mG":18.6,"pct":58.8152},{"name":"Becky Ruffer","sA":98.0,"sG":60.0,"mA":16.0,"mG":10.5,"pct":157.8571},{"name":"Caroline Poole","sA":252.0,"sG":170.0,"mA":41.5,"mG":30.0,"pct":143.2843},{"name":"Christopher Jones","sA":266.66,"sG":170.0,"mA":48.5,"mG":30.0,"pct":159.2627},{"name":"Del Ali","sA":130.0,"sG":226.0,"mA":26.0,"mG":40.0,"pct":61.2611},{"name":"Elizabeth Ward","sA":206.0,"sG":193.0,"mA":38.0,"mG":34.0,"pct":109.2502},{"name":"Jenna Bass","sA":133.33,"sG":193.0,"mA":28.0,"mG":34.0,"pct":75.7179},{"name":"Kristen Taylor","sA":8.0,"sG":0.0,"mA":1.0,"mG":0.0,"pct":null},{"name":"Kyle Turner","sA":102.0,"sG":145.0,"mA":21.5,"mG":26.0,"pct":76.5186},{"name":"Liza Ford","sA":-4.0,"sG":0.0,"mA":-1.0,"mG":0.0,"pct":null},{"name":"Monique Partee-Saddler","sA":188.0,"sG":193.0,"mA":28.0,"mG":34.0,"pct":89.8811},{"name":"Riley Adam","sA":211.31,"sG":170.0,"mA":35.5,"mG":30.0,"pct":121.3167},{"name":"Stephanie Landrem","sA":0.0,"sG":0.0,"mA":0.0,"mG":0.0,"pct":null},{"name":"Taheem Perez","sA":213.5,"sG":147.0,"mA":36.0,"mG":26.0,"pct":141.8498},{"name":"Timothy Carr","sA":162.5,"sG":145.0,"mA":25.0,"mG":26.0,"pct":104.1114}]},{"k":"2026-01","l":"January 2026","avg":78.1912,"n":15,"reps":[{"name":"Alicia Williams","sA":112.0,"sG":79.0,"mA":19.0,"mG":13.0,"pct":143.963},{"name":"Liza Ford","sA":12.0,"sG":0.0,"mA":2.0,"mG":0.0,"pct":null},{"name":"Caroline Poole","sA":298.0,"sG":269.0,"mA":48.0,"mG":45.0,"pct":108.7237},{"name":"Taheem Perez","sA":291.34,"sG":269.0,"mA":47.5,"mG":45.0,"pct":106.9302},{"name":"Elizabeth Ward","sA":252.0,"sG":269.0,"mA":46.5,"mG":45.0,"pct":98.5068},{"name":"Timothy Carr","sA":256.67,"sG":269.0,"mA":45.0,"mG":45.0,"pct":97.7082},{"name":"Jenna Bass","sA":235.67,"sG":238.0,"mA":37.0,"mG":40.0,"pct":95.7605},{"name":"Del Ali","sA":240.0,"sG":298.0,"mA":47.5,"mG":52.0,"pct":85.9415},{"name":"Christopher Jones","sA":270.01,"sG":316.0,"mA":44.5,"mG":52.0,"pct":85.5116},{"name":"Kyle Turner","sA":215.34,"sG":269.0,"mA":33.0,"mG":40.95,"pct":80.3191},{"name":"Monique Partee-Saddler","sA":176.66,"sG":203.0,"mA":24.5,"mG":34.0,"pct":79.5417},{"name":"Kimberly Free","sA":122.0,"sG":155.0,"mA":19.0,"mG":25.5,"pct":76.6097},{"name":"Riley Adam","sA":144.0,"sG":269.0,"mA":27.5,"mG":45.0,"pct":57.3214},{"name":"Kristen Taylor","sA":152.0,"sG":269.0,"mA":25.0,"mG":45.0,"pct":56.0306},{"name":"Ashley Crum","sA":0.0,"sG":0.0,"mA":0.0,"mG":0.0,"pct":null},{"name":"Becky Ruffer","sA":0.0,"sG":316.0,"mA":0.0,"mG":52.0,"pct":0.0},{"name":"Stephanie Landrem","sA":0.0,"sG":159.0,"mA":0.0,"mG":27.0,"pct":0.0}]},{"k":"2026-02","l":"February 2026","avg":96.4425,"n":22,"reps":[{"name":"Alicia Williams","sA":150.0,"sG":123.0,"mA":27.5,"mG":21.58,"pct":124.692},{"name":"Becky Ruffer","sA":182.0,"sG":122.0,"mA":29.0,"mG":20.79,"pct":144.3352},{"name":"Brandy Kezar","sA":199.33,"sG":148.0,"mA":30.0,"mG":26.0,"pct":125.0335},{"name":"Brenda Wong","sA":410.66,"sG":229.0,"mA":68.5,"mG":39.06,"pct":177.3494},{"name":"Caroline Poole","sA":302.0,"sG":260.0,"mA":45.5,"mG":44.82,"pct":108.8355},{"name":"Christie Pride","sA":258.66,"sG":324.0,"mA":47.0,"mG":55.44,"pct":82.3048},{"name":"Christopher Jones","sA":194.0,"sG":368.0,"mA":30.5,"mG":63.0,"pct":50.565},{"name":"Del Ali","sA":360.0,"sG":332.0,"mA":58.0,"mG":56.7,"pct":105.3633},{"name":"Domenica Sorrentino","sA":228.0,"sG":166.0,"mA":35.0,"mG":28.8,"pct":129.4386},{"name":"Drew Foxworth","sA":231.5,"sG":213.0,"mA":33.5,"mG":36.96,"pct":99.662},{"name":"Elizabeth Ward","sA":230.0,"sG":368.0,"mA":37.0,"mG":63.0,"pct":60.6151},{"name":"Jenna Bass","sA":168.0,"sG":302.0,"mA":29.0,"mG":51.66,"pct":55.8827},{"name":"Jenna Salupo","sA":266.0,"sG":258.0,"mA":41.5,"mG":44.1,"pct":98.6025},{"name":"Keli Hill","sA":308.0,"sG":216.0,"mA":46.5,"mG":36.9,"pct":134.3044},{"name":"Kimberly Free","sA":100.0,"sG":240.0,"mA":17.0,"mG":41.0,"pct":41.565},{"name":"Kyle Turner","sA":206.0,"sG":204.0,"mA":31.0,"mG":35.1,"pct":94.6497},{"name":"Liz Weiss","sA":434.0,"sG":276.0,"mA":69.0,"mG":48.0,"pct":150.4982},{"name":"Liza Ford","sA":-4.0,"sG":0.0,"mA":-1.0,"mG":0.0,"pct":null},{"name":"Monique Partee-Saddler","sA":136.0,"sG":295.0,"mA":22.0,"mG":50.4,"pct":44.8762},{"name":"Riley Adam","sA":222.0,"sG":267.0,"mA":34.5,"mG":45.9,"pct":79.1547},{"name":"Taheem Perez","sA":298.67,"sG":313.0,"mA":58.5,"mG":54.0,"pct":101.8775},{"name":"Theresa Billiot","sA":170.0,"sG":302.0,"mA":25.0,"mG":51.66,"pct":52.3424},{"name":"Timothy Carr","sA":203.33,"sG":324.0,"mA":31.5,"mG":55.44,"pct":59.7872}]},{"k":"2026-03","l":"March 2026","avg":94.5557,"n":15,"reps":[{"name":"Alicia Williams","sA":102.0,"sG":93.0,"mA":17.0,"mG":16.0,"pct":107.9637},{"name":"Becky Ruffer","sA":428.0,"sG":313.0,"mA":62.5,"mG":52.1364,"pct":128.3096},{"name":"Brenda Wong","sA":386.65,"sG":372.0,"mA":68.0,"mG":62.0,"pct":106.8078},{"name":"Caroline Poole","sA":184.0,"sG":372.0,"mA":31.0,"mG":62.0,"pct":49.7312},{"name":"Christopher Jones","sA":296.16,"sG":264.0,"mA":43.5,"mG":44.3477,"pct":105.1352},{"name":"Christie Pride","sA":169.33,"sG":372.0,"mA":31.5,"mG":62.0,"pct":48.1626},{"name":"Del Ali","sA":318.0,"sG":335.0,"mA":46.0,"mG":55.75,"pct":88.7183},{"name":"Domenica Sorrentino","sA":208.66,"sG":186.0,"mA":32.0,"mG":31.0,"pct":107.7043},{"name":"Elizabeth Ward","sA":240.0,"sG":228.0,"mA":37.5,"mG":37.9167,"pct":102.0821},{"name":"Jenna Salupo","sA":206.0,"sG":372.0,"mA":30.5,"mG":62.0,"pct":52.2849},{"name":"Keli Hill","sA":279.99,"sG":279.0,"mA":47.5,"mG":47.0,"pct":100.7093},{"name":"Liz Weiss","sA":534.0,"sG":372.0,"mA":88.0,"mG":62.0,"pct":142.7419},{"name":"Liza Ford","sA":0.0,"sG":0.0,"mA":0.0,"mG":0.0,"pct":null},{"name":"Riley Adam","sA":328.0,"sG":310.0,"mA":47.5,"mG":51.6667,"pct":98.871},{"name":"Taheem Perez","sA":300.33,"sG":372.0,"mA":50.0,"mG":62.0,"pct":80.6895},{"name":"Timothy Carr","sA":230.0,"sG":222.0,"mA":34.5,"mG":37.0,"pct":98.4234}]},{"k":"2026-04","l":"April 2026","avg":104.3273,"n":14,"reps":[{"name":"Alicia Williams","sA":74.0,"sG":116.0,"mA":12.0,"mG":19.0,"pct":63.4755},{"name":"Becky Ruffer","sA":286.0,"sG":217.0,"mA":41.5,"mG":36.0,"pct":123.5375},{"name":"Brenda Wong","sA":444.83,"sG":289.0,"mA":74.0,"mG":47.0,"pct":155.6836},{"name":"Christie Pride","sA":20.0,"sG":289.0,"mA":3.5,"mG":47.0,"pct":7.1836},{"name":"Christopher Jones","sA":524.0,"sG":289.0,"mA":72.5,"mG":47.0,"pct":167.7851},{"name":"Del Ali","sA":184.0,"sG":289.0,"mA":33.5,"mG":47.0,"pct":67.4722},{"name":"Domenica Sorrentino","sA":124.0,"sG":145.0,"mA":21.5,"mG":24.0,"pct":87.5503},{"name":"Elizabeth Ward","sA":148.0,"sG":289.0,"mA":23.0,"mG":47.0,"pct":50.0736},{"name":"Jenna Salupo","sA":304.0,"sG":289.0,"mA":44.5,"mG":47.0,"pct":99.9356},{"name":"Keli Hill","sA":272.0,"sG":217.0,"mA":44.0,"mG":36.0,"pct":123.7839},{"name":"Liz Weiss","sA":309.33,"sG":145.0,"mA":48.0,"mG":24.0,"pct":206.6655},{"name":"Liza Ford","sA":0.0,"sG":0.0,"mA":0.0,"mG":0.0,"pct":null},{"name":"Riley Adam","sA":244.0,"sG":289.0,"mA":34.0,"mG":47.0,"pct":78.3847},{"name":"Taheem Perez","sA":388.0,"sG":289.0,"mA":55.0,"mG":47.0,"pct":125.6387},{"name":"Timothy Carr","sA":232.0,"sG":224.0,"mA":37.5,"mG":36.3182,"pct":103.4127}]},{"k":"2026-05","l":"May 2026","avg":90.672,"n":11,"reps":[{"name":"Becky Ruffer","sA":328.0,"sG":260.0,"mA":53.5,"mG":44.5714,"pct":123.0929},{"name":"Brenda Wong","sA":408.0,"sG":303.0,"mA":64.5,"mG":52.0,"pct":129.346},{"name":"Christopher Jones","sA":456.66,"sG":303.0,"mA":68.5,"mG":52.0,"pct":141.2218},{"name":"Del Ali","sA":196.0,"sG":303.0,"mA":30.5,"mG":52.0,"pct":61.6702},{"name":"Domenica Sorrentino","sA":172.0,"sG":152.0,"mA":28.0,"mG":26.0,"pct":110.4251},{"name":"Elizabeth Ward","sA":40.0,"sG":303.0,"mA":5.0,"mG":52.0,"pct":11.4084},{"name":"Jenna Salupo","sA":374.67,"sG":303.0,"mA":56.5,"mG":52.0,"pct":116.1537},{"name":"Keli Hill","sA":214.67,"sG":258.0,"mA":39.0,"mG":45.0,"pct":84.936},{"name":"Liz Weiss","sA":252.0,"sG":152.0,"mA":41.5,"mG":26.0,"pct":162.7024},{"name":"Riley Adam","sA":194.67,"sG":303.0,"mA":30.0,"mG":52.0,"pct":60.9699},{"name":"Taheem Perez","sA":-10.0,"sG":303.0,"mA":-3.0,"mG":52.0,"pct":-4.5348},{"name":"Timothy Carr","sA":-34.0,"sG":0.0,"mA":-6.5,"mG":0.0,"pct":null}]},{"k":"2026-06","l":"June 2026","avg":122.4653,"n":9,"reps":[{"name":"Becky Ruffer","sA":312.0,"sG":309.0,"mA":44.5,"mG":54.0,"pct":91.6891},{"name":"Brenda Wong","sA":378.0,"sG":309.0,"mA":60.5,"mG":54.0,"pct":117.1836},{"name":"Christopher Jones","sA":526.0,"sG":309.0,"mA":77.0,"mG":54.0,"pct":156.4096},{"name":"David Valverde","sA":312.0,"sG":309.0,"mA":49.0,"mG":54.0,"pct":95.8558},{"name":"Del Ali","sA":288.0,"sG":309.0,"mA":44.0,"mG":54.0,"pct":87.3427},{"name":"Domenica Sorrentino","sA":242.0,"sG":155.0,"mA":34.5,"mG":27.0,"pct":141.9534},{"name":"Jenna Salupo","sA":302.0,"sG":309.0,"mA":47.0,"mG":54.0,"pct":92.3858},{"name":"Keli Hill","sA":169.33,"sG":263.0,"mA":31.0,"mG":46.0,"pct":65.8877},{"name":"Liz Weiss","sA":206.0,"sG":78.0,"mA":34.0,"mG":14.0,"pct":253.4799},{"name":"Timothy Carr","sA":0.0,"sG":0.0,"mA":0.0,"mG":0.0,"pct":null}]}];
+
+// Authoritative team-level rollup totals pulled directly from each month's manager
+// rollup row (Aaron Bunch's row, columns labeled "Net Monthly Hours Rollup/Goal" and
+// "Net Members Rollup/Goal" — e.g. BN5/BO5/BV5/BW5 on the Live tab) in the SIP
+// Calculations sheet. These include rollup adjustments that don't show up when
+// summing individual rep rows, so they're the source of truth for team attainment —
+// per-rep rows are still used for the per-rep breakdown table only.
+const SIP_TEAM_ROLLUP = {"2024-04":{sA:2952.6,sG:2891.0,mA:697.0,mG:504.0},"2024-06":{sA:1849.8,sG:2374.0,mA:297.0,mG:362.0},"2024-07":{sA:3325.9,sG:2872.0,mA:552.0,mG:496.0},"2024-08":{sA:1371.1,sG:1177.3011,mA:242.0,mG:204.0},"2024-09":{sA:6078.3,sG:5270.45,mA:1058.0,mG:966.0},"2024-10":{sA:4699.0,sG:3949.5761,mA:822.0,mG:794.0},"2024-12":{sA:2693.1,sG:2536.6789,mA:503.0,mG:503.0},"2025-01":{sA:4615.0,sG:4450.0,mA:831.0,mG:873.0},"2025-02":{sA:4175.6,sG:3350.75,mA:714.0,mG:584.0},"2025-03":{sA:4782.1,sG:4243.0,mA:833.6,mG:713.0},"2025-04":{sA:3054.73,sG:3030.0,mA:488.0,mG:508.0},"2025-05":{sA:3103.9,sG:3391.8977,mA:495.0,mG:581.0},"2025-06":{sA:4131.4,sG:4448.4,mA:618.0,mG:715.0},"2025-07":{sA:3609.3,sG:3332.9,mA:523.0,mG:528.0},"2025-08":{sA:2548.66,sG:2612.0,mA:418.0,mG:416.0},"2025-09":{sA:6705.09,sG:6552.0,mA:1110.5,mG:1091.8571},"2025-10":{sA:4561.3,sG:3920.0,mA:817.0,mG:639.8696},"2025-11":{sA:4433.81,sG:3625.0,mA:765.55,mG:596.0},"2025-12":{sA:1938.8,sG:1788.9,mA:343.5,mG:315.74},"2026-01":{sA:2777.69,sG:3024.05,mA:466.0,mG:502.7},"2026-02":{sA:5258.15,sG:5494.0,mA:847.0,mG:943.66},"2026-03":{sA:4211.12,sG:4313.2,mA:667.0,mG:720.0174},"2026-04":{sA:3534.16,sG:3007.3,mA:541.0,mG:491.2182},"2026-05":{sA:2402.0,sG:2034.0,mA:382.0,mG:349.5714},"2026-06":{sA:2566.0,sG:2087.0,mA:390.5,mG:365.0}};
+
+function loadJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw);
+  } catch (e) { console.warn('load failed for ' + key, e); }
+  return JSON.parse(JSON.stringify(fallback));
+}
+function saveJSON(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+function loadGoals() { return loadJSON(GOALS_KEY, DEFAULT_GOALS); }
+function saveGoals(g) { saveJSON(GOALS_KEY, g); }
+function loadActuals() { return loadJSON(ACTUALS_KEY, DEFAULT_ACTUALS); }
+function saveActuals(a) { saveJSON(ACTUALS_KEY, a); }
+
+// ---------- Theme ----------
+function applyTheme(theme) {
+  document.body.classList.toggle('dark', theme === 'dark');
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.textContent = theme === 'dark' ? '☀️ Light' : '🌙 Dark';
+}
+(function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY) || 'light';
+  applyTheme(saved);
+})();
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const isDark = document.body.classList.contains('dark');
+  const next = isDark ? 'light' : 'dark';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+});
+
+function parseCSV(text) {
+  const rows = [];
+  let i = 0, field = '', row = [], inQuotes = false;
+  const pushField = () => { row.push(field); field = ''; };
+  const pushRow = () => { rows.push(row); row = []; };
+  while (i < text.length) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
+      }
+      field += c; i++; continue;
+    } else {
+      if (c === '"') { inQuotes = true; i++; continue; }
+      if (c === ',') { pushField(); i++; continue; }
+      if (c === '\r') { i++; continue; }
+      if (c === '\n') { pushField(); pushRow(); i++; continue; }
+      field += c; i++; continue;
+    }
+  }
+  if (field.length || row.length) { pushField(); pushRow(); }
+  return rows.filter(r => r.length > 1 || (r.length === 1 && r[0] !== ''));
+}
+
+function computeActualsFromCSV(text) {
+  const rows = parseCSV(text);
+  if (rows.length < 2) throw new Error('CSV appears empty or malformed');
+  const header = rows[0].map(h => h.trim());
+  const idx = {
+    manager: header.indexOf('manager'),
+    date: header.indexOf('attribution_date'),
+    members: header.indexOf('expert_net_members'),
+    sessions: header.indexOf('expert_net_monthly_hours'),
+    client: header.indexOf('client_id'),
+  };
+  if (idx.manager === -1 || idx.members === -1 || idx.sessions === -1) {
+    throw new Error('Missing expected columns (manager, expert_net_members, expert_net_monthly_hours)');
+  }
+  const lookup = {};
+  ROSTER.forEach(r => lookup[r.csv] = r.display);
+  const perRep = {};
+  ROSTER.forEach(r => perRep[r.display] = { members: 0, sessions: 0, membersCancels: 0, sessionsCancels: 0, items: [] });
+  let maxDate = null;
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.length < 2) continue;
+    const mgrRaw = (r[idx.manager] || '').trim();
+    const display = lookup[mgrRaw.toLowerCase()];
+    const d = idx.date !== -1 ? (r[idx.date] || '').slice(0, 10) : '';
+    if (d && (!maxDate || d > maxDate)) maxDate = d;
+    if (!display) continue;
+    const m = parseFloat(r[idx.members]) || 0;
+    const s = parseFloat(r[idx.sessions]) || 0;
+    perRep[display].members += m;
+    perRep[display].sessions += s;
+    // Negative-only line items = attrition/cancels, already netted into the totals above.
+    if (m < 0) perRep[display].membersCancels += m;
+    if (s < 0) perRep[display].sessionsCancels += s;
+    // Raw line item — powers the per-rep "Client Detail" drill-down page.
+    if (idx.client !== -1) {
+      perRep[display].items.push({ clientId: (r[idx.client] || '').trim(), members: m, sessions: s, date: d });
+    }
+  }
+  return { asOf: maxDate || new Date().toISOString().slice(0, 10), perRep };
+}
+
+function daysInMonth(year, month) { return new Date(year, month, 0).getDate(); }
+function fmt(n, d) { return (Math.round(n * Math.pow(10, d)) / Math.pow(10, d)).toFixed(d); }
+function initials(name) { return name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase(); }
+
+const RAINBOW_GRAD = 'linear-gradient(90deg, #f472b6, #a855f7 35%, #6366f1 65%, #38bdf8)';
+
+// Used ONLY by the "Projected" (end-of-month) detail box. Gradient fires as soon as
+// the PROJECTED value crosses 100%, regardless of where the actual sits today — this
+// answers "am I on pace to hit goal by EOM," so it's allowed to go green/gradient early.
+function tier(pct, goalIsZero) {
+  if (goalIsZero) return { cls: 'st-na', label: 'No Goal', barGrad: '#c7c5d6', special: false };
+  if (pct >= 100) return { cls: 'st-gradient', label: '🏆 Goal Met', barGrad: RAINBOW_GRAD, special: true };
+  if (pct >= 80) return { cls: 'st-ontrack', label: 'On Track', barGrad: 'linear-gradient(90deg,#60a5fa,#6366f1)', special: false };
+  if (pct >= 50) return { cls: 'st-behind', label: 'Behind', barGrad: 'linear-gradient(90deg,#fb923c,#f97316)', special: false };
+  return { cls: 'st-far', label: 'Far Behind', barGrad: 'linear-gradient(90deg,#f87171,#dc2626)', special: false };
+}
+
+// Used by the "Now" (current) view — the main collapsed bar and the per-metric pills.
+// Two-stage rule, per Aaron's spec (2026-07-23):
+//   1. Rainbow gradient "Goal Met" fires ONLY when the ACTUAL value has hit 100%
+//      of the full-month goal (currentPct >= 100) — never from a projection alone.
+//   2. Below that, color is driven by actual vs. TODAY'S expected pace
+//      (expectedPct = elapsedFrac*100). Since projectedPct == currentPct / elapsedFrac
+//      == currentPct / expectedPct * 100, projectedPct already IS "actual as a % of
+//      today's expected pace" — so we tier directly on projectedPct:
+//        projectedPct >= 100        -> green  "On Pace"     (ahead of/at expected pace)
+//        80 <= projectedPct < 100   -> blue   "On Track"
+//        50 <= projectedPct < 80    -> orange "Behind"
+//        projectedPct < 50          -> red    "Far Behind"
+function nowTier(currentPct, projectedPct, goalIsZero) {
+  if (goalIsZero) return { cls: 'st-na', label: 'No Goal', barGrad: '#c7c5d6', special: false };
+  if (currentPct !== null && currentPct >= 100) {
+    return { cls: 'st-gradient', label: '🏆 Goal Met', barGrad: RAINBOW_GRAD, special: true };
+  }
+  const p = projectedPct ?? 0;
+  if (p >= 100) return { cls: 'st-ahead', label: '🚀 On Pace', barGrad: 'linear-gradient(90deg,#22c55e,#16a34a)', special: false };
+  if (p >= 80) return { cls: 'st-ontrack', label: 'On Track', barGrad: 'linear-gradient(90deg,#60a5fa,#6366f1)', special: false };
+  if (p >= 50) return { cls: 'st-behind', label: 'Behind', barGrad: 'linear-gradient(90deg,#fb923c,#f97316)', special: false };
+  return { cls: 'st-far', label: 'Far Behind', barGrad: 'linear-gradient(90deg,#f87171,#dc2626)', special: false };
+}
+
+// elapsedFrac: fraction of the month/period elapsed (0-1).
+function computeMetric(actual, goal, elapsedFrac) {
+  const goalIsZero = !goal || goal <= 0;
+  const currentPct = goalIsZero ? null : (actual / goal) * 100;
+  const projectedRaw = elapsedFrac > 0 ? actual / elapsedFrac : actual;
+  const projectedPct = goalIsZero ? null : (projectedRaw / goal) * 100;
+  const nowSt = nowTier(currentPct, projectedPct, goalIsZero);
+  let projSt = tier(projectedPct ?? 0, goalIsZero);
+  if (projSt.special && !goalIsZero) {
+    const label = currentPct >= 100 ? '🏆 Goal Met' : '🚀 On Pace to Hit Goal';
+    projSt = { ...projSt, label };
+  }
+  return { actual, goal, currentPct, projectedRaw, projectedPct, goalIsZero, nowSt, projSt };
+}
+
+function animateBarWidth(el, targetPct, delayMs) {
+  if (!el) return;
+  const clamped = Math.max(0, Math.min(targetPct, 100));
+  el.style.width = '0%';
+  setTimeout(() => { el.style.width = clamped + '%'; }, delayMs || 0);
+}
+
+function animateNumber(el, target, delayMs, suffix) {
+  if (!el) return;
+  suffix = suffix || '%';
+  setTimeout(() => {
+    const start = performance.now();
+    const duration = 900;
+    function step(now) {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = fmt(target * eased, 1) + suffix;
+      if (t < 1) requestAnimationFrame(step);
+      else el.textContent = fmt(target, 1) + suffix;
+    }
+    requestAnimationFrame(step);
+  }, delayMs || 0);
+}
+
+// Current-state box: what's actually happened so far this month.
+// Colored using the current-value tier, so the color always matches the number shown here.
+function buildNowBoxHTML(label, mm, expectedPct, uid, curDay, curDim) {
+  const st = mm.nowSt;
+  const remaining = mm.goalIsZero ? 0 : Math.max(mm.goal - mm.actual, 0);
+  // Forward-looking: the average pace needed PER DAY, over the days left in the
+  // month, to still land on goal — not a backward-looking "what I've done so far" rate.
+  const daysLeft = Math.max(curDim - curDay, 0);
+  const neededPerDay = (!mm.goalIsZero && remaining > 0 && daysLeft > 0) ? remaining / daysLeft : 0;
+  const heroStyle = mm.goalIsZero
+    ? 'color:#c7c5d6;'
+    : `background:${st.barGrad}; -webkit-background-clip:text; background-clip:text; color:transparent;`;
+  return `
+    <div class="metric-box">
+      <div class="metric-box-head">
+        <span class="m-label">${label}</span>
+        <span class="status-pill small ${st.cls}">${st.label}</span>
+      </div>
+      <div class="metric-hero">
+        <span class="metric-hero-num" style="${heroStyle}">${mm.currentPct === null ? '—' : fmt(mm.currentPct,0) + '%'}</span>
+        <span class="metric-hero-sub">${mm.goalIsZero ? 'no goal set' : fmt(mm.actual,1) + ' of ' + fmt(mm.goal, mm.goal % 1 === 0 ? 0 : 1) + ' so far'}</span>
+      </div>
+      <div class="mini-bar-track">
+        <div class="mini-bar-fill${st.special ? ' bar-shimmer' : ''}" data-mini="${uid}" style="background:${st.barGrad};"></div>
+        <div class="mini-bar-tick" style="left:${Math.min(expectedPct,100)}%;"></div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-chip"><span class="stat-label">Actual</span><span class="stat-val">${fmt(mm.actual,1)}</span></div>
+        <div class="stat-chip"><span class="stat-label">Goal</span><span class="stat-val">${mm.goalIsZero ? '—' : fmt(mm.goal, mm.goal % 1 === 0 ? 0 : 1)}</span></div>
+        <div class="stat-chip"><span class="stat-label">Remaining</span><span class="stat-val">${mm.goalIsZero ? '—' : (remaining <= 0 ? '✓ Met' : fmt(remaining,1))}</span></div>
+        <div class="stat-chip"><span class="stat-label">Avg/Day to Goal</span><span class="stat-val">${mm.goalIsZero ? '—' : (remaining <= 0 ? '✓ Met' : fmt(neededPerDay,1))}</span></div>
+      </div>
+    </div>`;
+}
+
+// Projected box: where the metric is headed if the current daily rate holds.
+// Uses the exact same tier key as the Now box, just evaluated against the projected %
+// instead of the current %.
+function buildProjectedBoxHTML(label, mm, expectedPct, uid, curDay, curDim) {
+  const st = mm.projSt;
+  const remaining = mm.goalIsZero ? 0 : Math.max(mm.goal - mm.actual, 0);
+  const daysLeft = Math.max(curDim - curDay, 0);
+  const gap = mm.goalIsZero ? 0 : mm.projectedRaw - mm.goal;
+  const needPerDay = (!mm.goalIsZero && remaining > 0 && daysLeft > 0) ? remaining / daysLeft : 0;
+  const heroStyle = mm.goalIsZero
+    ? 'color:#c7c5d6;'
+    : `background:${st.barGrad}; -webkit-background-clip:text; background-clip:text; color:transparent;`;
+  return `
+    <div class="metric-box">
+      <div class="metric-box-head">
+        <span class="m-label">${label} · Projected</span>
+        <span class="status-pill small ${st.cls}">${st.label}</span>
+      </div>
+      <div class="metric-hero">
+        <span class="metric-hero-num" style="${heroStyle}">${mm.goalIsZero ? '—' : fmt(mm.projectedPct,0) + '%'}</span>
+        <span class="metric-hero-sub">${mm.goalIsZero ? 'no goal set' : '≈ ' + fmt(mm.projectedRaw,1) + ' by month end'}</span>
+      </div>
+      <div class="mini-bar-track">
+        <div class="mini-bar-fill${st.special ? ' bar-shimmer' : ''}" data-mini="${uid}" style="background:${st.barGrad};"></div>
+        <div class="mini-bar-tick" style="left:${Math.min(expectedPct,100)}%;"></div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-chip"><span class="stat-label">Projected</span><span class="stat-val">${mm.goalIsZero ? '—' : fmt(mm.projectedRaw,1)}</span></div>
+        <div class="stat-chip"><span class="stat-label">Surplus/Gap</span><span class="stat-val">${mm.goalIsZero ? '—' : (gap >= 0 ? '+' : '') + fmt(gap,1)}</span></div>
+        <div class="stat-chip"><span class="stat-label">Need / Day</span><span class="stat-val">${mm.goalIsZero ? '—' : (remaining <= 0 ? '✓ Met' : fmt(needPerDay,1))}</span></div>
+        <div class="stat-chip"><span class="stat-label">Days Left</span><span class="stat-val">${daysLeft}</span></div>
+      </div>
+    </div>`;
+}
+
+// Blended (Sessions + Membership average) projected attainment — sits above the
+// two Projected metric boxes so the same "avg of the two" composite shown in the
+// collapsed bar is also visible once you expand to the projected end-of-month view.
+function buildCompositeProjectedHTML(composite) {
+  const st = composite.projSt;
+  const val = composite.goalIsZero || composite.projected === null ? '—' : fmt(composite.projected, 0) + '%';
+  const heroStyle = composite.goalIsZero
+    ? 'color:#c7c5d6;'
+    : `background:${st.barGrad}; -webkit-background-clip:text; background-clip:text; color:transparent;`;
+  return `
+    <div class="metric-box" style="margin-bottom:12px;">
+      <div class="metric-box-head">
+        <span class="m-label">Blended · Projected</span>
+        <span class="status-pill small ${st.cls}">${st.label}</span>
+      </div>
+      <div class="metric-hero">
+        <span class="metric-hero-num" style="${heroStyle}">${val}</span>
+        <span class="metric-hero-sub">average of Sessions + Membership projected %</span>
+      </div>
+    </div>`;
+}
+
+// Cancels box: just the negative-only line items (attrition) for the month.
+// Membership cancels is the northstar for refund-rate tracking; Session cancels
+// shown alongside for context. Not goal/status-colored since it isn't measured
+// against a goal.
+function buildCancelsBoxHTML(label, cancels, uid) {
+  const c = cancels || 0;
+  return `
+    <div class="metric-box">
+      <div class="metric-box-head">
+        <span class="m-label">${label} · Cancels</span>
+      </div>
+      <div class="metric-hero">
+        <span class="metric-hero-num" style="color:#dc2626;">${fmt(c,1)}</span>
+        <span class="metric-hero-sub">negative line items this month</span>
+      </div>
+    </div>`;
+}
+
+function buildDetailsHTML(uid, repDisplay) {
+  return `
+    <div class="metric-grid" data-grid="${uid}"></div>
+    <div class="sub-toggle" data-subtoggle="${uid}"><span class="chevron" data-subchevron="${uid}">▶</span> Show projected end-of-month</div>
+    <div class="details-wrapper" data-subwrapper="${uid}">
+      <div class="details-inner">
+        <div data-projcomposite="${uid}" style="margin-top:12px;"></div>
+        <div class="metric-grid" data-projgrid="${uid}"></div>
+      </div>
+    </div>
+    <div class="sub-toggle" data-subtoggle2="${uid}"><span class="chevron" data-subchevron2="${uid}">▶</span> Show cancels (attrition)</div>
+    <div class="details-wrapper" data-subwrapper2="${uid}">
+      <div class="details-inner">
+        <div class="metric-grid" data-cancelgrid="${uid}" style="margin-top:12px;"></div>
+      </div>
+    </div>
+    ${repDisplay ? `<button class="client-detail-btn" data-repname="${encodeURIComponent(repDisplay)}" type="button">View Client Detail →</button>` : ''}
+  `;
+}
+
+function fillDetails(uid, sessionsMetric, membersMetric, composite, expectedPct, curDay, curDim, sessionsCancels, membersCancels) {
+  document.querySelector(`[data-grid="${uid}"]`).innerHTML =
+    buildNowBoxHTML('Sessions', sessionsMetric, expectedPct, uid + '-sessions', curDay, curDim) +
+    buildNowBoxHTML('Membership', membersMetric, expectedPct, uid + '-members', curDay, curDim);
+  document.querySelector(`[data-projcomposite="${uid}"]`).innerHTML = buildCompositeProjectedHTML(composite);
+  document.querySelector(`[data-projgrid="${uid}"]`).innerHTML =
+    buildProjectedBoxHTML('Sessions', sessionsMetric, expectedPct, uid + '-sessions-proj', curDay, curDim) +
+    buildProjectedBoxHTML('Membership', membersMetric, expectedPct, uid + '-members-proj', curDay, curDim);
+  document.querySelector(`[data-cancelgrid="${uid}"]`).innerHTML =
+    buildCancelsBoxHTML('Sessions', sessionsCancels, uid + '-sessions-cancel') +
+    buildCancelsBoxHTML('Membership', membersCancels, uid + '-members-cancel');
+
+  const subToggle = document.querySelector(`[data-subtoggle="${uid}"]`);
+  subToggle.addEventListener('click', () => {
+    const wrapper = document.querySelector(`[data-subwrapper="${uid}"]`);
+    const chev = document.querySelector(`[data-subchevron="${uid}"]`);
+    const opening = !wrapper.classList.contains('open');
+    wrapper.classList.toggle('open');
+    chev.classList.toggle('open');
+    if (opening) {
+      animateBarWidth(document.querySelector(`[data-mini="${uid}-sessions-proj"]`), sessionsMetric.projectedPct ?? 0, 50);
+      animateBarWidth(document.querySelector(`[data-mini="${uid}-members-proj"]`), membersMetric.projectedPct ?? 0, 50);
+    }
+  });
+
+  const subToggle2 = document.querySelector(`[data-subtoggle2="${uid}"]`);
+  subToggle2.addEventListener('click', () => {
+    const wrapper = document.querySelector(`[data-subwrapper2="${uid}"]`);
+    const chev = document.querySelector(`[data-subchevron2="${uid}"]`);
+    wrapper.classList.toggle('open');
+    chev.classList.toggle('open');
+  });
+}
+
+function render() {
+  const goals = loadGoals();
+  const actuals = loadActuals();
+  const [y, m, d] = actuals.asOf.split('-').map(Number);
+  const dim = daysInMonth(y, m);
+  const expectedPct = (d / dim) * 100;
+  const monthName = new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'long' });
+  const elapsedFrac = expectedPct / 100;
+
+  document.getElementById('banner').innerHTML = `
+    <div class="pill">Data as of <b>${actuals.asOf}</b></div>
+    <div class="pill">Day <b>${d}</b> of ${dim} · ${monthName}</div>
+    <div class="pill">Expected pace <b>${expectedPct.toFixed(1)}%</b></div>
+  `;
+
+  function compositeOf(memMetric, sesMetric) {
+    const curParts = [memMetric.currentPct, sesMetric.currentPct].filter(v => v !== null);
+    const projParts = [memMetric.projectedPct, sesMetric.projectedPct].filter(v => v !== null);
+    const current = curParts.length ? curParts.reduce((s,v)=>s+v,0) / curParts.length : null;
+    const projected = projParts.length ? projParts.reduce((s,v)=>s+v,0) / projParts.length : null;
+    const goalIsZero = current === null;
+    const nowSt = nowTier(current, projected, goalIsZero);
+    let projSt = tier(projected ?? 0, goalIsZero);
+    if (projSt.special && !goalIsZero) {
+      const label = current >= 100 ? '🏆 Goal Met' : '🚀 On Pace to Hit Goal';
+      projSt = { ...projSt, label };
+    }
+    return { current, projected, goalIsZero, nowSt, projSt };
+  }
+
+  let teamMembersActual = 0, teamMembersGoal = 0, teamSessionsActual = 0, teamSessionsGoal = 0;
+  let teamMembersCancels = 0, teamSessionsCancels = 0;
+  const repRows = ROSTER.map((r, i) => {
+    const g = goals[r.display] || { sessions: 0, members: 0, tag: '' };
+    const raw = (actuals.perRep && actuals.perRep[r.display]) || { members: 0, sessions: 0 };
+    // Fold in Aaron-approved manual attribution requests (see Manual Attribution
+    // section below) — additive on top of the ledger CSV totals, never replacing them.
+    const approved = APPROVED_TOTALS[r.display] || { members: 0, sessions: 0 };
+    const a = { ...raw, members: raw.members + approved.members, sessions: raw.sessions + approved.sessions };
+    teamMembersActual += a.members; teamMembersGoal += g.members;
+    teamSessionsActual += a.sessions; teamSessionsGoal += g.sessions;
+    teamMembersCancels += (a.membersCancels || 0);
+    teamSessionsCancels += (a.sessionsCancels || 0);
+    const memMetric = computeMetric(a.members, g.members, elapsedFrac);
+    const sesMetric = computeMetric(a.sessions, g.sessions, elapsedFrac);
+    const composite = compositeOf(memMetric, sesMetric);
+    return { rep: r, g, a, memMetric, sesMetric, composite, idx: i };
+  }); // kept in roster order (alphabetical by first name)
+
+  const teamMemMetric = computeMetric(teamMembersActual, teamMembersGoal, elapsedFrac);
+  const teamSesMetric = computeMetric(teamSessionsActual, teamSessionsGoal, elapsedFrac);
+  const teamComposite = compositeOf(teamMemMetric, teamSesMetric);
+  const teamSt = teamComposite.nowSt;
+
+  document.getElementById('teamCard').innerHTML = `
+    <div class="rep-header" data-toggle="team">
+      <div class="avatar" style="background:linear-gradient(135deg,#f472b6,#a855f7,#6366f1,#38bdf8); font-size:18px;">🅰️</div>
+      <div class="rep-meta">
+        <div class="rep-name-row">
+          <span class="rep-name" style="font-size:16px;">A-Team Total</span>
+          <span class="status-pill ${teamSt.cls}">${teamSt.label}</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill${teamSt.special ? ' bar-shimmer' : ''}" id="teamBar" style="background:${teamSt.barGrad};"></div>
+          <div class="bar-tick" style="left:${Math.min(expectedPct,100)}%;"></div>
+        </div>
+      </div>
+      <div class="composite-num" id="teamNum" style="font-size:22px;">0%</div>
+      <div class="chevron open" data-chevron="team">▶</div>
+    </div>
+    <div class="details-wrapper open" data-wrapper="team">
+      <div class="details-inner">
+        <div class="details-content">
+          ${buildDetailsHTML('team')}
+        </div>
+      </div>
+    </div>
+  `;
+  fillDetails('team', teamSesMetric, teamMemMetric, teamComposite, expectedPct, d, dim, teamSessionsCancels, teamMembersCancels);
+  animateBarWidth(document.getElementById('teamBar'), teamComposite.current ?? 0, 100);
+  animateNumber(document.getElementById('teamNum'), teamComposite.current ?? 0, 100);
+  // Open by default, so animate its "now" mini-bars immediately instead of waiting for a click.
+  animateBarWidth(document.querySelector('[data-mini="team-sessions"]'), teamSesMetric.currentPct ?? 0, 250);
+  animateBarWidth(document.querySelector('[data-mini="team-members"]'), teamMemMetric.currentPct ?? 0, 250);
+
+  document.querySelector('[data-toggle="team"]').addEventListener('click', () => {
+    const wrapper = document.querySelector('[data-wrapper="team"]');
+    const chevron = document.querySelector('[data-chevron="team"]');
+    const opening = !wrapper.classList.contains('open');
+    wrapper.classList.toggle('open');
+    chevron.classList.toggle('open');
+    if (opening) {
+      animateBarWidth(document.querySelector('[data-mini="team-sessions"]'), teamSesMetric.currentPct ?? 0, 50);
+      animateBarWidth(document.querySelector('[data-mini="team-members"]'), teamMemMetric.currentPct ?? 0, 50);
+    }
+  });
+
+  const repList = document.getElementById('repList');
+  repList.innerHTML = '';
+  repRows.forEach((row, order) => {
+    const st = row.composite.nowSt;
+    const uid = 'rep-' + order;
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="rep-header" data-toggle="${uid}">
+        <div class="avatar" style="background:${AVATAR_GRADIENTS[row.idx % AVATAR_GRADIENTS.length]};">${initials(row.rep.display)}</div>
+        <div class="rep-meta">
+          <div class="rep-name-row">
+            <span class="rep-name">${row.rep.display}</span>
+            ${row.g.tag ? `<span class="rep-tag">${row.g.tag}</span>` : ''}
+            <span class="status-pill ${st.cls}">${st.label}</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill${st.special ? ' bar-shimmer' : ''}" data-bar="${uid}" style="background:${st.barGrad};"></div>
+            <div class="bar-tick" style="left:${Math.min(expectedPct,100)}%;"></div>
+              </div>
+        </div>
+        <div class="composite-num" data-num="${uid}">0%</div>
+        <div class="chevron" data-chevron="${uid}">▶</div>
+      </div>
+      <div class="details-wrapper" data-wrapper="${uid}">
+        <div class="details-inner">
+          <div class="details-content">
+            ${buildDetailsHTML(uid, row.rep.display)}
+          </div>
+        </div>
+      </div>
+    `;
+    repList.appendChild(card);
+    fillDetails(uid, row.sesMetric, row.memMetric, row.composite, expectedPct, d, dim, row.a.sessionsCancels || 0, row.a.membersCancels || 0);
+
+    animateBarWidth(document.querySelector(`[data-bar="${uid}"]`), row.composite.current ?? 0, 150 + order * 60);
+    animateNumber(document.querySelector(`[data-num="${uid}"]`), row.composite.current ?? 0, 150 + order * 60);
+
+    const header = card.querySelector(`[data-toggle="${uid}"]`);
+    header.addEventListener('click', () => {
+      const wrapper = card.querySelector(`[data-wrapper="${uid}"]`);
+      const chevron = card.querySelector(`[data-chevron="${uid}"]`);
+      const opening = !wrapper.classList.contains('open');
+      wrapper.classList.toggle('open');
+      chevron.classList.toggle('open');
+      if (opening) {
+        animateBarWidth(document.querySelector(`[data-mini="${uid}-sessions"]`), row.sesMetric.currentPct ?? 0, 50);
+        animateBarWidth(document.querySelector(`[data-mini="${uid}-members"]`), row.memMetric.currentPct ?? 0, 50);
+      }
+    });
+  });
+
+  renderGoalsForm(goals);
+}
+
+function renderGoalsForm(goals) {
+  const container = document.getElementById('goalsForm');
+  container.innerHTML = '';
+  ROSTER.forEach(r => {
+    const g = goals[r.display] || { sessions: 0, members: 0, tag: '' };
+    const row = document.createElement('div');
+    row.className = 'goal-grid';
+    row.innerHTML = `
+      <div>${r.display}</div>
+      <div><input type="number" step="0.01" data-name="${r.display}" data-field="sessions" value="${g.sessions}"></div>
+      <div><input type="number" step="0.01" data-name="${r.display}" data-field="members" value="${g.members}"></div>
+      <div><input type="text" data-name="${r.display}" data-field="tag" value="${g.tag || ''}"></div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+document.getElementById('saveGoals').addEventListener('click', () => {
+  const goals = loadGoals();
+  document.querySelectorAll('#goalsForm input').forEach(input => {
+    const name = input.getAttribute('data-name');
+    const field = input.getAttribute('data-field');
+    if (!goals[name]) goals[name] = { sessions: 0, members: 0, tag: '' };
+    if (field === 'tag') goals[name][field] = input.value;
+    else goals[name][field] = parseFloat(input.value) || 0;
+  });
+  saveGoals(goals);
+  render();
+});
+
+document.getElementById('updateActuals').addEventListener('click', () => {
+  const text = document.getElementById('csvInput').value;
+  const statusEl = document.getElementById('updateStatus');
+  try {
+    const actuals = computeActualsFromCSV(text);
+    saveActuals(actuals);
+    statusEl.textContent = `Updated successfully. Data as of ${actuals.asOf}.`;
+    statusEl.style.color = '#16a34a';
+    render();
+  } catch (e) {
+    console.error(e);
+    statusEl.textContent = 'Error: ' + e.message;
+    statusEl.style.color = '#dc2626';
+  }
+});
+
+// ---------- Historical Performance (SIP) ----------
+
+function promoTier(pct) {
+  if (pct === null || pct === undefined || isNaN(pct)) return { cls: 'st-na', label: '—' };
+  if (pct >= 120) return { cls: 'st-gold', label: '🥇 Level 3' };
+  if (pct >= 110) return { cls: 'st-l2', label: '🥈 Level 2' };
+  if (pct >= 100) return { cls: 'st-gradient', label: '🏆 Goal Met' };
+  if (pct >= 80) return { cls: 'st-ontrack', label: 'On Track' };
+  if (pct >= 50) return { cls: 'st-behind', label: 'Behind' };
+  return { cls: 'st-far', label: 'Far Behind' };
+}
+
+function sipMonthObj(monthKey) {
+  return SIP_HISTORY.find(m => m.k === monthKey);
+}
+
+// Aggregates RAW actual/goal totals across one or more months' rep arrays, then
+// derives team-level Sessions% and Members% from those totals (sum of actuals /
+// sum of goals), and composite = average of those two team-level percentages.
+// This deliberately avoids averaging each rep's own % together ("averaging
+// averages"), which over-weights low-goal reps and under-weights high-goal reps.
+function aggregateReps(repsArrays) {
+  let totalSA = 0, totalSG = 0, totalMA = 0, totalMG = 0;
+  repsArrays.forEach(reps => reps.forEach(r => {
+    totalSA += r.sA; totalSG += r.sG;
+    totalMA += r.mA; totalMG += r.mG;
+  }));
+  const sessionsPct = totalSG > 0 ? (totalSA / totalSG) * 100 : null;
+  const membersPct = totalMG > 0 ? (totalMA / totalMG) * 100 : null;
+  const parts = [sessionsPct, membersPct].filter(v => v !== null);
+  const compositePct = parts.length ? parts.reduce((s, v) => s + v, 0) / parts.length : null;
+  return { totalSA, totalSG, totalMA, totalMG, sessionsPct, membersPct, compositePct };
+}
+
+// Prefer the authoritative rollup total for a month; fall back to summing that
+// month's rep rows only if no rollup entry exists for it.
+function monthAttainment(m) {
+  const roll = SIP_TEAM_ROLLUP[m.k];
+  if (roll) {
+    const sessionsPct = roll.sG > 0 ? (roll.sA / roll.sG) * 100 : null;
+    const membersPct = roll.mG > 0 ? (roll.mA / roll.mG) * 100 : null;
+    const parts = [sessionsPct, membersPct].filter(v => v !== null);
+    const compositePct = parts.length ? parts.reduce((s, v) => s + v, 0) / parts.length : null;
+    return { totalSA: roll.sA, totalSG: roll.sG, totalMA: roll.mA, totalMG: roll.mG, sessionsPct, membersPct, compositePct };
+  }
+  return aggregateReps([m.reps]);
+}
+
+// Range aggregation still sums raw rollup totals across months (not an average of
+// monthly percentages), using the authoritative rollup figure per month where available.
+function aggregateMonths(months) {
+  let totalSA = 0, totalSG = 0, totalMA = 0, totalMG = 0;
+  months.forEach(m => {
+    const roll = SIP_TEAM_ROLLUP[m.k];
+    if (roll) {
+      totalSA += roll.sA; totalSG += roll.sG;
+      totalMA += roll.mA; totalMG += roll.mG;
+    } else {
+      m.reps.forEach(r => { totalSA += r.sA; totalSG += r.sG; totalMA += r.mA; totalMG += r.mG; });
+    }
+  });
+  const sessionsPct = totalSG > 0 ? (totalSA / totalSG) * 100 : null;
+  const membersPct = totalMG > 0 ? (totalMA / totalMG) * 100 : null;
+  const parts = [sessionsPct, membersPct].filter(v => v !== null);
+  const compositePct = parts.length ? parts.reduce((s, v) => s + v, 0) / parts.length : null;
+  return { totalSA, totalSG, totalMA, totalMG, sessionsPct, membersPct, compositePct };
+}
+
+function sipRangeSlice(fromKey, toKey) {
+  const fromIdx = SIP_HISTORY.findIndex(m => m.k === fromKey);
+  const toIdx = SIP_HISTORY.findIndex(m => m.k === toKey);
+  if (fromIdx === -1 || toIdx === -1 || fromIdx > toIdx) return null;
+  return SIP_HISTORY.slice(fromIdx, toIdx + 1);
+}
+
+function sipMonthCardHTML(m) {
+  if (!m) return '<div class="meta-note">No data for that month.</div>';
+  const att = monthAttainment(m);
+  const rows = m.reps.map(r => {
+    const sp = r.sG > 0 ? (r.sA / r.sG) * 100 : null;
+    const mp = r.mG > 0 ? (r.mA / r.mG) * 100 : null;
+    const pt = promoTier(r.pct);
+    return `<tr>
+      <td>${r.name}</td>
+      <td>${fmt(r.sA,1)} / ${fmt(r.sG,1)}${sp !== null ? ` <span style="color:var(--text-faint);">(${fmt(sp,0)}%)</span>` : ''}</td>
+      <td>${fmt(r.mA,1)} / ${fmt(r.mG,1)}${mp !== null ? ` <span style="color:var(--text-faint);">(${fmt(mp,0)}%)</span>` : ''}</td>
+      <td>${r.pct === null ? '—' : fmt(r.pct,1) + '%'}</td>
+      <td><span class="status-pill small ${pt.cls}">${pt.label}</span></td>
+    </tr>`;
+  }).join('');
+  return `
+    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;">
+      <div style="font-size:13px; color:var(--text-muted);">Team attainment <span style="color:var(--text-faint);">(from the month's rollup totals, not an average of reps)</span></div>
+      <div style="font-weight:800; font-size:20px;">${att.compositePct === null ? '—' : fmt(att.compositePct,1) + '%'}</div>
+    </div>
+    <div class="sip-table-wrap">
+      <table class="sip-table">
+        <thead><tr><th>Rep</th><th>Sessions</th><th>Members</th><th>Composite</th><th>Tier</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderSipMonth() {
+  const sel = document.getElementById('sipMonthSelect');
+  const m = sipMonthObj(sel.value);
+  document.getElementById('sipMonthSummary').innerHTML = sipMonthCardHTML(m);
+}
+
+// Renders the range summary AND drives the MoM chart for the same range, so the
+// chart always reflects whatever "From"/"To" is currently selected.
+function renderSipRange() {
+  const fromSel = document.getElementById('sipFromSelect');
+  const toSel = document.getElementById('sipToSelect');
+  const slice = sipRangeSlice(fromSel.value, toSel.value);
+  const el = document.getElementById('sipRangeSummary');
+  if (!slice) {
+    el.innerHTML = '<div class="meta-note">"From" must be on or before "To".</div>';
+    renderSipChart(null);
+    return;
+  }
+  const att = aggregateMonths(slice);
+  const avg = att.compositePct;
+  const pt = promoTier(avg);
+  el.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:10px;">
+      <div style="font-size:13px; color:var(--text-muted);">Team attainment across ${slice.length} month${slice.length === 1 ? '' : 's'} (${slice[0].l} – ${slice[slice.length-1].l}) <span style="color:var(--text-faint);">— sum of actuals ÷ sum of goals from each month's rollup, not an average of monthly averages</span></div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-weight:800; font-size:20px;">${avg === null ? '—' : fmt(avg,1) + '%'}</div>
+        <span class="status-pill small ${pt.cls}">${pt.label}</span>
+      </div>
+    </div>
+  `;
+  renderSipChart(slice, avg);
+}
+
+let sipChartInstance = null;
+// slice: array of SIP_HISTORY month objects to plot (defaults to full history).
+// rangeAvg: the raw-totals composite % for the selected range, drawn as a red dotted line.
+function renderSipChart(slice, rangeAvg) {
+  const ctx = document.getElementById('sipChart');
+  if (!ctx || typeof Chart === 'undefined') return;
+  if (!slice) slice = SIP_HISTORY;
+  const labels = slice.map(m => m.l);
+  const data = slice.map(m => {
+    const a = monthAttainment(m);
+    return a.compositePct === null ? null : Math.round(a.compositePct * 10) / 10;
+  });
+  if (sipChartInstance) sipChartInstance.destroy();
+  sipChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Team attainment %',
+        data,
+        borderColor: '#7c3aed',
+        backgroundColor: 'rgba(124,58,237,0.12)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+        pointBackgroundColor: '#7c3aed',
+        spanGaps: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { maxRotation: 60, minRotation: 60, font: { size: 9 } } },
+        y: { title: { display: true, text: 'Attainment %' } }
+      }
+    },
+    plugins: [{
+      id: 'refLines',
+      afterDraw(chart) {
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea) return;
+        const lines = [[110, '#7c3aed', 'L2 · 110%', [5, 4]], [120, '#f59e0b', 'L3 · 120%', [5, 4]]];
+        if (rangeAvg !== null && rangeAvg !== undefined) {
+          lines.push([rangeAvg, '#dc2626', `Range avg · ${fmt(rangeAvg,1)}%`, [2, 3]]);
+        }
+        lines.forEach(([val, color, label, dash]) => {
+          const y = scales.y.getPixelForValue(val);
+          if (y < chartArea.top || y > chartArea.bottom) return;
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.setLineDash(dash);
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(chartArea.left, y);
+          ctx.lineTo(chartArea.right, y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = color;
+          ctx.font = '10px sans-serif';
+          ctx.fillText(label, chartArea.right - 70, y - 4);
+          ctx.restore();
+        });
+      }
+    }]
+  });
+}
+
+function initSip() {
+  const monthSel = document.getElementById('sipMonthSelect');
+  const fromSel = document.getElementById('sipFromSelect');
+  const toSel = document.getElementById('sipToSelect');
+  const opts = SIP_HISTORY.map(m => `<option value="${m.k}">${m.l}</option>`).join('');
+  monthSel.innerHTML = opts;
+  fromSel.innerHTML = opts;
+  toSel.innerHTML = opts;
+  monthSel.value = SIP_HISTORY[SIP_HISTORY.length - 1].k;
+  fromSel.value = SIP_HISTORY[0].k;
+  toSel.value = SIP_HISTORY[SIP_HISTORY.length - 1].k;
+
+  monthSel.addEventListener('change', renderSipMonth);
+  fromSel.addEventListener('change', renderSipRange);
+  toSel.addEventListener('change', renderSipRange);
+
+  renderSipMonth();
+  renderSipRange(); // also renders the chart for the initial (full) range
+}
+
+function setupToggle(toggleId, bodyId, label) {
+  const toggle = document.getElementById(toggleId);
+  const body = document.getElementById(bodyId);
+  toggle.addEventListener('click', () => {
+    const open = body.classList.toggle('open');
+    toggle.textContent = (open ? '▾ ' : '▸ ') + label;
+  });
+}
+setupToggle('toggleGoals', 'goalsBody', 'Edit monthly goals');
+setupToggle('toggleData', 'dataBody', 'Update actuals from ledger export');
+setupToggle('toggleAttribution', 'attributionBody', 'Request Manual Attribution');
+setupToggle('toggleSip', 'sipBody', 'Historical Performance (SIP)');
+
+// ---------- Per-rep Client Detail drill-down page ----------
+// Hash-routed (#client-detail=<rep name>) so it behaves like navigating to its own
+// page — back button, bookmarkable, shareable — while staying in this single file.
+// Sourced from the raw per-client line items captured the last time a ledger CSV
+// was pasted in (see computeActualsFromCSV); empty until that's been done at least once.
+function detailRowHTML(it) {
+  return `<tr>
+    <td>${it.clientId || '—'}</td>
+    <td>${fmt(it.members,1)}</td>
+    <td>${fmt(it.sessions,1)}</td>
+    <td><span class="date-chip">${it.date || '—'}</span></td>
+  </tr>`;
+}
+function detailEmptyRowHTML(msg) {
+  return `<tr><td colspan="4" style="text-align:center; color:var(--text-faint); padding:20px 0;">${msg}</td></tr>`;
+}
+
+function renderClientDetail() {
+  const overlay = document.getElementById('clientDetailOverlay');
+  const match = location.hash.match(/^#client-detail=(.+)$/);
+  if (!match) { overlay.classList.remove('open'); return; }
+  const repName = decodeURIComponent(match[1]);
+  overlay.classList.add('open');
+  document.getElementById('detailRepName').textContent = repName + ' — Client Detail';
+  const actuals = loadActuals();
+  const items = (actuals.perRep && actuals.perRep[repName] && actuals.perRep[repName].items) || [];
+  const sorted = items.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  // A line item is a refund/cancellation if either metric came in negative — split
+  // those out from positive attributions rather than mixing them in one list.
+  const isRefund = (it) => it.members < 0 || it.sessions < 0;
+  const attributions = sorted.filter(it => !isRefund(it));
+  const refunds = sorted.filter(isRefund);
+
+  document.getElementById('detailContent').style.display = items.length ? '' : 'none';
+  document.getElementById('detailSummary').textContent = items.length
+    ? ''
+    : 'No client-level detail yet — paste a fresh ledger export under "Update actuals from ledger export" to populate this.';
+
+  if (items.length) {
+    const sum = (arr, key) => arr.reduce((s, it) => s + it[key], 0);
+    const membersSold = sum(attributions, 'members');
+    const sessionsSold = sum(attributions, 'sessions');
+    const memberRefunds = sum(refunds, 'members');
+    const sessionRefunds = sum(refunds, 'sessions');
+    document.getElementById('detailStats').innerHTML = `
+      <div class="detail-stat"><span class="detail-stat-label">Members Sold</span><span class="detail-stat-val positive">${fmt(membersSold,1)}</span></div>
+      <div class="detail-stat"><span class="detail-stat-label">Sessions Sold</span><span class="detail-stat-val positive">${fmt(sessionsSold,1)}</span></div>
+      <div class="detail-stat"><span class="detail-stat-label">Membership Refunds</span><span class="detail-stat-val negative">${fmt(memberRefunds,1)}</span></div>
+      <div class="detail-stat"><span class="detail-stat-label">Session Refunds</span><span class="detail-stat-val negative">${fmt(sessionRefunds,1)}</span></div>
+    `;
+    document.getElementById('detailAttrCount').textContent = attributions.length + ' line item' + (attributions.length === 1 ? '' : 's');
+    document.getElementById('detailRefundCount').textContent = refunds.length + ' line item' + (refunds.length === 1 ? '' : 's');
+    document.getElementById('detailAttrBody').innerHTML = attributions.length ? attributions.map(detailRowHTML).join('') : detailEmptyRowHTML('No attributions');
+    document.getElementById('detailRefundBody').innerHTML = refunds.length ? refunds.map(detailRowHTML).join('') : detailEmptyRowHTML('No refunds 🎉');
+  }
+  window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', renderClientDetail);
+document.getElementById('detailBackBtn').addEventListener('click', () => {
+  if (location.hash) history.back(); else document.getElementById('clientDetailOverlay').classList.remove('open');
+});
+// Event delegation: rep cards (and their client-detail buttons) are rebuilt on every
+// render(), so listen on a static ancestor rather than re-binding per button.
+document.getElementById('repList').addEventListener('click', (e) => {
+  const btn = e.target.closest('.client-detail-btn');
+  if (!btn) return;
+  location.hash = 'client-detail=' + btn.getAttribute('data-repname');
+});
+
+// ---------- Manual Attribution (Netlify Identity + Functions + Blobs) ----------
+// Auth is entirely Netlify Identity (Google provider, restricted to the company
+// domain in the site's Identity settings) — Supabase is never involved in this
+// feature and reps never get any Supabase access. Submissions/approvals/reads all
+// go through Netlify Functions backed by Netlify Blobs. Approved amounts are folded
+// additively into each rep's live actual totals via APPROVED_TOTALS (see render()).
+let APPROVED_TOTALS = {};
+
+async function fetchApprovedTotals() {
+  try {
+    const res = await fetch('/api/attributions/approved-totals');
+    if (!res.ok) return {};
+    const data = await res.json();
+    return data.totals || {};
+  } catch (e) {
+    console.warn('Could not load approved manual attribution totals', e);
+    return {};
+  }
+}
+
+async function authedFetch(path, options) {
+  const user = window.netlifyIdentity && netlifyIdentity.currentUser();
+  if (!user) throw new Error('Not signed in');
+  const token = await user.jwt();
+  const opts = Object.assign({}, options);
+  opts.headers = Object.assign({ Authorization: 'Bearer ' + token }, options && options.headers);
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+  return data;
+}
+
+function attrStatusPill(status) {
+  const label = status === 'approved' ? '✓ Approved' : status === 'rejected' ? '✗ Rejected' : '⏳ Pending';
+  const cls = status === 'approved' ? 'st-approved' : status === 'rejected' ? 'st-rejected' : 'st-pending';
+  return `<span class="status-pill small ${cls}">${label}</span>`;
+}
+
+async function refreshMyAttributions() {
+  const user = window.netlifyIdentity && netlifyIdentity.currentUser();
+  const tbody = document.getElementById('myAttributionsBody');
+  const adminCard = document.getElementById('adminApprovalsCard');
+  if (!user) { tbody.innerHTML = ''; adminCard.style.display = 'none'; return; }
+  try {
+    const { isAdmin, records } = await authedFetch('/api/attributions/list');
+    tbody.innerHTML = records.length ? records.map(r => `
+      <tr>
+        <td>${r.clientId}</td>
+        <td>${fmt(r.members,1)}</td>
+        <td>${fmt(r.sessions,1)}</td>
+        <td>${r.saleDate}</td>
+        <td>${attrStatusPill(r.status)}</td>
+      </tr>`).join('') : `<tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:16px 0;">No requests yet</td></tr>`;
+
+    adminCard.style.display = isAdmin ? '' : 'none';
+    if (isAdmin) {
+      const pending = records.filter(r => r.status === 'pending');
+      const pendingBody = document.getElementById('pendingApprovalsBody');
+      pendingBody.innerHTML = pending.length ? pending.map(r => `
+        <tr>
+          <td>${r.repName}</td>
+          <td>${r.clientId}</td>
+          <td>${fmt(r.members,1)}</td>
+          <td>${fmt(r.sessions,1)}</td>
+          <td>${r.saleDate}</td>
+          <td style="max-width:220px; white-space:normal;">${r.reason}</td>
+          <td style="white-space:nowrap;">
+            <button class="approve-btn" data-review="${r.id}" data-action="approve" type="button">Approve</button>
+            <button class="reject-btn" data-review="${r.id}" data-action="reject" type="button">Reject</button>
+          </td>
+        </tr>`).join('') : `<tr><td colspan="7" style="text-align:center; color:var(--text-faint); padding:16px 0;">Nothing pending 🎉</td></tr>`;
+    }
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:16px 0;">${e.message}</td></tr>`;
+  }
+}
+
+document.getElementById('pendingApprovalsBody').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-review]');
+  if (!btn) return;
+  btn.disabled = true;
+  try {
+    await authedFetch('/api/attributions/review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: btn.getAttribute('data-review'), action: btn.getAttribute('data-action') }),
+    });
+    await refreshMyAttributions();
+    APPROVED_TOTALS = await fetchApprovedTotals();
+    render();
+  } catch (e) {
+    alert(e.message);
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('submitAttribution').addEventListener('click', async () => {
+  const statusEl = document.getElementById('attrSubmitStatus');
+  const payload = {
+    clientId: document.getElementById('attrClientId').value.trim(),
+    members: parseFloat(document.getElementById('attrMembers').value) || 0,
+    sessions: parseFloat(document.getElementById('attrSessions').value) || 0,
+    saleDate: document.getElementById('attrDate').value,
+    reason: document.getElementById('attrReason').value.trim(),
+  };
+  if (!payload.clientId || !payload.saleDate || !payload.reason) {
+    statusEl.textContent = 'Please fill in Client ID, sale date, and a reason.';
+    statusEl.style.color = '#dc2626';
+    return;
+  }
+  try {
+    await authedFetch('/api/attributions/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    statusEl.textContent = 'Request submitted — pending Aaron\'s approval.';
+    statusEl.style.color = '#16a34a';
+    document.getElementById('attrClientId').value = '';
+    document.getElementById('attrMembers').value = 0;
+    document.getElementById('attrSessions').value = 0;
+    document.getElementById('attrDate').value = '';
+    document.getElementById('attrReason').value = '';
+    refreshMyAttributions();
+  } catch (e) {
+    statusEl.textContent = 'Error: ' + e.message;
+    statusEl.style.color = '#dc2626';
+  }
+});
+
+function updateIdentityUI(user) {
+  const btn = document.getElementById('identityBtn');
+  btn.textContent = user ? ('👤 ' + user.email + ' · Sign out') : '🔐 Sign in';
+  document.getElementById('attributionSignedOutNote').style.display = user ? 'none' : '';
+  document.getElementById('attributionSignedInArea').style.display = user ? '' : 'none';
+}
+
+if (window.netlifyIdentity) {
+  netlifyIdentity.on('init', (user) => { updateIdentityUI(user); if (user) refreshMyAttributions(); });
+  netlifyIdentity.on('login', (user) => { updateIdentityUI(user); netlifyIdentity.close(); refreshMyAttributions(); });
+  netlifyIdentity.on('logout', () => { updateIdentityUI(null); });
+  netlifyIdentity.init();
+  document.getElementById('identityBtn').addEventListener('click', () => {
+    const user = netlifyIdentity.currentUser();
+    if (user) netlifyIdentity.logout(); else netlifyIdentity.open();
+  });
+} else {
+  // Identity widget didn't load (e.g. previewing outside the deployed Netlify site).
+  document.getElementById('identityBtn').addEventListener('click', () => {
+    alert('Sign-in only works once this dashboard is deployed on Netlify with Identity enabled.');
+  });
+}
+
+async function boot() {
+  APPROVED_TOTALS = await fetchApprovedTotals();
+  render();
+  initSip();
+  renderClientDetail();
+}
+boot();
+</script>
+</body>
+</html>
