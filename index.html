@@ -247,6 +247,23 @@
 
   .admin-footer-row { display: flex; gap: 10px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
   .admin-footer-note { text-align: center; margin-top: 8px; }
+
+  #newPersonName {
+    font-size: 13px; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 8px;
+    background: var(--card-bg); color: var(--text); font-family: inherit;
+  }
+  .remove-person-btn {
+    background: none; border: none; color: #dc2626; cursor: pointer; font-size: 12px; font-weight: 800;
+    padding: 0; margin: 0 0 0 6px; vertical-align: middle;
+  }
+  .remove-person-btn:hover { opacity: 0.7; }
+
+  .preset-btn-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .preset-btn {
+    background: var(--metric-box-bg); color: var(--text-muted); border: 1px solid var(--card-border);
+    border-radius: 999px; padding: 5px 13px; font-size: 11.5px; font-weight: 700; cursor: pointer; margin-top: 0;
+  }
+  .preset-btn:hover { opacity: 1; border-color: #a855f7; color: #a855f7; }
 </style>
 </head>
 <body>
@@ -340,6 +357,13 @@
       </div>
       <div class="card">
         <h2>Date range average</h2>
+        <div class="preset-btn-row">
+          <button type="button" class="preset-btn" data-preset="3">3 Mo</button>
+          <button type="button" class="preset-btn" data-preset="6">6 Mo</button>
+          <button type="button" class="preset-btn" data-preset="12">12 Mo</button>
+          <button type="button" class="preset-btn" data-preset="ytd">YTD</button>
+          <button type="button" class="preset-btn" data-preset="all">All Time</button>
+        </div>
         <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:12.5px; color:var(--text-muted);">
           <label>From <select class="sip-select" id="repSipFromSelect"></select></label>
           <label>To <select class="sip-select" id="repSipToSelect"></select></label>
@@ -420,6 +444,17 @@
       <h2>Edit Monthly Goals</h2>
     </div>
     <div class="card">
+      <h2>Add a person</h2>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+        <label style="flex:1; min-width:180px; display:flex; flex-direction:column; gap:5px; font-size:11px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+          Full name
+          <input type="text" id="newPersonName" placeholder="e.g. Jordan Smith">
+        </label>
+        <button id="addPersonBtn" type="button">+ Add Person</button>
+      </div>
+      <div class="meta-note" id="addPersonStatus"></div>
+    </div>
+    <div class="card">
       <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Goal tag (optional)</div></div>
       <div id="goalsForm"></div>
       <button id="saveGoals">Save goals</button>
@@ -441,6 +476,13 @@
     </div>
     <div class="card">
       <h2>Date range average</h2>
+      <div class="preset-btn-row">
+        <button type="button" class="preset-btn" data-preset="3">3 Mo</button>
+        <button type="button" class="preset-btn" data-preset="6">6 Mo</button>
+        <button type="button" class="preset-btn" data-preset="12">12 Mo</button>
+        <button type="button" class="preset-btn" data-preset="ytd">YTD</button>
+        <button type="button" class="preset-btn" data-preset="all">All Time</button>
+      </div>
       <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:12.5px; color:var(--text-muted);">
         <label>From <select class="sip-select" id="sipFromSelect"></select></label>
         <label>To <select class="sip-select" id="sipToSelect"></select></label>
@@ -466,6 +508,7 @@
 const GOALS_KEY = 'pace_dashboard_goals_v3';
 const ACTUALS_KEY = 'pace_dashboard_actuals_v3';
 const THEME_KEY = 'pace_dashboard_theme_v1';
+const EXTRA_ROSTER_KEY = 'pace_dashboard_extra_roster_v1';
 
 const ROSTER = [
   { display: 'Becky Ruffer', csv: 'becky ruffer' },
@@ -535,6 +578,13 @@ const SIP_HISTORY = [{"k":"2024-04","l":"April 2024","avg":124.2626,"n":15,"reps
 // summing individual rep rows, so they're the source of truth for team attainment —
 // per-rep rows are still used for the per-rep breakdown table only.
 const SIP_TEAM_ROLLUP = {"2024-04":{sA:2952.6,sG:2891.0,mA:697.0,mG:504.0},"2024-06":{sA:1849.8,sG:2374.0,mA:297.0,mG:362.0},"2024-07":{sA:3325.9,sG:2872.0,mA:552.0,mG:496.0},"2024-08":{sA:1371.1,sG:1177.3011,mA:242.0,mG:204.0},"2024-09":{sA:6078.3,sG:5270.45,mA:1058.0,mG:966.0},"2024-10":{sA:4699.0,sG:3949.5761,mA:822.0,mG:794.0},"2024-12":{sA:2693.1,sG:2536.6789,mA:503.0,mG:503.0},"2025-01":{sA:4615.0,sG:4450.0,mA:831.0,mG:873.0},"2025-02":{sA:4175.6,sG:3350.75,mA:714.0,mG:584.0},"2025-03":{sA:4782.1,sG:4243.0,mA:833.6,mG:713.0},"2025-04":{sA:3054.73,sG:3030.0,mA:488.0,mG:508.0},"2025-05":{sA:3103.9,sG:3391.8977,mA:495.0,mG:581.0},"2025-06":{sA:4131.4,sG:4448.4,mA:618.0,mG:715.0},"2025-07":{sA:3609.3,sG:3332.9,mA:523.0,mG:528.0},"2025-08":{sA:2548.66,sG:2612.0,mA:418.0,mG:416.0},"2025-09":{sA:6705.09,sG:6552.0,mA:1110.5,mG:1091.8571},"2025-10":{sA:4561.3,sG:3920.0,mA:817.0,mG:639.8696},"2025-11":{sA:4433.81,sG:3625.0,mA:765.55,mG:596.0},"2025-12":{sA:1938.8,sG:1788.9,mA:343.5,mG:315.74},"2026-01":{sA:2777.69,sG:3024.05,mA:466.0,mG:502.7},"2026-02":{sA:5258.15,sG:5494.0,mA:847.0,mG:943.66},"2026-03":{sA:4211.12,sG:4313.2,mA:667.0,mG:720.0174},"2026-04":{sA:3534.16,sG:3007.3,mA:541.0,mG:491.2182},"2026-05":{sA:2402.0,sG:2034.0,mA:382.0,mG:349.5714},"2026-06":{sA:2566.0,sG:2087.0,mA:390.5,mG:365.0}};
+
+// People added via "Edit Monthly Goals" beyond the hardcoded ROSTER. Stored
+// separately so the original roster stays a stable fallback; merge the two
+// everywhere reps are enumerated via getRoster() rather than reading ROSTER directly.
+function loadExtraRoster() { return loadJSON(EXTRA_ROSTER_KEY, []); }
+function saveExtraRoster(list) { saveJSON(EXTRA_ROSTER_KEY, list); }
+function getRoster() { return ROSTER.concat(loadExtraRoster()); }
 
 function loadJSON(key, fallback) {
   try {
@@ -606,9 +656,9 @@ function computeActualsFromCSV(text) {
     throw new Error('Missing expected columns (manager, expert_net_members, expert_net_monthly_hours)');
   }
   const lookup = {};
-  ROSTER.forEach(r => lookup[r.csv] = r.display);
+  getRoster().forEach(r => lookup[r.csv] = r.display);
   const perRep = {};
-  ROSTER.forEach(r => perRep[r.display] = { members: 0, sessions: 0, membersCancels: 0, sessionsCancels: 0, items: [] });
+  getRoster().forEach(r => perRep[r.display] = { members: 0, sessions: 0, membersCancels: 0, sessionsCancels: 0, items: [] });
   let maxDate = null;
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
@@ -907,7 +957,7 @@ function render() {
 
   let teamMembersActual = 0, teamMembersGoal = 0, teamSessionsActual = 0, teamSessionsGoal = 0;
   let teamMembersCancels = 0, teamSessionsCancels = 0;
-  const repRows = ROSTER.map((r, i) => {
+  const repRows = getRoster().map((r, i) => {
     const g = goals[r.display] || { sessions: 0, members: 0, tag: '' };
     const raw = (actuals.perRep && actuals.perRep[r.display]) || { members: 0, sessions: 0 };
     // Fold in Aaron-approved manual attribution requests (see Manual Attribution
@@ -1029,12 +1079,14 @@ function render() {
 function renderGoalsForm(goals) {
   const container = document.getElementById('goalsForm');
   container.innerHTML = '';
-  ROSTER.forEach(r => {
+  const extraNames = new Set(loadExtraRoster().map(r => r.display));
+  getRoster().forEach(r => {
     const g = goals[r.display] || { sessions: 0, members: 0, tag: '' };
+    const isExtra = extraNames.has(r.display);
     const row = document.createElement('div');
     row.className = 'goal-grid';
     row.innerHTML = `
-      <div>${r.display}</div>
+      <div>${r.display}${isExtra ? ` <button type="button" class="remove-person-btn" data-remove-person="${encodeURIComponent(r.display)}" title="Remove person">✕</button>` : ''}</div>
       <div><input type="number" step="0.01" data-name="${r.display}" data-field="sessions" value="${g.sessions}"></div>
       <div><input type="number" step="0.01" data-name="${r.display}" data-field="members" value="${g.members}"></div>
       <div><input type="text" data-name="${r.display}" data-field="tag" value="${g.tag || ''}"></div>
@@ -1053,6 +1105,41 @@ document.getElementById('saveGoals').addEventListener('click', () => {
     else goals[name][field] = parseFloat(input.value) || 0;
   });
   saveGoals(goals);
+  render();
+});
+
+document.getElementById('addPersonBtn').addEventListener('click', () => {
+  const input = document.getElementById('newPersonName');
+  const statusEl = document.getElementById('addPersonStatus');
+  const name = input.value.trim();
+  if (!name) {
+    statusEl.textContent = 'Enter a name first.';
+    statusEl.style.color = '#dc2626';
+    return;
+  }
+  if (getRoster().some(r => r.display.toLowerCase() === name.toLowerCase())) {
+    statusEl.textContent = `${name} is already on the roster.`;
+    statusEl.style.color = '#dc2626';
+    return;
+  }
+  const extras = loadExtraRoster();
+  extras.push({ display: name, csv: name.toLowerCase() });
+  saveExtraRoster(extras);
+  input.value = '';
+  statusEl.textContent = `Added ${name} — set their goals below, then click Save goals.`;
+  statusEl.style.color = '#16a34a';
+  renderGoalsForm(loadGoals());
+  render();
+});
+
+// Event delegation since goalsForm rows are rebuilt on every renderGoalsForm() call.
+document.getElementById('goalsForm').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-remove-person]');
+  if (!btn) return;
+  const name = decodeURIComponent(btn.getAttribute('data-remove-person'));
+  if (!confirm(`Remove ${name} from the roster? Their saved goals stay in storage but they'll stop showing on the dashboard.`)) return;
+  saveExtraRoster(loadExtraRoster().filter(r => r.display !== name));
+  renderGoalsForm(loadGoals());
   render();
 });
 
@@ -1075,13 +1162,13 @@ document.getElementById('updateActuals').addEventListener('click', () => {
 // ---------- Historical Performance (SIP) ----------
 
 function promoTier(pct) {
-  if (pct === null || pct === undefined || isNaN(pct)) return { cls: 'st-na', label: '—' };
-  if (pct >= 120) return { cls: 'st-gold', label: '🥇 Level 3' };
-  if (pct >= 110) return { cls: 'st-l2', label: '🥈 Level 2' };
-  if (pct >= 100) return { cls: 'st-gradient', label: '🏆 Goal Met' };
-  if (pct >= 80) return { cls: 'st-ontrack', label: 'On Track' };
-  if (pct >= 50) return { cls: 'st-behind', label: 'Behind' };
-  return { cls: 'st-far', label: 'Far Behind' };
+  if (pct === null || pct === undefined || isNaN(pct)) return { cls: 'st-na', label: '—', barGrad: '#c7c5d6', special: false };
+  if (pct >= 120) return { cls: 'st-gold', label: '🥇 Level 3', barGrad: 'linear-gradient(90deg,#fbbf24,#f59e0b)', special: false };
+  if (pct >= 110) return { cls: 'st-l2', label: '🥈 Level 2', barGrad: 'linear-gradient(90deg,#a78bfa,#7c3aed)', special: false };
+  if (pct >= 100) return { cls: 'st-gradient', label: '🏆 Goal Met', barGrad: 'linear-gradient(90deg, #f472b6, #a855f7 35%, #6366f1 65%, #38bdf8)', special: true };
+  if (pct >= 80) return { cls: 'st-ontrack', label: 'On Track', barGrad: 'linear-gradient(90deg,#60a5fa,#6366f1)', special: false };
+  if (pct >= 50) return { cls: 'st-behind', label: 'Behind', barGrad: 'linear-gradient(90deg,#fb923c,#f97316)', special: false };
+  return { cls: 'st-far', label: 'Far Behind', barGrad: 'linear-gradient(90deg,#f87171,#dc2626)', special: false };
 }
 
 function sipMonthObj(monthKey) {
@@ -1150,6 +1237,11 @@ function sipRangeSlice(fromKey, toKey) {
 function sipMonthCardHTML(m) {
   if (!m) return '<div class="meta-note">No data for that month.</div>';
   const att = monthAttainment(m);
+  const pt = promoTier(att.compositePct);
+  const heroStyle = att.compositePct === null
+    ? 'color:#c7c5d6;'
+    : `background:${pt.barGrad}; -webkit-background-clip:text; background-clip:text; color:transparent;`;
+  const barWidth = att.compositePct === null ? 0 : Math.min(att.compositePct, 100);
   const rows = m.reps.map(r => {
     const sp = r.sG > 0 ? (r.sA / r.sG) * 100 : null;
     const mp = r.mG > 0 ? (r.mA / r.mG) * 100 : null;
@@ -1161,9 +1253,16 @@ function sipMonthCardHTML(m) {
     </tr>`;
   }).join('');
   return `
-    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;">
-      <div style="font-size:13px; color:var(--text-muted);">Team attainment <span style="color:var(--text-faint);">(from the month's rollup totals, not an average of reps)</span></div>
-      <div style="font-weight:800; font-size:20px;">${att.compositePct === null ? '—' : fmt(att.compositePct,1) + '%'}</div>
+    <div class="metric-box" style="margin-bottom:16px;">
+      <div class="metric-box-head">
+        <span class="m-label">Team Attainment</span>
+        <span class="status-pill small ${pt.cls}">${pt.label}</span>
+      </div>
+      <div class="metric-hero">
+        <span class="metric-hero-num" style="${heroStyle}">${att.compositePct === null ? '—' : fmt(att.compositePct,0) + '%'}</span>
+        <span class="metric-hero-sub">from the month's rollup totals, not an average of reps</span>
+      </div>
+      <div class="mini-bar-track"><div class="mini-bar-fill${pt.special ? ' bar-shimmer' : ''}" style="width:${barWidth}%; background:${pt.barGrad};"></div></div>
     </div>
     <div class="sip-table-wrap">
       <table class="sip-table">
@@ -1195,13 +1294,19 @@ function renderSipRange() {
   const att = aggregateMonths(slice);
   const avg = att.compositePct;
   const pt = promoTier(avg);
+  const heroStyle = avg === null ? 'color:#c7c5d6;' : `background:${pt.barGrad}; -webkit-background-clip:text; background-clip:text; color:transparent;`;
+  const barWidth = avg === null ? 0 : Math.min(avg, 100);
   el.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:10px;">
-      <div style="font-size:13px; color:var(--text-muted);">Team attainment across ${slice.length} month${slice.length === 1 ? '' : 's'} (${slice[0].l} – ${slice[slice.length-1].l}) <span style="color:var(--text-faint);">— sum of actuals ÷ sum of goals from each month's rollup, not an average of monthly averages</span></div>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <div style="font-weight:800; font-size:20px;">${avg === null ? '—' : fmt(avg,1) + '%'}</div>
+    <div class="metric-box">
+      <div class="metric-box-head">
+        <span class="m-label">Team Attainment</span>
         <span class="status-pill small ${pt.cls}">${pt.label}</span>
       </div>
+      <div class="metric-hero">
+        <span class="metric-hero-num" style="${heroStyle}">${avg === null ? '—' : fmt(avg,0) + '%'}</span>
+        <span class="metric-hero-sub">${slice.length} month${slice.length === 1 ? '' : 's'} (${slice[0].l} – ${slice[slice.length-1].l}) — sum of actuals ÷ sum of goals, not an average of monthly averages</span>
+      </div>
+      <div class="mini-bar-track"><div class="mini-bar-fill${pt.special ? ' bar-shimmer' : ''}" style="width:${barWidth}%; background:${pt.barGrad};"></div></div>
     </div>
   `;
   renderSipChart(slice, avg);
@@ -1281,13 +1386,13 @@ function renderSipChart(slice, rangeAvg) {
 // row within each month's `reps[]` array. Uses different promotion thresholds
 // (115% / 150%) than the team-level 110%/120%, per Aaron's request.
 function repPromoTier(pct) {
-  if (pct === null || pct === undefined || isNaN(pct)) return { cls: 'st-na', label: '—' };
-  if (pct >= 150) return { cls: 'st-gold', label: '🥇 Level 3' };
-  if (pct >= 115) return { cls: 'st-l2', label: '🥈 Level 2' };
-  if (pct >= 100) return { cls: 'st-gradient', label: '🏆 Goal Met' };
-  if (pct >= 80) return { cls: 'st-ontrack', label: 'On Track' };
-  if (pct >= 50) return { cls: 'st-behind', label: 'Behind' };
-  return { cls: 'st-far', label: 'Far Behind' };
+  if (pct === null || pct === undefined || isNaN(pct)) return { cls: 'st-na', label: '—', barGrad: '#c7c5d6', special: false };
+  if (pct >= 150) return { cls: 'st-gold', label: '🥇 Level 3', barGrad: 'linear-gradient(90deg,#fbbf24,#f59e0b)', special: false };
+  if (pct >= 115) return { cls: 'st-l2', label: '🥈 Level 2', barGrad: 'linear-gradient(90deg,#a78bfa,#7c3aed)', special: false };
+  if (pct >= 100) return { cls: 'st-gradient', label: '🏆 Goal Met', barGrad: 'linear-gradient(90deg, #f472b6, #a855f7 35%, #6366f1 65%, #38bdf8)', special: true };
+  if (pct >= 80) return { cls: 'st-ontrack', label: 'On Track', barGrad: 'linear-gradient(90deg,#60a5fa,#6366f1)', special: false };
+  if (pct >= 50) return { cls: 'st-behind', label: 'Behind', barGrad: 'linear-gradient(90deg,#fb923c,#f97316)', special: false };
+  return { cls: 'st-far', label: 'Far Behind', barGrad: 'linear-gradient(90deg,#f87171,#dc2626)', special: false };
 }
 
 // SIP_HISTORY rep names are the "formal" ledger-style names (e.g. "Christopher
@@ -1328,16 +1433,21 @@ function repSipMonthCardHTML(m, csvKey) {
     return `<div class="meta-note">No data for this rep in ${m.l}.</div>`;
   }
   const pt = repPromoTier(a.compositePct);
+  const heroStyle = a.compositePct === null
+    ? 'color:#c7c5d6;'
+    : `background:${pt.barGrad}; -webkit-background-clip:text; background-clip:text; color:transparent;`;
+  const barWidth = a.compositePct === null ? 0 : Math.min(a.compositePct, 100);
   return `
-    <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:10px;">
-      <div style="font-size:13px; color:var(--text-muted);">
-        Sessions ${fmt(a.sA,1)} / ${fmt(a.sG,1)}${a.sessionsPct !== null ? ` (${fmt(a.sessionsPct,0)}%)` : ''} ·
-        Members ${fmt(a.mA,1)} / ${fmt(a.mG,1)}${a.membersPct !== null ? ` (${fmt(a.membersPct,0)}%)` : ''}
-      </div>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <div style="font-weight:800; font-size:20px;">${a.compositePct === null ? '—' : fmt(a.compositePct,1) + '%'}</div>
+    <div class="metric-box">
+      <div class="metric-box-head">
+        <span class="m-label">Composite Attainment</span>
         <span class="status-pill small ${pt.cls}">${pt.label}</span>
       </div>
+      <div class="metric-hero">
+        <span class="metric-hero-num" style="${heroStyle}">${a.compositePct === null ? '—' : fmt(a.compositePct,0) + '%'}</span>
+        <span class="metric-hero-sub">Sessions ${fmt(a.sA,1)} / ${fmt(a.sG,1)}${a.sessionsPct !== null ? ` (${fmt(a.sessionsPct,0)}%)` : ''} · Members ${fmt(a.mA,1)} / ${fmt(a.mG,1)}${a.membersPct !== null ? ` (${fmt(a.membersPct,0)}%)` : ''}</span>
+      </div>
+      <div class="mini-bar-track"><div class="mini-bar-fill${pt.special ? ' bar-shimmer' : ''}" style="width:${barWidth}%; background:${pt.barGrad};"></div></div>
     </div>`;
 }
 
@@ -1361,13 +1471,19 @@ function renderRepSipRange() {
   const att = repAggregateMonths(slice, currentRepSipCsv);
   const avg = att.compositePct;
   const pt = repPromoTier(avg);
+  const heroStyle = avg === null ? 'color:#c7c5d6;' : `background:${pt.barGrad}; -webkit-background-clip:text; background-clip:text; color:transparent;`;
+  const barWidth = avg === null ? 0 : Math.min(avg, 100);
   el.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:10px;">
-      <div style="font-size:13px; color:var(--text-muted);">Attainment across ${slice.length} month${slice.length === 1 ? '' : 's'} (${slice[0].l} – ${slice[slice.length-1].l})</div>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <div style="font-weight:800; font-size:20px;">${avg === null ? '—' : fmt(avg,1) + '%'}</div>
+    <div class="metric-box">
+      <div class="metric-box-head">
+        <span class="m-label">Composite Attainment</span>
         <span class="status-pill small ${pt.cls}">${pt.label}</span>
       </div>
+      <div class="metric-hero">
+        <span class="metric-hero-num" style="${heroStyle}">${avg === null ? '—' : fmt(avg,0) + '%'}</span>
+        <span class="metric-hero-sub">${slice.length} month${slice.length === 1 ? '' : 's'} (${slice[0].l} – ${slice[slice.length-1].l})</span>
+      </div>
+      <div class="mini-bar-track"><div class="mini-bar-fill${pt.special ? ' bar-shimmer' : ''}" style="width:${barWidth}%; background:${pt.barGrad};"></div></div>
     </div>
   `;
   renderRepSipChart(slice, currentRepSipCsv, avg);
@@ -1445,7 +1561,7 @@ function renderRepSipChart(slice, csvKey, rangeAvg) {
 // Client Detail page is currently open. Change listeners are wired ONCE, below,
 // and just read the live `currentRepSipCsv` each time they fire.
 function initRepSip(repDisplay) {
-  const rosterEntry = ROSTER.find(r => r.display === repDisplay);
+  const rosterEntry = getRoster().find(r => r.display === repDisplay);
   currentRepSipCsv = rosterEntry ? rosterEntry.csv : String(repDisplay || '').toLowerCase();
   const monthSel = document.getElementById('repSipMonthSelect');
   const fromSel = document.getElementById('repSipFromSelect');
@@ -1463,6 +1579,37 @@ function initRepSip(repDisplay) {
 document.getElementById('repSipMonthSelect').addEventListener('change', renderRepSipMonth);
 document.getElementById('repSipFromSelect').addEventListener('change', renderRepSipRange);
 document.getElementById('repSipToSelect').addEventListener('change', renderRepSipRange);
+
+// ---------- Lookback presets (3/6/12 Mo, YTD, All Time) — shared by both the
+// team and per-rep Historical Performance sections. ----------
+function sipPresetRange(preset) {
+  const n = SIP_HISTORY.length;
+  if (!n) return null;
+  const lastKey = SIP_HISTORY[n - 1].k;
+  if (preset === 'all') return [SIP_HISTORY[0].k, lastKey];
+  if (preset === 'ytd') {
+    const year = String(new Date().getFullYear());
+    const ytd = SIP_HISTORY.filter(m => m.k.startsWith(year));
+    if (!ytd.length) return [lastKey, lastKey];
+    return [ytd[0].k, ytd[ytd.length - 1].k];
+  }
+  const months = parseInt(preset, 10);
+  const fromIdx = Math.max(0, n - months);
+  return [SIP_HISTORY[fromIdx].k, lastKey];
+}
+function applySipPreset(fromSelId, toSelId, preset, onChange) {
+  const range = sipPresetRange(preset);
+  if (!range) return;
+  document.getElementById(fromSelId).value = range[0];
+  document.getElementById(toSelId).value = range[1];
+  onChange();
+}
+document.querySelectorAll('#sipOverlay .preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => applySipPreset('sipFromSelect', 'sipToSelect', btn.getAttribute('data-preset'), renderSipRange));
+});
+document.querySelectorAll('#clientDetailOverlay .preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => applySipPreset('repSipFromSelect', 'repSipToSelect', btn.getAttribute('data-preset'), renderRepSipRange));
+});
 
 function initSip() {
   const monthSel = document.getElementById('sipMonthSelect');
