@@ -43,12 +43,12 @@ export default async (req: Request, context: Context) => {
     return new Response(JSON.stringify({ error: "Invalid request body" }), { status: 400 });
   }
 
-  const { clientId, members, sessions, saleDate, reason } = body || {};
+  const { clientLink, contact, members, sessions, adjustmentReason, comments } = body || {};
   const membersNum = Number(members) || 0;
   const sessionsNum = Number(sessions) || 0;
-  if (!clientId || (!membersNum && !sessionsNum) || !saleDate || !reason) {
+  if (!clientLink || (!membersNum && !sessionsNum) || !adjustmentReason || !comments) {
     return new Response(
-      JSON.stringify({ error: "Missing required fields (clientId, members or sessions, saleDate, reason)" }),
+      JSON.stringify({ error: "Missing required fields (clientLink, members or sessions, adjustmentReason, comments)" }),
       { status: 400 }
     );
   }
@@ -57,11 +57,16 @@ export default async (req: Request, context: Context) => {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     repEmail: email,
     repName,
-    clientId: String(clientId).trim(),
+    clientLink: String(clientLink).trim(),
+    contact: contact ? String(contact).trim() : "",
     members: membersNum,
     sessions: sessionsNum,
-    saleDate: String(saleDate).slice(0, 10),
-    reason: String(reason).trim(),
+    adjustmentReason: String(adjustmentReason).trim(),
+    comments: String(comments).trim(),
+    // No sale-date field in the UI anymore — approved-totals buckets by the
+    // submission date (the month the request was made/approved), not the
+    // original sale date.
+    saleDate: new Date().toISOString().slice(0, 10),
     status: "pending",
     submittedAt: new Date().toISOString(),
     reviewedAt: null as string | null,
