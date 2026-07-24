@@ -57,6 +57,12 @@
   }
   .theme-btn:hover { opacity: 0.85; }
   .btn-group { display: flex; gap: 8px; flex: none; }
+  .manual-attro-btn {
+    background: linear-gradient(90deg,#f472b6,#a855f7 45%,#6366f1 75%,#38bdf8);
+    background-size: 200% 100%; animation: shimmerMove 3s linear infinite;
+    color: #fff; border: none; box-shadow: 0 2px 10px rgba(139,92,246,0.4);
+  }
+  .manual-attro-btn:hover { opacity: 0.92; }
 
   .mini-bar-track { overflow: hidden; }
 
@@ -187,7 +193,7 @@
     display: flex; flex-direction: column; gap: 5px; font-size: 11px; font-weight: 700;
     color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em;
   }
-  .attribution-form-grid input, #attributionSignedInArea input, #attributionSignedInArea textarea {
+  .attribution-form-grid input, .attribution-form-grid select, #attributionSignedInArea input, #attributionSignedInArea select, #attributionSignedInArea textarea {
     font-size: 13px; font-weight: 400; text-transform: none; letter-spacing: normal; color: var(--text);
     padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 8px; background: var(--card-bg);
     font-family: inherit;
@@ -248,7 +254,8 @@
       <div class="subtitle">Composite score = average of Members and Sessions pacing %. Colors reflect where each metric is projected to land by month end at the current rate.</div>
     </div>
     <div class="btn-group">
-      <button class="theme-btn" id="identityBtn" type="button">🔐 Sign in</button>
+      <button class="theme-btn manual-attro-btn" id="manualAttroBtn" type="button">📝 Request Manual Attribution</button>
+      <button class="theme-btn identity-btn" id="identityBtn" type="button">🔐 Sign in</button>
       <button class="theme-btn" id="themeToggle" type="button">🌙 Dark</button>
     </div>
   </div>
@@ -282,47 +289,6 @@
       <textarea id="csvInput" placeholder="Paste ledger CSV here..."></textarea>
       <button id="updateActuals">Update actuals</button>
       <div class="meta-note" id="updateStatus"></div>
-    </div>
-  </div>
-
-  <div class="section-toggle" id="toggleAttribution">▸ Request Manual Attribution</div>
-  <div class="section-body" id="attributionBody">
-    <div class="card" id="attributionSignedOutNote">
-      <div class="meta-note" style="margin-top:0;">Sign in with your company Google account (top right) to request credit for a sale the system didn't auto-attribute to you.</div>
-    </div>
-    <div id="attributionSignedInArea" style="display:none;">
-      <div class="card">
-        <h2>New request</h2>
-        <div class="attribution-form-grid">
-          <label>Client ID<input type="text" id="attrClientId" placeholder="e.g. 8563249"></label>
-          <label>Members sold<input type="number" step="0.01" id="attrMembers" value="0"></label>
-          <label>Sessions sold<input type="number" step="0.01" id="attrSessions" value="0"></label>
-          <label>Sale date<input type="date" id="attrDate"></label>
-        </div>
-        <label style="display:block; margin-top:10px;">Reason it wasn't auto-attributed
-          <textarea id="attrReason" style="height:70px;" placeholder="Briefly explain what happened..."></textarea>
-        </label>
-        <button id="submitAttribution">Submit request</button>
-        <div class="meta-note" id="attrSubmitStatus"></div>
-      </div>
-      <div class="card">
-        <h2>My requests</h2>
-        <div class="sip-table-wrap">
-          <table class="sip-table">
-            <thead><tr><th>Client ID</th><th>Members</th><th>Sessions</th><th>Sale Date</th><th>Status</th></tr></thead>
-            <tbody id="myAttributionsBody"></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="card" id="adminApprovalsCard" style="display:none;">
-        <h2>Pending approvals (all reps)</h2>
-        <div class="sip-table-wrap">
-          <table class="sip-table">
-            <thead><tr><th>Rep</th><th>Client ID</th><th>Members</th><th>Sessions</th><th>Sale Date</th><th>Reason</th><th>Action</th></tr></thead>
-            <tbody id="pendingApprovalsBody"></tbody>
-          </table>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -383,6 +349,63 @@
               <tbody id="detailRefundBody"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="detail-overlay" id="manualAttroOverlay">
+  <div class="detail-page">
+    <div class="detail-header">
+      <button class="theme-btn" id="attroBackBtn" type="button">← Back to dashboard</button>
+      <h2>Request Manual Attribution</h2>
+      <button class="theme-btn identity-btn" id="identityBtnOverlay" type="button">🔐 Sign in</button>
+    </div>
+    <div class="card" id="attributionSignedOutNote">
+      <div class="meta-note" style="margin-top:0;">Sign in with your company Google account (button above) to request credit for a sale the system didn't auto-attribute to you.</div>
+    </div>
+    <div id="attributionSignedInArea" style="display:none;">
+      <div class="card">
+        <h2>New request</h2>
+        <div class="attribution-form-grid">
+          <label>Client Page Link<input type="url" id="attrClientLink" placeholder="https://www.varsitytutors.com/clients/..."></label>
+          <label>Phone Number / Email <span style="text-transform:none; font-weight:400;">(from the page you had the conversation on)</span><input type="text" id="attrContact" placeholder="e.g. jane@company.com"></label>
+          <label>Sessions requested<input type="number" step="0.01" id="attrSessions" value="0"></label>
+          <label>Members requested<input type="number" step="0.01" id="attrMembers" value="0"></label>
+          <label>Adjustment Reason
+            <select id="attrReasonSelect">
+              <option value="">Select a reason…</option>
+              <option>BUCA / Class Wallet</option>
+              <option>Duplicate Lead Page</option>
+              <option>No Attro Given in Flex</option>
+              <option>Shifting Attro Between Reps</option>
+              <option>Cancellation Error</option>
+            </select>
+          </label>
+        </div>
+        <label style="display:block; margin-top:10px;">Comments <span style="color:#dc2626;">(required)</span>
+          <textarea id="attrComments" style="height:70px;" placeholder="Explain what happened — required for every request."></textarea>
+        </label>
+        <button id="submitAttribution">Submit request</button>
+        <div class="meta-note" id="attrSubmitStatus"></div>
+      </div>
+      <div class="card">
+        <h2>My requests</h2>
+        <div class="sip-table-wrap">
+          <table class="sip-table">
+            <thead><tr><th>Client Page</th><th>Contact</th><th>Sessions</th><th>Members</th><th>Reason</th><th>Status</th></tr></thead>
+            <tbody id="myAttributionsBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card" id="adminApprovalsCard" style="display:none;">
+        <h2>Pending approvals (all reps)</h2>
+        <div class="sip-table-wrap">
+          <table class="sip-table">
+            <thead><tr><th>Rep</th><th>Client Page</th><th>Contact</th><th>Sessions</th><th>Members</th><th>Reason</th><th>Comments</th><th>Action</th></tr></thead>
+            <tbody id="pendingApprovalsBody"></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1244,7 +1267,6 @@ function setupToggle(toggleId, bodyId, label) {
 }
 setupToggle('toggleGoals', 'goalsBody', 'Edit monthly goals');
 setupToggle('toggleData', 'dataBody', 'Update actuals from ledger export');
-setupToggle('toggleAttribution', 'attributionBody', 'Request Manual Attribution');
 setupToggle('toggleSip', 'sipBody', 'Historical Performance (SIP)');
 
 // ---------- Per-rep Client Detail drill-down page ----------
@@ -1316,6 +1338,22 @@ document.getElementById('repList').addEventListener('click', (e) => {
   location.hash = 'client-detail=' + btn.getAttribute('data-repname');
 });
 
+// ---------- Manual Attribution full-page overlay routing (#manual-attribution) ----------
+function renderManualAttroPage() {
+  const overlay = document.getElementById('manualAttroOverlay');
+  if (location.hash === '#manual-attribution') {
+    overlay.classList.add('open');
+    window.scrollTo(0, 0);
+  } else {
+    overlay.classList.remove('open');
+  }
+}
+window.addEventListener('hashchange', renderManualAttroPage);
+document.getElementById('manualAttroBtn').addEventListener('click', () => { location.hash = 'manual-attribution'; });
+document.getElementById('attroBackBtn').addEventListener('click', () => {
+  if (location.hash) history.back(); else document.getElementById('manualAttroOverlay').classList.remove('open');
+});
+
 // ---------- Manual Attribution (Netlify Identity + Functions + Blobs) ----------
 // Auth is entirely Netlify Identity (Google provider, restricted to the company
 // domain in the site's Identity settings) — Supabase is never involved in this
@@ -1361,14 +1399,18 @@ async function refreshMyAttributions() {
   if (!user) { tbody.innerHTML = ''; adminCard.style.display = 'none'; return; }
   try {
     const { isAdmin, records } = await authedFetch('/api/attributions/list');
+    const linkCell = (r) => r.clientLink
+      ? `<a href="${r.clientLink}" target="_blank" rel="noopener">View page</a>`
+      : (r.clientId || '—'); // clientId is a fallback for any older pre-redesign records
     tbody.innerHTML = records.length ? records.map(r => `
       <tr>
-        <td>${r.clientId}</td>
-        <td>${fmt(r.members,1)}</td>
+        <td>${linkCell(r)}</td>
+        <td>${r.contact || '—'}</td>
         <td>${fmt(r.sessions,1)}</td>
-        <td>${r.saleDate}</td>
+        <td>${fmt(r.members,1)}</td>
+        <td>${r.adjustmentReason || r.reason || '—'}</td>
         <td>${attrStatusPill(r.status)}</td>
-      </tr>`).join('') : `<tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:16px 0;">No requests yet</td></tr>`;
+      </tr>`).join('') : `<tr><td colspan="6" style="text-align:center; color:var(--text-faint); padding:16px 0;">No requests yet</td></tr>`;
 
     adminCard.style.display = isAdmin ? '' : 'none';
     if (isAdmin) {
@@ -1377,19 +1419,20 @@ async function refreshMyAttributions() {
       pendingBody.innerHTML = pending.length ? pending.map(r => `
         <tr>
           <td>${r.repName}</td>
-          <td>${r.clientId}</td>
-          <td>${fmt(r.members,1)}</td>
+          <td>${linkCell(r)}</td>
+          <td>${r.contact || '—'}</td>
           <td>${fmt(r.sessions,1)}</td>
-          <td>${r.saleDate}</td>
-          <td style="max-width:220px; white-space:normal;">${r.reason}</td>
+          <td>${fmt(r.members,1)}</td>
+          <td>${r.adjustmentReason || r.reason || '—'}</td>
+          <td style="max-width:220px; white-space:normal;">${r.comments || ''}</td>
           <td style="white-space:nowrap;">
             <button class="approve-btn" data-review="${r.id}" data-action="approve" type="button">Approve</button>
             <button class="reject-btn" data-review="${r.id}" data-action="reject" type="button">Reject</button>
           </td>
-        </tr>`).join('') : `<tr><td colspan="7" style="text-align:center; color:var(--text-faint); padding:16px 0;">Nothing pending 🎉</td></tr>`;
+        </tr>`).join('') : `<tr><td colspan="8" style="text-align:center; color:var(--text-faint); padding:16px 0;">Nothing pending 🎉</td></tr>`;
     }
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:16px 0;">${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-faint); padding:16px 0;">${e.message}</td></tr>`;
   }
 }
 
@@ -1415,14 +1458,15 @@ document.getElementById('pendingApprovalsBody').addEventListener('click', async 
 document.getElementById('submitAttribution').addEventListener('click', async () => {
   const statusEl = document.getElementById('attrSubmitStatus');
   const payload = {
-    clientId: document.getElementById('attrClientId').value.trim(),
-    members: parseFloat(document.getElementById('attrMembers').value) || 0,
+    clientLink: document.getElementById('attrClientLink').value.trim(),
+    contact: document.getElementById('attrContact').value.trim(),
     sessions: parseFloat(document.getElementById('attrSessions').value) || 0,
-    saleDate: document.getElementById('attrDate').value,
-    reason: document.getElementById('attrReason').value.trim(),
+    members: parseFloat(document.getElementById('attrMembers').value) || 0,
+    adjustmentReason: document.getElementById('attrReasonSelect').value,
+    comments: document.getElementById('attrComments').value.trim(),
   };
-  if (!payload.clientId || !payload.saleDate || !payload.reason) {
-    statusEl.textContent = 'Please fill in Client ID, sale date, and a reason.';
+  if (!payload.clientLink || !payload.adjustmentReason || !payload.comments) {
+    statusEl.textContent = 'Please fill in the client page link, an adjustment reason, and comments.';
     statusEl.style.color = '#dc2626';
     return;
   }
@@ -1434,11 +1478,12 @@ document.getElementById('submitAttribution').addEventListener('click', async () 
     });
     statusEl.textContent = 'Request submitted — pending Aaron\'s approval.';
     statusEl.style.color = '#16a34a';
-    document.getElementById('attrClientId').value = '';
-    document.getElementById('attrMembers').value = 0;
+    document.getElementById('attrClientLink').value = '';
+    document.getElementById('attrContact').value = '';
     document.getElementById('attrSessions').value = 0;
-    document.getElementById('attrDate').value = '';
-    document.getElementById('attrReason').value = '';
+    document.getElementById('attrMembers').value = 0;
+    document.getElementById('attrReasonSelect').value = '';
+    document.getElementById('attrComments').value = '';
     refreshMyAttributions();
   } catch (e) {
     statusEl.textContent = 'Error: ' + e.message;
@@ -1447,10 +1492,19 @@ document.getElementById('submitAttribution').addEventListener('click', async () 
 });
 
 function updateIdentityUI(user) {
-  const btn = document.getElementById('identityBtn');
-  btn.textContent = user ? ('👤 ' + user.email + ' · Sign out') : '🔐 Sign in';
+  document.querySelectorAll('.identity-btn').forEach((btn) => {
+    btn.textContent = user ? ('👤 ' + user.email + ' · Sign out') : '🔐 Sign in';
+  });
   document.getElementById('attributionSignedOutNote').style.display = user ? 'none' : '';
   document.getElementById('attributionSignedInArea').style.display = user ? '' : 'none';
+}
+
+function wireIdentityButton(btn) {
+  btn.addEventListener('click', () => {
+    const user = window.netlifyIdentity && netlifyIdentity.currentUser();
+    if (user) netlifyIdentity.logout(); else if (window.netlifyIdentity) netlifyIdentity.open();
+    else alert('Sign-in only works once this dashboard is deployed on Netlify with Identity enabled.');
+  });
 }
 
 if (window.netlifyIdentity) {
@@ -1458,16 +1512,8 @@ if (window.netlifyIdentity) {
   netlifyIdentity.on('login', (user) => { updateIdentityUI(user); netlifyIdentity.close(); refreshMyAttributions(); });
   netlifyIdentity.on('logout', () => { updateIdentityUI(null); });
   netlifyIdentity.init();
-  document.getElementById('identityBtn').addEventListener('click', () => {
-    const user = netlifyIdentity.currentUser();
-    if (user) netlifyIdentity.logout(); else netlifyIdentity.open();
-  });
-} else {
-  // Identity widget didn't load (e.g. previewing outside the deployed Netlify site).
-  document.getElementById('identityBtn').addEventListener('click', () => {
-    alert('Sign-in only works once this dashboard is deployed on Netlify with Identity enabled.');
-  });
 }
+document.querySelectorAll('.identity-btn').forEach(wireIdentityButton);
 
 async function boot() {
   APPROVED_TOTALS = await fetchApprovedTotals();
