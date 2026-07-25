@@ -1529,11 +1529,12 @@
      dashboard under Site settings > Identity. -->
 <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 <script>
-const GOALS_KEY = 'pace_dashboard_goals_v3';
-const ACTUALS_KEY = 'pace_dashboard_actuals_v3';
+// GOALS_KEY/ACTUALS_KEY/EXTRA_ROSTER_KEY/REMOVED_ROSTER_KEY/PRELIM_KEY used to
+// live here — roster, goals, actuals, and prelim snapshots are all backed by
+// real Netlify Functions + Blobs now (see ROSTER_CACHE/GOALS_CACHE/
+// ACTUALS_CACHE/PRELIM_CACHE and fetchDashboardData() further down), so
+// there's nothing left to key into localStorage for any of them.
 const THEME_KEY = 'pace_dashboard_theme_v1';
-const EXTRA_ROSTER_KEY = 'pace_dashboard_extra_roster_v1';
-const REMOVED_ROSTER_KEY = 'pace_dashboard_removed_roster_v1';
 const ADMIN_LIST_KEY = 'pace_dashboard_admin_list_v1';
 // "Sales Coach" role — a lighter admin tier for someone like a coach who needs
 // to read every rep's Client Detail page (pacing, sessions/members, sold vs.
@@ -1600,20 +1601,31 @@ let SIP_HISTORY = [{"k":"2024-04","l":"April 2024","avg":124.2626,"n":15,"reps":
 // per-rep rows are still used for the per-rep breakdown table only.
 let SIP_TEAM_ROLLUP = {"2024-04":{sA:2952.6,sG:2891.0,mA:697.0,mG:504.0},"2024-06":{sA:1849.8,sG:2374.0,mA:297.0,mG:362.0},"2024-07":{sA:3325.9,sG:2872.0,mA:552.0,mG:496.0},"2024-08":{sA:1371.1,sG:1177.3011,mA:242.0,mG:204.0},"2024-09":{sA:6078.3,sG:5270.45,mA:1058.0,mG:966.0},"2024-10":{sA:4699.0,sG:3949.5761,mA:822.0,mG:794.0},"2024-12":{sA:2693.1,sG:2536.6789,mA:503.0,mG:503.0},"2025-01":{sA:4615.0,sG:4450.0,mA:831.0,mG:873.0},"2025-02":{sA:4175.6,sG:3350.75,mA:714.0,mG:584.0},"2025-03":{sA:4782.1,sG:4243.0,mA:833.6,mG:713.0},"2025-04":{sA:3054.73,sG:3030.0,mA:488.0,mG:508.0},"2025-05":{sA:3103.9,sG:3391.8977,mA:495.0,mG:581.0},"2025-06":{sA:4131.4,sG:4448.4,mA:618.0,mG:715.0},"2025-07":{sA:3609.3,sG:3332.9,mA:523.0,mG:528.0},"2025-08":{sA:2548.66,sG:2612.0,mA:418.0,mG:416.0},"2025-09":{sA:6705.09,sG:6552.0,mA:1110.5,mG:1091.8571},"2025-10":{sA:4561.3,sG:3920.0,mA:817.0,mG:639.8696},"2025-11":{sA:4433.81,sG:3625.0,mA:765.55,mG:596.0},"2025-12":{sA:1938.8,sG:1788.9,mA:343.5,mG:315.74},"2026-01":{sA:2777.69,sG:3024.05,mA:466.0,mG:502.7},"2026-02":{sA:5258.15,sG:5494.0,mA:847.0,mG:943.66},"2026-03":{sA:4211.12,sG:4313.2,mA:667.0,mG:720.0174},"2026-04":{sA:3534.16,sG:3007.3,mA:541.0,mG:491.2182},"2026-05":{sA:2402.0,sG:2034.0,mA:382.0,mG:349.5714},"2026-06":{sA:2566.0,sG:2087.0,mA:390.5,mG:365.0}};
 
-// People added via "Edit Monthly Goals" beyond the hardcoded ROSTER. Stored
-// separately so the original roster stays a stable fallback; merge the two
-// everywhere reps are enumerated via getRoster() rather than reading ROSTER directly.
-function loadExtraRoster() { return loadJSON(EXTRA_ROSTER_KEY, []); }
-function saveExtraRoster(list) { saveJSON(EXTRA_ROSTER_KEY, list); }
-// Hide-list of display names removed via Edit Monthly Goals. Applies uniformly
-// to both the hardcoded ROSTER and anyone added via "Add a person" — removing
-// someone never deletes their saved goals/history, it just hides them from the
-// roster everywhere getRoster() is used. Restorable from the "Removed people" list.
-function loadRemovedRoster() { return loadJSON(REMOVED_ROSTER_KEY, []); }
-function saveRemovedRoster(list) { saveJSON(REMOVED_ROSTER_KEY, list); }
-// Full universe of people ever on the roster (base + added), ignoring the hide-list.
-// Used by the "Removed people" restore UI, which needs to show hidden entries too.
-function getFullRoster() { return ROSTER.concat(loadExtraRoster()); }
+// Roster is backed by real Netlify Functions + Blobs now (same pattern as
+// Manual Attribution/badges), not localStorage — adding, removing, or
+// restoring someone from one browser shows up for everyone. ROSTER_CACHE
+// holds the FULL resolved roster ({display, csv, active}) — collapses what
+// used to be two separate localStorage lists (extraRoster/removedRoster)
+// into one array with an `active` flag, matching the badge-assignment
+// style of "one list, mutate in place" rather than a base+diff model.
+// Initialized from the hardcoded ROSTER (everyone active) so the dashboard
+// looks identical to today until the server has ever been written to — see
+// fetchDashboardData() near the bottom of this file, which overwrites this
+// with the real shared roster once one exists.
+let ROSTER_CACHE = ROSTER.map(r => Object.assign({ active: true }, r));
+// Full universe of people ever on the roster (base + added), ignoring the
+// hide-list. Used by the "Removed people" restore UI, which needs to show
+// hidden entries too.
+function getFullRoster() { return ROSTER_CACHE; }
+function loadRemovedRoster() { return ROSTER_CACHE.filter(r => !r.active).map(r => r.display); }
+async function saveRoster(newRoster) {
+  await authedFetch('/api/roster/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roster: newRoster }),
+  });
+  ROSTER_CACHE = newRoster;
+}
 // Additional admins beyond ADMIN_EMAIL (Aaron), managed from the Admin access
 // card on Edit Monthly Goals. ADMIN_EMAIL itself is never stored here — it's
 // the one permanent admin and can't be removed through this UI.
@@ -1637,12 +1649,11 @@ function isLimitedAdminEmail(email) {
 }
 
 function getRoster() {
-  const removed = new Set(loadRemovedRoster());
   // Always alphabetical by display name (first name, since that's the leading
   // token for everyone on this roster) — so a newly added person, or someone
   // restored from the removed-people list, lands in their correct spot instead
   // of just tacking onto the end.
-  return getFullRoster().filter(r => !removed.has(r.display)).sort((a, b) => a.display.localeCompare(b.display));
+  return getFullRoster().filter(r => r.active).sort((a, b) => a.display.localeCompare(b.display));
 }
 
 function loadJSON(key, fallback) {
@@ -1653,30 +1664,65 @@ function loadJSON(key, fallback) {
   return JSON.parse(JSON.stringify(fallback));
 }
 function saveJSON(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
-function loadGoals() { return loadJSON(GOALS_KEY, DEFAULT_GOALS); }
-function saveGoals(g) { saveJSON(GOALS_KEY, g); }
-function loadActuals() { return loadJSON(ACTUALS_KEY, DEFAULT_ACTUALS); }
-function saveActuals(a) { saveJSON(ACTUALS_KEY, a); }
+// Goals and actuals are backed by real Netlify Functions + Blobs now (same
+// pattern as Manual Attribution/badges/roster above), not localStorage.
+// GOALS_CACHE/ACTUALS_CACHE/PRELIM_CACHE start out as the baked-in defaults
+// (identical to today's behavior) and get overwritten by fetchDashboardData()
+// near the bottom of this file if the server has real shared data — see that
+// function's comment for why the server doesn't try to seed itself with
+// these defaults.
+let GOALS_CACHE = Object.assign({}, DEFAULT_GOALS);
+let ACTUALS_CACHE = Object.assign({}, DEFAULT_ACTUALS);
+function loadGoals() { return GOALS_CACHE; }
+async function saveGoals(g) {
+  await authedFetch('/api/goals/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ goals: g }),
+  });
+  GOALS_CACHE = g;
+}
+function loadActuals() { return ACTUALS_CACHE; }
 
 // Preliminary last-month snapshot: the moment "Update actuals from ledger
 // export" is pasted with a NEW month's data, the outgoing month's final live
 // perRep actuals + the goals in effect at that moment get frozen here before
-// being overwritten — see the updateActuals click handler below. This lets
-// reps still see last month's numbers on Client Detail even though it's not
-// in Historical Performance yet (that only happens once Aaron runs Close Out
-// Month for it, which also clears the entry here — see closeOutCommitBtn).
-// Keyed by "YYYY-MM"; freezing goals alongside actuals matters because goals
-// are "current settings" that can keep changing after the month closes.
-const PRELIM_KEY = 'pace_dashboard_prelim_snapshot_v1';
-function loadPrelimSnapshots() { return loadJSON(PRELIM_KEY, {}); }
-function savePrelimSnapshot(monthKey, data) {
-  const all = loadPrelimSnapshots();
-  all[monthKey] = { ...data, computedAt: new Date().toISOString() };
-  saveJSON(PRELIM_KEY, all);
+// being overwritten — see importActuals() below. This lets reps still see
+// last month's numbers on Client Detail even though it's not in Historical
+// Performance yet (that only happens once Aaron runs Close Out Month for it,
+// which also clears the entry here — see closeOutCommitBtn). Keyed by
+// "YYYY-MM"; freezing goals alongside actuals matters because goals are
+// "current settings" that can keep changing after the month closes.
+let PRELIM_CACHE = {};
+function loadPrelimSnapshots() { return PRELIM_CACHE; }
+// Replaces the old synchronous saveActuals()/savePrelimSnapshot() pair — the
+// month-rollover comparison (has asOf's month changed since last time?)
+// still happens client-side since it needs the CURRENT cached actuals to
+// compare against, but the actual save (plus the prelim freeze, if this is a
+// rollover) happens together in one authed network call so both land or
+// neither does.
+async function importActuals(newActuals) {
+  const oldActuals = loadActuals();
+  const oldMonth = String(oldActuals.asOf || '').slice(0, 7);
+  const newMonth = String(newActuals.asOf || '').slice(0, 7);
+  const prelimSnapshot = (oldMonth && newMonth && oldMonth !== newMonth)
+    ? { monthKey: oldMonth, data: { asOf: oldActuals.asOf, perRep: oldActuals.perRep, goals: loadGoals() } }
+    : null;
+  const result = await authedFetch('/api/actuals/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'save', actuals: newActuals, prelimSnapshot }),
+  });
+  ACTUALS_CACHE = newActuals;
+  if (result.prelim) PRELIM_CACHE = result.prelim;
 }
-function clearPrelimSnapshot(monthKey) {
-  const all = loadPrelimSnapshots();
-  if (all[monthKey]) { delete all[monthKey]; saveJSON(PRELIM_KEY, all); }
+async function clearPrelimSnapshot(monthKey) {
+  const result = await authedFetch('/api/actuals/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'clearPrelim', month: monthKey }),
+  });
+  PRELIM_CACHE = result.prelim || {};
 }
 
 // Months closed out via the "Close out the month" importer on the Historical
@@ -2677,22 +2723,40 @@ function getFirstTo100Champion() {
 }
 
 // --- Badge on/off controls + admin-assigned badges -------------------------
-// Lets Aaron (or a Sales Coach) turn any of the automatic badges off
-// dashboard-wide without touching code, and separately hand out a small set
-// of manually-assigned badges to specific reps for reasons the data can't
-// compute on its own (e.g. "Coach's Pick"). Both are plain localStorage, same
-// pattern as everything else on this dashboard.
-const BADGE_TOGGLES_KEY = 'pace_dashboard_badge_toggles_v1';
+// Lets Aaron turn any of the automatic badges off dashboard-wide without
+// touching code, and separately hand out a small set of manually-assigned
+// badges to specific reps for reasons the data can't compute on its own (e.g.
+// "Coach's Pick"). Backed by real Netlify Functions + Blobs now (same pattern
+// as Manual Attribution), not localStorage — a toggle Aaron flips or a badge
+// he assigns is now visible to every rep on every device, not just his own
+// browser. BADGE_TOGGLES_CACHE/CUSTOM_BADGES_CACHE/MANUAL_BADGES_CACHE below
+// are populated once on boot() via fetchBadgesData() (see the Manual
+// Attribution section near the bottom of this file for that function and
+// authedFetch()); every reader here (loadBadgeToggles/isBadgeEnabled/
+// allBadgeOptions/getManualBadges/manualBadgesHTML) is unchanged and just
+// reads the in-memory cache synchronously, so render()/renderClientDetail()
+// call sites didn't need to change at all — only the WRITE paths
+// (createCustomBadgeOption/deleteCustomBadgeOption/assignManualBadge/
+// removeManualBadge and the badge-toggle checkbox handler) became async
+// network calls.
 const DEFAULT_BADGE_TOGGLES = { streak: true, personalBest: true, consistency: true, firstTo100: true };
-function loadBadgeToggles() { return Object.assign({}, DEFAULT_BADGE_TOGGLES, loadJSON(BADGE_TOGGLES_KEY, {})); }
-function saveBadgeToggles(t) { saveJSON(BADGE_TOGGLES_KEY, t); }
+let BADGE_TOGGLES_CACHE = Object.assign({}, DEFAULT_BADGE_TOGGLES);
+function loadBadgeToggles() { return BADGE_TOGGLES_CACHE; }
 function isBadgeEnabled(key) { return loadBadgeToggles()[key] !== false; }
+async function saveBadgeToggle(key, enabled) {
+  await authedFetch('/api/badges/toggle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key, enabled }),
+  });
+  BADGE_TOGGLES_CACHE = Object.assign({}, BADGE_TOGGLES_CACHE, { [key]: enabled });
+}
 
 // A handful of reasons-a-human-decided badges, distinct from the computed
 // ones above — this preset list is intentionally short (add more here only
 // if a new one earns its keep). For anything more specific than these four,
 // admins/coaches can build their own from scratch instead (emoji + name +
-// description — see CUSTOM_BADGE_OPTIONS_KEY below) rather than this list
+// description — see CUSTOM_BADGES_CACHE below) rather than this list
 // growing unbounded.
 const MANUAL_BADGE_OPTIONS = [
   { key: 'mvp', emoji: '⭐', label: 'MVP', color: '#ca8a04', description: 'For an all-around standout month — a coach\'s call, not a formula.' },
@@ -2700,56 +2764,70 @@ const MANUAL_BADGE_OPTIONS = [
   { key: 'risingstar', emoji: '🌱', label: 'Rising Star', color: '#16a34a', description: "For a rep who's clearly leveling up, even if the numbers haven't fully caught up yet." },
   { key: 'clutch', emoji: '🎯', label: 'Clutch Performer', color: '#dc2626', description: 'For coming through in a big moment — a tough close, a comeback late in the month.' },
 ];
-// Fully custom badges an admin/coach builds from scratch (emoji + name +
+// Fully custom badges an admin builds from scratch (emoji + name +
 // description) — same shape as MANUAL_BADGE_OPTIONS above plus `custom: true`
 // so the two can be told apart in the admin list (custom ones are deletable
 // as a badge TYPE; the 4 presets above aren't). A fixed rotation of colors
 // keeps custom badges visually distinct from each other without needing a
-// color picker in the creation form.
-const CUSTOM_BADGE_OPTIONS_KEY = 'pace_dashboard_custom_badge_options_v1';
-const CUSTOM_BADGE_COLORS = ['#7c3aed', '#0891b2', '#db2777', '#65a30d', '#ea580c', '#4338ca'];
-function loadCustomBadgeOptions() { return loadJSON(CUSTOM_BADGE_OPTIONS_KEY, []); }
-function saveCustomBadgeOptions(list) { saveJSON(CUSTOM_BADGE_OPTIONS_KEY, list); }
-function createCustomBadgeOption(emoji, label, description) {
-  const list = loadCustomBadgeOptions();
-  const key = 'custom_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-  const color = CUSTOM_BADGE_COLORS[list.length % CUSTOM_BADGE_COLORS.length];
-  list.push({ key, emoji: emoji || '🏅', label, description: description || '', color, custom: true });
-  saveCustomBadgeOptions(list);
-  return key;
+// color picker in the creation form — that rotation now lives server-side in
+// create-custom-badge.mts, since the badge's color is decided at creation
+// time based on how many already exist there, not on the client.
+let CUSTOM_BADGES_CACHE = [];
+function loadCustomBadgeOptions() { return CUSTOM_BADGES_CACHE; }
+async function createCustomBadgeOption(emoji, label, description) {
+  const { badge } = await authedFetch('/api/badges/custom/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ emoji, label, description }),
+  });
+  CUSTOM_BADGES_CACHE = CUSTOM_BADGES_CACHE.concat([badge]);
+  return badge.key;
 }
-function deleteCustomBadgeOption(key) {
-  saveCustomBadgeOptions(loadCustomBadgeOptions().filter(o => o.key !== key));
+async function deleteCustomBadgeOption(key) {
+  await authedFetch('/api/badges/custom/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key }),
+  });
+  CUSTOM_BADGES_CACHE = CUSTOM_BADGES_CACHE.filter(o => o.key !== key);
   // Existing assignments of a now-deleted badge type just quietly stop
   // rendering (see manualBadgesHTML's `if (!opt) return ''` below) rather
-  // than needing a separate cleanup pass across every rep's assigned list.
+  // than needing a separate cleanup pass across every rep's assigned list —
+  // same behavior the old localStorage version had, now enforced server-side
+  // in delete-custom-badge.mts too.
 }
 // Presets + whatever's been custom-built, in one list — every place that
 // needs to look up a badge TYPE by key (assigning, rendering, the dropdown)
 // should search this, not MANUAL_BADGE_OPTIONS alone, so custom badges work
 // everywhere the 4 presets do.
 function allBadgeOptions() { return MANUAL_BADGE_OPTIONS.concat(loadCustomBadgeOptions()); }
-const MANUAL_BADGES_KEY = 'pace_dashboard_manual_badges_v1';
-function loadManualBadges() { return loadJSON(MANUAL_BADGES_KEY, {}); }
-function saveManualBadges(m) { saveJSON(MANUAL_BADGES_KEY, m); }
+let MANUAL_BADGES_CACHE = {};
+function loadManualBadges() { return MANUAL_BADGES_CACHE; }
 function getManualBadges(repDisplay) {
   const all = loadManualBadges();
   return all[repDisplay] || [];
 }
-function assignManualBadge(repDisplay, optionKey) {
+async function assignManualBadge(repDisplay, optionKey) {
   const opt = allBadgeOptions().find(o => o.key === optionKey);
   if (!opt) return;
-  const all = loadManualBadges();
+  const { assignment } = await authedFetch('/api/badges/assign', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rep: repDisplay, key: optionKey }),
+  });
+  const all = MANUAL_BADGES_CACHE;
   if (!all[repDisplay]) all[repDisplay] = [];
-  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-  all[repDisplay].push({ id, key: opt.key });
-  saveManualBadges(all);
+  all[repDisplay].push(assignment);
 }
-function removeManualBadge(repDisplay, id) {
-  const all = loadManualBadges();
+async function removeManualBadge(repDisplay, id) {
+  await authedFetch('/api/badges/unassign', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+  const all = MANUAL_BADGES_CACHE;
   if (!all[repDisplay]) return;
   all[repDisplay] = all[repDisplay].filter(b => b.id !== id);
-  saveManualBadges(all);
 }
 function manualBadgesHTML(repDisplay) {
   return getManualBadges(repDisplay).map(b => {
@@ -2922,53 +3000,34 @@ function startMiniHeaderRotation(messages) {
 }
 
 // --- Manager shoutout log ---------------------------------------------------
-// A short, freeform per-rep note log — cheap to build (localStorage, no new
-// data plumbing) but high perceived value: a manager/coach can leave a
-// one-line callout ("Great save on the Miller account") that shows up right
-// on that rep's own Client Detail page. Addable by full admins AND Sales
-// Coaches (limited admins) — recognition isn't confidential the way payout
-// figures are, so this deliberately does NOT reuse canViewConfidentialPayout().
-// Viewable by anyone who can already open the page (admins, coaches, and the
-// rep themselves).
-const SHOUTOUT_LOG_KEY = 'pace_dashboard_shoutout_log_v1';
-function loadShoutoutLog() { return loadJSON(SHOUTOUT_LOG_KEY, {}); }
-function saveShoutoutLog(log) { saveJSON(SHOUTOUT_LOG_KEY, log); }
+// A short, freeform per-rep note log — a manager can leave a one-line callout
+// ("Great save on the Miller account") that shows up right on that rep's own
+// Client Detail page. Viewable by anyone who can already open the page
+// (admins and the rep themselves). Backed by real Netlify Functions + Blobs
+// now (same pattern as Manual Attribution), not localStorage — a shoutout
+// sent from one device shows up for everyone immediately, instead of living
+// only in the sender's own browser. SHOUTOUTS_CACHE is populated once on
+// boot() via fetchShoutouts() (see the Manual Attribution section near the
+// bottom of this file); getShoutouts()/shoutoutLogHTML() below are unchanged
+// and just read the in-memory cache synchronously.
+let SHOUTOUTS_CACHE = {};
+function loadShoutoutLog() { return SHOUTOUTS_CACHE; }
 function getShoutouts(repDisplay) {
   const log = loadShoutoutLog();
   return log[repDisplay] || [];
 }
-// Each entry gets a unique id (not just relying on array position, which
-// shifts as new ones are unshifted in) — that id is what lets
-// maybeShowShoutoutCelebration() below tell "a shoutout I've already popped
-// up for" apart from "a genuinely new one," the same way DOUBLE_GOAL_POPUP_KEY
-// dedupes by the exact crossing rather than just a boolean.
-function addShoutout(repDisplay, text) {
-  const log = loadShoutoutLog();
-  if (!log[repDisplay]) log[repDisplay] = [];
-  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-  log[repDisplay].unshift({ id, text, date: new Date().toISOString().slice(0,10), from: senderDisplayName() });
-  saveShoutoutLog(log);
-}
-// Who actually sent this? Resolves the CURRENTLY signed-in person to a
-// friendly name so recipients (and the master log) can see who it came from.
-// Real sign-in isn't live yet (see TEMP_ALLOW_ALL_CLIENT_DETAIL) — until it
-// is, currentUserEmail() has nothing to resolve and this returns null, and
-// every place that displays `from` falls back to a generic "A teammate"
-// label instead. Once Netlify Identity SSO is wired up, this starts
-// resolving for real with no other code needing to change.
-function senderDisplayName() {
-  const email = currentUserEmail();
-  if (!email) return null;
-  if (email === ADMIN_EMAIL) return 'Aaron Bunch';
-  const goals = loadGoals();
-  const match = Object.keys(goals).find(name => goals[name].email && String(goals[name].email).toLowerCase() === email);
-  return match || email;
-}
-function removeShoutout(repDisplay, idx) {
-  const log = loadShoutoutLog();
-  if (!log[repDisplay]) return;
-  log[repDisplay].splice(idx, 1);
-  saveShoutoutLog(log);
+// Who sent this is now decided server-side, from the caller's verified
+// Identity JWT (see send-shoutout.mts) — the client never gets a say, so
+// nobody can send a shoutout that appears to come from someone else. That
+// replaces the old client-side senderDisplayName() lookup entirely.
+async function addShoutout(repDisplay, text) {
+  const { shoutout } = await authedFetch('/api/shoutouts/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rep: repDisplay, text }),
+  });
+  if (!SHOUTOUTS_CACHE[repDisplay]) SHOUTOUTS_CACHE[repDisplay] = [];
+  SHOUTOUTS_CACHE[repDisplay].unshift(shoutout);
 }
 // True if the CURRENT viewer is allowed to add/remove shoutouts for any rep
 // (full admin or Sales Coach) — separate from whether they can just VIEW the
@@ -3031,8 +3090,8 @@ function renderMasterShoutoutLog() {
 }
 
 // Badge Controls — on/off toggles for the 4 computed badges + the manual-
-// assignment list, both on Edit Monthly Goals. See BADGE_TOGGLES_KEY /
-// MANUAL_BADGES_KEY above.
+// assignment list, both on Edit Monthly Goals. See BADGE_TOGGLES_CACHE /
+// MANUAL_BADGES_CACHE above.
 const BADGE_TOGGLE_META = [
   { key: 'streak', emoji: '🔥', label: 'Streak (3+ days at 100%+ pacing)', description: "Fires automatically once a rep's blended pacing has stayed at or above 100% for 3 days running — resets the moment they dip below." },
   { key: 'personalBest', emoji: '🌟', label: 'Personal Best Pace', description: "Awarded the moment a rep's current pace tops their own best day so far this month — always compared against themselves, never a teammate." },
@@ -3110,55 +3169,94 @@ function renderCustomBadgeList() {
       <button type="button" class="shoutout-remove-btn" data-remove-custom-badge="${o.key}" title="Delete this badge type">✕</button>
     </div>`).join('');
 }
-document.getElementById('createCustomBadgeBtn').addEventListener('click', () => {
+document.getElementById('createCustomBadgeBtn').addEventListener('click', async (e) => {
   const emoji = document.getElementById('customBadgeEmoji').value.trim();
   const name = document.getElementById('customBadgeName').value.trim();
   const description = document.getElementById('customBadgeDescription').value.trim();
   const status = document.getElementById('customBadgeStatus');
   if (!name) { status.textContent = 'Give the badge a name first.'; return; }
-  createCustomBadgeOption(emoji, name, description);
-  document.getElementById('customBadgeEmoji').value = '';
-  document.getElementById('customBadgeName').value = '';
-  document.getElementById('customBadgeDescription').value = '';
-  status.textContent = `"${name}" created — it's now available in the Assign a badge dropdown below.`;
-  renderCustomBadgeList();
-  renderBadgeAssignTypeOptions();
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  status.textContent = 'Creating…';
+  try {
+    await createCustomBadgeOption(emoji, name, description);
+    document.getElementById('customBadgeEmoji').value = '';
+    document.getElementById('customBadgeName').value = '';
+    document.getElementById('customBadgeDescription').value = '';
+    status.textContent = `"${name}" created — it's now available in the Assign a badge dropdown below.`;
+    renderCustomBadgeList();
+    renderBadgeAssignTypeOptions();
+  } catch (err) {
+    status.textContent = 'Error: ' + err.message;
+  } finally {
+    btn.disabled = false;
+  }
 });
-document.getElementById('customBadgeList').addEventListener('click', (e) => {
+document.getElementById('customBadgeList').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-remove-custom-badge]');
   if (!btn) return;
   if (!confirm('Delete this badge type? Anyone currently wearing it will lose it.')) return;
-  deleteCustomBadgeOption(btn.getAttribute('data-remove-custom-badge'));
-  renderCustomBadgeList();
-  renderBadgeAssignTypeOptions();
-  renderManualBadgeAssignedList();
-  render();
+  btn.disabled = true;
+  try {
+    await deleteCustomBadgeOption(btn.getAttribute('data-remove-custom-badge'));
+    renderCustomBadgeList();
+    renderBadgeAssignTypeOptions();
+    renderManualBadgeAssignedList();
+    render();
+  } catch (err) {
+    alert(err.message);
+    btn.disabled = false;
+  }
 });
 document.getElementById('badgeAssignTypeSelect').addEventListener('change', updateBadgeAssignTypeDescription);
-document.getElementById('badgeToggleList').addEventListener('change', (e) => {
+document.getElementById('badgeToggleList').addEventListener('change', async (e) => {
   const cb = e.target.closest('[data-badge-toggle]');
   if (!cb) return;
-  const toggles = loadBadgeToggles();
-  toggles[cb.getAttribute('data-badge-toggle')] = cb.checked;
-  saveBadgeToggles(toggles);
-  render(); // badges live inside the landing-page rep rows — refresh so the change is visible right away
+  const key = cb.getAttribute('data-badge-toggle');
+  const enabled = cb.checked;
+  cb.disabled = true;
+  try {
+    await saveBadgeToggle(key, enabled);
+    render(); // badges live inside the landing-page rep rows — refresh so the change is visible right away
+  } catch (err) {
+    cb.checked = !enabled; // revert the checkbox — the write didn't actually take
+    alert(err.message);
+  } finally {
+    cb.disabled = false;
+  }
 });
-document.getElementById('manualBadgeAssignedList').addEventListener('click', (e) => {
+document.getElementById('manualBadgeAssignedList').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-remove-manual-badge]');
   if (!btn) return;
-  removeManualBadge(decodeURIComponent(btn.getAttribute('data-remove-manual-badge-rep')), btn.getAttribute('data-remove-manual-badge'));
-  renderManualBadgeAssignedList();
-  render();
+  btn.disabled = true;
+  try {
+    await removeManualBadge(decodeURIComponent(btn.getAttribute('data-remove-manual-badge-rep')), btn.getAttribute('data-remove-manual-badge'));
+    renderManualBadgeAssignedList();
+    render();
+  } catch (err) {
+    alert(err.message);
+    btn.disabled = false;
+  }
 });
-document.getElementById('badgeAssignBtn').addEventListener('click', () => {
+document.getElementById('badgeAssignBtn').addEventListener('click', async (e) => {
   const repRaw = document.getElementById('badgeAssignRepSelect').value;
   const rep = repRaw ? decodeURIComponent(repRaw) : '';
   const type = document.getElementById('badgeAssignTypeSelect').value;
   if (!rep || !type) return;
-  assignManualBadge(rep, type);
-  document.getElementById('badgeAssignStatus').textContent = `Assigned to ${rep}.`;
-  renderManualBadgeAssignedList();
-  render();
+  const btn = e.currentTarget;
+  const status = document.getElementById('badgeAssignStatus');
+  btn.disabled = true;
+  status.textContent = 'Assigning…';
+  try {
+    await assignManualBadge(rep, type);
+    status.textContent = `Assigned to ${rep}.`;
+    renderManualBadgeAssignedList();
+    render();
+  } catch (err) {
+    status.textContent = 'Error: ' + err.message;
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 // One-time-per-shoutout popup — shown the first time the RECIPIENT's own
@@ -3358,17 +3456,30 @@ document.getElementById('shoutoutSendCancel').addEventListener('click', () => {
 document.getElementById('shoutoutSendBackdrop').addEventListener('click', (e) => {
   if (e.target.id === 'shoutoutSendBackdrop') e.currentTarget.classList.remove('open');
 });
-document.getElementById('shoutoutSendSubmit').addEventListener('click', () => {
+document.getElementById('shoutoutSendSubmit').addEventListener('click', async (e) => {
   const repRaw = document.getElementById('shoutoutSendRepSelect').value;
   const rep = repRaw ? decodeURIComponent(repRaw) : '';
   const text = (document.getElementById('shoutoutSendText').value || '').trim();
+  const status = document.getElementById('shoutoutSendStatus');
   if (!rep || !text) {
-    document.getElementById('shoutoutSendStatus').textContent = 'Pick a teammate and write a quick message first.';
+    status.textContent = 'Pick a teammate and write a quick message first.';
     return;
   }
-  addShoutout(rep, text);
-  renderMasterShoutoutLog();
-  document.getElementById('shoutoutSendBackdrop').classList.remove('open');
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  status.textContent = 'Sending…';
+  try {
+    await addShoutout(rep, text);
+    renderMasterShoutoutLog();
+    document.getElementById('shoutoutSendBackdrop').classList.remove('open');
+  } catch (err) {
+    // Most likely "Not signed in" — sending now requires real Netlify
+    // Identity sign-in (see send-shoutout.mts) so who it's "from" can be
+    // trusted, unlike the old localStorage version which didn't check at all.
+    status.textContent = 'Error: ' + err.message;
+  } finally {
+    btn.disabled = false;
+  }
 });
 document.getElementById('shoutoutCelebrationClose').addEventListener('click', () => {
   document.getElementById('shoutoutCelebrationBackdrop').classList.remove('open');
@@ -3381,8 +3492,8 @@ function renderGoalsForm(goals) {
   const container = document.getElementById('goalsForm');
   container.innerHTML = '';
   // Every rep gets a remove button now — base roster and added people alike —
-  // since removal works via the REMOVED_ROSTER_KEY hide-list rather than only
-  // being able to delete extraRoster entries.
+  // since removal works via the `active` flag in ROSTER_CACHE rather than only
+  // being able to delete added entries.
   getRoster().forEach(r => {
     const g = goals[r.display] || { sessions: 0, members: 0, tag: '', ote: 0, capAt200: false, email: '' };
     const row = document.createElement('div');
@@ -3458,8 +3569,8 @@ function renderRemovedRosterList() {
   `).join('');
 }
 
-document.getElementById('saveGoals').addEventListener('click', () => {
-  const goals = loadGoals();
+document.getElementById('saveGoals').addEventListener('click', async (e) => {
+  const goals = Object.assign({}, loadGoals());
   document.querySelectorAll('#goalsForm input').forEach(input => {
     const name = input.getAttribute('data-name');
     const field = input.getAttribute('data-field');
@@ -3468,11 +3579,19 @@ document.getElementById('saveGoals').addEventListener('click', () => {
     else if (field === 'capAt200') goals[name][field] = input.checked;
     else goals[name][field] = parseFloat(input.value) || 0;
   });
-  saveGoals(goals);
-  render();
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  try {
+    await saveGoals(goals);
+    render();
+  } catch (err) {
+    alert('Could not save goals: ' + err.message);
+  } finally {
+    btn.disabled = false;
+  }
 });
 
-document.getElementById('addPersonBtn').addEventListener('click', () => {
+document.getElementById('addPersonBtn').addEventListener('click', async (e) => {
   const input = document.getElementById('newPersonName');
   const statusEl = document.getElementById('addPersonStatus');
   const name = input.value.trim();
@@ -3486,36 +3605,58 @@ document.getElementById('addPersonBtn').addEventListener('click', () => {
     statusEl.style.color = '#dc2626';
     return;
   }
-  const extras = loadExtraRoster();
-  extras.push({ display: name, csv: name.toLowerCase() });
-  saveExtraRoster(extras);
-  input.value = '';
-  statusEl.textContent = `Added ${name} — set their goals below, then click Save goals.`;
-  statusEl.style.color = '#16a34a';
-  renderGoalsForm(loadGoals());
-  render();
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  statusEl.textContent = 'Adding…';
+  statusEl.style.color = '';
+  try {
+    const newRoster = getFullRoster().concat([{ display: name, csv: name.toLowerCase(), active: true }]);
+    await saveRoster(newRoster);
+    input.value = '';
+    statusEl.textContent = `Added ${name} — set their goals below, then click Save goals.`;
+    statusEl.style.color = '#16a34a';
+    renderGoalsForm(loadGoals());
+    render();
+  } catch (err) {
+    statusEl.textContent = 'Error: ' + err.message;
+    statusEl.style.color = '#dc2626';
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 // Event delegation since goalsForm rows are rebuilt on every renderGoalsForm() call.
-document.getElementById('goalsForm').addEventListener('click', (e) => {
+document.getElementById('goalsForm').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-remove-person]');
   if (!btn) return;
   const name = decodeURIComponent(btn.getAttribute('data-remove-person'));
   if (!confirm(`Remove ${name} from the roster? Their saved goals and history stay in storage — they'll just stop showing on the dashboard until restored.`)) return;
-  const removed = loadRemovedRoster();
-  if (!removed.includes(name)) removed.push(name);
-  saveRemovedRoster(removed);
-  renderGoalsForm(loadGoals());
-  render();
+  btn.disabled = true;
+  try {
+    const newRoster = getFullRoster().map(r => r.display === name ? Object.assign({}, r, { active: false }) : r);
+    await saveRoster(newRoster);
+    renderGoalsForm(loadGoals());
+    render();
+  } catch (err) {
+    alert('Could not remove ' + name + ': ' + err.message);
+    btn.disabled = false;
+  }
 });
 
-document.getElementById('removedRosterList').addEventListener('click', (e) => {
+document.getElementById('removedRosterList').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-restore-person]');
   if (!btn) return;
   const name = decodeURIComponent(btn.getAttribute('data-restore-person'));
-  saveRemovedRoster(loadRemovedRoster().filter(n => n !== name));
-  renderGoalsForm(loadGoals());
-  render();
+  btn.disabled = true;
+  try {
+    const newRoster = getFullRoster().map(r => r.display === name ? Object.assign({}, r, { active: true }) : r);
+    await saveRoster(newRoster);
+    renderGoalsForm(loadGoals());
+    render();
+  } catch (err) {
+    alert('Could not restore ' + name + ': ' + err.message);
+    btn.disabled = false;
+  }
 });
 
 document.getElementById('addAdminBtn').addEventListener('click', () => {
@@ -3589,18 +3730,18 @@ document.getElementById('limitedAdminList').addEventListener('click', (e) => {
   renderLimitedAdminList();
 });
 
-document.getElementById('updateActuals').addEventListener('click', () => {
+document.getElementById('updateActuals').addEventListener('click', async (e) => {
   const text = document.getElementById('csvInput').value;
   const statusEl = document.getElementById('updateStatus');
+  const btn = e.currentTarget;
+  btn.disabled = true;
   try {
     const newActuals = computeActualsFromCSV(text);
-    const oldActuals = loadActuals();
-    const oldMonth = String(oldActuals.asOf || '').slice(0, 7);
-    const newMonth = String(newActuals.asOf || '').slice(0, 7);
-    if (oldMonth && newMonth && oldMonth !== newMonth) {
-      savePrelimSnapshot(oldMonth, { asOf: oldActuals.asOf, perRep: oldActuals.perRep, goals: loadGoals() });
-    }
-    saveActuals(newActuals);
+    // importActuals() does the month-rollover prelim-snapshot comparison
+    // internally, then saves both in one authed network call — see its
+    // comment near ACTUALS_CACHE above. Requires real admin sign-in now
+    // (Aaron's instruction: the CSV import should be an Admin-only action).
+    await importActuals(newActuals);
     statusEl.textContent = `Updated successfully. Data as of ${newActuals.asOf}.`;
     statusEl.style.color = '#16a34a';
     render();
@@ -3608,6 +3749,8 @@ document.getElementById('updateActuals').addEventListener('click', () => {
     console.error(e);
     statusEl.textContent = 'Error: ' + e.message;
     statusEl.style.color = '#dc2626';
+  } finally {
+    btn.disabled = false;
   }
 });
 
@@ -4763,7 +4906,7 @@ document.getElementById('closeOutParseBtn').addEventListener('click', () => {
   }
 });
 
-document.getElementById('closeOutCommitBtn').addEventListener('click', () => {
+document.getElementById('closeOutCommitBtn').addEventListener('click', async (e) => {
   if (!pendingCloseOutMonth) return;
   const { k, l, parsed } = pendingCloseOutMonth;
   const valid = parsed.reps.filter(r => r.pct !== null);
@@ -4775,9 +4918,20 @@ document.getElementById('closeOutCommitBtn').addEventListener('click', () => {
   if (idx >= 0) extra[idx] = entry; else extra.push(entry);
   saveExtraSip(extra);
   applyExtraSipHistory();
-  // This month is now official — drop its "Preliminary" snapshot (if any) so
-  // Client Detail stops showing the unofficial box and defers to History instead.
-  clearPrelimSnapshot(k);
+
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  try {
+    // This month is now official — drop its "Preliminary" snapshot (if any)
+    // so Client Detail stops showing the unofficial box and defers to
+    // History instead. clearPrelimSnapshot is a network call now (admin-only,
+    // same as the rest of the actuals backend) — if it fails, Historical
+    // Performance has still been updated above, this just means the stale
+    // Preliminary box on Client Detail won't clear until retried.
+    await clearPrelimSnapshot(k);
+  } catch (err) {
+    console.warn('Could not clear preliminary snapshot for ' + k, err);
+  }
 
   document.getElementById('closeOutStatus').textContent = `✓ ${l} added to Historical Performance.`;
   document.getElementById('closeOutPreview').innerHTML = '';
@@ -5439,6 +5593,63 @@ async function fetchApprovedTotals() {
   }
 }
 
+// ---------- Badges + shoutouts (same Netlify Functions + Blobs pattern) ----------
+// Populates BADGE_TOGGLES_CACHE/CUSTOM_BADGES_CACHE/MANUAL_BADGES_CACHE/
+// SHOUTOUTS_CACHE (declared up near their respective read/write functions
+// earlier in this file) — public, unauthenticated GETs, same reasoning as
+// fetchApprovedTotals() above: every viewer needs these to render badges and
+// shoutouts, not just whoever's signed in. Falls back to the same empty/
+// default shape those caches already start with if the fetch fails, so a
+// network hiccup degrades to "no badges/shoutouts yet" instead of breaking
+// the page.
+async function fetchBadgesData() {
+  try {
+    const res = await fetch('/api/badges/data');
+    if (!res.ok) return;
+    const data = await res.json();
+    BADGE_TOGGLES_CACHE = Object.assign({}, DEFAULT_BADGE_TOGGLES, data.toggles || {});
+    CUSTOM_BADGES_CACHE = data.custom || [];
+    MANUAL_BADGES_CACHE = data.assignments || {};
+  } catch (e) {
+    console.warn('Could not load badges data', e);
+  }
+}
+
+async function fetchShoutouts() {
+  try {
+    const res = await fetch('/api/shoutouts/list');
+    if (!res.ok) return;
+    const data = await res.json();
+    SHOUTOUTS_CACHE = data.shoutouts || {};
+  } catch (e) {
+    console.warn('Could not load shoutouts', e);
+  }
+}
+
+// ---------- Roster + goals + actuals (same Netlify Functions + Blobs pattern) ----------
+// Populates ROSTER_CACHE/GOALS_CACHE/ACTUALS_CACHE/PRELIM_CACHE (declared up
+// near their respective read/write functions earlier in this file) — public,
+// unauthenticated GET, same reasoning as fetchApprovedTotals()/
+// fetchBadgesData() above. Each field only overwrites its cache if the
+// server actually has real saved data (see get-dashboard-data.mts's comment
+// on why it doesn't self-seed) — a null field just means "nobody's ever
+// saved this from any browser yet," so the baked-in default this cache
+// already started with keeps showing, exactly like a single-browser
+// localStorage setup would look on day one.
+async function fetchDashboardData() {
+  try {
+    const res = await fetch('/api/dashboard/data');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.roster) ROSTER_CACHE = data.roster;
+    if (data.goals) GOALS_CACHE = data.goals;
+    if (data.actuals) ACTUALS_CACHE = data.actuals;
+    if (data.prelim) PRELIM_CACHE = data.prelim;
+  } catch (e) {
+    console.warn('Could not load roster/goals/actuals', e);
+  }
+}
+
 async function authedFetch(path, options) {
   const user = window.netlifyIdentity && netlifyIdentity.currentUser();
   if (!user) throw new Error('Not signed in');
@@ -5721,7 +5932,10 @@ document.querySelectorAll('.identity-btn').forEach(wireIdentityButton);
 updateIdentityUI(window.netlifyIdentity ? netlifyIdentity.currentUser() : null);
 
 async function boot() {
-  APPROVED_TOTALS = await fetchApprovedTotals();
+  // All four are independent public GETs — run them together instead of in
+  // series so boot isn't four round-trips deep before the first render.
+  const [approved] = await Promise.all([fetchApprovedTotals(), fetchBadgesData(), fetchShoutouts(), fetchDashboardData()]);
+  APPROVED_TOTALS = approved;
   render();
   initSip();
   renderClientDetail();
