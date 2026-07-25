@@ -1,11 +1,12 @@
 {
-  "name": "a-team-pace-dashboard",
-  "private": true,
+  "name": "netlify-deploy",
   "version": "1.0.0",
-  "dependencies": {
-    "@netlify/blobs": "^8.1.0"
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "devDependencies": {
-    "@netlify/functions": "^2.8.2"
-  }
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }
