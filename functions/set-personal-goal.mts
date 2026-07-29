@@ -4,7 +4,12 @@ import { getIdentityUser } from "./_shared/identity.mts";
 import { resolveAccess } from "./_shared/access.mts";
 import { loadValidRepDisplays, resolveRepNameFromEmail } from "./_shared/roster.mts";
 
-const KINDS = new Set(["compositePct", "members", "sessions"]);
+// Personal month goals are Total Average Attainment % only (composite of
+// Members % and Sessions %). Floor is 100% — stretch tips live in the UI
+// (Level 2 = 115% for 6 months, Level 3 = 150% for 12 months).
+const KIND = "compositePct";
+const MIN_ATTAINMENT = 100;
+const MAX_ATTAINMENT = 250;
 
 export default async (req: Request, context: Context) => {
   if (req.method !== "POST") {
@@ -35,7 +40,8 @@ export default async (req: Request, context: Context) => {
   }
 
   const rep = String(body?.rep || "").trim();
-  const kind = String(body?.kind || "").trim();
+  // Ignore any legacy kind from the client — goals are attainment % only.
+  const kind = KIND;
   const target = Number(body?.target);
   const month = String(body?.month || new Date().toISOString().slice(0, 7)).slice(0, 7);
 
@@ -45,21 +51,18 @@ export default async (req: Request, context: Context) => {
       status: 400,
     });
   }
-  if (!KINDS.has(kind)) {
+  if (!Number.isFinite(target)) {
+    return new Response(JSON.stringify({ error: "target must be a number" }), {
+      status: 400,
+    });
+  }
+  if (target < MIN_ATTAINMENT || target > MAX_ATTAINMENT) {
     return new Response(
-      JSON.stringify({ error: "kind must be compositePct, members, or sessions" }),
+      JSON.stringify({
+        error: `Total Average Attainment must be between ${MIN_ATTAINMENT} and ${MAX_ATTAINMENT}`,
+      }),
       { status: 400 }
     );
-  }
-  if (!Number.isFinite(target) || target <= 0) {
-    return new Response(JSON.stringify({ error: "target must be a positive number" }), {
-      status: 400,
-    });
-  }
-  if (kind === "compositePct" && (target < 50 || target > 250)) {
-    return new Response(JSON.stringify({ error: "Attainment target should be between 50 and 250" }), {
-      status: 400,
-    });
   }
   if (!/^\d{4}-\d{2}$/.test(month)) {
     return new Response(JSON.stringify({ error: "month must be YYYY-MM" }), { status: 400 });
