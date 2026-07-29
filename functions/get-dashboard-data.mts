@@ -33,14 +33,16 @@ export default async (req: Request, context: Context) => {
   // saved yet.
   const adminListStore = getStore("admin-list");
   const coachListStore = getStore("coach-list");
+  const sipExtraStore = getStore("sip-extra");
 
-  const [roster, goals, actuals, prelim, admins, coaches] = await Promise.all([
+  const [roster, goals, actuals, prelim, admins, coaches, sipExtra] = await Promise.all([
     rosterStore.get("current", { type: "json" }),
     goalsStore.get("current", { type: "json" }),
     actualsStore.get("current", { type: "json" }),
     prelimStore.get("current", { type: "json" }),
     adminListStore.get("current", { type: "json" }),
     coachListStore.get("current", { type: "json" }),
+    sipExtraStore.get("current", { type: "json" }),
   ]);
 
   return new Response(
@@ -51,6 +53,9 @@ export default async (req: Request, context: Context) => {
       prelim: prelim || null,
       admins: admins || [],
       coaches: coaches || [],
+      // Closed-out SIP months from the Historical Performance importer.
+      // Empty array (not null) when nothing has been closed out yet.
+      sipExtra: Array.isArray(sipExtra) ? sipExtra : [],
     }),
     { status: 200, headers: { "Content-Type": "application/json" } }
   );

@@ -2,6 +2,8 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<title>A-Team Pacer</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
   :root {
     color-scheme: light;
@@ -818,38 +820,43 @@
 
   .admin-footer-row { display: flex; gap: 10px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
 
-  /* Compact signed-in chip — top-right, not in the action button row. */
+  /* Subtle signed-in chip — bottom of screen, low emphasis. */
   .session-bar {
-    position: fixed; top: 10px; right: 14px; z-index: 80;
+    position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 40;
     display: none; align-items: center; gap: 8px;
-    max-width: min(380px, calc(100vw - 28px));
-    padding: 6px 10px 6px 12px;
+    max-width: min(420px, calc(100vw - 28px));
+    padding: 5px 12px;
     border-radius: 999px;
-    background: var(--card-bg);
-    border: 1px solid var(--pill-border);
-    box-shadow: 0 2px 10px var(--shadow);
-    font-size: 12px; font-weight: 600; color: var(--text-muted);
+    background: color-mix(in srgb, var(--card-bg) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
+    box-shadow: none;
+    font-size: 11px; font-weight: 500; color: var(--text-faint);
+    opacity: 0.4;
+    pointer-events: auto;
+    transition: opacity 0.2s ease;
   }
   .session-bar.visible { display: flex; }
+  .session-bar:hover { opacity: 0.85; }
   .session-bar .session-label { white-space: nowrap; }
   .session-bar .session-email {
-    font-weight: 700; color: var(--text);
+    font-weight: 600; color: var(--text-muted);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .session-bar .identity-btn {
     flex: none; margin: 0; padding: 2px 4px;
     border: none; background: transparent; box-shadow: none;
-    font-size: 11.5px; font-weight: 700; color: var(--text-faint);
+    font-size: 11px; font-weight: 600; color: var(--text-faint);
     text-decoration: underline; cursor: pointer; white-space: nowrap;
   }
-  .session-bar .identity-btn:hover { opacity: 0.8; color: var(--text); }
+  .session-bar .identity-btn:hover { color: var(--text-muted); }
   body:not(.app-ready) .session-bar { display: none !important; }
-  @media (max-width: 700px) {
-    .session-bar {
-      top: auto; bottom: 12px; right: 12px; left: 12px;
-      max-width: none; justify-content: space-between;
-    }
+  .history-collapse-toggle {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    cursor: pointer; user-select: none; margin-bottom: 10px;
   }
+  .history-collapse-toggle h2 { margin: 0; }
+  .history-collapse-body.collapsed { display: none; }
 
   #newPersonName, #closeOutMonthInput {
     font-size: 13px; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 8px;
@@ -1133,7 +1140,7 @@
        there's no separate legend to keep in sync. Sort still uses the same
        popover pattern, just inline below the team card (see
        .rep-list-toolbar near #repList). Signed-in state lives in #sessionBar
-       (top-right), not in this action row. -->
+       (bottom, subtle), not in this action row. -->
   <div class="landing-actions-row">
     <button class="theme-btn manual-attro-btn large" id="manualAttroBtn" type="button">📝 Manual Attribution</button>
     <button class="theme-btn large" id="teamDetailsBtn" type="button" style="display:none;">🗂️ View Team Details</button>
@@ -1311,51 +1318,56 @@
     </div>
 
     <div class="detail-history-block" id="clientDetailHistoryBlock">
-      <h2>Historical performance</h2>
-      <div class="meta-note" style="margin-top:0;">Month-over-month pacing for this rep. The chart's dashed lines mark 115% (Level 2) and 150% (Level 3), plus the selected range's average — toggle them on/off with the Thresholds button, hover a line to see its label.</div>
-      <div class="rep-sip-grid">
-        <div class="card rep-sip-col rep-sip-col-month">
-          <h2>🗓️ Select a month</h2>
-          <div class="meta-note" style="margin-top:0;">One month, exactly as it landed on the SIP file.</div>
-          <div class="preset-btn-row" id="repSipMonthPresets">
-            <button type="button" class="preset-btn" data-month-preset="prev">◀ Prev</button>
-            <button type="button" class="preset-btn" data-month-preset="latest">Most Recent</button>
-            <button type="button" class="preset-btn" data-month-preset="best">🏆 Best</button>
-            <button type="button" class="preset-btn" data-month-preset="next">Next ▶</button>
-          </div>
-          <select class="sip-select" id="repSipMonthSelect"></select>
-          <div id="repSipMonthSummary" style="margin-top:12px;"></div>
-        </div>
-        <div class="card rep-sip-col rep-sip-col-range">
-          <h2>📈 Date range average</h2>
-          <div class="meta-note" style="margin-top:0;">Several months blended into one average.</div>
-          <div class="preset-btn-row">
-            <button type="button" class="preset-btn" data-preset="3">3 Mo</button>
-            <button type="button" class="preset-btn" data-preset="6">6 Mo</button>
-            <button type="button" class="preset-btn" data-preset="12">12 Mo</button>
-            <button type="button" class="preset-btn" data-preset="ytd">YTD</button>
-            <button type="button" class="preset-btn" data-preset="all">All Time</button>
-          </div>
-          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:12.5px; color:var(--text-muted);">
-            <label>From <select class="sip-select" id="repSipFromSelect"></select></label>
-            <label>To <select class="sip-select" id="repSipToSelect"></select></label>
-          </div>
-          <div id="repSipRangeSummary" style="margin-top:12px;"></div>
-        </div>
+      <div class="history-collapse-toggle" id="historyCollapseToggle" role="button" tabindex="0" aria-expanded="false">
+        <h2>Historical performance</h2>
+        <span class="side-chevron collapsed" id="historyCollapseChevron">▾</span>
       </div>
-      <div class="card">
-        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:2px;">
-          <h2 style="margin:0;">Month-over-month pacing</h2>
-          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-            <button type="button" class="chart-mode-btn has-tip" id="repChartThresholdsBtn" data-tip="Show/hide the Level 2 / Level 3 / range-average lines on the chart">📏 Thresholds</button>
-            <div class="chart-mode-toggle" id="repChartModeToggle">
-              <button type="button" class="chart-mode-btn" data-mode="attainment">📊 Attainment %</button>
-              <button type="button" class="chart-mode-btn" data-mode="earnings" id="chartModeEarningsBtn">💰 Earnings $</button>
+      <div id="historyCollapseBody" class="history-collapse-body collapsed">
+        <div class="meta-note" style="margin-top:0;">Month-over-month pacing for this rep. The chart's dashed lines mark 115% (Level 2) and 150% (Level 3), plus the selected range's average — toggle them on/off with the Thresholds button, hover a line to see its label.</div>
+        <div class="rep-sip-grid">
+          <div class="card rep-sip-col rep-sip-col-month">
+            <h2>🗓️ Select a month</h2>
+            <div class="meta-note" style="margin-top:0;">One month, exactly as it landed on the SIP file.</div>
+            <div class="preset-btn-row" id="repSipMonthPresets">
+              <button type="button" class="preset-btn" data-month-preset="prev">◀ Prev</button>
+              <button type="button" class="preset-btn" data-month-preset="latest">Most Recent</button>
+              <button type="button" class="preset-btn" data-month-preset="best">🏆 Best</button>
+              <button type="button" class="preset-btn" data-month-preset="next">Next ▶</button>
+            </div>
+            <select class="sip-select" id="repSipMonthSelect"></select>
+            <div id="repSipMonthSummary" style="margin-top:12px;"></div>
+          </div>
+          <div class="card rep-sip-col rep-sip-col-range">
+            <h2>📈 Date range average</h2>
+            <div class="meta-note" style="margin-top:0;">Several months blended into one average.</div>
+            <div class="preset-btn-row">
+              <button type="button" class="preset-btn" data-preset="3">3 Mo</button>
+              <button type="button" class="preset-btn" data-preset="6">6 Mo</button>
+              <button type="button" class="preset-btn" data-preset="12">12 Mo</button>
+              <button type="button" class="preset-btn" data-preset="ytd">YTD</button>
+              <button type="button" class="preset-btn" data-preset="all">All Time</button>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:12.5px; color:var(--text-muted);">
+              <label>From <select class="sip-select" id="repSipFromSelect"></select></label>
+              <label>To <select class="sip-select" id="repSipToSelect"></select></label>
+            </div>
+            <div id="repSipRangeSummary" style="margin-top:12px;"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:2px;">
+            <h2 style="margin:0;">Month-over-month pacing</h2>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="chart-mode-btn has-tip" id="repChartThresholdsBtn" data-tip="Show/hide the Level 2 / Level 3 / range-average lines on the chart">📏 Thresholds</button>
+              <div class="chart-mode-toggle" id="repChartModeToggle">
+                <button type="button" class="chart-mode-btn" data-mode="attainment">📊 Attainment %</button>
+                <button type="button" class="chart-mode-btn" data-mode="earnings" id="chartModeEarningsBtn">💰 Earnings $</button>
+              </div>
             </div>
           </div>
+          <div class="meta-note" style="margin:0 0 4px;">Hover near a dashed line to see what it marks.</div>
+          <div style="height:260px;"><canvas id="repSipChart"></canvas></div>
         </div>
-        <div class="meta-note" style="margin:0 0 4px;">Hover near a dashed line to see what it marks.</div>
-        <div style="height:260px;"><canvas id="repSipChart"></canvas></div>
       </div>
       <div id="shoutoutContainer"></div>
     </div>
@@ -1455,7 +1467,7 @@
         </table>
       </div>
       <div class="meta-note" id="teamAttributionsStatus"></div>
-      <div class="meta-note">Every Manual Attribution request across the team, any status — sign in as Aaron to see everyone's; a signed-in Sales Coach currently still only sees their own here until coach accounts are recognized server-side.</div>
+      <div class="meta-note">Every Manual Attribution request across the team, any status. Full admins and Sales Coaches see the whole team here (coaches stay read-only — only admins can approve/reject).</div>
     </div>
   </div>
 </div>
@@ -1512,13 +1524,13 @@
       <div class="meta-note" id="addPersonStatus"></div>
     </div>
     <div class="card goal-grid-compact" id="goalsFormWrap">
-      <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Client Detail access)</div><div>Cap bonus @ 200%</div></div>
+      <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Individual Pacer access)</div><div>Cap bonus @ 200%</div></div>
       <div id="goalsForm"></div>
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px;">
         <button id="saveGoals">Save goals</button>
         <span class="field-toggle-tag" id="toggleAdvancedFields">+ Tag / Email / Cap</span>
       </div>
-      <div class="meta-note">Update at the start of each month. Sessions and Members goals stay visible by default; click above to also show Tag, Email, and Cap bonus @ 200% (set-once fields you'll touch far less often). Monthly OTE feeds the Bonus Calculator on each rep's Client Detail page. "Cap bonus @ 200%" caps that rep's calculated payout at 200% of their (prorated) OTE, regardless of how high their achievement % runs — SPIFF is added on top and is never capped. Email is that rep's @varsitytutors.com sign-in — entering it gives them access to their own Client Detail page; leave it blank for admin-only access. Use the ✕ next to a name to remove someone from the dashboard (their goals/history stay saved and they can be restored below).</div>
+      <div class="meta-note">Update at the start of each month. Sessions and Members goals stay visible by default; click above to also show Tag, Email, and Cap bonus @ 200% (set-once fields you'll touch far less often). Monthly OTE feeds the Bonus Calculator on each rep's Individual Pacer page. "Cap bonus @ 200%" caps that rep's calculated payout at 200% of their (prorated) OTE, regardless of how high their achievement % runs — SPIFF is added on top and is never capped. Email is that rep's @varsitytutors.com sign-in — entering it gives them access to their own Individual Pacer page; leave it blank for admin-only access. Use the ✕ next to a name to remove someone from the dashboard (their goals/history stay saved and they can be restored below).</div>
     </div>
 
     <div class="section-toggle" id="toggleRemoved">▸ Removed people</div>
@@ -1541,7 +1553,7 @@
         </div>
         <div class="meta-note" id="addAdminStatus"></div>
         <div id="adminList" style="margin-top:10px;"></div>
-        <div class="meta-note">Admins get the same access Aaron has — every Client Detail page, Team Details, Admin Tools, and all writes (roster, goals, actuals, badges, attribution approvals). Aaron (aaron.bunch@varsitytutors.com) is the permanent admin and can't be removed here. This list is shared across every browser (Netlify Functions + Blobs). Sales Coaches stay read-only.</div>
+        <div class="meta-note">Admins get the same access Aaron has — every Individual Pacer page, Team Details, Admin Tools, and all writes (roster, goals, actuals, badges, attribution approvals). Aaron (aaron.bunch@varsitytutors.com) is the permanent admin and can't be removed here. This list is shared across every browser (Netlify Functions + Blobs). Sales Coaches stay read-only.</div>
       </div>
     </div>
 
@@ -1557,7 +1569,7 @@
         </div>
         <div class="meta-note" id="addLimitedAdminStatus"></div>
         <div id="limitedAdminList" style="margin-top:10px;"></div>
-        <div class="meta-note">Sales Coaches can open every rep's Client Detail page — pacing %, Sessions/Members counts, sold vs. refunds — but never see Bonus Payout or historical $ SIP payout figures, which stay visible only to full admins and the rep themselves. They also get Team Details (read-only). This list is shared across every browser (Netlify Functions + Blobs). Coaches never get write access — converting cancels, editing goals/roster/actuals, and approving attributions stay full-admin only.</div>
+        <div class="meta-note">Sales Coaches can open every Individual Pacer page — pacing %, Sessions/Members counts, sold vs. refunds — but never see Bonus Payout or historical $ SIP payout figures on someone else's page. If a coach is also a rep, they still see their own payout on their own Individual Pacer. They also get Team Details (read-only). This list is shared across every browser (Netlify Functions + Blobs). Coaches never get write access — converting cancels, editing goals/roster/actuals, and approving attributions stay full-admin only.</div>
       </div>
     </div>
 
@@ -1624,7 +1636,7 @@
           <button id="resetCelebrationPopupBtn" type="button">🔄 Un-mute celebration popup</button>
           <span class="meta-note" style="margin:0;" id="resetCelebrationStatus"></span>
         </div>
-        <div class="meta-note">The celebration popup pops every time the current Double Goal champion's Client Detail page is opened — closing it with "Let's go" doesn't remember anything, only "Don't show this again" does. This button clears that permanent mute flag, for testing a rep who previously opted out. This only affects your own browser — not something reps will ever see.</div>
+        <div class="meta-note">The celebration popup pops every time the current Double Goal champion's Individual Pacer page is opened — closing it with "Let's go" doesn't remember anything, only "Don't show this again" does. This button clears that permanent mute flag, for testing a rep who previously opted out. This only affects your own browser — not something reps will ever see.</div>
       </div>
     </div>
   </div>
@@ -1960,22 +1972,35 @@ async function clearPrelimSnapshot(monthKey) {
 }
 
 // Months closed out via the "Close out the month" importer on the Historical
-// Performance page. Stored separately from the hardcoded SIP_HISTORY/SIP_TEAM_ROLLUP
-// constants (same pattern as the extra roster) and merged in below, so a fresh
-// paste never overwrites the historically-verified baseline data.
-function loadExtraSip() { return loadJSON(EXTRA_SIP_KEY, []); }
-function saveExtraSip(list) { saveJSON(EXTRA_SIP_KEY, list); }
+// Performance page. Shared via Netlify Blobs (sip-extra) — must NOT live only
+// in localStorage, or other browsers never see closed-out months.
+// EXTRA_SIP_KEY is kept only for a one-time migrate of any leftover local data.
+let EXTRA_SIP_CACHE = [];
+const BASE_SIP_HISTORY = SIP_HISTORY.slice();
+const BASE_SIP_TEAM_ROLLUP = Object.assign({}, SIP_TEAM_ROLLUP);
+function loadExtraSip() { return EXTRA_SIP_CACHE; }
+async function saveExtraSip(list) {
+  await authedFetch('/api/sip-extra/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sipExtra: list }),
+  });
+  EXTRA_SIP_CACHE = list;
+}
 function applyExtraSipHistory() {
+  // Reset to baked-in baseline, then merge shared extras (safe to call repeatedly).
+  SIP_HISTORY = BASE_SIP_HISTORY.map(m => Object.assign({}, m, { reps: m.reps.slice() }));
+  SIP_TEAM_ROLLUP = Object.assign({}, BASE_SIP_TEAM_ROLLUP);
   const extra = loadExtraSip();
   if (!extra.length) return;
   extra.forEach(entry => {
+    if (!entry || !entry.month || !entry.month.k) return;
     const idx = SIP_HISTORY.findIndex(m => m.k === entry.month.k);
     if (idx >= 0) SIP_HISTORY[idx] = entry.month; else SIP_HISTORY.push(entry.month);
     if (entry.rollup) SIP_TEAM_ROLLUP[entry.month.k] = entry.rollup;
   });
   SIP_HISTORY.sort((a, b) => a.k.localeCompare(b.k));
 }
-applyExtraSipHistory();
 
 // ---------- Theme ----------
 function applyTheme(theme) {
@@ -2241,7 +2266,7 @@ function buildDetailsHTML(uid, repDisplay) {
       </div>
     </div>
     ${repDisplay && canViewClientDetail(repDisplay)
-      ? `<button class="client-detail-btn" data-repname="${encodeURIComponent(repDisplay)}" type="button">View Client Detail →</button>`
+      ? `<button class="client-detail-btn" data-repname="${encodeURIComponent(repDisplay)}" type="button">View Individual Pacer →</button>`
       : ''}
   `;
 }
@@ -4983,7 +5008,7 @@ setupToggle('toggleShoutoutLog', 'shoutoutLogBody', 'All Shoutouts');
 setupToggle('toggleTestingTools', 'testingToolsBody', 'Testing tools');
 document.getElementById('resetCelebrationPopupBtn').addEventListener('click', () => {
   localStorage.removeItem(DOUBLE_GOAL_POPUP_MUTED_KEY);
-  document.getElementById('resetCelebrationStatus').textContent = 'Un-muted — the current champion\'s Client Detail page will show the popup again.';
+  document.getElementById('resetCelebrationStatus').textContent = 'Un-muted — the current champion\'s Individual Pacer page will show the popup again.';
 });
 
 document.getElementById('toggleAdvancedFields').addEventListener('click', () => {
@@ -5238,33 +5263,33 @@ document.getElementById('closeOutCommitBtn').addEventListener('click', async (e)
   const valid = parsed.reps.filter(r => r.pct !== null);
   const avg = valid.length ? Math.round((valid.reduce((s, r) => s + r.pct, 0) / valid.length) * 10000) / 10000 : null;
   const monthObj = { k, l, avg, n: valid.length, reps: parsed.reps.map(r => ({ name: r.name, sA: r.sA, sG: r.sG, mA: r.mA, mG: r.mG, pct: r.pct })) };
-  const extra = loadExtraSip();
-  const idx = extra.findIndex(e => e.month.k === k);
-  const entry = { month: monthObj, rollup: parsed.teamRollup };
-  if (idx >= 0) extra[idx] = entry; else extra.push(entry);
-  saveExtraSip(extra);
-  applyExtraSipHistory();
-
   const btn = e.currentTarget;
   btn.disabled = true;
+  const statusEl = document.getElementById('closeOutStatus');
   try {
-    // This month is now official — drop its "Preliminary" snapshot (if any)
-    // so Client Detail stops showing the unofficial box and defers to
-    // History instead. clearPrelimSnapshot is a network call now (admin-only,
-    // same as the rest of the actuals backend) — if it fails, Historical
-    // Performance has still been updated above, this just means the stale
-    // Preliminary box on Client Detail won't clear until retried.
-    await clearPrelimSnapshot(k);
-  } catch (err) {
-    console.warn('Could not clear preliminary snapshot for ' + k, err);
-  }
+    const extra = loadExtraSip().slice();
+    const idx = extra.findIndex(e => e.month && e.month.k === k);
+    const entry = { month: monthObj, rollup: parsed.teamRollup };
+    if (idx >= 0) extra[idx] = entry; else extra.push(entry);
+    await saveExtraSip(extra);
+    applyExtraSipHistory();
 
-  document.getElementById('closeOutStatus').textContent = `✓ ${l} added to Historical Performance.`;
-  document.getElementById('closeOutPreview').innerHTML = '';
-  document.getElementById('closeOutCsvInput').value = '';
-  document.getElementById('closeOutCommitBtn').disabled = true;
-  pendingCloseOutMonth = null;
-  initSip();
+    // This month is now official — drop its "Preliminary" snapshot (if any).
+    try {
+      await clearPrelimSnapshot(k);
+    } catch (err) {
+      console.warn('Could not clear preliminary snapshot for ' + k, err);
+    }
+
+    statusEl.textContent = `✓ ${l} added to Historical Performance (shared for everyone).`;
+    document.getElementById('closeOutPreview').innerHTML = '';
+    document.getElementById('closeOutCsvInput').value = '';
+    pendingCloseOutMonth = null;
+    initSip();
+  } catch (err) {
+    statusEl.textContent = 'Error saving: ' + err.message;
+    btn.disabled = false;
+  }
 });
 
 // ---------- Per-rep Client Detail drill-down page ----------
@@ -5716,12 +5741,12 @@ let rankSideCollapsed = loadJSON(RANK_SIDE_COLLAPSED_KEY, true);
 
 function renderClientDetail() {
   const overlay = document.getElementById('clientDetailOverlay');
-  const match = location.hash.match(/^#client-detail=(.+)$/);
+  const match = location.hash.match(/^#(?:individual-pacer|client-detail)=(.+)$/);
   if (!match) { overlay.classList.remove('open'); syncOverlayBodyScroll(); return; }
   const repName = decodeURIComponent(match[1]);
   overlay.classList.add('open');
   syncOverlayBodyScroll();
-  document.getElementById('detailRepName').textContent = repName + ' — Client Detail';
+  document.getElementById('detailRepName').textContent = repName + ' — Individual Pacer';
 
   const allowed = canViewClientDetail(repName);
   const restrictedNote = document.getElementById('detailRestrictedNote');
@@ -5729,7 +5754,7 @@ function renderClientDetail() {
     .map(id => document.getElementById(id)).filter(Boolean);
   if (!allowed) {
     restrictedNote.style.display = '';
-    restrictedNote.innerHTML = `<div class="meta-note" style="margin-top:0;">🔒 You don't have access to ${repName}'s Client Detail.</div>`;
+    restrictedNote.innerHTML = `<div class="meta-note" style="margin-top:0;">🔒 You don't have access to ${repName}'s Individual Pacer.</div>`;
     bodyEls.forEach(el => el.style.display = 'none');
     window.scrollTo(0, 0);
     return;
@@ -5822,6 +5847,8 @@ function renderClientDetail() {
   }
   // Historical Performance is sourced from SIP_HISTORY (separate from the ledger
   // paste above), so it renders regardless of whether client line items exist yet.
+  // Always re-collapse when opening an Individual Pacer page.
+  setHistoryCollapsed(true);
   initRepSip(repName);
   document.getElementById('shoutoutContainer').innerHTML = shoutoutLogHTML(repName);
   window.scrollTo(0, 0);
@@ -5836,6 +5863,27 @@ document.getElementById('bonusSideToggle').addEventListener('click', () => {
   saveJSON(BONUS_SIDE_COLLAPSED_KEY, bonusSideCollapsed);
   document.getElementById('bonusSideChevron').classList.toggle('collapsed', bonusSideCollapsed);
   document.getElementById('bonusSideContent').classList.toggle('collapsed', bonusSideCollapsed);
+});
+
+// Historical Performance on Individual Pacer — always starts collapsed; toggle is session-only.
+function setHistoryCollapsed(collapsed) {
+  const body = document.getElementById('historyCollapseBody');
+  const chevron = document.getElementById('historyCollapseChevron');
+  const toggle = document.getElementById('historyCollapseToggle');
+  if (!body || !chevron || !toggle) return;
+  body.classList.toggle('collapsed', collapsed);
+  chevron.classList.toggle('collapsed', collapsed);
+  toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+}
+document.getElementById('historyCollapseToggle').addEventListener('click', () => {
+  const body = document.getElementById('historyCollapseBody');
+  setHistoryCollapsed(!body.classList.contains('collapsed'));
+});
+document.getElementById('historyCollapseToggle').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    document.getElementById('historyCollapseToggle').click();
+  }
 });
 
 document.getElementById('rankSideToggle').addEventListener('click', () => {
@@ -5863,7 +5911,7 @@ document.getElementById('bonusSideContent').addEventListener('change', (e) => {
 document.getElementById('repList').addEventListener('click', (e) => {
   const btn = e.target.closest('.client-detail-btn');
   if (!btn) return;
-  location.hash = 'client-detail=' + btn.getAttribute('data-repname');
+  location.hash = 'individual-pacer=' + btn.getAttribute('data-repname');
 });
 
 // ---------- Manual Attribution full-page overlay routing (#manual-attribution) ----------
@@ -6176,6 +6224,27 @@ async function fetchDashboardData() {
     // depends on it), so these apply unconditionally rather than only-if-truthy.
     ADMIN_LIST_CACHE = data.admins || [];
     COACH_LIST_CACHE = data.coaches || [];
+    // Closed-out SIP months — shared via Blobs. Server is SSoT; localStorage is
+    // only a one-time migrate source if the blob store is still empty.
+    if (Array.isArray(data.sipExtra) && data.sipExtra.length) {
+      EXTRA_SIP_CACHE = data.sipExtra;
+      try { localStorage.removeItem(EXTRA_SIP_KEY); } catch (_) {}
+    } else {
+      const localExtra = loadJSON(EXTRA_SIP_KEY, []);
+      if (localExtra.length) {
+        EXTRA_SIP_CACHE = localExtra;
+        authedFetch('/api/sip-extra/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sipExtra: localExtra }),
+        }).then(() => {
+          try { localStorage.removeItem(EXTRA_SIP_KEY); } catch (_) {}
+        }).catch((err) => console.warn('Could not migrate local SIP extra to Blobs', err));
+      } else {
+        EXTRA_SIP_CACHE = [];
+      }
+    }
+    applyExtraSipHistory();
   } catch (e) {
     console.warn('Could not load roster/goals/actuals', e);
   }
@@ -6391,17 +6460,17 @@ function canViewClientDetail(repDisplay) {
   return !!repEmail && repEmail === email;
 }
 
-// Sales Coaches can open any Client Detail page for pacing/counts, but never
-// Bonus Payout or historical $ SIP. Full admins and the rep themselves see both.
+// Full admins see payout on every page. A Sales Coach who is also a rep sees
+// payout on THEIR OWN Individual Pacer only — never on anyone else's.
 function canViewConfidentialPayout(repDisplay) {
   const email = currentUserEmail();
   if (!email) return false;
   if (isAdminEmail(email)) return true;
-  if (isLimitedAdminEmail(email)) return false;
   const goals = loadGoals();
   const g = goals[repDisplay];
   const repEmail = g && g.email ? String(g.email).toLowerCase() : null;
-  return !!repEmail && repEmail === email;
+  if (repEmail && repEmail === email) return true; // own page, even if also a coach
+  return false;
 }
 
 /** Show/hide chrome that depends on the signed-in role (footer, CSV, Team Details). */
