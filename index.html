@@ -1018,6 +1018,15 @@
   .login-gate-hint {
     margin-top: 18px; font-size: 12.5px; color: var(--text-faint); line-height: 1.45;
   }
+  .login-gate-setup {
+    margin-top: 16px; text-align: left; font-size: 12.5px; line-height: 1.5;
+    color: var(--text); background: rgba(220,38,38,0.06);
+    border: 1px solid rgba(220,38,38,0.22); border-radius: 12px; padding: 14px 16px;
+  }
+  .login-gate-setup ol { margin: 8px 0 0; padding-left: 18px; }
+  .login-gate-setup li { margin: 6px 0; }
+  .login-gate-setup-check { margin: 12px 0 0; color: var(--text-muted); word-break: break-all; }
+  .login-gate-setup code { font-size: 11.5px; }
 </style>
 </head>
 <body>
@@ -1035,7 +1044,19 @@
       <span id="googleLoginBtnLabel">Continue with Google</span>
     </button>
     <div id="loginGateError" class="login-gate-error" role="alert"></div>
-    <p class="login-gate-hint">On Google’s account screen, choose your <strong>@varsitytutors.com</strong> address — not a personal Gmail. A work Chrome profile alone is not enough if Google picks a different account.</p>
+    <div id="loginGateSetup" class="login-gate-setup" hidden>
+      <p><strong>Site admin setup required</strong> (this is why Google never opens an account chooser):</p>
+      <ol>
+        <li>Open this exact site in Netlify (the one whose URL you’re on now).</li>
+        <li>Go to <strong>Project configuration → Identity</strong> and click <strong>Enable Identity</strong>.</li>
+        <li>Under <strong>Registration → External providers</strong>, add <strong>Google</strong> (use Netlify’s credentials).</li>
+        <li>Set registration to <strong>Open</strong>.</li>
+        <li>If <strong>Visitor Access / Site protection / Team login / SAML / Edge Access</strong> is on, turn it <strong>OFF</strong> — that Netlify SSO blocks Google Identity for staff who don’t have Netlify accounts.</li>
+        <li>Hard-refresh this page. The button should then send you to Google’s account chooser.</li>
+      </ol>
+      <p class="login-gate-setup-check">Quick check: <code id="loginGateOriginCheck"></code><span>/.netlify/identity/settings</span> must return JSON, not “Page not found”.</p>
+    </div>
+    <p class="login-gate-hint">Only <strong>@varsitytutors.com</strong> Google accounts can open the dashboard. You do not need a Netlify account.</p>
   </div>
 </div>
 <!-- Slim reminder bar — hidden until the main banner (day/expected pace pills)
@@ -6412,13 +6433,43 @@ function canViewConfidentialPayout(repDisplay) {
   return !!repEmail && repEmail === email;
 }
 
-// Full-page Google login gate. Visitors never see the dashboard until Netlify
-// Identity confirms a @varsitytutors.com Google session. We intentionally skip
-// the Identity widget modal (open()) for sign-in — its Google button often just
-// reloads the page when the OAuth round-trip isn't completed cleanly. Instead we
-// send the browser straight to Netlify's Google authorize URL.
+// Full-page Google login gate.
+//
+// IMPORTANT: Netlify Identity must be enabled on THIS exact site, and Site
+// protection / Edge Access / SAML team-login must be OFF. We verified
+// a-team-pacer.netlify.app returns 404 for /.netlify/identity/* (Identity not
+// enabled) and a-team-autopacer.netlify.app returns 401 edge-access with
+// strict_saml=true (Netlify team SSO blocks Identity Google for staff).
 const ALLOWED_EMAIL_DOMAIN = '@varsitytutors.com';
+const IDENTITY_API = window.location.origin + '/.netlify/identity';
 let appBooted = false;
+let identityBackend = { status: 'checking' }; // ready | missing | edge_access | google_off | error
+
+function clearGoTrueStorage() {
+  try {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (/gotrue|netlifyIdentity|netlify-identity/i.test(key)) keys.push(key);
+    }
+    keys.forEach((key) => localStorage.removeItem(key));
+  } catch (_) {}
+}
+
+function decodeJwtPayload(token) {
+  try {
+    const part = String(token || '').split('.')[1];
+    if (!part) return null;
+    const normalized = part.replace(/-/g, '+').replace(/_/g, '/');
+    const json = decodeURIComponent(atob(normalized).split('').map((c) =>
+      '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+    ).join(''));
+    return JSON.parse(json);
+  } catch (_) {
+    return null;
+  }
+}
 
 function identityEmail(user) {
   if (!user) return '';
@@ -6434,8 +6485,27 @@ function identityEmail(user) {
   return '';
 }
 
-function isAllowedIdentityUser(user) {
-  return identityEmail(user).endsWith(ALLOWED_EMAIL_DOMAIN);
+async function resolveIdentityEmail(user) {
+  let email = identityEmail(user);
+  if (email) return email;
+  if (!user || typeof user.jwt !== 'function') return '';
+  try {
+    const token = await user.jwt();
+    const payload = decodeJwtPayload(token);
+    email = String(payload && (payload.email || (payload.user_metadata && payload.user_metadata.email)) || '')
+      .trim().toLowerCase();
+    if (email.includes('@')) return email;
+
+    const res = await fetch(IDENTITY_API + '/user', {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      email = identityEmail(data);
+      if (email) return email;
+    }
+  } catch (_) {}
+  return '';
 }
 
 function showLoginGateError(message) {
@@ -6443,6 +6513,20 @@ function showLoginGateError(message) {
   if (!el) return;
   el.textContent = message || '';
   el.classList.toggle('visible', !!message);
+}
+
+function showLoginGateSetup(show) {
+  const el = document.getElementById('loginGateSetup');
+  const originEl = document.getElementById('loginGateOriginCheck');
+  if (originEl) originEl.textContent = window.location.origin;
+  if (el) el.hidden = !show;
+}
+
+function setGoogleButtonState({ disabled, label }) {
+  const btn = document.getElementById('googleLoginBtn');
+  const labelEl = document.getElementById('googleLoginBtnLabel');
+  if (btn) btn.disabled = !!disabled;
+  if (labelEl && label) labelEl.textContent = label;
 }
 
 function lockAppToLoginGate() {
@@ -6453,6 +6537,7 @@ function revealAppAfterLogin(user) {
   updateIdentityUI(user);
   document.body.classList.add('app-ready');
   showLoginGateError('');
+  showLoginGateSetup(false);
   if (!appBooted) {
     appBooted = true;
     boot();
@@ -6460,44 +6545,97 @@ function revealAppAfterLogin(user) {
   refreshMyAttributions();
 }
 
+async function diagnoseIdentityBackend() {
+  try {
+    const res = await fetch(IDENTITY_API + '/settings', {
+      headers: { Accept: 'application/json' },
+      redirect: 'manual',
+    });
+    const text = await res.text();
+    if (res.status === 401 || /edge-access|strict_saml/i.test(text)) {
+      return { status: 'edge_access' };
+    }
+    if (res.status === 404 || /page not found/i.test(text)) {
+      return { status: 'missing' };
+    }
+    if (!res.ok) return { status: 'error', detail: 'HTTP ' + res.status };
+    let settings = null;
+    try { settings = JSON.parse(text); } catch (_) { return { status: 'error', detail: 'Invalid settings JSON' }; }
+    const googleOn = !!(settings && settings.external && settings.external.google);
+    if (!googleOn) return { status: 'google_off', settings };
+    return { status: 'ready', settings };
+  } catch (err) {
+    return { status: 'error', detail: (err && err.message) || 'Network error' };
+  }
+}
+
+function applyIdentityBackendDiagnosis(diag) {
+  identityBackend = diag;
+  if (diag.status === 'ready') {
+    showLoginGateSetup(false);
+    setGoogleButtonState({ disabled: false, label: 'Continue with Google' });
+    return;
+  }
+  setGoogleButtonState({ disabled: true, label: 'Google sign-in unavailable' });
+  showLoginGateSetup(true);
+  if (diag.status === 'missing') {
+    showLoginGateError('Netlify Identity is not enabled on this site (/.netlify/identity returns 404). Google cannot show an account chooser until Identity is enabled on THIS Netlify site.');
+  } else if (diag.status === 'edge_access') {
+    showLoginGateError('This site is locked behind Netlify Visitor Access / SAML (edge-access). That is Netlify team SSO, not Google login. Turn Site protection / Team login OFF, then use Identity + Google instead.');
+  } else if (diag.status === 'google_off') {
+    showLoginGateError('Netlify Identity is on, but the Google provider is not. In Identity → Registration → External providers, add Google.');
+  } else {
+    showLoginGateError('Could not reach Netlify Identity (' + (diag.detail || 'unknown error') + ').');
+  }
+}
+
 async function acceptIdentityUser(user) {
   if (!user) {
     lockAppToLoginGate();
     return;
   }
-  const email = identityEmail(user);
+  if (identityBackend.status !== 'ready') {
+    // Stale localStorage sessions look like "signed in with no email" when
+    // Identity isn't actually provisioned on this site. Wipe them.
+    clearGoTrueStorage();
+    try { if (window.netlifyIdentity) await netlifyIdentity.logout(); } catch (_) {}
+    lockAppToLoginGate();
+    return;
+  }
+  const email = await resolveIdentityEmail(user);
   if (!email.endsWith(ALLOWED_EMAIL_DOMAIN)) {
     lockAppToLoginGate();
     try { await netlifyIdentity.logout(); } catch (_) {}
-    // Set after logout so the logout handler doesn't wipe this message.
+    clearGoTrueStorage();
     if (!email) {
-      showLoginGateError('Google signed in, but no email address came back. Click Continue with Google again and allow email permission for your @varsitytutors.com account.');
+      showLoginGateError('Sign-in did not return an email. Use Continue with Google again and choose your @varsitytutors.com account.');
     } else {
-      showLoginGateError('Google used ' + email + ', which is not allowed. Click Continue with Google again and choose your @varsitytutors.com account (not a personal Gmail).');
+      showLoginGateError('Google used ' + email + ', which is not allowed. Choose your @varsitytutors.com account on Google’s screen.');
     }
     return;
   }
   revealAppAfterLogin(user);
 }
 
-function startGoogleLogin() {
+async function startGoogleLogin() {
   showLoginGateError('');
-  const btn = document.getElementById('googleLoginBtn');
-  const label = document.getElementById('googleLoginBtnLabel');
-  if (btn) btn.disabled = true;
-  if (label) label.textContent = 'Redirecting to Google…';
-  // prompt=select_account forces Google's account chooser so a work Chrome
-  // profile doesn't silently reuse a personal Gmail. hd hints Workspace domain.
-  const authUrl = window.location.origin
-    + '/.netlify/identity/authorize?provider=google'
-    + '&prompt=select_account'
-    + '&hd=varsitytutors.com';
-  window.location.assign(authUrl);
+  const diag = await diagnoseIdentityBackend();
+  applyIdentityBackendDiagnosis(diag);
+  if (diag.status !== 'ready') return;
+
+  setGoogleButtonState({ disabled: true, label: 'Redirecting to Google…' });
+  clearGoTrueStorage();
+  try { if (window.netlifyIdentity) await netlifyIdentity.logout(); } catch (_) {}
+
+  // Clean authorize URL only — extra query params are not reliably forwarded
+  // by GoTrue and previously contributed to broken round-trips.
+  window.location.assign(IDENTITY_API + '/authorize?provider=google');
 }
 
 function updateIdentityUI(user) {
   document.querySelectorAll('.identity-btn').forEach((btn) => {
-    btn.textContent = user ? ('👤 ' + user.email + ' · Sign out') : '🔐 Sign in';
+    const email = identityEmail(user);
+    btn.textContent = email ? ('👤 ' + email + ' · Sign out') : '👤 Sign out';
   });
   const showForm = !!user;
   const signedOutNote = document.getElementById('attributionSignedOutNote');
@@ -6511,6 +6649,7 @@ function wireIdentityButton(btn) {
     const user = window.netlifyIdentity && netlifyIdentity.currentUser();
     if (user) {
       netlifyIdentity.logout();
+      clearGoTrueStorage();
       return;
     }
     startGoogleLogin();
@@ -6523,10 +6662,8 @@ function wireIdentityButton(btn) {
   const params = new URLSearchParams(hash.replace(/^#/, ''));
   let err = params.get('error_description') || params.get('error') || 'Google sign-in failed.';
   err = decodeURIComponent(String(err).replace(/\+/g, ' '));
-  // Netlify Identity surfaces any validate-webhook failure as this generic string,
-  // including domain denials — rewrite it into something actionable for reps.
   if (/failed to handle signup webhook/i.test(err)) {
-    err = 'Google sign-in hit a Netlify Identity webhook error. Ask a site admin to open Netlify → Identity → Notifications and delete any signup webhook URLs, then try again.';
+    err = 'Google sign-in hit a Netlify Identity webhook error. In Netlify → Identity → Notifications, delete any signup webhook URLs, then try again.';
   }
   showLoginGateError(err);
 })();
@@ -6534,8 +6671,19 @@ function wireIdentityButton(btn) {
 const googleLoginBtn = document.getElementById('googleLoginBtn');
 if (googleLoginBtn) googleLoginBtn.addEventListener('click', startGoogleLogin);
 document.querySelectorAll('.identity-btn').forEach(wireIdentityButton);
+showLoginGateSetup(false);
+setGoogleButtonState({ disabled: true, label: 'Checking sign-in…' });
 
-if (window.netlifyIdentity) {
+(async function bootAuth() {
+  const diag = await diagnoseIdentityBackend();
+  applyIdentityBackendDiagnosis(diag);
+
+  if (!window.netlifyIdentity) {
+    showLoginGateError('Sign-in is unavailable because the Netlify Identity widget failed to load.');
+    showLoginGateSetup(true);
+    return;
+  }
+
   netlifyIdentity.on('init', (user) => { acceptIdentityUser(user); });
   netlifyIdentity.on('login', (user) => {
     netlifyIdentity.close();
@@ -6548,14 +6696,15 @@ if (window.netlifyIdentity) {
   });
   netlifyIdentity.on('error', (err) => {
     console.warn('Netlify Identity error', err);
-    showLoginGateError((err && err.message) || 'Sign-in failed. Ask a site admin to enable Identity + Google in Netlify.');
+    showLoginGateError((err && err.message) || 'Sign-in failed.');
   });
-  // Explicit API path so the widget always talks to this site's GoTrue service
-  // after the Google OAuth redirect lands back with tokens in the URL hash.
-  netlifyIdentity.init({ APIUrl: window.location.origin + '/.netlify/identity' });
-} else {
-  showLoginGateError('Sign-in is unavailable because Netlify Identity did not load. Open this site on its Netlify URL (Identity must be enabled with Google).');
-}
+
+  if (diag.status !== 'ready') {
+    clearGoTrueStorage();
+    // Still init so a later enablement + refresh can recover cleanly.
+  }
+  netlifyIdentity.init({ APIUrl: IDENTITY_API });
+})();
 
 async function boot() {
   // All four are independent public GETs — run them together instead of in
