@@ -259,14 +259,56 @@
   .consistency-badge { color: #0284c7; background: rgba(2,132,199,0.14); }
   .first-to-100-badge { color: #b45309; background: rgba(217,119,6,0.14); }
   .early-bird-badge { color: #0f766e; background: rgba(15,118,110,0.14); }
-  .rep-pace-meta {
-    display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 5px;
-    font-size: 11px; font-weight: 650; color: var(--text-faint);
+  /* Sits inside the expanded accordion's metric-grid (full width) so collapsed
+     cards stay the same height — only visible when a row is opened. */
+  .accordion-day-delta {
+    grid-column: 1 / -1;
+    font-size: 11.5px; font-weight: 700;
+    padding: 2px 0 0;
+    margin: 0;
   }
-  .day-delta.up { color: #16a34a; }
-  .day-delta.down { color: #dc2626; }
-  .day-delta.flat { color: var(--text-faint); }
-  .pace-need { color: var(--text-muted); }
+  .accordion-day-delta.up { color: #16a34a; }
+  .accordion-day-delta.down { color: #dc2626; }
+  .accordion-day-delta.flat { color: var(--text-faint); }
+  .pace-need-panel {
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    background: var(--metric-box-bg);
+  }
+  .pace-need-panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; flex-wrap: wrap; margin-bottom: 10px;
+  }
+  .pace-need-panel-title {
+    font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--text-faint);
+  }
+  .pace-need-target-toggle {
+    display: inline-flex; border: 1px solid var(--card-border);
+    border-radius: 999px; overflow: hidden; background: var(--card-bg);
+  }
+  .pace-need-target-toggle button {
+    border: 0; background: transparent; color: var(--text-muted);
+    font-size: 11px; font-weight: 700; padding: 4px 10px; cursor: pointer;
+  }
+  .pace-need-target-toggle button.active {
+    background: var(--text); color: var(--card-bg);
+  }
+  .pace-need-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  @media (max-width: 560px) { .pace-need-grid { grid-template-columns: 1fr; } }
+  .pace-need-item {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 8px 10px; border-radius: 10px;
+    background: var(--card-bg); border: 1px solid var(--pill-border);
+  }
+  .pace-need-item-label { font-size: 10.5px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em; }
+  .pace-need-item-val { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); }
+  .pace-need-item-val.met { color: #16a34a; }
+  .pace-need-item-sub { font-size: 11px; color: var(--text-muted); font-weight: 600; }
   /* Manually-assigned badges (see MANUAL_BADGE_OPTIONS) get their color inline
      per-option rather than a fixed class, since there are several of them. */
   .manual-badge { }
@@ -1275,6 +1317,7 @@
       <div class="detail-main-col">
         <div class="card" id="detailRestrictedNote" style="display:none;"></div>
         <div id="detailPacingRow"></div>
+        <div id="detailPaceNeed"></div>
         <div id="doubleGoalBanner"></div>
         <div id="detailPrelimBox"></div>
         <div class="detail-summary" id="detailSummary"></div>
@@ -1781,6 +1824,18 @@
     <div class="celebration-modal-body" id="shoutoutCelebrationBody"></div>
     <div class="meta-note" id="shoutoutCelebrationFrom" style="margin-top:-10px; margin-bottom:16px;"></div>
     <button type="button" class="celebration-modal-close" id="shoutoutCelebrationClose">Thanks! 🙌</button>
+  </div>
+</div>
+
+<!-- Last-week-of-month push: shows on Individual Pacer when either metric is
+     still under 100%. Dismiss hides it for today only (reappears next day). -->
+<div class="celebration-modal-backdrop" id="lwomPaceBackdrop">
+  <div class="celebration-modal">
+    <div class="celebration-modal-emoji">🏁</div>
+    <div class="celebration-modal-title" id="lwomPaceTitle">Last week push</div>
+    <div class="celebration-modal-body" id="lwomPaceBody"></div>
+    <button type="button" class="celebration-modal-close" id="lwomPaceClose">Let's go 🚀</button>
+    <button type="button" class="celebration-modal-mute" id="lwomPaceDismissToday">Don't show again today</button>
   </div>
 </div>
 
@@ -2308,6 +2363,16 @@ function buildCancelsBoxHTML(label, cancels, uid) {
     </div>`;
 }
 
+function accordionDayDeltaHTML(repDisplay) {
+  if (!repDisplay) return '';
+  const delta = dayOverDayDelta(repDisplay);
+  if (delta === null) return '';
+  const cls = delta > 0.05 ? 'up' : delta < -0.05 ? 'down' : 'flat';
+  const arrow = delta > 0.05 ? '▲' : delta < -0.05 ? '▼' : '●';
+  const sign = delta > 0 ? '+' : '';
+  return `<div class="accordion-day-delta ${cls} has-tip" data-tip="Composite pacing change since yesterday">${arrow} ${sign}${fmt(delta, 1)}% today</div>`;
+}
+
 function buildDetailsHTML(uid, repDisplay) {
   return `
     <div class="metric-grid" data-grid="${uid}"></div>
@@ -2329,8 +2394,9 @@ function buildDetailsHTML(uid, repDisplay) {
   `;
 }
 
-function fillDetails(uid, sessionsMetric, membersMetric, composite, expectedPct, curDay, curDim, sessionsCancels, membersCancels) {
+function fillDetails(uid, sessionsMetric, membersMetric, composite, expectedPct, curDay, curDim, sessionsCancels, membersCancels, repDisplay) {
   document.querySelector(`[data-grid="${uid}"]`).innerHTML =
+    accordionDayDeltaHTML(repDisplay) +
     buildNowBoxHTML('Sessions', sessionsMetric, expectedPct, uid + '-sessions', curDay, curDim) +
     buildNowBoxHTML('Membership', membersMetric, expectedPct, uid + '-members', curDay, curDim);
   document.querySelector(`[data-projgrid="${uid}"]`).innerHTML =
@@ -2502,7 +2568,7 @@ function render() {
       </div>
     </div>
   `;
-  fillDetails('team', teamSesMetric, teamMemMetric, teamComposite, expectedPct, d, dim, teamSessionsCancels, teamMembersCancels);
+  fillDetails('team', teamSesMetric, teamMemMetric, teamComposite, expectedPct, d, dim, teamSessionsCancels, teamMembersCancels, null);
   animateBarWidth(document.getElementById('teamBar'), teamComposite.current ?? 0, 100);
   if (teamComposite.goalIsZero) {
     document.getElementById('teamNum').textContent = '—';
@@ -2572,7 +2638,6 @@ function render() {
     const st = row.composite.nowSt;
     const uid = 'rep-' + order;
     const badgesHTML = repEngagementBadgesHTML(row.rep.display, firstTo100Champion, earlyBirdChampion);
-    const paceMetaHTML = row.composite.goalIsZero ? '' : repPaceMetaHTML(row.rep.display);
     const card = document.createElement('div');
     card.className = 'card'
       + (newlyGoalMet.has(row.rep.display) ? ' goal-met-pulse' : '')
@@ -2591,7 +2656,6 @@ function render() {
             <div class="bar-fill${st.special ? ' bar-shimmer' : ''}" data-bar="${uid}" style="background:${st.barGrad};"></div>
             <div class="bar-tick has-tip" style="left:${Math.min(expectedPct,100)}%;" data-tip="Expected pace today — the % you'd need to have hit by now to land at exactly 100% by month end"></div>
               </div>
-          ${paceMetaHTML}
         </div>
         <div class="composite-num" data-num="${uid}">0%</div>
         <div class="chevron" data-chevron="${uid}">▶</div>
@@ -2605,7 +2669,7 @@ function render() {
       </div>
     `;
     repList.appendChild(card);
-    fillDetails(uid, row.sesMetric, row.memMetric, row.composite, expectedPct, d, dim, row.a.sessionsCancels || 0, row.a.membersCancels || 0);
+    fillDetails(uid, row.sesMetric, row.memMetric, row.composite, expectedPct, d, dim, row.a.sessionsCancels || 0, row.a.membersCancels || 0, row.rep.display);
 
     animateBarWidth(document.querySelector(`[data-bar="${uid}"]`), row.composite.current ?? 0, 150 + order * 60);
     if (row.composite.goalIsZero) {
@@ -2927,7 +2991,8 @@ function computeCurrentStreak(repDisplay) {
   return streak;
 }
 
-// Day-over-day composite % change (today vs yesterday), for the landing cards.
+// Day-over-day composite % change (today vs yesterday) — shown in the landing
+// accordion (expanded row), not on the collapsed card.
 function dayOverDayDelta(repDisplay) {
   const asOf = loadActuals().asOf;
   if (!asOf) return null;
@@ -2937,47 +3002,72 @@ function dayOverDayDelta(repDisplay) {
   return today - yest;
 }
 
-// What the rep still needs to reach 100% composite attainment this month.
-function paceTo100Need(repDisplay) {
+// Units still needed on ONE metric to reach targetPct of that metric's goal
+// (e.g. 100 or 80). Separate Members vs Sessions — not a composite blend.
+function metricNeedToTarget(metric, targetPct) {
+  if (!metric || metric.goalIsZero || !(metric.goal > 0) || metric.currentPct === null) return null;
+  if (metric.currentPct >= targetPct) return { done: true, need: 0 };
+  const targetActual = (targetPct / 100) * metric.goal;
+  const need = Math.ceil(targetActual - metric.actual);
+  return { done: need <= 0, need: Math.max(need, 0) };
+}
+
+function paceNeedByMetric(repDisplay, targetPct) {
   const pacing = computeRepPacing(repDisplay);
-  if (pacing.goalIsZero || pacing.current === null) return null;
-  if (pacing.current >= 100) return { done: true, gap: 0, memDelta: null, sesDelta: null };
-  const gap = 100 - pacing.current;
-  const both = !pacing.memMetric.goalIsZero && !pacing.sesMetric.goalIsZero;
+  if (pacing.goalIsZero) return null;
   return {
-    done: false,
-    gap,
-    memDelta: overtakeDeltaForMetric(pacing.memMetric, both, gap),
-    sesDelta: overtakeDeltaForMetric(pacing.sesMetric, both, gap),
+    members: metricNeedToTarget(pacing.memMetric, targetPct),
+    sessions: metricNeedToTarget(pacing.sesMetric, targetPct),
+    memMetric: pacing.memMetric,
+    sesMetric: pacing.sesMetric,
   };
 }
 
-function repPaceMetaHTML(repDisplay) {
-  const delta = dayOverDayDelta(repDisplay);
-  let deltaHTML = '';
-  if (delta !== null) {
-    const cls = delta > 0.05 ? 'up' : delta < -0.05 ? 'down' : 'flat';
-    const arrow = delta > 0.05 ? '▲' : delta < -0.05 ? '▼' : '●';
-    const sign = delta > 0 ? '+' : '';
-    deltaHTML = `<span class="day-delta ${cls} has-tip" data-tip="Composite pacing change since yesterday">${arrow} ${sign}${fmt(delta, 1)} pts today</span>`;
+const PACE_NEED_TARGET_KEY = 'pace_dashboard_pace_need_target_v1';
+let paceNeedTargetPct = loadJSON(PACE_NEED_TARGET_KEY, 100);
+if (paceNeedTargetPct !== 80 && paceNeedTargetPct !== 100) paceNeedTargetPct = 100;
+
+function paceNeedItemHTML(label, unit, result) {
+  if (!result) {
+    return `<div class="pace-need-item">
+      <span class="pace-need-item-label">${label}</span>
+      <span class="pace-need-item-val">—</span>
+      <span class="pace-need-item-sub">no goal set</span>
+    </div>`;
   }
-  const need = paceTo100Need(repDisplay);
-  let needHTML = '';
-  if (need) {
-    if (need.done) {
-      needHTML = `<span class="pace-need has-tip" data-tip="Already at or above 100% of monthly goal">✓ At 100%+</span>`;
-    } else {
-      const parts = [];
-      if (need.memDelta != null) parts.push(`${need.memDelta} member${need.memDelta === 1 ? '' : 's'}`);
-      if (need.sesDelta != null) parts.push(`${need.sesDelta} session${need.sesDelta === 1 ? '' : 's'}`);
-      const tip = `${fmt(need.gap, 1)} pts still needed to hit 100% composite`;
-      needHTML = parts.length
-        ? `<span class="pace-need has-tip" data-tip="${tip}">Need ${parts.join(' or ')} to 100%</span>`
-        : `<span class="pace-need has-tip" data-tip="${tip}">${fmt(need.gap, 1)} pts to 100%</span>`;
-    }
+  if (result.done) {
+    return `<div class="pace-need-item">
+      <span class="pace-need-item-label">${label}</span>
+      <span class="pace-need-item-val met">✓ Met</span>
+      <span class="pace-need-item-sub">already at ${paceNeedTargetPct}%+</span>
+    </div>`;
   }
-  if (!deltaHTML && !needHTML) return '';
-  return `<div class="rep-pace-meta">${deltaHTML}${needHTML}</div>`;
+  const n = result.need;
+  const unitLabel = n === 1 ? unit : unit + 's';
+  return `<div class="pace-need-item">
+    <span class="pace-need-item-label">${label}</span>
+    <span class="pace-need-item-val">${n}</span>
+    <span class="pace-need-item-sub">${unitLabel} to ${paceNeedTargetPct}%</span>
+  </div>`;
+}
+
+function detailPaceNeedHTML(repDisplay) {
+  const need = paceNeedByMetric(repDisplay, paceNeedTargetPct);
+  if (!need) return '';
+  return `
+    <div class="pace-need-panel">
+      <div class="pace-need-panel-head">
+        <span class="pace-need-panel-title">Still needed</span>
+        <div class="pace-need-target-toggle" role="group" aria-label="Pace target">
+          <button type="button" data-pace-need-target="100" class="${paceNeedTargetPct === 100 ? 'active' : ''}">to 100%</button>
+          <button type="button" data-pace-need-target="80" class="${paceNeedTargetPct === 80 ? 'active' : ''}">to 80%</button>
+        </div>
+      </div>
+      <div class="pace-need-grid">
+        ${paceNeedItemHTML('Members', 'member', need.members)}
+        ${paceNeedItemHTML('Sessions', 'session', need.sessions)}
+      </div>
+    </div>`;
 }
 
 // First positive attribution of the current as-of day, team-wide (by occurredAt
@@ -3929,6 +4019,92 @@ document.getElementById('shoutoutSendSubmit').addEventListener('click', async (e
 document.getElementById('shoutoutCelebrationClose').addEventListener('click', () => {
   document.getElementById('shoutoutCelebrationBackdrop').classList.remove('open');
 });
+
+// Last week of month = final 7 calendar days (day > dim - 7). Popup nudges
+// reps who still need units on Members and/or Sessions to hit 100%. Dismiss
+// stores today's as-of date per rep so it reappears the next day.
+const LWOM_DISMISS_KEY = 'pace_dashboard_lwom_dismissed_v1';
+function isLastWeekOfMonth(asOf) {
+  if (!asOf) return false;
+  const [y, m, d] = String(asOf).split('-').map(Number);
+  if (!y || !m || !d) return false;
+  return d > daysInMonth(y, m) - 7;
+}
+function lwomDismissedToday(repName, asOf) {
+  const map = loadJSON(LWOM_DISMISS_KEY, {});
+  return map[repName] === asOf;
+}
+function dismissLwomToday(repName, asOf) {
+  const map = loadJSON(LWOM_DISMISS_KEY, {});
+  map[repName] = asOf;
+  saveJSON(LWOM_DISMISS_KEY, map);
+}
+function maybeShowLwomPacePopup(repName) {
+  const backdrop = document.getElementById('lwomPaceBackdrop');
+  if (!backdrop) return;
+  const asOf = loadActuals().asOf;
+  if (!isLastWeekOfMonth(asOf) || lwomDismissedToday(repName, asOf)) {
+    backdrop.classList.remove('open');
+    return;
+  }
+  // Both metrics at 100%+ → no popup (same bar as Double Goal eligibility).
+  if (hasDoubleGoal(repName)) {
+    backdrop.classList.remove('open');
+    return;
+  }
+  const need = paceNeedByMetric(repName, 100);
+  if (!need) {
+    backdrop.classList.remove('open');
+    return;
+  }
+  // If a metric has no goal, ignore it; if every set goal is already met, skip.
+  const parts = [];
+  if (need.members && !need.members.done) {
+    parts.push(`${need.members.need} more member${need.members.need === 1 ? '' : 's'}`);
+  }
+  if (need.sessions && !need.sessions.done) {
+    parts.push(`${need.sessions.need} more session${need.sessions.need === 1 ? '' : 's'}`);
+  }
+  if (!parts.length) {
+    backdrop.classList.remove('open');
+    return;
+  }
+  const firstName = repName.split(' ')[0];
+  const [y, m, d] = asOf.split('-').map(Number);
+  const daysLeft = Math.max(daysInMonth(y, m) - d, 0);
+  document.getElementById('lwomPaceTitle').textContent = `Last week push, ${firstName}`;
+  document.getElementById('lwomPaceBody').textContent =
+    `${daysLeft} day${daysLeft === 1 ? '' : 's'} left — you still need ${parts.join(' and ')} to hit 100% on both. Finish strong.`;
+  backdrop.dataset.rep = repName;
+  backdrop.dataset.asOf = asOf;
+  backdrop.classList.add('open');
+}
+function closeLwomPacePopup() {
+  document.getElementById('lwomPaceBackdrop').classList.remove('open');
+}
+document.getElementById('lwomPaceClose').addEventListener('click', closeLwomPacePopup);
+document.getElementById('lwomPaceDismissToday').addEventListener('click', () => {
+  const backdrop = document.getElementById('lwomPaceBackdrop');
+  dismissLwomToday(backdrop.dataset.rep || '', backdrop.dataset.asOf || loadActuals().asOf);
+  closeLwomPacePopup();
+});
+document.getElementById('lwomPaceBackdrop').addEventListener('click', (e) => {
+  if (e.target.id === 'lwomPaceBackdrop') closeLwomPacePopup();
+});
+
+document.getElementById('detailPaceNeed').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-pace-need-target]');
+  if (!btn) return;
+  const next = Number(btn.getAttribute('data-pace-need-target'));
+  if (next !== 80 && next !== 100) return;
+  paceNeedTargetPct = next;
+  saveJSON(PACE_NEED_TARGET_KEY, paceNeedTargetPct);
+  const match = location.hash.match(/^#(?:individual-pacer|client-detail)=(.+)$/);
+  if (!match) return;
+  const repName = decodeURIComponent(match[1]);
+  document.getElementById('detailPaceNeed').innerHTML = detailPaceNeedHTML(repName);
+});
+
 document.getElementById('shoutoutCelebrationBackdrop').addEventListener('click', (e) => {
   if (e.target.id === 'shoutoutCelebrationBackdrop') e.currentTarget.classList.remove('open');
 });
@@ -5825,7 +6001,6 @@ function detailRepMiniCardHTML(repDisplay) {
   const firstTo100Champion = isBadgeEnabled('firstTo100') ? getFirstTo100Champion() : null;
   const earlyBirdChampion = isBadgeEnabled('earlyBird') ? getEarlyBirdChampion() : null;
   const badgesHTML = repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampion);
-  const paceMetaHTML = c.goalIsZero ? '' : repPaceMetaHTML(repDisplay);
   // Subtle persistent glow — same "current Double Goal champion" check as the
   // landing page card, just a quieter animation since the banner above
   // already calls out the achievement (see .double-goal-glow-subtle).
@@ -5844,7 +6019,6 @@ function detailRepMiniCardHTML(repDisplay) {
             <div class="bar-fill${st.special ? ' bar-shimmer' : ''}" id="detailMiniBar" style="background:${st.barGrad};"></div>
             <div class="bar-tick has-tip" style="left:${Math.min(c.expectedPct,100)}%;" data-tip="Expected pace today — the % you'd need to have hit by now to land at exactly 100% by month end"></div>
           </div>
-          ${paceMetaHTML}
           <div class="mini-repcard-sub">Projected to land at ${projLabel}</div>
         </div>
         <div class="composite-num" id="detailMiniNum">0%</div>
@@ -5905,7 +6079,7 @@ function renderClientDetail(opts) {
 
   const allowed = canViewClientDetail(repName);
   const restrictedNote = document.getElementById('detailRestrictedNote');
-  const bodyEls = ['detailPacingRow', 'doubleGoalBanner', 'metricsStyleToggleWrap', 'detailPrelimBox', 'detailSummary', 'detailNetActuals', 'detailContent', 'clientDetailHistoryBlock']
+  const bodyEls = ['detailPacingRow', 'detailPaceNeed', 'doubleGoalBanner', 'metricsStyleToggleWrap', 'detailPrelimBox', 'detailSummary', 'detailNetActuals', 'detailContent', 'clientDetailHistoryBlock']
     .map(id => document.getElementById(id)).filter(Boolean);
   if (!allowed) {
     restrictedNote.style.display = '';
@@ -5920,6 +6094,7 @@ function renderClientDetail(opts) {
   {
     const pacing = computeRepPacing(repName);
     document.getElementById('detailPacingRow').innerHTML = detailRepMiniCardHTML(repName);
+    document.getElementById('detailPaceNeed').innerHTML = detailPaceNeedHTML(repName);
     document.getElementById('detailMiniHeader').innerHTML = detailMiniHeaderHTML(repName);
     document.getElementById('doubleGoalBanner').innerHTML =
       hasDoubleGoal(repName) ? doubleGoalBannerHTML(repName) : '';
@@ -5929,6 +6104,14 @@ function renderClientDetail(opts) {
     // look broken, and double-goal is the rarer/bigger moment of the two.
     if (!document.getElementById('celebrationModalBackdrop').classList.contains('open')) {
       maybeShowShoutoutCelebration(repName);
+    }
+    // LWOM push is lowest priority among the three popups — skip on quiet
+    // live refreshes so an open Individual Pacer doesn't re-flash every poll.
+    const anyCelebrationOpen =
+      document.getElementById('celebrationModalBackdrop').classList.contains('open') ||
+      document.getElementById('shoutoutCelebrationBackdrop').classList.contains('open');
+    if (!preserveScroll && !anyCelebrationOpen) {
+      maybeShowLwomPacePopup(repName);
     }
     animateBarWidth(document.getElementById('detailMiniBar'), pacing.current ?? 0, 50);
     if (pacing.goalIsZero) {
