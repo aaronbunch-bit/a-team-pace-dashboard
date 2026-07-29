@@ -293,13 +293,30 @@
   .live-metrics-side-content { margin-top: 8px; }
   .live-metrics-side-content.collapsed { display: none; }
   .pace-need-panel-head { display: none; } /* toggle lives in the section head */
-  .metrics-side-section-head .pace-need-target-toggle {
-    margin-left: auto; margin-right: 6px;
+  /* Keep Still Needed title + toggle + chevron on one row (no wrap gap above the toggle). */
+  .metrics-side-section-head {
+    flex-wrap: nowrap;
+    gap: 8px;
   }
+  .metrics-side-section-head .metrics-side-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-bottom: 0 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .metrics-side-section-head .pace-need-target-toggle {
+    margin-left: 0;
+    margin-right: 0;
+    flex: none;
+  }
+  .metrics-side-section-head .side-chevron { flex: none; }
   .pace-need-target-toggle {
     display: inline-flex; border: 1px solid var(--card-border);
     border-radius: 999px; overflow: hidden; background: var(--card-bg);
     flex: none;
+    align-self: center;
   }
   .pace-need-target-toggle button {
     border: 0; background: transparent; color: var(--text-muted);
@@ -566,8 +583,9 @@
   .landing-side-col > .culture-card:first-of-type,
   .landing-side-col > .finish-line-card { margin-top: 0; }
   /* Breathing room between Finish line and the leaderboard panel. */
-  .landing-side-col > .finish-line-card { margin-bottom: 16px; }
-  .landing-side-col > .leaderboard-panel { margin-top: 4px; }
+  .landing-side-col > .finish-line-card { margin-bottom: 28px; }
+  .landing-side-col > .leaderboard-panel { margin-top: 8px; }
+  .landing-side-col { display: flex; flex-direction: column; gap: 0; }
   .culture-card-title {
     font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
     color: var(--text-faint); margin: 0 0 8px;
@@ -620,9 +638,16 @@
   .pacer-insight-strip-single { grid-template-columns: 1fr; }
 
   /* Individual Pacer header pace: bar spans full width of the page header */
+  #clientDetailOverlay .detail-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 16px;
+  }
   #clientDetailOverlay .detail-header-pace {
     flex: 1 1 100%;
     width: 100%;
+    max-width: 100%;
     box-sizing: border-box;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -950,13 +975,18 @@
   .personal-goal-side-content.collapsed { display: none; }
   .personal-goal-gate-backdrop.open { display: flex; }
   .personal-goal-progress-bar {
-    display: block; width: 100%; box-sizing: border-box;
+    display: block; width: 100%; max-width: 100%; box-sizing: border-box;
     height: 8px; border-radius: 999px; background: var(--bar-track, rgba(0,0,0,0.08));
     overflow: hidden; margin-top: 8px;
   }
   .personal-goal-progress-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg,#60a5fa,#6366f1); }
-  .personal-goal-meter { width: 100%; }
-  .personal-goal-meter .metrics-side-item { width: 100%; }
+  #personalGoalSideBody,
+  #personalGoalSideContent,
+  .personal-goal-meter,
+  .personal-goal-card { width: 100%; box-sizing: border-box; }
+  .personal-goal-meter .metrics-side-item { width: 100%; box-sizing: border-box; }
+  .personal-goal-meter .personal-goal-progress-bar,
+  .personal-goal-card .personal-goal-progress-bar { width: 100%; }
   /* Manually-assigned badges (see MANUAL_BADGE_OPTIONS) get their color inline
      per-option rather than a fixed class, since there are several of them. */
   .manual-badge { }
@@ -1525,7 +1555,12 @@
   .metrics-side-item:first-of-type { border-top: none; }
   .metrics-side-label { color: var(--text-muted); font-weight: 600; }
   .metrics-side-val { font-weight: 800; font-variant-numeric: tabular-nums; }
-  .metrics-side-section-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--divider); user-select: none; }
+  .metrics-side-section-head {
+    display: flex; justify-content: flex-start; align-items: center;
+    flex-wrap: nowrap; gap: 8px;
+    cursor: pointer; margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid var(--divider); user-select: none;
+  }
   .side-chevron { font-size: 10.5px; color: var(--text-faint); transition: transform 0.2s; }
   .side-chevron.collapsed { transform: rotate(-90deg); }
   .bonus-side { margin-top: 8px; }
@@ -1545,46 +1580,47 @@
   .detail-table tr:hover { background: var(--metric-box-bg); }
   .date-chip { display: inline-block; background: var(--metric-box-bg); color: var(--text-muted); font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
 
-  /* Signed-in footer — wider bar so View as / Revert aren't cramped. */
+  /* Signed-in footer — full-width room for View as / Revert. */
   .session-bar {
     display: none;
     align-items: center;
     justify-content: flex-start;
     flex-wrap: wrap;
-    gap: 10px 14px;
+    gap: 12px 18px;
     width: 100%;
-    max-width: 720px;
-    margin: 28px auto 20px;
-    padding: 12px 18px;
-    border-radius: 16px;
+    max-width: min(980px, 100%);
+    margin: 32px auto 24px;
+    padding: 14px 22px;
+    border-radius: 18px;
     background: color-mix(in srgb, var(--card-bg) 92%, transparent);
     border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
     box-shadow: none;
-    font-size: 12px; font-weight: 500; color: var(--text-faint);
-    opacity: 0.92;
+    font-size: 12.5px; font-weight: 500; color: var(--text-faint);
+    opacity: 0.95;
   }
   .session-bar.visible { display: flex; }
   .session-bar .session-label { white-space: nowrap; }
   .session-bar .session-email {
     font-weight: 600; color: var(--text-muted);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    max-width: 220px;
+    max-width: 280px;
   }
   .session-bar .identity-btn {
-    flex: none; margin: 0; padding: 4px 8px;
+    flex: none; margin: 0; padding: 6px 10px;
     border: none; background: transparent; box-shadow: none;
-    font-size: 12px; font-weight: 600; color: var(--text-faint);
+    font-size: 12.5px; font-weight: 600; color: var(--text-faint);
     text-decoration: underline; cursor: pointer; white-space: nowrap;
   }
   .session-bar .identity-btn:hover { color: var(--text-muted); }
   .session-bar .session-view-as {
-    display: none; align-items: center; gap: 8px; flex-wrap: wrap;
+    display: none; align-items: center; gap: 10px; flex-wrap: wrap;
     margin-left: auto;
+    padding-left: 8px;
   }
   .session-bar .session-view-as.show { display: flex; }
   .session-bar [data-view-as-revert] {
     font-weight: 700; color: #7c3aed; text-decoration: none;
-    background: rgba(124,58,237,0.1); border-radius: 999px; padding: 4px 10px;
+    background: rgba(124,58,237,0.1); border-radius: 999px; padding: 6px 12px;
   }
   .session-bar [data-view-as-revert]:hover { background: rgba(124,58,237,0.18); color: #6d28d9; }
   body:not(.app-ready) .session-bar { display: none !important; }
@@ -8998,8 +9034,17 @@ function canViewTeamDetails() {
 function canViewClientDetail(repDisplay) {
   const email = currentUserEmail();
   if (!email) return false;
-  // Real admin (even while viewing as) can open any Individual Pacer — view-as
-  // only changes "own rep" gates, not the ability to browse teammates.
+  // View as: use that person's access (own pacer, or coach/admin-level if their
+  // roster email is on those lists). Revert in the footer restores full admin.
+  const viewAs = getViewAsRepRaw();
+  if (viewAs) {
+    if (viewAs === repDisplay) return true;
+    const goals = loadGoals();
+    const g = goals[viewAs];
+    const viewEmail = g && g.email ? String(g.email).toLowerCase() : null;
+    if (viewEmail && (isAdminEmail(viewEmail) || isLimitedAdminEmail(viewEmail))) return true;
+    return false;
+  }
   if (isRealAdmin()) return true;
   if (isLimitedAdminEmail(email)) return true; // Sales Coach: read access, no confidential $
   const goals = loadGoals();
@@ -9014,8 +9059,11 @@ function canViewClientDetail(repDisplay) {
 function canViewConfidentialPayout(repDisplay) {
   const email = currentUserEmail();
   if (!email) return false;
-  if (isRealAdmin() && !getViewAsRepRaw()) return true;
-  if (isRealAdmin() && getViewAsRepRaw() === repDisplay) return true;
+  const viewAs = getViewAsRepRaw();
+  // Full admin (not impersonating) sees every payout.
+  if (isRealAdmin() && !viewAs) return true;
+  // View as: only what that person would see — their own page payout.
+  if (viewAs) return viewAs === repDisplay;
   const goals = loadGoals();
   const g = goals[repDisplay];
   const repEmail = g && g.email ? String(g.email).toLowerCase() : null;
