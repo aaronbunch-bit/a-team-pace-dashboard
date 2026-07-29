@@ -2293,7 +2293,7 @@
             <tbody id="teamPersonalGoalsBody"></tbody>
           </table>
         </div>
-        <div class="meta-note">Each rep sets their own stretch target for the month (attainment %, members, or sessions). Progress updates from live actuals. Reps who haven’t set a goal yet show as “Needs goal.”</div>
+        <div class="meta-note">Each rep sets their own Total Average Attainment target for the month (minimum 100%). Progress updates from live actuals. Reps who haven’t set a goal yet show as “Needs goal.”</div>
       </div>
     </div>
     <div class="workspace-panel" id="teamPanelSchedule" data-team-panel="schedule">
@@ -2621,21 +2621,17 @@
     <div class="celebration-modal-emoji" style="text-align:center;">🎯</div>
     <div class="celebration-modal-title" style="text-align:center;">Set your month goal</div>
     <div class="celebration-modal-body" style="margin-bottom:12px;">
-      Pick a personal target for this month. Your Individual Pacer unlocks once it’s set — coaches can see everyone’s goals on Team Goals.
+      Set your personal target for this month as <b>Total Average Attainment</b> (average of Members % and Sessions %). Your Individual Pacer unlocks once it’s set — coaches can see everyone’s goals on Team Goals.
     </div>
-    <label style="display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em; margin-bottom:10px;">
-      Goal type
-      <select id="personalGoalKind" style="text-transform:none; font-weight:600; font-size:13px; padding:8px 10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg); color:var(--text);">
-        <option value="compositePct">Composite attainment %</option>
-        <option value="members">Members (units)</option>
-        <option value="sessions">Sessions (units)</option>
-      </select>
-    </label>
     <label style="display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-      Target
-      <input type="number" id="personalGoalTarget" step="1" min="1" placeholder="e.g. 115" style="padding:8px 10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg); color:var(--text); font-size:14px; font-weight:700;">
+      Total Average Attainment %
+      <input type="number" id="personalGoalTarget" step="1" min="100" max="250" placeholder="e.g. 100" style="padding:8px 10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg); color:var(--text); font-size:14px; font-weight:700;">
     </label>
-    <div class="meta-note" id="personalGoalGateHint" style="margin-top:8px;">Tip: 100 = full goal, 115 = Level 2 stretch.</div>
+    <div class="meta-note" id="personalGoalGateHint" style="margin-top:10px; line-height:1.45;">
+      Must be at least <b>100%</b>.
+      <br>Tip: <b>Level 2</b> = 115% attainment for 6 months.
+      <br>Tip: <b>Level 3</b> = 150% attainment for 12 months.
+    </div>
     <button type="button" class="celebration-modal-close" id="personalGoalGateSave" style="margin-top:14px;">Lock in my goal 🔒</button>
     <div class="meta-note" id="personalGoalGateStatus"></div>
   </div>
@@ -8623,7 +8619,8 @@ function personalGoalProgress(repDisplay) {
 }
 function personalGoalLabel(goal) {
   if (!goal) return '—';
-  if (goal.kind === 'compositePct') return `${fmt(goal.target, 0)}% attainment`;
+  if (goal.kind === 'compositePct') return `${fmt(goal.target, 0)}% Total Average Attainment`;
+  // Legacy kinds (no longer settable) — still render if already stored.
   if (goal.kind === 'members') return `${fmt(goal.target, goal.target % 1 ? 1 : 0)} members`;
   if (goal.kind === 'sessions') return `${fmt(goal.target, goal.target % 1 ? 1 : 0)} sessions`;
   return String(goal.target);
@@ -8676,8 +8673,7 @@ function openPersonalGoalGate(repDisplay) {
   const backdrop = document.getElementById('personalGoalGateBackdrop');
   if (!backdrop) return;
   backdrop.dataset.rep = repDisplay;
-  document.getElementById('personalGoalKind').value = 'compositePct';
-  document.getElementById('personalGoalTarget').value = '115';
+  document.getElementById('personalGoalTarget').value = '100';
   document.getElementById('personalGoalGateStatus').textContent = '';
   backdrop.classList.add('open');
 }
@@ -8688,10 +8684,13 @@ async function savePersonalGoalFromGate() {
   const backdrop = document.getElementById('personalGoalGateBackdrop');
   const status = document.getElementById('personalGoalGateStatus');
   const rep = backdrop.dataset.rep || ownRepDisplayName();
-  const kind = document.getElementById('personalGoalKind').value;
+  // Total Average Attainment % only — Members/Sessions unit goals are retired.
+  const kind = 'compositePct';
   const target = parseFloat(document.getElementById('personalGoalTarget').value);
   if (!rep) { status.textContent = 'Could not resolve your rep profile.'; return; }
-  if (!(target > 0)) { status.textContent = 'Enter a positive target.'; return; }
+  if (!Number.isFinite(target)) { status.textContent = 'Enter a Total Average Attainment %.'; return; }
+  if (target < 100) { status.textContent = 'Goal cannot be less than 100%.'; return; }
+  if (target > 250) { status.textContent = 'Goal cannot be more than 250%.'; return; }
   status.textContent = 'Saving…';
   try {
     const data = await authedFetch('/api/personal-goals/set', {
