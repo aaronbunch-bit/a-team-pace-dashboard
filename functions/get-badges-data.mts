@@ -17,6 +17,10 @@ const DEFAULT_TOGGLES = {
   consistency: true,
   firstTo100: true,
   earlyBird: true,
+  hatTrick: true,
+  rebound: true,
+  afterDark: true,
+  bestPaceDay: true,
 };
 
 export default async (req: Request, context: Context) => {
