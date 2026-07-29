@@ -1035,7 +1035,7 @@
       <span id="googleLoginBtnLabel">Continue with Google</span>
     </button>
     <div id="loginGateError" class="login-gate-error" role="alert"></div>
-    <p class="login-gate-hint">Only <strong>@varsitytutors.com</strong> accounts can sign in. You do not need a Netlify account.</p>
+    <p class="login-gate-hint">On Google’s account screen, choose your <strong>@varsitytutors.com</strong> address — not a personal Gmail. A work Chrome profile alone is not enough if Google picks a different account.</p>
   </div>
 </div>
 <!-- Slim reminder bar — hidden until the main banner (day/expected pace pills)
@@ -6420,9 +6420,22 @@ function canViewConfidentialPayout(repDisplay) {
 const ALLOWED_EMAIL_DOMAIN = '@varsitytutors.com';
 let appBooted = false;
 
+function identityEmail(user) {
+  if (!user) return '';
+  const candidates = [
+    user.email,
+    user.user_metadata && (user.user_metadata.email || user.user_metadata.preferred_username),
+    user.app_metadata && user.app_metadata.email,
+  ];
+  for (const candidate of candidates) {
+    const email = String(candidate || '').trim().toLowerCase();
+    if (email.includes('@')) return email;
+  }
+  return '';
+}
+
 function isAllowedIdentityUser(user) {
-  const email = String(user && user.email || '').toLowerCase();
-  return email.endsWith(ALLOWED_EMAIL_DOMAIN);
+  return identityEmail(user).endsWith(ALLOWED_EMAIL_DOMAIN);
 }
 
 function showLoginGateError(message) {
@@ -6452,11 +6465,16 @@ async function acceptIdentityUser(user) {
     lockAppToLoginGate();
     return;
   }
-  if (!isAllowedIdentityUser(user)) {
+  const email = identityEmail(user);
+  if (!email.endsWith(ALLOWED_EMAIL_DOMAIN)) {
     lockAppToLoginGate();
     try { await netlifyIdentity.logout(); } catch (_) {}
     // Set after logout so the logout handler doesn't wipe this message.
-    showLoginGateError('Sign-in is restricted to @varsitytutors.com Google accounts.');
+    if (!email) {
+      showLoginGateError('Google signed in, but no email address came back. Click Continue with Google again and allow email permission for your @varsitytutors.com account.');
+    } else {
+      showLoginGateError('Google used ' + email + ', which is not allowed. Click Continue with Google again and choose your @varsitytutors.com account (not a personal Gmail).');
+    }
     return;
   }
   revealAppAfterLogin(user);
@@ -6468,8 +6486,13 @@ function startGoogleLogin() {
   const label = document.getElementById('googleLoginBtnLabel');
   if (btn) btn.disabled = true;
   if (label) label.textContent = 'Redirecting to Google…';
-  // Direct OAuth redirect — more reliable than netlifyIdentity.open() + Google click.
-  window.location.assign(window.location.origin + '/.netlify/identity/authorize?provider=google');
+  // prompt=select_account forces Google's account chooser so a work Chrome
+  // profile doesn't silently reuse a personal Gmail. hd hints Workspace domain.
+  const authUrl = window.location.origin
+    + '/.netlify/identity/authorize?provider=google'
+    + '&prompt=select_account'
+    + '&hd=varsitytutors.com';
+  window.location.assign(authUrl);
 }
 
 function updateIdentityUI(user) {
