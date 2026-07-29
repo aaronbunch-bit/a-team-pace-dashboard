@@ -1,8 +1,7 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
-import { getIdentityUser, requirePrimaryAdmin } from "./_shared/identity.mts";
-
-const ADMIN_EMAIL = "aaron.bunch@varsitytutors.com";
+import { getIdentityUser } from "./_shared/identity.mts";
+import { requireAdmin } from "./_shared/access.mts";
 
 export default async (req: Request, context: Context) => {
   if (req.method !== "POST") {
@@ -10,7 +9,7 @@ export default async (req: Request, context: Context) => {
   }
 
   const user = await getIdentityUser(req, context);
-  const denied = requirePrimaryAdmin(user, ADMIN_EMAIL);
+  const denied = await requireAdmin(user);
   if (denied) return denied;
 
   let body: any;

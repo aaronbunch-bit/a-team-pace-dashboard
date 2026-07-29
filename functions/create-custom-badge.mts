@@ -1,9 +1,9 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
-import { getIdentityUser, requirePrimaryAdmin } from "./_shared/identity.mts";
+import { getIdentityUser } from "./_shared/identity.mts";
+import { requireAdmin } from "./_shared/access.mts";
 
 // Admin-only, same reasoning as update-badge-toggle.mts.
-const ADMIN_EMAIL = "aaron.bunch@varsitytutors.com";
 // Same fixed rotation the front end used when this lived in localStorage
 // (CUSTOM_BADGE_COLORS) — kept here since color assignment now happens
 // server-side (based on how many custom badges already exist).
@@ -15,7 +15,7 @@ export default async (req: Request, context: Context) => {
   }
 
   const user = await getIdentityUser(req, context);
-  const denied = requirePrimaryAdmin(user, ADMIN_EMAIL);
+  const denied = await requireAdmin(user);
   if (denied) return denied;
 
   let body: any;

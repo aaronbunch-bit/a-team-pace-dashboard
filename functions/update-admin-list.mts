@@ -1,12 +1,11 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
-import { getIdentityUser, requirePrimaryAdmin } from "./_shared/identity.mts";
+import { getIdentityUser } from "./_shared/identity.mts";
+import { requireAdmin } from "./_shared/access.mts";
 
-// Same hardcoded-admin pattern as every other write path in this app. Aaron's
-// own email is never stored in this list — he's the one permanent admin and
-// isAdminEmail() on the front end always checks his email first, separately
-// from whatever's in this store.
-const ADMIN_EMAIL = "aaron.bunch@varsitytutors.com";
+// Full admins (Aaron OR anyone already on this list) can update the list.
+// Aaron's email is never stored here — he's the permanent admin and
+// isAdminEmail() / requireAdmin() always treat him as admin separately.
 
 export default async (req: Request, context: Context) => {
   if (req.method !== "POST") {
@@ -14,7 +13,7 @@ export default async (req: Request, context: Context) => {
   }
 
   const user = await getIdentityUser(req, context);
-  const denied = requirePrimaryAdmin(user, ADMIN_EMAIL);
+  const denied = await requireAdmin(user);
   if (denied) return denied;
 
   let body: any;

@@ -1,12 +1,10 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
-import { getIdentityUser, requirePrimaryAdmin } from "./_shared/identity.mts";
+import { getIdentityUser } from "./_shared/identity.mts";
+import { requireAdmin } from "./_shared/access.mts";
 
-// Same hardcoded-admin pattern as the badge-management functions — no
-// Netlify Identity "roles" setup, just a plain email check. Sales Coaches
-// (isLimitedAdminEmail() on the front end) are NOT granted write access here,
-// same reasoning as update-badge-toggle.mts.
-const ADMIN_EMAIL = "aaron.bunch@varsitytutors.com";
+// Full admins (Aaron or admin-list) may write. Sales Coaches
+// (isLimitedAdminEmail() on the front end) are NOT granted write access here.
 
 export default async (req: Request, context: Context) => {
   if (req.method !== "POST") {
@@ -14,7 +12,7 @@ export default async (req: Request, context: Context) => {
   }
 
   const user = await getIdentityUser(req, context);
-  const denied = requirePrimaryAdmin(user, ADMIN_EMAIL);
+  const denied = await requireAdmin(user);
   if (denied) return denied;
 
   let body: any;

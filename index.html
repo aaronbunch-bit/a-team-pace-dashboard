@@ -1510,7 +1510,7 @@
         </div>
         <div class="meta-note" id="addAdminStatus"></div>
         <div id="adminList" style="margin-top:10px;"></div>
-        <div class="meta-note">Admins can see every rep's Client Detail page, not just their own — the same access Aaron has. Aaron (aaron.bunch@varsitytutors.com) is the permanent admin and can't be removed here. This list is shared across every browser (Netlify Functions + Blobs, same as roster/goals) — adding or removing someone here takes effect for everyone right away. It only controls read-access gates like Client Detail, though; individual write actions (roster, goals, badges, attribution approvals) each still check for Aaron's email specifically, not this list.</div>
+        <div class="meta-note">Admins get the same access Aaron has — every Client Detail page, Team Details, Admin Tools, and all writes (roster, goals, actuals, badges, attribution approvals). Aaron (aaron.bunch@varsitytutors.com) is the permanent admin and can't be removed here. This list is shared across every browser (Netlify Functions + Blobs). Sales Coaches stay read-only.</div>
       </div>
     </div>
 
@@ -1526,7 +1526,7 @@
         </div>
         <div class="meta-note" id="addLimitedAdminStatus"></div>
         <div id="limitedAdminList" style="margin-top:10px;"></div>
-        <div class="meta-note">Sales Coaches can open every rep's Client Detail page — pacing %, Sessions/Members counts, sold vs. refunds — but never see Bonus Payout or historical $ SIP payout figures, which stay visible only to full admins and the rep themselves. This list is shared across every browser (Netlify Functions + Blobs, same as roster/goals) — adding or removing someone here takes effect for everyone right away. It only controls read-access gates like Client Detail and Team Details, though; write actions (like converting a cancel into Manual Attribution) still check for Aaron's email specifically, since coach identity isn't recognized by those individual write endpoints yet.</div>
+        <div class="meta-note">Sales Coaches can open every rep's Client Detail page — pacing %, Sessions/Members counts, sold vs. refunds — but never see Bonus Payout or historical $ SIP payout figures, which stay visible only to full admins and the rep themselves. They also get Team Details (read-only). This list is shared across every browser (Netlify Functions + Blobs). Coaches never get write access — converting cancels, editing goals/roster/actuals, and approving attributions stay full-admin only.</div>
       </div>
     </div>
 
@@ -6002,9 +6002,9 @@ document.getElementById('cancelConvertSubmit').addEventListener('click', async (
   }
 });
 
-// Reuses /api/attributions/list — Aaron, listed admins, and Sales Coaches get
-// every rep's records (canViewTeam); everyone else only their own. Approve/
-// reject stays Aaron-only via isAdmin on the Manual Attribution page.
+// Reuses /api/attributions/list — full admins and Sales Coaches get every
+// rep's records (canViewTeam); everyone else only their own. Approve/reject
+// (isAdmin) is full admins only — coaches stay read-only.
 async function refreshTeamAttributions() {
   const tbody = document.getElementById('teamAttributionsBody');
   const status = document.getElementById('teamAttributionsStatus');
@@ -6179,8 +6179,8 @@ function attrStatusPill(status) {
 
 // Cached from the last successful /api/attributions/list fetch, so the month
 // filter can re-render instantly without a re-fetch. canViewTeam drives whether
-// we got everyone's records (and show the Rep column); isAdmin (Aaron only)
-// still drives the Pending approvals card.
+// we got everyone's records (and show the Rep column); isAdmin (full admins)
+// drives the Pending approvals card.
 let lastAttrRecords = [];
 let lastAttrCanViewTeam = false;
 let lastAttrIsAdmin = false;
@@ -6352,10 +6352,9 @@ document.getElementById('submitAttribution').addEventListener('click', async () 
 // (Aaron) is the one permanent admin, and any additional admins Aaron adds via
 // the "Admin access" card on Edit Monthly Goals (stored in ADMIN_LIST_CACHE,
 // backed by update-admin-list.mts + Blobs — see isAdminEmail() above) get the
-// same full Client Detail access (read). Server-side writes still require
-// Aaron's email specifically — see the Admin access card copy. Attribution /
-// shoutout email→display resolution now reads the goals Blob (with a
-// DEFAULT_GOALS fallback) via functions/_shared/roster.mts.
+// same full access as Aaron (read + write). Attribution / shoutout
+// email→display resolution reads the goals Blob (with a DEFAULT_GOALS
+// fallback) via functions/_shared/roster.mts.
 //
 // TEMP_ALLOW_ALL_CLIENT_DETAIL: real role checks are implemented and wired in,
 // but left non-blocking until Aaron confirms Google sign-in + role gates work
