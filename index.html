@@ -270,20 +270,13 @@
   .accordion-day-delta.up { color: #16a34a; }
   .accordion-day-delta.down { color: #dc2626; }
   .accordion-day-delta.flat { color: var(--text-faint); }
-  .pace-need-panel {
-    margin: 0 0 16px;
-    padding: 12px 14px;
-    border: 1px solid var(--card-border);
-    border-radius: 12px;
-    background: var(--metric-box-bg);
-  }
+  .pace-need-side-content { margin-top: 8px; }
+  .pace-need-side-content.collapsed { display: none; }
+  .live-metrics-side-content { margin-top: 8px; }
+  .live-metrics-side-content.collapsed { display: none; }
   .pace-need-panel-head {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 10px; flex-wrap: wrap; margin-bottom: 10px;
-  }
-  .pace-need-panel-title {
-    font-size: 11px; font-weight: 800; text-transform: uppercase;
-    letter-spacing: 0.04em; color: var(--text-faint);
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 10px; flex-wrap: wrap; margin-bottom: 8px;
   }
   .pace-need-target-toggle {
     display: inline-flex; border: 1px solid var(--card-border);
@@ -297,9 +290,8 @@
     background: var(--text); color: var(--card-bg);
   }
   .pace-need-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
   }
-  @media (max-width: 560px) { .pace-need-grid { grid-template-columns: 1fr; } }
   .pace-need-item {
     display: flex; flex-direction: column; gap: 2px;
     padding: 8px 10px; border-radius: 10px;
@@ -1317,7 +1309,6 @@
       <div class="detail-main-col">
         <div class="card" id="detailRestrictedNote" style="display:none;"></div>
         <div id="detailPacingRow"></div>
-        <div id="detailPaceNeed"></div>
         <div id="doubleGoalBanner"></div>
         <div id="detailPrelimBox"></div>
         <div class="detail-summary" id="detailSummary"></div>
@@ -1375,8 +1366,16 @@
             <span class="side-chevron" id="rankSideChevron">▾</span>
           </div>
           <div id="rankSideContent" class="rank-side-content"></div>
-          <div class="metrics-side-title" style="margin-top:14px; padding-top:12px; border-top:1px solid var(--divider);">📡 Live Metrics</div>
-          <div id="liveMetricsSideContent"></div>
+          <div class="metrics-side-section-head" id="paceNeedSideToggle">
+            <span class="metrics-side-title" style="margin-bottom:0;">🎯 Still Needed</span>
+            <span class="side-chevron" id="paceNeedSideChevron">▾</span>
+          </div>
+          <div id="paceNeedSideContent" class="pace-need-side-content"></div>
+          <div class="metrics-side-section-head" id="liveMetricsSideToggle">
+            <span class="metrics-side-title" style="margin-bottom:0;">📡 Live Metrics</span>
+            <span class="side-chevron" id="liveMetricsSideChevron">▾</span>
+          </div>
+          <div id="liveMetricsSideContent" class="live-metrics-side-content"></div>
           <div class="metrics-side-section-head" id="bonusSideToggle">
             <span class="metrics-side-title" style="margin-bottom:0;">💰 Bonus Payout</span>
             <span class="side-chevron" id="bonusSideChevron">▾</span>
@@ -3053,20 +3052,19 @@ function paceNeedItemHTML(label, unit, result) {
 
 function detailPaceNeedHTML(repDisplay) {
   const need = paceNeedByMetric(repDisplay, paceNeedTargetPct);
-  if (!need) return '';
+  if (!need) {
+    return `<div class="meta-note" style="margin-top:0;">No goals set yet — still-needed counts show once Members / Sessions goals are in place.</div>`;
+  }
   return `
-    <div class="pace-need-panel">
-      <div class="pace-need-panel-head">
-        <span class="pace-need-panel-title">Still needed</span>
-        <div class="pace-need-target-toggle" role="group" aria-label="Pace target">
-          <button type="button" data-pace-need-target="100" class="${paceNeedTargetPct === 100 ? 'active' : ''}">to 100%</button>
-          <button type="button" data-pace-need-target="80" class="${paceNeedTargetPct === 80 ? 'active' : ''}">to 80%</button>
-        </div>
+    <div class="pace-need-panel-head">
+      <div class="pace-need-target-toggle" role="group" aria-label="Pace target">
+        <button type="button" data-pace-need-target="100" class="${paceNeedTargetPct === 100 ? 'active' : ''}">to 100%</button>
+        <button type="button" data-pace-need-target="80" class="${paceNeedTargetPct === 80 ? 'active' : ''}">to 80%</button>
       </div>
-      <div class="pace-need-grid">
-        ${paceNeedItemHTML('Members', 'member', need.members)}
-        ${paceNeedItemHTML('Sessions', 'session', need.sessions)}
-      </div>
+    </div>
+    <div class="pace-need-grid">
+      ${paceNeedItemHTML('Members', 'member', need.members)}
+      ${paceNeedItemHTML('Sessions', 'session', need.sessions)}
     </div>`;
 }
 
@@ -4092,7 +4090,7 @@ document.getElementById('lwomPaceBackdrop').addEventListener('click', (e) => {
   if (e.target.id === 'lwomPaceBackdrop') closeLwomPacePopup();
 });
 
-document.getElementById('detailPaceNeed').addEventListener('click', (e) => {
+document.getElementById('paceNeedSideContent').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-pace-need-target]');
   if (!btn) return;
   const next = Number(btn.getAttribute('data-pace-need-target'));
@@ -4102,7 +4100,7 @@ document.getElementById('detailPaceNeed').addEventListener('click', (e) => {
   const match = location.hash.match(/^#(?:individual-pacer|client-detail)=(.+)$/);
   if (!match) return;
   const repName = decodeURIComponent(match[1]);
-  document.getElementById('detailPaceNeed').innerHTML = detailPaceNeedHTML(repName);
+  document.getElementById('paceNeedSideContent').innerHTML = detailPaceNeedHTML(repName);
 });
 
 document.getElementById('shoutoutCelebrationBackdrop').addEventListener('click', (e) => {
@@ -5674,16 +5672,10 @@ function computeRefundRate(repDisplay, fromDate, toDate) {
 
 function liveMetricsSideHTML(repDisplay) {
   const asOf = loadActuals().asOf || '';
-  const l7From = asOf ? shiftDateStr(asOf, -6) : '';
   const mtdRate = computeRefundRate(repDisplay, null, asOf);
-  const l7Rate = asOf ? computeRefundRate(repDisplay, l7From, asOf) : null;
   const fmtRate = (v) => (v === null ? '—' : fmt(v, 1) + '%');
   return `
-    <div class="metrics-side-item"><span class="metrics-side-label has-tip" data-tip="Per-rep pGC source not confirmed in Supabase yet">L7 pGC</span><span class="metrics-side-val">--</span></div>
-    <div class="metrics-side-item"><span class="metrics-side-label has-tip" data-tip="Per-rep pGC source not confirmed in Supabase yet">L30 pGC</span><span class="metrics-side-val">--</span></div>
-    <div class="metrics-side-item"><span class="metrics-side-label has-tip" data-tip="ESCVR not found in any searchable Supabase project">ESCVR</span><span class="metrics-side-val">--</span></div>
-    <div class="metrics-side-item"><span class="metrics-side-label has-tip" data-tip="Membership refunds ÷ (members sold + membership refunds) this month">Refund rate (MTD)</span><span class="metrics-side-val">${fmtRate(mtdRate)}</span></div>
-    <div class="metrics-side-item"><span class="metrics-side-label has-tip" data-tip="Same membership refund rate over the last 7 days through as-of">Refund rate (L7)</span><span class="metrics-side-val">${fmtRate(l7Rate)}</span></div>`;
+    <div class="metrics-side-item"><span class="metrics-side-label has-tip" data-tip="Membership refunds ÷ (members sold + membership refunds) this month">Refund rate (MTD)</span><span class="metrics-side-val">${fmtRate(mtdRate)}</span></div>`;
 }
 
 // Content for the collapsible "Team Standings" sidebar section (collapsed by
@@ -6066,6 +6058,10 @@ let bonusSideCollapsed = loadJSON(BONUS_SIDE_COLLAPSED_KEY, true);
 // the sidebar doesn't open with two expanded sections crowding the page.
 const RANK_SIDE_COLLAPSED_KEY = 'pace_dashboard_rank_side_collapsed_v1';
 let rankSideCollapsed = loadJSON(RANK_SIDE_COLLAPSED_KEY, true);
+const PACE_NEED_SIDE_COLLAPSED_KEY = 'pace_dashboard_pace_need_side_collapsed_v1';
+let paceNeedSideCollapsed = loadJSON(PACE_NEED_SIDE_COLLAPSED_KEY, true);
+const LIVE_METRICS_SIDE_COLLAPSED_KEY = 'pace_dashboard_live_metrics_side_collapsed_v1';
+let liveMetricsSideCollapsed = loadJSON(LIVE_METRICS_SIDE_COLLAPSED_KEY, true);
 
 function renderClientDetail(opts) {
   const preserveScroll = !!(opts && opts.preserveScroll);
@@ -6079,7 +6075,7 @@ function renderClientDetail(opts) {
 
   const allowed = canViewClientDetail(repName);
   const restrictedNote = document.getElementById('detailRestrictedNote');
-  const bodyEls = ['detailPacingRow', 'detailPaceNeed', 'doubleGoalBanner', 'metricsStyleToggleWrap', 'detailPrelimBox', 'detailSummary', 'detailNetActuals', 'detailContent', 'clientDetailHistoryBlock']
+  const bodyEls = ['detailPacingRow', 'doubleGoalBanner', 'metricsStyleToggleWrap', 'detailPrelimBox', 'detailSummary', 'detailNetActuals', 'detailContent', 'clientDetailHistoryBlock']
     .map(id => document.getElementById(id)).filter(Boolean);
   if (!allowed) {
     restrictedNote.style.display = '';
@@ -6094,7 +6090,6 @@ function renderClientDetail(opts) {
   {
     const pacing = computeRepPacing(repName);
     document.getElementById('detailPacingRow').innerHTML = detailRepMiniCardHTML(repName);
-    document.getElementById('detailPaceNeed').innerHTML = detailPaceNeedHTML(repName);
     document.getElementById('detailMiniHeader').innerHTML = detailMiniHeaderHTML(repName);
     document.getElementById('doubleGoalBanner').innerHTML =
       hasDoubleGoal(repName) ? doubleGoalBannerHTML(repName) : '';
@@ -6122,8 +6117,12 @@ function renderClientDetail(opts) {
     document.getElementById('rankSideChevron').classList.toggle('collapsed', rankSideCollapsed);
     document.getElementById('rankSideContent').classList.toggle('collapsed', rankSideCollapsed);
     document.getElementById('rankSideContent').innerHTML = rankSideContentHTML(repName);
-    const liveMetricsEl = document.getElementById('liveMetricsSideContent');
-    if (liveMetricsEl) liveMetricsEl.innerHTML = liveMetricsSideHTML(repName);
+    document.getElementById('paceNeedSideChevron').classList.toggle('collapsed', paceNeedSideCollapsed);
+    document.getElementById('paceNeedSideContent').classList.toggle('collapsed', paceNeedSideCollapsed);
+    document.getElementById('paceNeedSideContent').innerHTML = detailPaceNeedHTML(repName);
+    document.getElementById('liveMetricsSideChevron').classList.toggle('collapsed', liveMetricsSideCollapsed);
+    document.getElementById('liveMetricsSideContent').classList.toggle('collapsed', liveMetricsSideCollapsed);
+    document.getElementById('liveMetricsSideContent').innerHTML = liveMetricsSideHTML(repName);
     document.getElementById('detailPrelimBox').innerHTML = prelimBoxHTML(repName);
     document.getElementById('detailNetActuals').innerHTML = detailNetActualsHTML(pacing);
   }
@@ -6239,6 +6238,18 @@ document.getElementById('rankSideToggle').addEventListener('click', () => {
   saveJSON(RANK_SIDE_COLLAPSED_KEY, rankSideCollapsed);
   document.getElementById('rankSideChevron').classList.toggle('collapsed', rankSideCollapsed);
   document.getElementById('rankSideContent').classList.toggle('collapsed', rankSideCollapsed);
+});
+document.getElementById('paceNeedSideToggle').addEventListener('click', () => {
+  paceNeedSideCollapsed = !paceNeedSideCollapsed;
+  saveJSON(PACE_NEED_SIDE_COLLAPSED_KEY, paceNeedSideCollapsed);
+  document.getElementById('paceNeedSideChevron').classList.toggle('collapsed', paceNeedSideCollapsed);
+  document.getElementById('paceNeedSideContent').classList.toggle('collapsed', paceNeedSideCollapsed);
+});
+document.getElementById('liveMetricsSideToggle').addEventListener('click', () => {
+  liveMetricsSideCollapsed = !liveMetricsSideCollapsed;
+  saveJSON(LIVE_METRICS_SIDE_COLLAPSED_KEY, liveMetricsSideCollapsed);
+  document.getElementById('liveMetricsSideChevron').classList.toggle('collapsed', liveMetricsSideCollapsed);
+  document.getElementById('liveMetricsSideContent').classList.toggle('collapsed', liveMetricsSideCollapsed);
 });
 // Event delegation since the section's inner HTML is rebuilt on every change —
 // re-renders the whole thing so the payout math stays in sync with whatever
