@@ -148,6 +148,11 @@
      the small utility buttons scattered elsewhere on the page (footer, badge
      controls, etc.). */
   .landing-actions-row { display: flex; justify-content: center; align-items: center; gap: 12px; margin: 14px 0 20px; flex-wrap: wrap; }
+  .landing-actions-row .header-dropdown .theme-btn.large { margin-top: 0; }
+  .landing-menu-hint {
+    width: 100%; text-align: center; font-size: 11.5px; color: var(--text-faint);
+    margin: -8px 0 12px; font-weight: 600;
+  }
   .theme-btn.large { padding: 11px 22px; font-size: 14px; margin-top: 0; }
   .manual-attro-btn {
     background: linear-gradient(90deg,#f472b6,#a855f7 45%,#6366f1 75%,#38bdf8);
@@ -305,31 +310,71 @@
   .rebound-badge { color: #0891b2; background: rgba(8,145,178,0.14); }
   .after-dark-badge { color: #4f46e5; background: rgba(79,70,229,0.14); }
   .best-pace-day-badge { color: #c026d3; background: rgba(192,38,211,0.14); }
-  .team-heat-meter {
-    margin: 10px 0 4px; padding: 10px 12px; border-radius: 12px;
-    border: 1px solid var(--card-border); background: var(--metric-box-bg);
-  }
-  .team-heat-meter-head {
-    display: flex; justify-content: space-between; align-items: baseline;
-    gap: 10px; margin-bottom: 6px; font-size: 11px; font-weight: 700;
-    color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em;
-  }
-  .team-heat-meter-val { font-size: 13px; font-weight: 800; color: var(--text); text-transform: none; letter-spacing: 0; }
-  .team-heat-track {
-    position: relative; height: 10px; border-radius: 999px; overflow: hidden;
-    background: var(--bar-track, rgba(0,0,0,0.08));
-  }
-  .team-heat-fill { height: 100%; border-radius: 999px; transition: width 0.7s ease; }
-  .team-heat-tick {
-    position: absolute; top: -2px; bottom: -2px; width: 2px;
-    background: var(--text); opacity: 0.35; transform: translateX(-50%);
-  }
   .lwom-mode-banner {
-    margin: 0 0 12px; padding: 10px 12px; border-radius: 10px;
+    margin: 0 0 14px; padding: 14px 16px; border-radius: 14px;
     background: linear-gradient(90deg, rgba(234,88,12,0.14), rgba(220,38,38,0.10));
     border: 1px solid rgba(234,88,12,0.35);
-    font-size: 12.5px; font-weight: 700; color: var(--text);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
   }
+  .lwom-mode-banner-copy { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.35; flex: 1; min-width: 200px; }
+  .lwom-mode-banner-copy span { display: block; font-size: 11.5px; font-weight: 600; color: var(--text-muted); margin-top: 3px; }
+  .lwom-sprint-callout {
+    display: none; margin: 0 0 10px; padding: 8px 10px; border-radius: 10px;
+    background: rgba(234,88,12,0.10); border: 1px solid rgba(234,88,12,0.28);
+    font-size: 11.5px; font-weight: 700; color: var(--text); text-align: center;
+  }
+  .lwom-sprint-callout.show { display: block; }
+  .workspace-tabs {
+    display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px;
+  }
+  .workspace-tab {
+    background: var(--card-bg); color: var(--text-muted); border: 1px solid var(--card-border);
+    border-radius: 999px; padding: 8px 14px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  }
+  .workspace-tab.active {
+    color: var(--text); border-color: var(--text-faint);
+    box-shadow: 0 1px 3px var(--shadow);
+  }
+  .workspace-panel { display: none; }
+  .workspace-panel.active { display: block; }
+  .workspace-panel > .card { margin-top: 0; }
+  .workspace-panel > .card + .card { margin-top: 12px; }
+  .pacer-hero {
+    margin-bottom: 16px; padding: 18px 18px 16px;
+  }
+  .pacer-hero-top {
+    display: flex; align-items: flex-start; gap: 14px; margin-bottom: 12px;
+  }
+  .pacer-hero-identity { flex: 1; min-width: 0; }
+  .pacer-hero-name { font-size: 18px; font-weight: 800; line-height: 1.2; margin-bottom: 6px; }
+  .pacer-hero-meta {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-size: 12px; color: var(--text-muted); font-weight: 600;
+  }
+  .pacer-hero-pct {
+    text-align: right; flex: none; min-width: 72px;
+  }
+  .pacer-hero-pct .composite-num {
+    font-size: 34px; line-height: 1; display: block;
+  }
+  .pacer-hero-pct-label {
+    display: block; margin-top: 4px; font-size: 10.5px; font-weight: 700;
+    color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .pacer-hero .bar-track { margin: 0 0 12px; }
+  .pacer-hero-badges {
+    display: flex; flex-wrap: wrap; gap: 6px; min-height: 0;
+  }
+  .pacer-hero-badges:empty { display: none; }
+  .pacer-section-label {
+    font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-faint); margin: 18px 0 8px;
+  }
+  .metrics-side-group-label {
+    font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-faint); margin: 4px 0 2px;
+  }
+  .metrics-side-group-label + .metrics-side-section-head { margin-top: 6px; }
   .toast-stack {
     position: fixed; right: 16px; bottom: 16px; z-index: 120;
     display: flex; flex-direction: column; gap: 8px; max-width: min(340px, calc(100vw - 32px));
@@ -934,8 +979,6 @@
   .detail-table tr:hover { background: var(--metric-box-bg); }
   .date-chip { display: inline-block; background: var(--metric-box-bg); color: var(--text-muted); font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
 
-  .admin-footer-row { display: flex; gap: 10px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
-
   /* Signed-in footer — in document flow at the foot of each page (not fixed). */
   .session-bar {
     display: none;
@@ -1259,14 +1302,26 @@
        footer (.session-bar), not in this action row. -->
   <div class="landing-actions-row">
     <button class="theme-btn manual-attro-btn large" id="manualAttroBtn" type="button">📝 Manual Attribution</button>
-    <button class="theme-btn large" id="teamDetailsBtn" type="button" style="display:none;">🗂️ View Team Details</button>
-    <button class="theme-btn large" id="teamPersonalGoalsBtn" type="button" style="display:none;">🎯 Team Goals</button>
+    <div class="header-dropdown" id="teamMenuWrap" style="display:none;">
+      <button class="theme-btn large" id="teamMenuBtn" type="button">👥 Team ▾</button>
+      <div class="header-dropdown-menu" id="teamMenu">
+        <button class="theme-btn" id="teamDetailsBtn" type="button">🗂️ Cancels &amp; attributions</button>
+        <button class="theme-btn" id="teamPersonalGoalsBtn" type="button">🎯 Personal month goals</button>
+      </div>
+    </div>
+    <div class="header-dropdown" id="adminMenuWrap" style="display:none;">
+      <button class="theme-btn large" id="adminMenuBtn" type="button">⚙️ Admin ▾</button>
+      <div class="header-dropdown-menu" id="adminMenu">
+        <button class="theme-btn" id="footerGoalsBtn" type="button">Edit Monthly Goals</button>
+        <button class="theme-btn" id="footerSipBtn" type="button">Historical SIP</button>
+      </div>
+    </div>
     <button class="theme-btn large" id="shoutoutSendBtn" type="button">📣 Shoutout</button>
     <button class="theme-btn large" id="themeToggle" type="button">🌙 Dark</button>
   </div>
+  <div class="landing-menu-hint" id="landingMenuHint" style="display:none;">Team tools and admin settings live in the menus above — open a rep below for Individual Pacer.</div>
 
   <div class="pill-row" id="banner"></div>
-  <div id="teamHeatMeter" class="team-heat-meter" style="display:none;"></div>
 
   <!-- Two-column grid ends at the bottom of the team card — the leaderboard
        sidebar rides alongside A-Team Total only. Sort toggle + rep list live
@@ -1277,12 +1332,13 @@
 
     <div class="landing-side-col">
       <div class="leaderboard-panel">
+        <div class="lwom-sprint-callout" id="lwomSprintCallout">🏁 Sprint Boards live — tap 🏁👥 / 🏁📅 for last-7-day leaders</div>
         <div class="leaderboard-tabs" id="leaderboardTabs">
           <button type="button" class="leaderboard-tab has-tip" data-board="pacers" data-tip="Highest Pacers">🔥</button>
           <button type="button" class="leaderboard-tab has-tip" data-board="members" data-tip="Most Members Sold">👥</button>
           <button type="button" class="leaderboard-tab has-tip" data-board="sessions" data-tip="Most Sessions Sold">📅</button>
-          <button type="button" class="leaderboard-tab has-tip" data-board="sprintM" data-tip="LWOM Sprint — Members (last 7 days)" id="sprintMembersTab" style="display:none;">🏁👥</button>
-          <button type="button" class="leaderboard-tab has-tip" data-board="sprintS" data-tip="LWOM Sprint — Sessions (last 7 days)" id="sprintSessionsTab" style="display:none;">🏁📅</button>
+          <button type="button" class="leaderboard-tab has-tip" data-board="sprintM" data-tip="Sprint Boards — Members sold in the last 7 days (LWOM)" id="sprintMembersTab" style="display:none;">🏁👥</button>
+          <button type="button" class="leaderboard-tab has-tip" data-board="sprintS" data-tip="Sprint Boards — Sessions sold in the last 7 days (LWOM)" id="sprintSessionsTab" style="display:none;">🏁📅</button>
         </div>
         <div class="leaderboard-title" id="leaderboardActiveTitle"></div>
         <div class="leaderboard-list" id="lbActiveList"></div>
@@ -1331,11 +1387,6 @@
 
   <div class="meta-note" id="liveActualsStatus" style="margin:10px 0 0;"></div>
 
-  <div class="admin-footer-row" id="adminFooterRow" style="display:none;">
-    <button class="theme-btn" id="footerGoalsBtn" type="button">⚙️ Edit Monthly Goals</button>
-    <button class="theme-btn" id="footerSipBtn" type="button">📊 Historical Performance (SIP)</button>
-  </div>
-
   <div class="session-bar" data-session-bar aria-live="polite">
     <span class="session-label">Signed in:</span>
     <span class="session-email"></span>
@@ -1366,8 +1417,10 @@
         <div id="doubleGoalBanner"></div>
         <div id="detailPrelimBox"></div>
         <div class="detail-summary" id="detailSummary"></div>
+        <div class="pacer-section-label">This month</div>
         <div class="detail-net-grid" id="detailNetActuals"></div>
         <div id="detailContent">
+          <div class="pacer-section-label">Activity</div>
           <div class="detail-stats" id="detailStats"></div>
           <div class="detail-grid">
             <div class="detail-panel">
@@ -1415,12 +1468,8 @@
 
       <div id="metricsStyleToggleWrap">
         <div class="metrics-side-panel" id="metricsSidePanel">
-          <div class="metrics-side-section-head first-section-head" id="rankSideToggle">
-            <span class="metrics-side-title" style="margin-bottom:0;">🏆 Team Standings</span>
-            <span class="side-chevron" id="rankSideChevron">▾</span>
-          </div>
-          <div id="rankSideContent" class="rank-side-content"></div>
-          <div class="metrics-side-section-head" id="personalGoalSideToggle">
+          <div class="metrics-side-group-label">Focus</div>
+          <div class="metrics-side-section-head first-section-head" id="personalGoalSideToggle">
             <span class="metrics-side-title" style="margin-bottom:0;">🎯 My Month Goal</span>
             <span class="side-chevron" id="personalGoalSideChevron">▾</span>
           </div>
@@ -1430,16 +1479,23 @@
             <span class="side-chevron" id="paceNeedSideChevron">▾</span>
           </div>
           <div id="paceNeedSideContent" class="pace-need-side-content"></div>
+          <div class="metrics-side-group-label" style="margin-top:14px;">Pay</div>
+          <div class="metrics-side-section-head first-section-head" id="bonusSideToggle">
+            <span class="metrics-side-title" style="margin-bottom:0;">💰 Bonus Payout</span>
+            <span class="side-chevron" id="bonusSideChevron">▾</span>
+          </div>
+          <div id="bonusSideContent" class="bonus-side"></div>
+          <div class="metrics-side-group-label" style="margin-top:14px;">Team</div>
+          <div class="metrics-side-section-head first-section-head" id="rankSideToggle">
+            <span class="metrics-side-title" style="margin-bottom:0;">🏆 Team Standings</span>
+            <span class="side-chevron" id="rankSideChevron">▾</span>
+          </div>
+          <div id="rankSideContent" class="rank-side-content"></div>
           <div class="metrics-side-section-head" id="liveMetricsSideToggle">
             <span class="metrics-side-title" style="margin-bottom:0;">📡 Live Metrics</span>
             <span class="side-chevron" id="liveMetricsSideChevron">▾</span>
           </div>
           <div id="liveMetricsSideContent" class="live-metrics-side-content"></div>
-          <div class="metrics-side-section-head" id="bonusSideToggle">
-            <span class="metrics-side-title" style="margin-bottom:0;">💰 Bonus Payout</span>
-            <span class="side-chevron" id="bonusSideChevron">▾</span>
-          </div>
-          <div id="bonusSideContent" class="bonus-side"></div>
         </div>
       </div>
     </div>
@@ -1582,39 +1638,51 @@
   <div class="detail-page">
     <div class="detail-header">
       <button class="theme-btn" id="teamDetailsBackBtn" type="button">← Back to dashboard</button>
-      <h2>Team Details</h2>
+      <h2>Team workspace</h2>
     </div>
-    <div class="card">
-      <h2>Cancels — team-wide</h2>
-      <div class="sip-table-wrap">
-        <table class="sip-table">
-          <thead><tr><th>Date</th><th>Rep</th><th>Client ID</th><th>Members</th><th>Sessions</th><th>Action</th></tr></thead>
-          <tbody id="teamCancelsBody"></tbody>
-        </table>
-      </div>
-      <div class="meta-note" id="teamCancelsEmpty" style="display:none;">No cancels in the current ledger.</div>
-      <div class="meta-note">Every negative line item across every rep's actuals, newest first. "Move to Manual Attribution" pre-fills a correction request for whoever's cancel it is — the rep is locked so it can't accidentally land on the wrong person — then it goes through the normal pending → approval flow, same as any rep-submitted request.</div>
+    <div class="meta-note" style="margin:-4px 0 12px;">Coach view for day-to-day team ops. Admin goal/SIP setup lives under <strong>Admin</strong> on the landing page.</div>
+    <div class="workspace-tabs" id="teamWorkspaceTabs">
+      <button type="button" class="workspace-tab active" data-team-tab="cancels">Cancels</button>
+      <button type="button" class="workspace-tab" data-team-tab="goals">Personal month goals</button>
+      <button type="button" class="workspace-tab" data-team-tab="attr">Attributions</button>
     </div>
-    <div class="card" style="margin-top:12px;" id="teamPersonalGoalsCard">
-      <h2>🎯 Personal month goals — team</h2>
-      <div class="sip-table-wrap">
-        <table class="sip-table">
-          <thead><tr><th>Rep</th><th>Goal</th><th>Progress</th><th>Status</th></tr></thead>
-          <tbody id="teamPersonalGoalsBody"></tbody>
-        </table>
+    <div class="workspace-panel active" id="teamPanelCancels" data-team-panel="cancels">
+      <div class="card">
+        <h2>Cancels — team-wide</h2>
+        <div class="sip-table-wrap">
+          <table class="sip-table">
+            <thead><tr><th>Date</th><th>Rep</th><th>Client ID</th><th>Members</th><th>Sessions</th><th>Action</th></tr></thead>
+            <tbody id="teamCancelsBody"></tbody>
+          </table>
+        </div>
+        <div class="meta-note" id="teamCancelsEmpty" style="display:none;">No cancels in the current ledger.</div>
+        <div class="meta-note">Every negative line item across every rep's actuals, newest first. "Move to Manual Attribution" pre-fills a correction request for whoever's cancel it is — the rep is locked so it can't accidentally land on the wrong person — then it goes through the normal pending → approval flow, same as any rep-submitted request.</div>
       </div>
-      <div class="meta-note">Each rep sets their own stretch target for the month (attainment %, members, or sessions). Progress updates from live actuals. Reps who haven’t set a goal yet show as “Needs goal.”</div>
     </div>
-    <div class="card" style="margin-top:12px;">
-      <h2>Attributions — team-wide (positive &amp; negative adjustments)</h2>
-      <div class="sip-table-wrap">
-        <table class="sip-table">
-          <thead><tr><th>Rep</th><th>Client Page</th><th>Sessions</th><th>Members</th><th>Reason</th><th>Status</th></tr></thead>
-          <tbody id="teamAttributionsBody"></tbody>
-        </table>
+    <div class="workspace-panel" id="teamPanelGoals" data-team-panel="goals">
+      <div class="card" id="teamPersonalGoalsCard">
+        <h2>🎯 Personal month goals — team</h2>
+        <div class="sip-table-wrap">
+          <table class="sip-table">
+            <thead><tr><th>Rep</th><th>Goal</th><th>Progress</th><th>Status</th></tr></thead>
+            <tbody id="teamPersonalGoalsBody"></tbody>
+          </table>
+        </div>
+        <div class="meta-note">Each rep sets their own stretch target for the month (attainment %, members, or sessions). Progress updates from live actuals. Reps who haven’t set a goal yet show as “Needs goal.”</div>
       </div>
-      <div class="meta-note" id="teamAttributionsStatus"></div>
-      <div class="meta-note">Every Manual Attribution request across the team, any status. Full admins and Sales Coaches see the whole team here (coaches stay read-only — only admins can approve/reject).</div>
+    </div>
+    <div class="workspace-panel" id="teamPanelAttr" data-team-panel="attr">
+      <div class="card">
+        <h2>Attributions — team-wide (positive &amp; negative adjustments)</h2>
+        <div class="sip-table-wrap">
+          <table class="sip-table">
+            <thead><tr><th>Rep</th><th>Client Page</th><th>Sessions</th><th>Members</th><th>Reason</th><th>Status</th></tr></thead>
+            <tbody id="teamAttributionsBody"></tbody>
+          </table>
+        </div>
+        <div class="meta-note" id="teamAttributionsStatus"></div>
+        <div class="meta-note">Every Manual Attribution request across the team, any status. Full admins and Sales Coaches see the whole team here (coaches stay read-only — only admins can approve/reject).</div>
+      </div>
     </div>
   </div>
 </div>
@@ -2812,31 +2880,7 @@ function render() {
   renderLeaderboards(repRows);
   renderImprovedBoards();
   renderGoalsForm(goals);
-  renderTeamHeatMeter(teamComposite, expectedPct);
   syncLandingGridHeight();
-}
-
-function renderTeamHeatMeter(teamComposite, expectedPct) {
-  const el = document.getElementById('teamHeatMeter');
-  if (!el) return;
-  if (!teamComposite || teamComposite.goalIsZero || teamComposite.current === null) {
-    el.style.display = 'none';
-    el.innerHTML = '';
-    return;
-  }
-  const pct = teamComposite.current;
-  const width = Math.max(0, Math.min(pct, 100));
-  const st = teamComposite.nowSt;
-  el.style.display = '';
-  el.innerHTML = `
-    <div class="team-heat-meter-head">
-      <span>🔥 Team heat</span>
-      <span class="team-heat-meter-val">${fmt(pct, 1)}% of goal · expected ${fmt(expectedPct, 1)}%</span>
-    </div>
-    <div class="team-heat-track">
-      <div class="team-heat-fill" style="width:${width}%; background:${st.barGrad};"></div>
-      <div class="team-heat-tick has-tip" style="left:${Math.min(expectedPct, 100)}%;" data-tip="Expected pace today"></div>
-    </div>`;
 }
 
 // .landing-side-col is absolutely positioned out of normal flow (see its CSS
@@ -2874,8 +2918,8 @@ const LEADERBOARD_META = {
   pacers: { title: '🔥 Highest Pacers' },
   members: { title: '👥 Most Members Sold' },
   sessions: { title: '📅 Most Sessions Sold' },
-  sprintM: { title: '🏁 Sprint — Members (LWOM)' },
-  sprintS: { title: '🏁 Sprint — Sessions (LWOM)' },
+  sprintM: { title: '🏁 Sprint Boards — Members (last 7 days)' },
+  sprintS: { title: '🏁 Sprint Boards — Sessions (last 7 days)' },
 };
 // Cached so switching tabs re-displays instantly off already-computed data
 // instead of re-running render() (which would restart every other animation
@@ -2937,8 +2981,10 @@ function renderLeaderboards(repRows) {
   const sprint = lwomSprintWindow();
   const sprintMTab = document.getElementById('sprintMembersTab');
   const sprintSTab = document.getElementById('sprintSessionsTab');
+  const sprintCallout = document.getElementById('lwomSprintCallout');
   if (sprintMTab) sprintMTab.style.display = sprint ? '' : 'none';
   if (sprintSTab) sprintSTab.style.display = sprint ? '' : 'none';
+  if (sprintCallout) sprintCallout.classList.toggle('show', !!sprint);
   if (sprint) {
     lbBoardsCache.sprintM = computeLeaderboardTop3(repRows, row => sprintUnitsInWindow(row.rep.display, 'members', sprint.from, sprint.to))
       .map(item => ({ ...item, valLabel: fmt(item.val, 1) }));
@@ -3553,22 +3599,118 @@ function hasHatTrickToday(repDisplay) {
   const asOf = loadActuals().asOf;
   return !!asOf && countPositiveSalesOnDate(repDisplay, asOf) >= 3;
 }
+/** Assembled WFM: date → Set(email) when configured, null when unavailable / fail-open. */
+const assembledWorkedByDate = Object.create(null);
+
+async function ensureAssembledWorked(date) {
+  const key = String(date || '').slice(0, 10);
+  if (!key) return null;
+  if (Object.prototype.hasOwnProperty.call(assembledWorkedByDate, key)) {
+    return assembledWorkedByDate[key];
+  }
+  try {
+    if (!(window.netlifyIdentity && netlifyIdentity.currentUser())) {
+      // Not signed in yet — don't cache; retry after Identity loads.
+      return null;
+    }
+    const data = await authedFetch('/api/schedules/worked?date=' + encodeURIComponent(key));
+    if (!data || !data.configured) {
+      assembledWorkedByDate[key] = null;
+      return null;
+    }
+    assembledWorkedByDate[key] = new Set((data.workedEmails || []).map((e) => String(e).toLowerCase()));
+    return assembledWorkedByDate[key];
+  } catch (e) {
+    console.warn('Assembled schedule lookup failed — Rebound schedule gate skipped', e);
+    assembledWorkedByDate[key] = null;
+    return null;
+  }
+}
+
+async function prefetchAssembledForRebound() {
+  const asOf = loadActuals().asOf;
+  if (!asOf) return;
+  const yest = shiftDateStr(asOf, -1);
+  const before = assembledWorkedByDate[yest];
+  await ensureAssembledWorked(yest);
+  const after = assembledWorkedByDate[yest];
+  // Re-render badges once schedule data arrives (only if we newly learned a Set).
+  if (!(before instanceof Set) && after instanceof Set) {
+    quietRefreshFromActuals();
+  }
+}
+
+function repGoalEmail(repDisplay) {
+  const g = loadGoals()[repDisplay];
+  return g && g.email ? String(g.email).toLowerCase() : '';
+}
+
 function hasReboundToday(repDisplay) {
   const asOf = loadActuals().asOf;
   if (!asOf) return false;
   const yest = shiftDateStr(asOf, -1);
-  return countPositiveSalesOnDate(repDisplay, yest) === 0 && countPositiveSalesOnDate(repDisplay, asOf) > 0;
+  if (!(countPositiveSalesOnDate(repDisplay, yest) === 0 && countPositiveSalesOnDate(repDisplay, asOf) > 0)) {
+    return false;
+  }
+  // When Assembled is configured, require they were scheduled yesterday.
+  const worked = assembledWorkedByDate[yest];
+  if (worked instanceof Set) {
+    const email = repGoalEmail(repDisplay);
+    if (!email || !worked.has(email)) return false;
+  }
+  return true;
 }
-function hasAfterDarkToday(repDisplay) {
-  const asOf = loadActuals().asOf;
-  if (!asOf) return false;
+
+/** Hour (0–23) in America/Chicago for an ISO/ledger timestamp. */
+function hourInChicago(occurredAt) {
+  if (!occurredAt) return null;
+  const d = new Date(occurredAt);
+  if (!Number.isNaN(d.getTime())) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Chicago',
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(d);
+    const hour = Number((parts.find((p) => p.type === 'hour') || {}).value);
+    return Number.isFinite(hour) ? hour : null;
+  }
+  const hour = Number(String(occurredAt).slice(11, 13));
+  return Number.isFinite(hour) ? hour : null;
+}
+
+/** Units sold after 5:00 PM America/Chicago on asOf for one rep. */
+function afterDarkSalesUnits(repDisplay, asOf) {
   const items = ((loadActuals().perRep || {})[repDisplay] || {}).items || [];
-  return items.some((it) => {
-    if (!it || it.date !== asOf || !it.occurredAt) return false;
-    if ((Number(it.members) || 0) <= 0 && (Number(it.sessions) || 0) <= 0) return false;
-    const hour = Number(String(it.occurredAt).slice(11, 13));
-    return Number.isFinite(hour) && hour >= 17;
+  let units = 0;
+  items.forEach((it) => {
+    if (!it || it.date !== asOf || !it.occurredAt) return;
+    const m = Number(it.members) || 0;
+    const s = Number(it.sessions) || 0;
+    if (m <= 0 && s <= 0) return;
+    const hour = hourInChicago(it.occurredAt);
+    if (hour !== null && hour >= 17) units += Math.max(m, 0) + Math.max(s, 0);
   });
+  return units;
+}
+
+/** Single team champion: most after-5pm CST sales units today. */
+function getAfterDarkChampion() {
+  const asOf = loadActuals().asOf;
+  if (!asOf) return null;
+  let best = null;
+  let bestUnits = 0;
+  getRoster().forEach((r) => {
+    const units = afterDarkSalesUnits(r.display, asOf);
+    if (units > bestUnits) {
+      bestUnits = units;
+      best = r.display;
+    }
+  });
+  return bestUnits > 0 ? best : null;
+}
+
+function hasAfterDarkToday(repDisplay) {
+  return getAfterDarkChampion() === repDisplay;
 }
 // Biggest single-day composite jump this month (day 8+ only). Badge if today's
 // jump is that personal best and positive.
@@ -3595,7 +3737,7 @@ function hasBestPaceDay(repDisplay) {
 function repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampion) {
   const streakDays = computeCurrentStreak(repDisplay);
   const streakBadge = (isBadgeEnabled('streak') && streakDays >= 3)
-    ? `<span class="engagement-badge streak-badge has-tip" data-tip="${streakDays} days in a row pacing at or above expected pace (on track for 100%+ by month end)">🔥 ${streakDays}d pacing streak</span>`
+    ? `<span class="engagement-badge streak-badge has-tip" data-tip="${streakDays} days in a row at or above expected pace">🔥 ${streakDays}d On Pace</span>`
     : '';
   const personalBestBadge = (isBadgeEnabled('personalBest') && computePersonalBestFlag(repDisplay))
     ? `<span class="engagement-badge personal-best-badge has-tip" data-tip="Projected to beat your best month ever, if this pace holds">🌟 Personal Best Pace</span>`
@@ -3613,10 +3755,10 @@ function repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampi
     ? `<span class="engagement-badge hat-trick-badge has-tip" data-tip="3+ positive attributions today — resets tomorrow">🎩 Hat Trick</span>`
     : '';
   const reboundBadge = (isBadgeEnabled('rebound') && hasReboundToday(repDisplay))
-    ? `<span class="engagement-badge rebound-badge has-tip" data-tip="Sale today after a zero-sale day yesterday">🏀 Rebound</span>`
+    ? `<span class="engagement-badge rebound-badge has-tip" data-tip="Sale today after a zero-sale day yesterday — and scheduled to work yesterday (Assembled)">🏀 Rebound</span>`
     : '';
   const afterDarkBadge = (isBadgeEnabled('afterDark') && hasAfterDarkToday(repDisplay))
-    ? `<span class="engagement-badge after-dark-badge has-tip" data-tip="Positive attribution after 5:00 PM today">🌙 After Dark</span>`
+    ? `<span class="engagement-badge after-dark-badge has-tip" data-tip="Most sales after 5:00 PM CST today — one winner">🌙 After Dark</span>`
     : '';
   const bestPaceDayBadge = (isBadgeEnabled('bestPaceDay') && hasBestPaceDay(repDisplay))
     ? `<span class="engagement-badge best-pace-day-badge has-tip" data-tip="Biggest single-day pacing jump so far this month (after day 7)">⚡ Best Pace Day</span>`
@@ -3725,7 +3867,7 @@ function heatMilestoneMiniHTML(teamExpectedPct, teamCurrentPct) {
   const milestones = [50, 80, 100];
   const hit = milestones.filter((m) => teamCurrentPct >= m).pop();
   if (!hit) return null;
-  return `<span>🔥 Team heat hit <b>${hit}%</b> of monthly goal — keep the fire going</span>`;
+  return `<span>🔥 Team hit <b>${hit}%</b> of monthly goal — keep the fire going</span>`;
 }
 function noOneLeftBehindMiniHTML(eligible, expectedPct) {
   if (!eligible.length || !(expectedPct > 0)) return null;
@@ -3877,14 +4019,14 @@ function renderMasterShoutoutLog() {
 // assignment list, both on Edit Monthly Goals. See BADGE_TOGGLES_CACHE /
 // MANUAL_BADGES_CACHE above.
 const BADGE_TOGGLE_META = [
-  { key: 'streak', emoji: '🔥', label: 'Pacing streak (3+ days on pace to 100%+)', description: "Fires once a rep has been at or above expected daily pace for 3 calendar days in a row this month — on track for 100%+ by month end. Resets the first day they fall behind expected pace. Distinct from Goal Met." },
+  { key: 'streak', emoji: '🔥', label: 'On Pace (3+ days)', description: "Short badge: “🔥 Nd On Pace.” Fires once a rep has been at or above expected daily pace for 3 calendar days in a row this month. Resets the first day they fall behind expected pace." },
   { key: 'personalBest', emoji: '🌟', label: 'Personal Best Pace', description: "Awarded the moment a rep's current pace tops their own best month ever — always compared against themselves, never a teammate." },
   { key: 'consistency', emoji: '🛡️', label: 'Steady (consistency)', description: 'Recognizes a rep who has stayed at or above the consistency threshold every single tracked day this month — no dips, however small.' },
   { key: 'firstTo100', emoji: '🥇', label: 'First to 100%', description: "Goes to whoever's blended pacing crossed 100%+ earliest this month, team-wide. One winner, and it resets fresh at the start of each month." },
   { key: 'earlyBird', emoji: '🐦', label: 'Early Bird', description: "Goes to whoever logged the team's first positive attribution of the current day. One winner per day; refreshes each morning." },
   { key: 'hatTrick', emoji: '🎩', label: 'Hat Trick (3+ sales today)', description: 'Daily badge for anyone with 3+ positive attribution line items today. Resets every morning.' },
-  { key: 'rebound', emoji: '🏀', label: 'Rebound', description: 'Fires when a rep gets a positive sale today after a zero-sale day yesterday — back on the board.' },
-  { key: 'afterDark', emoji: '🌙', label: 'After Dark', description: 'Anyone with a positive attribution after 5:00 PM (from ledger time) today. Night-shift closer energy.' },
+  { key: 'rebound', emoji: '🏀', label: 'Rebound', description: 'Sale today after a zero-sale day yesterday — and they were scheduled to work yesterday in Assembled (when ASSEMBLED_API_KEY is set). Skips off-days.' },
+  { key: 'afterDark', emoji: '🌙', label: 'After Dark', description: 'One winner per day: whoever has the most sales units (members + sessions) after 5:00 PM America/Chicago today.' },
   { key: 'bestPaceDay', emoji: '⚡', label: 'Best Pace Day', description: "Today is this rep's biggest single-day composite jump so far this month. Does not apply in the first 7 days of the month." },
 ];
 // Single unified "Badge Bank" — every badge the dashboard knows about, one
@@ -5549,6 +5691,7 @@ function setupToggle(toggleId, bodyId, label) {
 function setupHeaderPopover(btnId, menuId) {
   const btn = document.getElementById(btnId);
   const menu = document.getElementById(menuId);
+  if (!btn || !menu) return;
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
     const willOpen = !menu.classList.contains('open');
@@ -5557,9 +5700,19 @@ function setupHeaderPopover(btnId, menuId) {
   });
 }
 setupHeaderPopover('sortToggleBtn', 'sortMenu');
+setupHeaderPopover('teamMenuBtn', 'teamMenu');
+setupHeaderPopover('adminMenuBtn', 'adminMenu');
 document.addEventListener('click', (e) => {
   if (e.target.closest('.header-dropdown')) return;
   document.querySelectorAll('.header-dropdown-menu.open').forEach(m => m.classList.remove('open'));
+});
+// Close Team/Admin menus after picking an action.
+['teamMenu', 'adminMenu'].forEach((menuId) => {
+  const menu = document.getElementById(menuId);
+  if (!menu) return;
+  menu.addEventListener('click', (e) => {
+    if (e.target.closest('button')) menu.classList.remove('open');
+  });
 });
 setupToggle('toggleRemoved', 'removedBody', 'Removed people');
 setupToggle('toggleAdmin', 'adminBody', 'Admin access');
@@ -6268,24 +6421,47 @@ function detailRepMiniCardHTML(repDisplay) {
   // already calls out the achievement (see .double-goal-glow-subtle).
   const isChampion = repDisplay === getDoubleGoalChampion();
   return `
-    <div class="card${isChampion ? ' double-goal-glow-subtle' : ''}" style="margin-bottom:16px;">
-      <div class="rep-header detail-mini-repcard">
+    <div class="card pacer-hero${isChampion ? ' double-goal-glow-subtle' : ''}">
+      <div class="pacer-hero-top">
         <div class="avatar" style="background:${grad};">${initials(repDisplay)}</div>
-        <div class="rep-meta">
-          <div class="rep-name-row">
-            <span class="rep-name">${repDisplay}</span>
+        <div class="pacer-hero-identity">
+          <div class="pacer-hero-name">${repDisplay}</div>
+          <div class="pacer-hero-meta">
             <span class="status-pill ${st.cls} has-tip" data-tip="${st.tip}">${st.label}</span>
-            ${badgesHTML}
+            <span>Projected ${projLabel}</span>
+            <span class="has-tip" data-tip="Expected pace today — % needed by now to finish at 100%">Expected ${fmt(c.expectedPct, 0)}%</span>
           </div>
-          <div class="bar-track">
-            <div class="bar-fill${st.special ? ' bar-shimmer' : ''}" id="detailMiniBar" style="background:${st.barGrad};"></div>
-            <div class="bar-tick has-tip" style="left:${Math.min(c.expectedPct,100)}%;" data-tip="Expected pace today — the % you'd need to have hit by now to land at exactly 100% by month end"></div>
-          </div>
-          <div class="mini-repcard-sub">Projected to land at ${projLabel}</div>
         </div>
-        <div class="composite-num" id="detailMiniNum">0%</div>
+        <div class="pacer-hero-pct">
+          <span class="composite-num" id="detailMiniNum">${nowLabel === '—' ? '—' : '0%'}</span>
+          <span class="pacer-hero-pct-label">of goal</span>
+        </div>
       </div>
+      <div class="bar-track">
+        <div class="bar-fill${st.special ? ' bar-shimmer' : ''}" id="detailMiniBar" style="background:${st.barGrad};"></div>
+        <div class="bar-tick has-tip" style="left:${Math.min(c.expectedPct,100)}%;" data-tip="Expected pace today — the % you'd need to have hit by now to land at exactly 100% by month end"></div>
+      </div>
+      <div class="pacer-hero-badges">${badgesHTML}</div>
     </div>`;
+}
+
+function openSprintBoards(board) {
+  const target = board === 'sprintS' ? 'sprintS' : 'sprintM';
+  if (!lwomSprintWindow()) return;
+  leaderboardTab = target;
+  saveJSON(LEADERBOARD_TAB_KEY, leaderboardTab);
+  const go = () => {
+    syncLeaderboardTabButtons();
+    displayLeaderboardTab();
+    const panel = document.getElementById('leaderboardTabs');
+    if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  if (location.hash && location.hash !== '#') {
+    location.hash = '';
+    setTimeout(go, 80);
+  } else {
+    go();
+  }
 }
 
 // Sticky counterpart — same avatar/name/badges/bar/percent as the full card
@@ -6329,7 +6505,7 @@ let bonusSideCollapsed = loadJSON(BONUS_SIDE_COLLAPSED_KEY, true);
 const RANK_SIDE_COLLAPSED_KEY = 'pace_dashboard_rank_side_collapsed_v1';
 let rankSideCollapsed = loadJSON(RANK_SIDE_COLLAPSED_KEY, true);
 const PACE_NEED_SIDE_COLLAPSED_KEY = 'pace_dashboard_pace_need_side_collapsed_v1';
-let paceNeedSideCollapsed = loadJSON(PACE_NEED_SIDE_COLLAPSED_KEY, true);
+let paceNeedSideCollapsed = loadJSON(PACE_NEED_SIDE_COLLAPSED_KEY, false);
 const LIVE_METRICS_SIDE_COLLAPSED_KEY = 'pace_dashboard_live_metrics_side_collapsed_v1';
 let liveMetricsSideCollapsed = loadJSON(LIVE_METRICS_SIDE_COLLAPSED_KEY, true);
 
@@ -6377,10 +6553,17 @@ function renderClientDetail(opts) {
         const left = Math.max(daysInMonth(y, m) - d, 0);
         lwomBanner.style.display = '';
         lwomBanner.className = 'lwom-mode-banner';
-        lwomBanner.textContent = `🏁 Last week of the month — ${left} day${left === 1 ? '' : 's'} left. Sprint boards are live on the landing page.`;
+        lwomBanner.innerHTML = `
+          <div class="lwom-mode-banner-copy">
+            🏁 Last week of the month — ${left} day${left === 1 ? '' : 's'} left
+            <span>Sprint Boards rank members &amp; sessions sold in the last 7 days.</span>
+          </div>
+          <button type="button" class="theme-btn" id="openSprintBoardsBtn">Open Sprint Boards</button>`;
+        const sprintBtn = document.getElementById('openSprintBoardsBtn');
+        if (sprintBtn) sprintBtn.addEventListener('click', () => openSprintBoards('sprintM'));
       } else {
         lwomBanner.style.display = 'none';
-        lwomBanner.textContent = '';
+        lwomBanner.innerHTML = '';
       }
     }
     document.getElementById('detailPacingRow').innerHTML = detailRepMiniCardHTML(repName);
@@ -6596,13 +6779,28 @@ document.getElementById('attroBackBtn').addEventListener('click', () => {
   if (location.hash) history.back(); else { document.getElementById('manualAttroOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
 });
 
-// ---------- Team Details full-page overlay routing (#team-details) ----------
-// Admin/coach-only view (canViewTeamDetails()) combining every cancel across
-// the whole team with the team's full Manual Attribution history, plus the
-// cancel -> Manual Attribution conversion flow.
+// ---------- Team workspace overlay (#team-details / #team-goals / #team-attr) ----------
+// Admin/coach-only view combining cancels, personal month goals, and Manual
+// Attribution history — split into tabs so each job has its own screen.
+function setTeamWorkspaceTab(tab) {
+  const allowed = ['cancels', 'goals', 'attr'];
+  const active = allowed.includes(tab) ? tab : 'cancels';
+  document.querySelectorAll('#teamWorkspaceTabs .workspace-tab').forEach((btn) => {
+    btn.classList.toggle('active', btn.getAttribute('data-team-tab') === active);
+  });
+  document.querySelectorAll('#teamDetailsOverlay .workspace-panel').forEach((panel) => {
+    panel.classList.toggle('active', panel.getAttribute('data-team-panel') === active);
+  });
+}
+function teamWorkspaceHashTab() {
+  if (location.hash === '#team-goals') return 'goals';
+  if (location.hash === '#team-attr') return 'attr';
+  return 'cancels';
+}
 function renderTeamDetailsOverlay() {
   const overlay = document.getElementById('teamDetailsOverlay');
-  if (location.hash === '#team-details') {
+  const teamHash = location.hash === '#team-details' || location.hash === '#team-goals' || location.hash === '#team-attr';
+  if (teamHash) {
     if (denyHashIfUnauthorized(canViewTeamDetails())) {
       overlay.classList.remove('open');
       syncOverlayBodyScroll();
@@ -6610,6 +6808,7 @@ function renderTeamDetailsOverlay() {
     }
     overlay.classList.add('open');
     window.scrollTo(0, 0);
+    setTeamWorkspaceTab(teamWorkspaceHashTab());
     renderTeamCancelsTable();
     renderTeamPersonalGoalsTable();
     refreshTeamAttributions();
@@ -6622,6 +6821,14 @@ window.addEventListener('hashchange', renderTeamDetailsOverlay);
 document.getElementById('teamDetailsBtn').addEventListener('click', () => { location.hash = 'team-details'; });
 document.getElementById('teamDetailsBackBtn').addEventListener('click', () => {
   if (location.hash) history.back(); else { document.getElementById('teamDetailsOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
+});
+document.querySelectorAll('#teamWorkspaceTabs .workspace-tab').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const tab = btn.getAttribute('data-team-tab');
+    const hash = tab === 'goals' ? 'team-goals' : (tab === 'attr' ? 'team-attr' : 'team-details');
+    if (location.hash === '#' + hash) setTeamWorkspaceTab(tab);
+    else location.hash = hash;
+  });
 });
 
 // Walks every rep's raw ledger line items (the same `items` array Client
@@ -6933,6 +7140,7 @@ async function fetchLiveActuals() {
         (data.fetchedAt ? ` · synced ${new Date(data.fetchedAt).toLocaleTimeString()}` : '');
       statusEl.style.color = '#16a34a';
     }
+    prefetchAssembledForRebound();
     return actualsDigest(ACTUALS_CACHE) === prevDigest ? 'unchanged' : 'changed';
   } catch (e) {
     lastLiveActualsOk = false;
@@ -7295,7 +7503,9 @@ async function savePersonalGoalFromGate() {
     PERSONAL_GOALS_CACHE = data.goals || Object.assign({}, PERSONAL_GOALS_CACHE, { [rep]: data.goal });
     closePersonalGoalGate();
     renderClientDetail();
-    if (location.hash === '#team-details') renderTeamPersonalGoalsTable();
+    if (location.hash === '#team-details' || location.hash === '#team-goals' || location.hash === '#team-attr') {
+      renderTeamPersonalGoalsTable();
+    }
   } catch (e) {
     status.textContent = 'Error: ' + e.message;
   }
@@ -7435,7 +7645,7 @@ document.getElementById('personalGoalSideToggle').addEventListener('click', () =
   document.getElementById('personalGoalSideChevron').classList.toggle('collapsed', personalGoalSideCollapsed);
   document.getElementById('personalGoalSideContent').classList.toggle('collapsed', personalGoalSideCollapsed);
 });
-document.getElementById('teamPersonalGoalsBtn').addEventListener('click', () => { location.hash = 'team-details'; });
+document.getElementById('teamPersonalGoalsBtn').addEventListener('click', () => { location.hash = 'team-goals'; });
 
 // ---------- Role gates (signed-in email → admin-list / coach-list / rep email) ----------
 // ADMIN_EMAIL (Aaron) is always a full admin. Additional admins live in
@@ -7478,16 +7688,16 @@ function canViewConfidentialPayout(repDisplay) {
   return false;
 }
 
-/** Show/hide chrome that depends on the signed-in role (footer, Team Details). */
+/** Show/hide chrome that depends on the signed-in role (Team / Admin menus). */
 function syncRoleChrome() {
   const admin = canViewAdminTools();
   const team = canViewTeamDetails();
-  const teamDetailsBtnEl = document.getElementById('teamDetailsBtn');
-  if (teamDetailsBtnEl) teamDetailsBtnEl.style.display = team ? '' : 'none';
-  const teamGoalsBtn = document.getElementById('teamPersonalGoalsBtn');
-  if (teamGoalsBtn) teamGoalsBtn.style.display = team ? '' : 'none';
-  const footer = document.getElementById('adminFooterRow');
-  if (footer) footer.style.display = admin ? '' : 'none';
+  const teamMenu = document.getElementById('teamMenuWrap');
+  if (teamMenu) teamMenu.style.display = team ? '' : 'none';
+  const adminMenu = document.getElementById('adminMenuWrap');
+  if (adminMenu) adminMenu.style.display = admin ? '' : 'none';
+  const hint = document.getElementById('landingMenuHint');
+  if (hint) hint.style.display = (team || admin) ? '' : 'none';
   const shoutHist = document.getElementById('viewShoutoutHistoryLink');
   if (shoutHist) shoutHist.style.display = admin ? '' : 'none';
   syncAttrRepSelect();
