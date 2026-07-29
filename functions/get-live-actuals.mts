@@ -8,6 +8,7 @@ type LedgerRow = {
   manager_name: string;
   client_id: string;
   attribution_date: string;
+  occurred_at: string;
   members: number;
   sessions: number;
 };
@@ -17,7 +18,7 @@ type PerRep = {
   sessions: number;
   membersCancels: number;
   sessionsCancels: number;
-  items: { clientId: string; members: number; sessions: number; date: string }[];
+  items: { clientId: string; members: number; sessions: number; date: string; occurredAt?: string }[];
 };
 
 function safeEmail(email: string): string | null {
@@ -83,11 +84,13 @@ function buildActuals(
     bucket.sessions += s;
     if (m < 0) bucket.membersCancels += m;
     if (s < 0) bucket.sessionsCancels += s;
+    const occurredAt = String(row.occurred_at || "").trim();
     bucket.items.push({
       clientId: String(row.client_id || "").trim(),
       members: m,
       sessions: s,
       date: d,
+      ...(occurredAt ? { occurredAt } : {}),
     });
   }
 
@@ -180,6 +183,7 @@ select
   f.name as manager_name,
   a.client_id,
   (a.occurred_at at time zone 'UTC')::date::text as attribution_date,
+  (a.occurred_at at time zone 'UTC')::text as occurred_at,
   l.net_client_credit_amount::float8 as members,
   l.hours_amount::float8 as sessions
 from sales_attribution.rep_scores_ledger_entries l

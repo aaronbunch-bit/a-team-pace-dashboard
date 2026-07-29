@@ -1,24 +1,34 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
-import { requireAdmin } from "./_shared/access.mts";
-import { loadValidRepDisplays } from "./_shared/roster.mts";
+import { resolveAccess } from "./_shared/access.mts";
+import { loadValidRepDisplays, resolveEmailFromRepDisplay } from "./_shared/roster.mts";
 
-// Admin-only counterpart to submit-attribution.mts, for the "move a cancel
-// into Manual Attribution" flow on the Team Details page. The regular
-// submit-attribution.mts derives `repName` from the CALLER'S OWN identity
-// specifically so nobody can submit a request claiming to be a different rep.
-// This function is the one deliberate exception: a full admin (Aaron or anyone
-// on admin-list) explicitly picking which rep a cancel belongs to. Sales
-// Coaches stay read-only and cannot call this.
+// Two elevated submit paths share this endpoint:
+//   1) source: "cancel-conversion" — full admins only (Team Details cancel move)
+//   2) source: "on-behalf" — full admins OR Sales Coaches, picking a roster rep
+//      so they can submit Manual Attribution for someone else
+// Regular self-submit stays on submit-attribution.mts (caller = rep).
 export default async (req: Request, context: Context) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
   }
 
   const user = await getIdentityUser(req, context);
-  const denied = await requireAdmin(user);
-  if (denied) return denied;
+  if (!user?.email) {
+    return new Response(JSON.stringify({ error: "Not signed in" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const access = await resolveAccess(user.email);
+  if (!access) {
+    return new Response(JSON.stringify({ error: "Not signed in" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   let body: any;
   try {
@@ -27,23 +37,98 @@ export default async (req: Request, context: Context) => {
     return new Response(JSON.stringify({ error: "Invalid request body" }), { status: 400 });
   }
 
-  const { repName, clientId, members, sessions, saleDate, reason, comments } = body || {};
+  const source = String(body?.source || "cancel-conversion");
+  const isOnBehalf = source === "on-behalf";
+
+  if (isOnBehalf) {
+    if (!access.isFullAdmin && !access.isCoach) {
+      return new Response(
+        JSON.stringify({
+          error: `Admin or Sales Coach access required. Signed in as ${access.email}.`,
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  } else if (!access.isFullAdmin) {
+    return new Response(
+      JSON.stringify({
+        error: `Admin access required. Signed in as ${access.email}.`,
+      }),
+      { status: 403, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  const { repName, members, sessions } = body || {};
   const membersNum = Number(members) || 0;
   const sessionsNum = Number(sessions) || 0;
   const validReps = await loadValidRepDisplays();
   if (!repName || !validReps.has(String(repName))) {
-    return new Response(JSON.stringify({ error: "repName must be a current rep on the roster" }), { status: 400 });
+    return new Response(JSON.stringify({ error: "repName must be a current rep on the roster" }), {
+      status: 400,
+    });
   }
-  if (!clientId || (!membersNum && !sessionsNum) || !saleDate || !reason || !comments) {
+  if (!membersNum && !sessionsNum) {
     return new Response(
-      JSON.stringify({ error: "Missing required fields (clientId, members or sessions, saleDate, reason, comments)" }),
+      JSON.stringify({ error: "Missing required fields (members or sessions)" }),
+      { status: 400 }
+    );
+  }
+
+  const initiatedBy = String(user.email).toLowerCase();
+  const repEmail = await resolveEmailFromRepDisplay(String(repName));
+
+  if (isOnBehalf) {
+    const { clientLink, contact, adjustmentReason, comments } = body || {};
+    if (!clientLink || !adjustmentReason || !comments) {
+      return new Response(
+        JSON.stringify({
+          error: "Missing required fields (clientLink, adjustmentReason, comments)",
+        }),
+        { status: 400 }
+      );
+    }
+    const record = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      repEmail,
+      repName: String(repName),
+      clientLink: String(clientLink).trim(),
+      contact: contact ? String(contact).trim() : "",
+      members: membersNum,
+      sessions: sessionsNum,
+      adjustmentReason: String(adjustmentReason).trim(),
+      comments: String(comments).trim(),
+      saleDate: new Date().toISOString().slice(0, 10),
+      status: "pending",
+      submittedAt: new Date().toISOString(),
+      reviewedAt: null as string | null,
+      reviewedBy: null as string | null,
+      submittedByAdmin: access.isFullAdmin,
+      submittedOnBehalf: true,
+      initiatedBy,
+      source: "on-behalf",
+    };
+    const store = getStore("manual-attributions");
+    await store.setJSON(record.id, record);
+    return new Response(JSON.stringify({ ok: true, record }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  // Cancel → Manual Attribution conversion (legacy field names).
+  const { clientId, saleDate, reason, comments } = body || {};
+  if (!clientId || !saleDate || !reason || !comments) {
+    return new Response(
+      JSON.stringify({
+        error: "Missing required fields (clientId, members or sessions, saleDate, reason, comments)",
+      }),
       { status: 400 }
     );
   }
 
   const record = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    repEmail: null as string | null,
+    repEmail,
     repName: String(repName),
     clientId: String(clientId).trim(),
     members: membersNum,
@@ -56,7 +141,7 @@ export default async (req: Request, context: Context) => {
     reviewedAt: null as string | null,
     reviewedBy: null as string | null,
     submittedByAdmin: true,
-    initiatedBy: String(user.email).toLowerCase(),
+    initiatedBy,
     source: "cancel-conversion",
   };
 

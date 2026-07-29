@@ -258,6 +258,15 @@
   .personal-best-badge { color: #7c3aed; background: rgba(168,85,247,0.14); }
   .consistency-badge { color: #0284c7; background: rgba(2,132,199,0.14); }
   .first-to-100-badge { color: #b45309; background: rgba(217,119,6,0.14); }
+  .early-bird-badge { color: #0f766e; background: rgba(15,118,110,0.14); }
+  .rep-pace-meta {
+    display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 5px;
+    font-size: 11px; font-weight: 650; color: var(--text-faint);
+  }
+  .day-delta.up { color: #16a34a; }
+  .day-delta.down { color: #dc2626; }
+  .day-delta.flat { color: var(--text-faint); }
+  .pace-need { color: var(--text-muted); }
   /* Manually-assigned badges (see MANUAL_BADGE_OPTIONS) get their color inline
      per-option rather than a fixed class, since there are several of them. */
   .manual-badge { }
@@ -1233,18 +1242,7 @@
 
   <div id="repList"></div>
 
-  <div id="adminDataImportWrap" style="display:none;">
-    <div class="section-toggle" id="toggleData">▸ Update actuals from ledger export</div>
-    <div class="section-body" id="dataBody">
-      <div class="card">
-        <div class="meta-note" style="margin-top:0;">Live actuals now pull automatically from Supabase (<code>sales_attribution.rep_scores_ledger_entries</code>) every ~45s — including cancels/refunds as negatives. Use this CSV paste only as an emergency fallback if the live feed is down; a successful live poll will overwrite Blobs again.</div>
-        <textarea id="csvInput" placeholder="Paste ledger CSV here (emergency fallback)..."></textarea>
-        <button id="updateActuals">Update actuals from CSV</button>
-        <div class="meta-note" id="updateStatus"></div>
-        <div class="meta-note" id="liveActualsStatus" style="margin-top:8px;"></div>
-      </div>
-    </div>
-  </div>
+  <div class="meta-note" id="liveActualsStatus" style="margin:10px 0 0;"></div>
 
   <div class="admin-footer-row" id="adminFooterRow" style="display:none;">
     <button class="theme-btn" id="footerGoalsBtn" type="button">⚙️ Edit Monthly Goals</button>
@@ -1335,9 +1333,7 @@
           </div>
           <div id="rankSideContent" class="rank-side-content"></div>
           <div class="metrics-side-title" style="margin-top:14px; padding-top:12px; border-top:1px solid var(--divider);">📡 Live Metrics</div>
-          <div class="metrics-side-item"><span class="metrics-side-label">L7 pGC</span><span class="metrics-side-val">--</span></div>
-          <div class="metrics-side-item"><span class="metrics-side-label">L30 pGC</span><span class="metrics-side-val">--</span></div>
-          <div class="metrics-side-item"><span class="metrics-side-label">ESCVR</span><span class="metrics-side-val">--</span></div>
+          <div id="liveMetricsSideContent"></div>
           <div class="metrics-side-section-head" id="bonusSideToggle">
             <span class="metrics-side-title" style="margin-bottom:0;">💰 Bonus Payout</span>
             <span class="side-chevron" id="bonusSideChevron">▾</span>
@@ -1421,6 +1417,11 @@
     <div id="attributionSignedInArea" style="display:none;">
       <div class="card">
         <h2>New request</h2>
+        <label id="attrRepSelectWrap" style="display:none; margin-bottom:10px;">
+          Submit for
+          <select id="attrRepSelect"></select>
+          <div class="meta-note" style="margin:6px 0 0;">Admins and Sales Coaches can submit on behalf of any rep. The request still goes through normal pending → approval.</div>
+        </label>
         <div class="attribution-form-grid">
           <label>Client Page Link<input type="url" id="attrClientLink" placeholder="https://www.varsitytutors.com/clients/..."></label>
           <label><span class="has-tip" data-tip="From the page you had the conversation on">Phone Number / Email</span><input type="text" id="attrContact" placeholder="e.g. jane@company.com"></label>
@@ -1604,7 +1605,7 @@
         </div>
         <div class="meta-note" id="addLimitedAdminStatus"></div>
         <div id="limitedAdminList" style="margin-top:10px;"></div>
-        <div class="meta-note">Sales Coaches can open every Individual Pacer page — pacing %, Sessions/Members counts, sold vs. refunds — but never see Bonus Payout or historical $ SIP payout figures on someone else's page. If a coach is also a rep, they still see their own payout on their own Individual Pacer. They also get Team Details (read-only). This list is shared across every browser (Netlify Functions + Blobs). Coaches never get write access — converting cancels, editing goals/roster/actuals, and approving attributions stay full-admin only.</div>
+        <div class="meta-note">Sales Coaches can open every Individual Pacer page — pacing %, Sessions/Members counts, sold vs. refunds — but never see Bonus Payout or historical $ SIP payout figures on someone else's page. If a coach is also a rep, they still see their own payout on their own Individual Pacer. They also get Team Details (read-only) and can submit Manual Attribution on behalf of a rep. Converting cancels, editing goals/roster/actuals, and approving attributions stay full-admin only.</div>
       </div>
     </div>
 
@@ -2559,6 +2560,7 @@ function render() {
   repList.innerHTML = '';
   // Team-wide (not per-rep), so compute once outside the loop.
   const firstTo100Champion = isBadgeEnabled('firstTo100') ? getFirstTo100Champion() : null;
+  const earlyBirdChampion = isBadgeEnabled('earlyBird') ? getEarlyBirdChampion() : null;
   // Accordion: only one rep row open at a time. Scoped to this render() call
   // (not persisted across re-renders, since repList is rebuilt from scratch
   // every time anyway) — reset here, then tracked by each row's own click
@@ -2569,7 +2571,8 @@ function render() {
   sortedRepRows.forEach((row, order) => {
     const st = row.composite.nowSt;
     const uid = 'rep-' + order;
-    const badgesHTML = repEngagementBadgesHTML(row.rep.display, firstTo100Champion);
+    const badgesHTML = repEngagementBadgesHTML(row.rep.display, firstTo100Champion, earlyBirdChampion);
+    const paceMetaHTML = row.composite.goalIsZero ? '' : repPaceMetaHTML(row.rep.display);
     const card = document.createElement('div');
     card.className = 'card'
       + (newlyGoalMet.has(row.rep.display) ? ' goal-met-pulse' : '')
@@ -2588,6 +2591,7 @@ function render() {
             <div class="bar-fill${st.special ? ' bar-shimmer' : ''}" data-bar="${uid}" style="background:${st.barGrad};"></div>
             <div class="bar-tick has-tip" style="left:${Math.min(expectedPct,100)}%;" data-tip="Expected pace today — the % you'd need to have hit by now to land at exactly 100% by month end"></div>
               </div>
+          ${paceMetaHTML}
         </div>
         <div class="composite-num" data-num="${uid}">0%</div>
         <div class="chevron" data-chevron="${uid}">▶</div>
@@ -2900,29 +2904,99 @@ function computeMostImprovedTop3(period) {
 // as the glow/banner/popup above: none of them add permanent UI weight, they
 // only appear when a rep actually earns them.
 
-// Consecutive calendar days with at least one positive attribution (sale).
-// Distinct from Goal Met / First to 100% — this rewards daily selling activity,
-// not already being at 100% pacing. Walks backward from the most recent day
-// that had a positive line item.
+// Consecutive calendar days (current month) where the rep's composite % is at
+// or above that day's expected pace — i.e. pacing toward a 100%+ month end.
+// Distinct from Goal Met (already at 100% of goal) and from First to 100%.
 function computeCurrentStreak(repDisplay) {
+  const g = loadGoals()[repDisplay] || { sessions: 0, members: 0 };
+  if (!(g.members > 0) && !(g.sessions > 0)) return 0;
   const actuals = loadActuals();
-  const raw = (actuals.perRep && actuals.perRep[repDisplay]) || {};
-  const items = raw.items || [];
-  const positiveDays = new Set();
-  items.forEach((it) => {
-    if (!it || !it.date) return;
-    if ((Number(it.members) || 0) > 0 || (Number(it.sessions) || 0) > 0) {
-      positiveDays.add(it.date);
-    }
-  });
-  if (!positiveDays.size) return 0;
-  let cursor = [...positiveDays].sort().reverse()[0];
+  const asOf = actuals.asOf;
+  if (!asOf) return 0;
+  const monthKey = String(asOf).slice(0, 7);
+  let cursor = asOf;
   let streak = 0;
-  while (positiveDays.has(cursor)) {
+  while (String(cursor).slice(0, 7) === monthKey) {
+    const [y, m, d] = cursor.split('-').map(Number);
+    const expected = (d / daysInMonth(y, m)) * 100;
+    const pct = compositePctAsOf(repDisplay, cursor);
+    if (pct === null || pct < expected) break;
     streak += 1;
     cursor = shiftDateStr(cursor, -1);
   }
   return streak;
+}
+
+// Day-over-day composite % change (today vs yesterday), for the landing cards.
+function dayOverDayDelta(repDisplay) {
+  const asOf = loadActuals().asOf;
+  if (!asOf) return null;
+  const today = compositePctAsOf(repDisplay, asOf);
+  const yest = compositePctAsOf(repDisplay, shiftDateStr(asOf, -1));
+  if (today === null || yest === null) return null;
+  return today - yest;
+}
+
+// What the rep still needs to reach 100% composite attainment this month.
+function paceTo100Need(repDisplay) {
+  const pacing = computeRepPacing(repDisplay);
+  if (pacing.goalIsZero || pacing.current === null) return null;
+  if (pacing.current >= 100) return { done: true, gap: 0, memDelta: null, sesDelta: null };
+  const gap = 100 - pacing.current;
+  const both = !pacing.memMetric.goalIsZero && !pacing.sesMetric.goalIsZero;
+  return {
+    done: false,
+    gap,
+    memDelta: overtakeDeltaForMetric(pacing.memMetric, both, gap),
+    sesDelta: overtakeDeltaForMetric(pacing.sesMetric, both, gap),
+  };
+}
+
+function repPaceMetaHTML(repDisplay) {
+  const delta = dayOverDayDelta(repDisplay);
+  let deltaHTML = '';
+  if (delta !== null) {
+    const cls = delta > 0.05 ? 'up' : delta < -0.05 ? 'down' : 'flat';
+    const arrow = delta > 0.05 ? '▲' : delta < -0.05 ? '▼' : '●';
+    const sign = delta > 0 ? '+' : '';
+    deltaHTML = `<span class="day-delta ${cls} has-tip" data-tip="Composite pacing change since yesterday">${arrow} ${sign}${fmt(delta, 1)} pts today</span>`;
+  }
+  const need = paceTo100Need(repDisplay);
+  let needHTML = '';
+  if (need) {
+    if (need.done) {
+      needHTML = `<span class="pace-need has-tip" data-tip="Already at or above 100% of monthly goal">✓ At 100%+</span>`;
+    } else {
+      const parts = [];
+      if (need.memDelta != null) parts.push(`${need.memDelta} member${need.memDelta === 1 ? '' : 's'}`);
+      if (need.sesDelta != null) parts.push(`${need.sesDelta} session${need.sesDelta === 1 ? '' : 's'}`);
+      const tip = `${fmt(need.gap, 1)} pts still needed to hit 100% composite`;
+      needHTML = parts.length
+        ? `<span class="pace-need has-tip" data-tip="${tip}">Need ${parts.join(' or ')} to 100%</span>`
+        : `<span class="pace-need has-tip" data-tip="${tip}">${fmt(need.gap, 1)} pts to 100%</span>`;
+    }
+  }
+  if (!deltaHTML && !needHTML) return '';
+  return `<div class="rep-pace-meta">${deltaHTML}${needHTML}</div>`;
+}
+
+// First positive attribution of the current as-of day, team-wide (by occurredAt
+// when the live feed provides it; otherwise first in chronological item order).
+function getEarlyBirdChampion() {
+  const actuals = loadActuals();
+  const asOf = actuals.asOf;
+  if (!asOf) return null;
+  let best = null;
+  getRoster().forEach((r, rIdx) => {
+    const items = (actuals.perRep && actuals.perRep[r.display] && actuals.perRep[r.display].items) || [];
+    items.forEach((it, idx) => {
+      if (!it || it.date !== asOf) return;
+      if ((Number(it.members) || 0) <= 0 && (Number(it.sessions) || 0) <= 0) return;
+      const at = it.occurredAt || `${it.date}T${String(rIdx).padStart(3, '0')}${String(idx).padStart(5, '0')}`;
+      if (!best || at < best.at) best = { name: r.display, at };
+    });
+  });
+  return best ? best.name : null;
 }
 
 // "Comeback" = biggest recovery from this rep's own worst point so far this
@@ -2983,10 +3057,10 @@ function computePersonalBestFlag(repDisplay) {
 
 // "Steady" — On Track (80%+) or better on EVERY dated entry so far this
 // month, never dipping into Behind/Far Behind even for a day. Rewards
-// reliability specifically, as distinct from Streak (100%+ only, breaks the
-// moment you're merely on-track-but-not-ahead) and Personal Best (about
-// beating your own history, not about never having a bad day). Requires a
-// minimum number of active days so it can't fire trivially on day one or two.
+// reliability specifically, as distinct from the pacing streak (at/above
+// expected pace toward 100%+) and Personal Best (about beating your own
+// history, not about never having a bad day). Requires a minimum number of
+// active days so it can't fire trivially on day one or two.
 const CONSISTENCY_MIN_DAYS = 5;
 const CONSISTENCY_THRESHOLD = 80;
 function computeConsistencyFlag(repDisplay) {
@@ -3059,7 +3133,13 @@ function getFirstTo100Champion() {
 // (createCustomBadgeOption/deleteCustomBadgeOption/assignManualBadge/
 // removeManualBadge and the badge-toggle checkbox handler) became async
 // network calls.
-const DEFAULT_BADGE_TOGGLES = { streak: true, personalBest: true, consistency: true, firstTo100: true };
+const DEFAULT_BADGE_TOGGLES = {
+  streak: true,
+  personalBest: true,
+  consistency: true,
+  firstTo100: true,
+  earlyBird: true,
+};
 let BADGE_TOGGLES_CACHE = Object.assign({}, DEFAULT_BADGE_TOGGLES);
 function loadBadgeToggles() { return BADGE_TOGGLES_CACHE; }
 // Deleted preset keys (see deletePresetBadge below) always read as disabled,
@@ -3200,10 +3280,10 @@ function manualBadgesHTML(repDisplay) {
 // as new badges get added. `firstTo100Champion` is passed in (rather than
 // recomputed here) since it's team-wide and the landing page's forEach loop
 // already computes it once outside the per-rep work.
-function repEngagementBadgesHTML(repDisplay, firstTo100Champion) {
+function repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampion) {
   const streakDays = computeCurrentStreak(repDisplay);
   const streakBadge = (isBadgeEnabled('streak') && streakDays >= 3)
-    ? `<span class="engagement-badge streak-badge has-tip" data-tip="${streakDays} days in a row with a positive attribution">🔥 ${streakDays}d sales streak</span>`
+    ? `<span class="engagement-badge streak-badge has-tip" data-tip="${streakDays} days in a row pacing at or above expected pace (on track for 100%+ by month end)">🔥 ${streakDays}d pacing streak</span>`
     : '';
   const personalBestBadge = (isBadgeEnabled('personalBest') && computePersonalBestFlag(repDisplay))
     ? `<span class="engagement-badge personal-best-badge has-tip" data-tip="Projected to beat your best month ever, if this pace holds">🌟 Personal Best Pace</span>`
@@ -3211,10 +3291,13 @@ function repEngagementBadgesHTML(repDisplay, firstTo100Champion) {
   const consistencyBadge = (isBadgeEnabled('consistency') && computeConsistencyFlag(repDisplay))
     ? `<span class="engagement-badge consistency-badge has-tip" data-tip="On Track (80%+) or better every day this month — never once fell behind">🛡️ Steady</span>`
     : '';
-  const firstTo100Badge = repDisplay === firstTo100Champion
+  const firstTo100Badge = (isBadgeEnabled('firstTo100') && repDisplay === firstTo100Champion)
     ? `<span class="engagement-badge first-to-100-badge has-tip" data-tip="First on the team to hit 100%+ pacing this month">🥇 First to 100%</span>`
     : '';
-  return `${streakBadge}${personalBestBadge}${consistencyBadge}${firstTo100Badge}${manualBadgesHTML(repDisplay)}`;
+  const earlyBirdBadge = (isBadgeEnabled('earlyBird') && repDisplay === earlyBirdChampion)
+    ? `<span class="engagement-badge early-bird-badge has-tip" data-tip="First positive attribution on the team today">🐦 Early Bird</span>`
+    : '';
+  return `${streakBadge}${personalBestBadge}${consistencyBadge}${firstTo100Badge}${earlyBirdBadge}${manualBadgesHTML(repDisplay)}`;
 }
 
 // --- Weekly digest & other team-scale rotating header messages ------------
@@ -3440,10 +3523,11 @@ function renderMasterShoutoutLog() {
 // assignment list, both on Edit Monthly Goals. See BADGE_TOGGLES_CACHE /
 // MANUAL_BADGES_CACHE above.
 const BADGE_TOGGLE_META = [
-  { key: 'streak', emoji: '🔥', label: 'Sales streak (3+ days with a sale)', description: "Fires automatically once a rep has booked at least one positive attribution for 3 calendar days in a row — resets on the first day with no sale. Distinct from Goal Met." },
+  { key: 'streak', emoji: '🔥', label: 'Pacing streak (3+ days on pace to 100%+)', description: "Fires once a rep has been at or above expected daily pace for 3 calendar days in a row this month — on track for 100%+ by month end. Resets the first day they fall behind expected pace. Distinct from Goal Met." },
   { key: 'personalBest', emoji: '🌟', label: 'Personal Best Pace', description: "Awarded the moment a rep's current pace tops their own best day so far this month — always compared against themselves, never a teammate." },
   { key: 'consistency', emoji: '🛡️', label: 'Steady (consistency)', description: 'Recognizes a rep who has stayed at or above the consistency threshold every single tracked day this month — no dips, however small.' },
   { key: 'firstTo100', emoji: '🥇', label: 'First to 100%', description: "Goes to whoever's blended pacing crossed 100%+ earliest this month, team-wide. One winner, and it resets fresh at the start of each month." },
+  { key: 'earlyBird', emoji: '🐦', label: 'Early Bird', description: "Goes to whoever logged the team's first positive attribution of the current day. One winner per day; refreshes each morning." },
 ];
 // Single unified "Badge Bank" — every badge the dashboard knows about, one
 // place: the 4 automatic ones (computed from pacing, can't be assigned to
@@ -4116,30 +4200,6 @@ document.getElementById('limitedAdminList').addEventListener('click', async (e) 
     renderLimitedAdminList();
   } catch (err) {
     alert(err.message);
-    btn.disabled = false;
-  }
-});
-
-document.getElementById('updateActuals').addEventListener('click', async (e) => {
-  const text = document.getElementById('csvInput').value;
-  const statusEl = document.getElementById('updateStatus');
-  const btn = e.currentTarget;
-  btn.disabled = true;
-  try {
-    const newActuals = computeActualsFromCSV(text);
-    // importActuals() does the month-rollover prelim-snapshot comparison
-    // internally, then saves both in one authed network call — see its
-    // comment near ACTUALS_CACHE above. Requires real admin sign-in now
-    // (Aaron's instruction: the CSV import should be an Admin-only action).
-    await importActuals(newActuals);
-    statusEl.textContent = `Updated successfully. Data as of ${newActuals.asOf}.`;
-    statusEl.style.color = '#16a34a';
-    render();
-  } catch (e) {
-    console.error(e);
-    statusEl.textContent = 'Error: ' + e.message;
-    statusEl.style.color = '#dc2626';
-  } finally {
     btn.disabled = false;
   }
 });
@@ -5057,7 +5117,6 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('.header-dropdown')) return;
   document.querySelectorAll('.header-dropdown-menu.open').forEach(m => m.classList.remove('open'));
 });
-setupToggle('toggleData', 'dataBody', 'Update actuals from ledger export');
 setupToggle('toggleRemoved', 'removedBody', 'Removed people');
 setupToggle('toggleAdmin', 'adminBody', 'Admin access');
 setupToggle('toggleLimitedAdmin', 'limitedAdminBody', 'Sales Coach access');
@@ -5418,6 +5477,39 @@ function rankRowHTML(icon, label, standing) {
   return `<div class="metrics-side-item"><span class="metrics-side-label">${icon} ${label}</span><span class="metrics-side-val">${valLabel}</span></div>`;
 }
 
+// Membership refund rate from ledger items: |refunds| / (sold + |refunds|).
+// pGC / ESCVR stay placeholders until a confirmed per-rep source exists.
+function computeRefundRate(repDisplay, fromDate, toDate) {
+  const items = ((loadActuals().perRep || {})[repDisplay] || {}).items || [];
+  let sold = 0;
+  let refunded = 0;
+  items.forEach((it) => {
+    if (!it || !it.date) return;
+    if (fromDate && it.date < fromDate) return;
+    if (toDate && it.date > toDate) return;
+    const m = Number(it.members) || 0;
+    if (m > 0) sold += m;
+    else if (m < 0) refunded += Math.abs(m);
+  });
+  const gross = sold + refunded;
+  if (!(gross > 0)) return null;
+  return (refunded / gross) * 100;
+}
+
+function liveMetricsSideHTML(repDisplay) {
+  const asOf = loadActuals().asOf || '';
+  const l7From = asOf ? shiftDateStr(asOf, -6) : '';
+  const mtdRate = computeRefundRate(repDisplay, null, asOf);
+  const l7Rate = asOf ? computeRefundRate(repDisplay, l7From, asOf) : null;
+  const fmtRate = (v) => (v === null ? '—' : fmt(v, 1) + '%');
+  return `
+    <div class="metrics-side-item"><span class="metrics-side-label has-tip" data-tip="Per-rep pGC source not confirmed in Supabase yet">L7 pGC</span><span class="metrics-side-val">--</span></div>
+    <div class="metrics-side-item"><span class="metrics-side-label has-tip" data-tip="Per-rep pGC source not confirmed in Supabase yet">L30 pGC</span><span class="metrics-side-val">--</span></div>
+    <div class="metrics-side-item"><span class="metrics-side-label has-tip" data-tip="ESCVR not found in any searchable Supabase project">ESCVR</span><span class="metrics-side-val">--</span></div>
+    <div class="metrics-side-item"><span class="metrics-side-label has-tip" data-tip="Membership refunds ÷ (members sold + membership refunds) this month">Refund rate (MTD)</span><span class="metrics-side-val">${fmtRate(mtdRate)}</span></div>
+    <div class="metrics-side-item"><span class="metrics-side-label has-tip" data-tip="Same membership refund rate over the last 7 days through as-of">Refund rate (L7)</span><span class="metrics-side-val">${fmtRate(l7Rate)}</span></div>`;
+}
+
 // Content for the collapsible "Team Standings" sidebar section (collapsed by
 // default, same as Bonus Payout — see #rankSideToggle). Shows where this rep
 // stands in all 3 of the landing page's leaderboard categories (Pacing,
@@ -5731,7 +5823,9 @@ function detailRepMiniCardHTML(repDisplay) {
   const nowLabel = c.current === null ? '—' : fmt(c.current, 0) + '%';
   const projLabel = c.projected === null ? '—' : fmt(c.projected, 0) + '%';
   const firstTo100Champion = isBadgeEnabled('firstTo100') ? getFirstTo100Champion() : null;
-  const badgesHTML = repEngagementBadgesHTML(repDisplay, firstTo100Champion);
+  const earlyBirdChampion = isBadgeEnabled('earlyBird') ? getEarlyBirdChampion() : null;
+  const badgesHTML = repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampion);
+  const paceMetaHTML = c.goalIsZero ? '' : repPaceMetaHTML(repDisplay);
   // Subtle persistent glow — same "current Double Goal champion" check as the
   // landing page card, just a quieter animation since the banner above
   // already calls out the achievement (see .double-goal-glow-subtle).
@@ -5750,6 +5844,7 @@ function detailRepMiniCardHTML(repDisplay) {
             <div class="bar-fill${st.special ? ' bar-shimmer' : ''}" id="detailMiniBar" style="background:${st.barGrad};"></div>
             <div class="bar-tick has-tip" style="left:${Math.min(c.expectedPct,100)}%;" data-tip="Expected pace today — the % you'd need to have hit by now to land at exactly 100% by month end"></div>
           </div>
+          ${paceMetaHTML}
           <div class="mini-repcard-sub">Projected to land at ${projLabel}</div>
         </div>
         <div class="composite-num" id="detailMiniNum">0%</div>
@@ -5769,7 +5864,8 @@ function detailMiniHeaderHTML(repDisplay) {
   const st = c.nowSt;
   const nowLabel = c.current === null ? '—' : fmt(c.current, 0) + '%';
   const firstTo100Champion = isBadgeEnabled('firstTo100') ? getFirstTo100Champion() : null;
-  const badgesHTML = repEngagementBadgesHTML(repDisplay, firstTo100Champion);
+  const earlyBirdChampion = isBadgeEnabled('earlyBird') ? getEarlyBirdChampion() : null;
+  const badgesHTML = repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampion);
   const barWidth = c.current === null ? 0 : Math.min(c.current, 100);
   return `
     <div class="detail-mini-header-avatar" style="background:${grad};">${initials(repDisplay)}</div>
@@ -5843,6 +5939,8 @@ function renderClientDetail(opts) {
     document.getElementById('rankSideChevron').classList.toggle('collapsed', rankSideCollapsed);
     document.getElementById('rankSideContent').classList.toggle('collapsed', rankSideCollapsed);
     document.getElementById('rankSideContent').innerHTML = rankSideContentHTML(repName);
+    const liveMetricsEl = document.getElementById('liveMetricsSideContent');
+    if (liveMetricsEl) liveMetricsEl.innerHTML = liveMetricsSideHTML(repName);
     document.getElementById('detailPrelimBox').innerHTML = prelimBoxHTML(repName);
     document.getElementById('detailNetActuals').innerHTML = detailNetActualsHTML(pacing);
   }
@@ -6556,13 +6654,34 @@ document.getElementById('submitAttribution').addEventListener('click', async () 
     statusEl.style.color = '#dc2626';
     return;
   }
+  if (!(payload.members || payload.sessions)) {
+    statusEl.textContent = 'Enter sessions and/or members to credit.';
+    statusEl.style.color = '#dc2626';
+    return;
+  }
+  const onBehalf = canViewTeamDetails();
+  const selectedRep = onBehalf ? (document.getElementById('attrRepSelect').value || '') : '';
+  if (onBehalf && !selectedRep) {
+    statusEl.textContent = 'Select which rep this request is for.';
+    statusEl.style.color = '#dc2626';
+    return;
+  }
   try {
-    await authedFetch('/api/attributions/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    statusEl.textContent = 'Request submitted — pending admin approval.';
+    if (onBehalf) {
+      await submitAttributionAsAdmin({
+        ...payload,
+        repName: selectedRep,
+        source: 'on-behalf',
+      });
+      statusEl.textContent = `Request submitted for ${selectedRep} — pending admin approval.`;
+    } else {
+      await authedFetch('/api/attributions/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      statusEl.textContent = 'Request submitted — pending admin approval.';
+    }
     statusEl.style.color = '#16a34a';
     document.getElementById('attrClientLink').value = '';
     document.getElementById('attrContact').value = '';
@@ -6618,7 +6737,7 @@ function canViewConfidentialPayout(repDisplay) {
   return false;
 }
 
-/** Show/hide chrome that depends on the signed-in role (footer, CSV, Team Details). */
+/** Show/hide chrome that depends on the signed-in role (footer, Team Details). */
 function syncRoleChrome() {
   const admin = canViewAdminTools();
   const team = canViewTeamDetails();
@@ -6626,10 +6745,36 @@ function syncRoleChrome() {
   if (teamDetailsBtnEl) teamDetailsBtnEl.style.display = team ? '' : 'none';
   const footer = document.getElementById('adminFooterRow');
   if (footer) footer.style.display = admin ? '' : 'none';
-  const dataWrap = document.getElementById('adminDataImportWrap');
-  if (dataWrap) dataWrap.style.display = admin ? '' : 'none';
   const shoutHist = document.getElementById('viewShoutoutHistoryLink');
   if (shoutHist) shoutHist.style.display = admin ? '' : 'none';
+  syncAttrRepSelect();
+}
+
+function ownRepDisplayName() {
+  const email = currentUserEmail();
+  if (!email) return null;
+  const goals = loadGoals();
+  for (const r of getRoster()) {
+    const g = goals[r.display];
+    if (g && g.email && String(g.email).toLowerCase() === email) return r.display;
+  }
+  return null;
+}
+
+function syncAttrRepSelect() {
+  const wrap = document.getElementById('attrRepSelectWrap');
+  const sel = document.getElementById('attrRepSelect');
+  if (!wrap || !sel) return;
+  const canOnBehalf = canViewTeamDetails();
+  wrap.style.display = canOnBehalf ? '' : 'none';
+  if (!canOnBehalf) return;
+  const prev = sel.value;
+  const own = ownRepDisplayName();
+  const names = getRoster().map(r => r.display).sort((a, b) => a.localeCompare(b));
+  sel.innerHTML = '<option value="">Select a rep…</option>' +
+    names.map(n => `<option value="${n}">${n}${own === n ? ' (me)' : ''}</option>`).join('');
+  if (prev && names.includes(prev)) sel.value = prev;
+  else if (own) sel.value = own;
 }
 
 // Full-page Google login gate.

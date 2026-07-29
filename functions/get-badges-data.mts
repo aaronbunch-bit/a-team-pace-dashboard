@@ -11,7 +11,13 @@ import { getStore } from "@netlify/blobs";
 // of three separate calls, since the dashboard always needs all three together
 // on page load — mirrors the "one call on page load" shape get-dashboard-data
 // was scoped to in the original migration plan, just limited to badges here.
-const DEFAULT_TOGGLES = { streak: true, personalBest: true, consistency: true, firstTo100: true };
+const DEFAULT_TOGGLES = {
+  streak: true,
+  personalBest: true,
+  consistency: true,
+  firstTo100: true,
+  earlyBird: true,
+};
 
 export default async (req: Request, context: Context) => {
   const togglesStore = getStore("badge-toggles");
