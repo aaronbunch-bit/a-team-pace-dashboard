@@ -301,6 +301,55 @@
   .pace-need-item-val { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); }
   .pace-need-item-val.met { color: #16a34a; }
   .pace-need-item-sub { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+  .hat-trick-badge { color: #7c3aed; background: rgba(124,58,237,0.14); }
+  .rebound-badge { color: #0891b2; background: rgba(8,145,178,0.14); }
+  .after-dark-badge { color: #4f46e5; background: rgba(79,70,229,0.14); }
+  .best-pace-day-badge { color: #c026d3; background: rgba(192,38,211,0.14); }
+  .team-heat-meter {
+    margin: 10px 0 4px; padding: 10px 12px; border-radius: 12px;
+    border: 1px solid var(--card-border); background: var(--metric-box-bg);
+  }
+  .team-heat-meter-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px; margin-bottom: 6px; font-size: 11px; font-weight: 700;
+    color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .team-heat-meter-val { font-size: 13px; font-weight: 800; color: var(--text); text-transform: none; letter-spacing: 0; }
+  .team-heat-track {
+    position: relative; height: 10px; border-radius: 999px; overflow: hidden;
+    background: var(--bar-track, rgba(0,0,0,0.08));
+  }
+  .team-heat-fill { height: 100%; border-radius: 999px; transition: width 0.7s ease; }
+  .team-heat-tick {
+    position: absolute; top: -2px; bottom: -2px; width: 2px;
+    background: var(--text); opacity: 0.35; transform: translateX(-50%);
+  }
+  .lwom-mode-banner {
+    margin: 0 0 12px; padding: 10px 12px; border-radius: 10px;
+    background: linear-gradient(90deg, rgba(234,88,12,0.14), rgba(220,38,38,0.10));
+    border: 1px solid rgba(234,88,12,0.35);
+    font-size: 12.5px; font-weight: 700; color: var(--text);
+  }
+  .toast-stack {
+    position: fixed; right: 16px; bottom: 16px; z-index: 120;
+    display: flex; flex-direction: column; gap: 8px; max-width: min(340px, calc(100vw - 32px));
+    pointer-events: none;
+  }
+  .pace-toast {
+    pointer-events: auto; padding: 12px 14px; border-radius: 12px;
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    box-shadow: 0 10px 28px var(--shadow); font-size: 13px; font-weight: 650;
+    color: var(--text); animation: celebrationPopIn 0.35s ease;
+  }
+  .pace-toast-sub { display: block; margin-top: 3px; font-size: 11.5px; font-weight: 600; color: var(--text-muted); }
+  .personal-goal-side-content { margin-top: 8px; }
+  .personal-goal-side-content.collapsed { display: none; }
+  .personal-goal-gate-backdrop.open { display: flex; }
+  .personal-goal-progress-bar {
+    height: 8px; border-radius: 999px; background: var(--bar-track, rgba(0,0,0,0.08));
+    overflow: hidden; margin-top: 8px;
+  }
+  .personal-goal-progress-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg,#60a5fa,#6366f1); }
   /* Manually-assigned badges (see MANUAL_BADGE_OPTIONS) get their color inline
      per-option rather than a fixed class, since there are several of them. */
   .manual-badge { }
@@ -1211,11 +1260,13 @@
   <div class="landing-actions-row">
     <button class="theme-btn manual-attro-btn large" id="manualAttroBtn" type="button">📝 Manual Attribution</button>
     <button class="theme-btn large" id="teamDetailsBtn" type="button" style="display:none;">🗂️ View Team Details</button>
+    <button class="theme-btn large" id="teamPersonalGoalsBtn" type="button" style="display:none;">🎯 Team Goals</button>
     <button class="theme-btn large" id="shoutoutSendBtn" type="button">📣 Shoutout</button>
     <button class="theme-btn large" id="themeToggle" type="button">🌙 Dark</button>
   </div>
 
   <div class="pill-row" id="banner"></div>
+  <div id="teamHeatMeter" class="team-heat-meter" style="display:none;"></div>
 
   <!-- Two-column grid ends at the bottom of the team card — the leaderboard
        sidebar rides alongside A-Team Total only. Sort toggle + rep list live
@@ -1230,6 +1281,8 @@
           <button type="button" class="leaderboard-tab has-tip" data-board="pacers" data-tip="Highest Pacers">🔥</button>
           <button type="button" class="leaderboard-tab has-tip" data-board="members" data-tip="Most Members Sold">👥</button>
           <button type="button" class="leaderboard-tab has-tip" data-board="sessions" data-tip="Most Sessions Sold">📅</button>
+          <button type="button" class="leaderboard-tab has-tip" data-board="sprintM" data-tip="LWOM Sprint — Members (last 7 days)" id="sprintMembersTab" style="display:none;">🏁👥</button>
+          <button type="button" class="leaderboard-tab has-tip" data-board="sprintS" data-tip="LWOM Sprint — Sessions (last 7 days)" id="sprintSessionsTab" style="display:none;">🏁📅</button>
         </div>
         <div class="leaderboard-title" id="leaderboardActiveTitle"></div>
         <div class="leaderboard-list" id="lbActiveList"></div>
@@ -1308,6 +1361,7 @@
     <div class="detail-page-grid">
       <div class="detail-main-col">
         <div class="card" id="detailRestrictedNote" style="display:none;"></div>
+        <div id="lwomModeBanner" style="display:none;"></div>
         <div id="detailPacingRow"></div>
         <div id="doubleGoalBanner"></div>
         <div id="detailPrelimBox"></div>
@@ -1366,8 +1420,13 @@
             <span class="side-chevron" id="rankSideChevron">▾</span>
           </div>
           <div id="rankSideContent" class="rank-side-content"></div>
+          <div class="metrics-side-section-head" id="personalGoalSideToggle">
+            <span class="metrics-side-title" style="margin-bottom:0;">🎯 My Month Goal</span>
+            <span class="side-chevron" id="personalGoalSideChevron">▾</span>
+          </div>
+          <div id="personalGoalSideContent" class="personal-goal-side-content"></div>
           <div class="metrics-side-section-head" id="paceNeedSideToggle">
-            <span class="metrics-side-title" style="margin-bottom:0;">🎯 Still Needed</span>
+            <span class="metrics-side-title" style="margin-bottom:0;">📈 Still Needed</span>
             <span class="side-chevron" id="paceNeedSideChevron">▾</span>
           </div>
           <div id="paceNeedSideContent" class="pace-need-side-content"></div>
@@ -1535,6 +1594,16 @@
       </div>
       <div class="meta-note" id="teamCancelsEmpty" style="display:none;">No cancels in the current ledger.</div>
       <div class="meta-note">Every negative line item across every rep's actuals, newest first. "Move to Manual Attribution" pre-fills a correction request for whoever's cancel it is — the rep is locked so it can't accidentally land on the wrong person — then it goes through the normal pending → approval flow, same as any rep-submitted request.</div>
+    </div>
+    <div class="card" style="margin-top:12px;" id="teamPersonalGoalsCard">
+      <h2>🎯 Personal month goals — team</h2>
+      <div class="sip-table-wrap">
+        <table class="sip-table">
+          <thead><tr><th>Rep</th><th>Goal</th><th>Progress</th><th>Status</th></tr></thead>
+          <tbody id="teamPersonalGoalsBody"></tbody>
+        </table>
+      </div>
+      <div class="meta-note">Each rep sets their own stretch target for the month (attainment %, members, or sessions). Progress updates from live actuals. Reps who haven’t set a goal yet show as “Needs goal.”</div>
     </div>
     <div class="card" style="margin-top:12px;">
       <h2>Attributions — team-wide (positive &amp; negative adjustments)</h2>
@@ -1837,6 +1906,45 @@
     <button type="button" class="celebration-modal-mute" id="lwomPaceDismissToday">Don't show again today</button>
   </div>
 </div>
+
+<!-- Mandatory personal month-goal gate — blocks own Individual Pacer until set. -->
+<div class="celebration-modal-backdrop personal-goal-gate-backdrop" id="personalGoalGateBackdrop">
+  <div class="celebration-modal" style="text-align:left; max-width:420px;">
+    <div class="celebration-modal-emoji" style="text-align:center;">🎯</div>
+    <div class="celebration-modal-title" style="text-align:center;">Set your month goal</div>
+    <div class="celebration-modal-body" style="margin-bottom:12px;">
+      Pick a personal target for this month. Your Individual Pacer unlocks once it’s set — coaches can see everyone’s goals on Team Goals.
+    </div>
+    <label style="display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em; margin-bottom:10px;">
+      Goal type
+      <select id="personalGoalKind" style="text-transform:none; font-weight:600; font-size:13px; padding:8px 10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg); color:var(--text);">
+        <option value="compositePct">Composite attainment %</option>
+        <option value="members">Members (units)</option>
+        <option value="sessions">Sessions (units)</option>
+      </select>
+    </label>
+    <label style="display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+      Target
+      <input type="number" id="personalGoalTarget" step="1" min="1" placeholder="e.g. 115" style="padding:8px 10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg); color:var(--text); font-size:14px; font-weight:700;">
+    </label>
+    <div class="meta-note" id="personalGoalGateHint" style="margin-top:8px;">Tip: 100 = full goal, 115 = Level 2 stretch.</div>
+    <button type="button" class="celebration-modal-close" id="personalGoalGateSave" style="margin-top:14px;">Lock in my goal 🔒</button>
+    <div class="meta-note" id="personalGoalGateStatus"></div>
+  </div>
+</div>
+
+<!-- Early-month ramp check (day 5 / day 10). -->
+<div class="celebration-modal-backdrop" id="rampCheckBackdrop">
+  <div class="celebration-modal">
+    <div class="celebration-modal-emoji">🚦</div>
+    <div class="celebration-modal-title" id="rampCheckTitle">Ramp check</div>
+    <div class="celebration-modal-body" id="rampCheckBody"></div>
+    <button type="button" class="celebration-modal-close" id="rampCheckClose">Got it</button>
+    <button type="button" class="celebration-modal-mute" id="rampCheckDismissToday">Don't show again today</button>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
 <!-- Netlify Identity: visitors sign in with Google (@varsitytutors.com). They do
@@ -2704,7 +2812,31 @@ function render() {
   renderLeaderboards(repRows);
   renderImprovedBoards();
   renderGoalsForm(goals);
+  renderTeamHeatMeter(teamComposite, expectedPct);
   syncLandingGridHeight();
+}
+
+function renderTeamHeatMeter(teamComposite, expectedPct) {
+  const el = document.getElementById('teamHeatMeter');
+  if (!el) return;
+  if (!teamComposite || teamComposite.goalIsZero || teamComposite.current === null) {
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+  const pct = teamComposite.current;
+  const width = Math.max(0, Math.min(pct, 100));
+  const st = teamComposite.nowSt;
+  el.style.display = '';
+  el.innerHTML = `
+    <div class="team-heat-meter-head">
+      <span>🔥 Team heat</span>
+      <span class="team-heat-meter-val">${fmt(pct, 1)}% of goal · expected ${fmt(expectedPct, 1)}%</span>
+    </div>
+    <div class="team-heat-track">
+      <div class="team-heat-fill" style="width:${width}%; background:${st.barGrad};"></div>
+      <div class="team-heat-tick has-tip" style="left:${Math.min(expectedPct, 100)}%;" data-tip="Expected pace today"></div>
+    </div>`;
 }
 
 // .landing-side-col is absolutely positioned out of normal flow (see its CSS
@@ -2742,11 +2874,13 @@ const LEADERBOARD_META = {
   pacers: { title: '🔥 Highest Pacers' },
   members: { title: '👥 Most Members Sold' },
   sessions: { title: '📅 Most Sessions Sold' },
+  sprintM: { title: '🏁 Sprint — Members (LWOM)' },
+  sprintS: { title: '🏁 Sprint — Sessions (LWOM)' },
 };
 // Cached so switching tabs re-displays instantly off already-computed data
 // instead of re-running render() (which would restart every other animation
 // on the page too).
-let lbBoardsCache = { pacers: [], members: [], sessions: [] };
+let lbBoardsCache = { pacers: [], members: [], sessions: [], sprintM: [], sprintS: [] };
 // Keyed per listId, but there's only ever one active list element now
 // (#lbActiveList) — kept as a map (not a single counter) in case that ever
 // changes again, and because it's the same pattern used elsewhere in this
@@ -2769,6 +2903,26 @@ function computeLeaderboardTop3(repRows, valueFn) {
     .slice(0, 3);
 }
 
+function lwomSprintWindow() {
+  const asOf = loadActuals().asOf;
+  if (!asOf || !isLastWeekOfMonth(asOf)) return null;
+  const [y, m, d] = asOf.split('-').map(Number);
+  const dim = daysInMonth(y, m);
+  const startDay = dim - 6;
+  return {
+    from: `${y}-${String(m).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`,
+    to: asOf,
+  };
+}
+function sprintUnitsInWindow(repDisplay, key, from, to) {
+  const items = ((loadActuals().perRep || {})[repDisplay] || {}).items || [];
+  return items.reduce((sum, it) => {
+    if (!it || !it.date || it.date < from || it.date > to) return sum;
+    const v = Number(it[key]) || 0;
+    return sum + (v > 0 ? v : 0);
+  }, 0);
+}
+
 function renderLeaderboards(repRows) {
   lbBoardsCache.pacers = computeLeaderboardTop3(repRows, row => row.composite.goalIsZero ? null : row.composite.current)
     .map(item => ({ ...item, valLabel: `${fmt(item.val, 0)}%` }));
@@ -2779,6 +2933,25 @@ function renderLeaderboards(repRows) {
     .map(item => ({ ...item, valLabel: fmt(item.val, 1) }));
   lbBoardsCache.sessions = computeLeaderboardTop3(repRows, row => row.a.sessions)
     .map(item => ({ ...item, valLabel: fmt(item.val, 1) }));
+
+  const sprint = lwomSprintWindow();
+  const sprintMTab = document.getElementById('sprintMembersTab');
+  const sprintSTab = document.getElementById('sprintSessionsTab');
+  if (sprintMTab) sprintMTab.style.display = sprint ? '' : 'none';
+  if (sprintSTab) sprintSTab.style.display = sprint ? '' : 'none';
+  if (sprint) {
+    lbBoardsCache.sprintM = computeLeaderboardTop3(repRows, row => sprintUnitsInWindow(row.rep.display, 'members', sprint.from, sprint.to))
+      .map(item => ({ ...item, valLabel: fmt(item.val, 1) }));
+    lbBoardsCache.sprintS = computeLeaderboardTop3(repRows, row => sprintUnitsInWindow(row.rep.display, 'sessions', sprint.from, sprint.to))
+      .map(item => ({ ...item, valLabel: fmt(item.val, 1) }));
+  } else {
+    lbBoardsCache.sprintM = [];
+    lbBoardsCache.sprintS = [];
+    if (leaderboardTab === 'sprintM' || leaderboardTab === 'sprintS') {
+      leaderboardTab = 'pacers';
+      saveJSON(LEADERBOARD_TAB_KEY, leaderboardTab);
+    }
+  }
 
   syncLeaderboardTabButtons();
   displayLeaderboardTab();
@@ -3227,6 +3400,10 @@ const DEFAULT_BADGE_TOGGLES = {
   consistency: true,
   firstTo100: true,
   earlyBird: true,
+  hatTrick: true,
+  rebound: true,
+  afterDark: true,
+  bestPaceDay: true,
 };
 let BADGE_TOGGLES_CACHE = Object.assign({}, DEFAULT_BADGE_TOGGLES);
 function loadBadgeToggles() { return BADGE_TOGGLES_CACHE; }
@@ -3368,6 +3545,53 @@ function manualBadgesHTML(repDisplay) {
 // as new badges get added. `firstTo100Champion` is passed in (rather than
 // recomputed here) since it's team-wide and the landing page's forEach loop
 // already computes it once outside the per-rep work.
+function countPositiveSalesOnDate(repDisplay, dateStr) {
+  const items = ((loadActuals().perRep || {})[repDisplay] || {}).items || [];
+  return items.filter((it) => it && it.date === dateStr && ((Number(it.members) || 0) > 0 || (Number(it.sessions) || 0) > 0)).length;
+}
+function hasHatTrickToday(repDisplay) {
+  const asOf = loadActuals().asOf;
+  return !!asOf && countPositiveSalesOnDate(repDisplay, asOf) >= 3;
+}
+function hasReboundToday(repDisplay) {
+  const asOf = loadActuals().asOf;
+  if (!asOf) return false;
+  const yest = shiftDateStr(asOf, -1);
+  return countPositiveSalesOnDate(repDisplay, yest) === 0 && countPositiveSalesOnDate(repDisplay, asOf) > 0;
+}
+function hasAfterDarkToday(repDisplay) {
+  const asOf = loadActuals().asOf;
+  if (!asOf) return false;
+  const items = ((loadActuals().perRep || {})[repDisplay] || {}).items || [];
+  return items.some((it) => {
+    if (!it || it.date !== asOf || !it.occurredAt) return false;
+    if ((Number(it.members) || 0) <= 0 && (Number(it.sessions) || 0) <= 0) return false;
+    const hour = Number(String(it.occurredAt).slice(11, 13));
+    return Number.isFinite(hour) && hour >= 17;
+  });
+}
+// Biggest single-day composite jump this month (day 8+ only). Badge if today's
+// jump is that personal best and positive.
+function hasBestPaceDay(repDisplay) {
+  const asOf = loadActuals().asOf;
+  if (!asOf) return false;
+  const dayNum = Number(String(asOf).slice(8, 10));
+  if (!(dayNum > 7)) return false;
+  const monthKey = String(asOf).slice(0, 7);
+  let bestJump = 0;
+  let todayJump = null;
+  for (let d = 8; d <= dayNum; d++) {
+    const dateStr = `${monthKey}-${String(d).padStart(2, '0')}`;
+    const prev = compositePctAsOf(repDisplay, shiftDateStr(dateStr, -1));
+    const cur = compositePctAsOf(repDisplay, dateStr);
+    if (prev === null || cur === null) continue;
+    const jump = cur - prev;
+    if (jump > bestJump) bestJump = jump;
+    if (dateStr === asOf) todayJump = jump;
+  }
+  return todayJump !== null && bestJump > 0.05 && todayJump >= bestJump - 0.0001;
+}
+
 function repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampion) {
   const streakDays = computeCurrentStreak(repDisplay);
   const streakBadge = (isBadgeEnabled('streak') && streakDays >= 3)
@@ -3385,7 +3609,19 @@ function repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampi
   const earlyBirdBadge = (isBadgeEnabled('earlyBird') && repDisplay === earlyBirdChampion)
     ? `<span class="engagement-badge early-bird-badge has-tip" data-tip="First positive attribution on the team today">🐦 Early Bird</span>`
     : '';
-  return `${streakBadge}${personalBestBadge}${consistencyBadge}${firstTo100Badge}${earlyBirdBadge}${manualBadgesHTML(repDisplay)}`;
+  const hatTrickBadge = (isBadgeEnabled('hatTrick') && hasHatTrickToday(repDisplay))
+    ? `<span class="engagement-badge hat-trick-badge has-tip" data-tip="3+ positive attributions today — resets tomorrow">🎩 Hat Trick</span>`
+    : '';
+  const reboundBadge = (isBadgeEnabled('rebound') && hasReboundToday(repDisplay))
+    ? `<span class="engagement-badge rebound-badge has-tip" data-tip="Sale today after a zero-sale day yesterday">🏀 Rebound</span>`
+    : '';
+  const afterDarkBadge = (isBadgeEnabled('afterDark') && hasAfterDarkToday(repDisplay))
+    ? `<span class="engagement-badge after-dark-badge has-tip" data-tip="Positive attribution after 5:00 PM today">🌙 After Dark</span>`
+    : '';
+  const bestPaceDayBadge = (isBadgeEnabled('bestPaceDay') && hasBestPaceDay(repDisplay))
+    ? `<span class="engagement-badge best-pace-day-badge has-tip" data-tip="Biggest single-day pacing jump so far this month (after day 7)">⚡ Best Pace Day</span>`
+    : '';
+  return `${streakBadge}${personalBestBadge}${consistencyBadge}${firstTo100Badge}${earlyBirdBadge}${hatTrickBadge}${reboundBadge}${afterDarkBadge}${bestPaceDayBadge}${manualBadgesHTML(repDisplay)}`;
 }
 
 // --- Weekly digest & other team-scale rotating header messages ------------
@@ -3484,14 +3720,44 @@ function daysLeftMiniHTML(dim, d, monthName) {
 // always playing back in the same order (the date/pace readout that used to
 // anchor this slot now lives statically in the header's middle instead — see
 // .mini-header-datepace).
+function heatMilestoneMiniHTML(teamExpectedPct, teamCurrentPct) {
+  if (teamExpectedPct == null || teamCurrentPct == null) return null;
+  const milestones = [50, 80, 100];
+  const hit = milestones.filter((m) => teamCurrentPct >= m).pop();
+  if (!hit) return null;
+  return `<span>🔥 Team heat hit <b>${hit}%</b> of monthly goal — keep the fire going</span>`;
+}
+function noOneLeftBehindMiniHTML(eligible, expectedPct) {
+  if (!eligible.length || !(expectedPct > 0)) return null;
+  const allOnPace = eligible.every((r) => r.composite.current != null && r.composite.current >= expectedPct);
+  if (!allOnPace) return null;
+  return `<span>🤝 <b>No one left behind</b> — every active rep is On Pace today</span>`;
+}
+
 function buildMiniHeaderMessages({ repRows, eligible, topRow, dim, d, monthName }) {
+  const expectedPct = (d / dim) * 100;
+  let teamCurrent = null;
+  {
+    let mA = 0, mG = 0, sA = 0, sG = 0;
+    repRows.forEach((r) => {
+      if (r.composite.goalIsZero) return;
+      mA += r.a.members; mG += r.g.members;
+      sA += r.a.sessions; sG += r.g.sessions;
+    });
+    const memPct = mG > 0 ? (mA / mG) * 100 : null;
+    const sesPct = sG > 0 ? (sA / sG) * 100 : null;
+    const parts = [memPct, sesPct].filter((v) => v !== null);
+    teamCurrent = parts.length ? parts.reduce((s, v) => s + v, 0) / parts.length : null;
+  }
   const candidates = [
     weeklyDigestMiniHTML(),
     topPacerMiniHTML(topRow),
-    reposOnPaceMiniHTML(eligible, (d / dim) * 100),
+    reposOnPaceMiniHTML(eligible, expectedPct),
     firstTo100MiniHTML(),
     mostImprovedMiniHTML(),
     daysLeftMiniHTML(dim, d, monthName),
+    heatMilestoneMiniHTML(expectedPct, teamCurrent),
+    noOneLeftBehindMiniHTML(eligible, expectedPct),
   ].filter(Boolean);
   for (let i = candidates.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -3612,10 +3878,14 @@ function renderMasterShoutoutLog() {
 // MANUAL_BADGES_CACHE above.
 const BADGE_TOGGLE_META = [
   { key: 'streak', emoji: '🔥', label: 'Pacing streak (3+ days on pace to 100%+)', description: "Fires once a rep has been at or above expected daily pace for 3 calendar days in a row this month — on track for 100%+ by month end. Resets the first day they fall behind expected pace. Distinct from Goal Met." },
-  { key: 'personalBest', emoji: '🌟', label: 'Personal Best Pace', description: "Awarded the moment a rep's current pace tops their own best day so far this month — always compared against themselves, never a teammate." },
+  { key: 'personalBest', emoji: '🌟', label: 'Personal Best Pace', description: "Awarded the moment a rep's current pace tops their own best month ever — always compared against themselves, never a teammate." },
   { key: 'consistency', emoji: '🛡️', label: 'Steady (consistency)', description: 'Recognizes a rep who has stayed at or above the consistency threshold every single tracked day this month — no dips, however small.' },
   { key: 'firstTo100', emoji: '🥇', label: 'First to 100%', description: "Goes to whoever's blended pacing crossed 100%+ earliest this month, team-wide. One winner, and it resets fresh at the start of each month." },
   { key: 'earlyBird', emoji: '🐦', label: 'Early Bird', description: "Goes to whoever logged the team's first positive attribution of the current day. One winner per day; refreshes each morning." },
+  { key: 'hatTrick', emoji: '🎩', label: 'Hat Trick (3+ sales today)', description: 'Daily badge for anyone with 3+ positive attribution line items today. Resets every morning.' },
+  { key: 'rebound', emoji: '🏀', label: 'Rebound', description: 'Fires when a rep gets a positive sale today after a zero-sale day yesterday — back on the board.' },
+  { key: 'afterDark', emoji: '🌙', label: 'After Dark', description: 'Anyone with a positive attribution after 5:00 PM (from ledger time) today. Night-shift closer energy.' },
+  { key: 'bestPaceDay', emoji: '⚡', label: 'Best Pace Day', description: "Today is this rep's biggest single-day composite jump so far this month. Does not apply in the first 7 days of the month." },
 ];
 // Single unified "Badge Bank" — every badge the dashboard knows about, one
 // place: the 4 automatic ones (computed from pacing, can't be assigned to
@@ -6075,7 +6345,7 @@ function renderClientDetail(opts) {
 
   const allowed = canViewClientDetail(repName);
   const restrictedNote = document.getElementById('detailRestrictedNote');
-  const bodyEls = ['detailPacingRow', 'doubleGoalBanner', 'metricsStyleToggleWrap', 'detailPrelimBox', 'detailSummary', 'detailNetActuals', 'detailContent', 'clientDetailHistoryBlock']
+  const bodyEls = ['lwomModeBanner', 'detailPacingRow', 'doubleGoalBanner', 'metricsStyleToggleWrap', 'detailPrelimBox', 'detailSummary', 'detailNetActuals', 'detailContent', 'clientDetailHistoryBlock']
     .map(id => document.getElementById(id)).filter(Boolean);
   if (!allowed) {
     restrictedNote.style.display = '';
@@ -6089,6 +6359,30 @@ function renderClientDetail(opts) {
 
   {
     const pacing = computeRepPacing(repName);
+    // Own Individual Pacer stays locked until a personal month goal is set.
+    const gated = needsPersonalGoalGate(repName);
+    if (gated) {
+      openPersonalGoalGate(repName);
+      bodyEls.forEach((el) => { if (el.id !== 'metricsStyleToggleWrap') el.style.display = 'none'; });
+      document.getElementById('metricsStyleToggleWrap').style.display = 'none';
+      document.getElementById('detailMiniHeader').innerHTML = '';
+      if (!preserveScroll) window.scrollTo(0, 0);
+      return;
+    }
+    closePersonalGoalGate();
+    const lwomBanner = document.getElementById('lwomModeBanner');
+    if (lwomBanner) {
+      if (isLastWeekOfMonth(loadActuals().asOf)) {
+        const [y, m, d] = loadActuals().asOf.split('-').map(Number);
+        const left = Math.max(daysInMonth(y, m) - d, 0);
+        lwomBanner.style.display = '';
+        lwomBanner.className = 'lwom-mode-banner';
+        lwomBanner.textContent = `🏁 Last week of the month — ${left} day${left === 1 ? '' : 's'} left. Sprint boards are live on the landing page.`;
+      } else {
+        lwomBanner.style.display = 'none';
+        lwomBanner.textContent = '';
+      }
+    }
     document.getElementById('detailPacingRow').innerHTML = detailRepMiniCardHTML(repName);
     document.getElementById('detailMiniHeader').innerHTML = detailMiniHeaderHTML(repName);
     document.getElementById('doubleGoalBanner').innerHTML =
@@ -6104,9 +6398,18 @@ function renderClientDetail(opts) {
     // live refreshes so an open Individual Pacer doesn't re-flash every poll.
     const anyCelebrationOpen =
       document.getElementById('celebrationModalBackdrop').classList.contains('open') ||
-      document.getElementById('shoutoutCelebrationBackdrop').classList.contains('open');
+      document.getElementById('shoutoutCelebrationBackdrop').classList.contains('open') ||
+      document.getElementById('personalGoalGateBackdrop').classList.contains('open');
     if (!preserveScroll && !anyCelebrationOpen) {
       maybeShowLwomPacePopup(repName);
+    }
+    if (!preserveScroll && !anyCelebrationOpen && !document.getElementById('lwomPaceBackdrop').classList.contains('open')) {
+      maybeShowRampCheck(repName);
+    }
+    if (!preserveScroll) {
+      maybeTradeUpToast(repName);
+      maybeMilestoneUnlockToast(repName);
+      maybeLockInCelebration(repName);
     }
     animateBarWidth(document.getElementById('detailMiniBar'), pacing.current ?? 0, 50);
     if (pacing.goalIsZero) {
@@ -6117,6 +6420,9 @@ function renderClientDetail(opts) {
     document.getElementById('rankSideChevron').classList.toggle('collapsed', rankSideCollapsed);
     document.getElementById('rankSideContent').classList.toggle('collapsed', rankSideCollapsed);
     document.getElementById('rankSideContent').innerHTML = rankSideContentHTML(repName);
+    document.getElementById('personalGoalSideChevron').classList.toggle('collapsed', personalGoalSideCollapsed);
+    document.getElementById('personalGoalSideContent').classList.toggle('collapsed', personalGoalSideCollapsed);
+    document.getElementById('personalGoalSideContent').innerHTML = personalGoalSideHTML(repName);
     document.getElementById('paceNeedSideChevron').classList.toggle('collapsed', paceNeedSideCollapsed);
     document.getElementById('paceNeedSideContent').classList.toggle('collapsed', paceNeedSideCollapsed);
     document.getElementById('paceNeedSideContent').innerHTML = detailPaceNeedHTML(repName);
@@ -6305,6 +6611,7 @@ function renderTeamDetailsOverlay() {
     overlay.classList.add('open');
     window.scrollTo(0, 0);
     renderTeamCancelsTable();
+    renderTeamPersonalGoalsTable();
     refreshTeamAttributions();
   } else {
     overlay.classList.remove('open');
@@ -6890,6 +7197,246 @@ document.getElementById('submitAttribution').addEventListener('click', async () 
   }
 });
 
+// ---------- Personal month goals (rep-set stretch targets) ----------
+let PERSONAL_GOALS_CACHE = {}; // { [repDisplay]: { kind, target, setAt, setBy } } for live month
+let PERSONAL_GOALS_MONTH = '';
+const PERSONAL_GOAL_SIDE_COLLAPSED_KEY = 'pace_dashboard_personal_goal_side_collapsed_v1';
+let personalGoalSideCollapsed = loadJSON(PERSONAL_GOAL_SIDE_COLLAPSED_KEY, false);
+
+function liveMonthKey() {
+  return String((loadActuals().asOf || new Date().toISOString().slice(0, 10))).slice(0, 7);
+}
+function getPersonalGoal(repDisplay) {
+  return PERSONAL_GOALS_CACHE[repDisplay] || null;
+}
+async function fetchPersonalGoals() {
+  try {
+    const month = liveMonthKey();
+    const res = await fetch('/api/personal-goals?month=' + encodeURIComponent(month), { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    PERSONAL_GOALS_MONTH = data.month || month;
+    PERSONAL_GOALS_CACHE = data.goals || {};
+  } catch (e) {
+    console.warn('Could not load personal goals', e);
+  }
+}
+function personalGoalProgress(repDisplay) {
+  const goal = getPersonalGoal(repDisplay);
+  if (!goal) return null;
+  const pacing = computeRepPacing(repDisplay);
+  let current = null;
+  let unit = '';
+  if (goal.kind === 'compositePct') {
+    current = pacing.current;
+    unit = '%';
+  } else if (goal.kind === 'members') {
+    current = pacing.memMetric.actual;
+    unit = ' members';
+  } else if (goal.kind === 'sessions') {
+    current = pacing.sesMetric.actual;
+    unit = ' sessions';
+  }
+  if (current === null || current === undefined) return { goal, current: null, pct: null, unit, met: false };
+  const pct = goal.target > 0 ? (current / goal.target) * 100 : null;
+  return { goal, current, pct, unit, met: current >= goal.target };
+}
+function personalGoalLabel(goal) {
+  if (!goal) return '—';
+  if (goal.kind === 'compositePct') return `${fmt(goal.target, 0)}% attainment`;
+  if (goal.kind === 'members') return `${fmt(goal.target, goal.target % 1 ? 1 : 0)} members`;
+  if (goal.kind === 'sessions') return `${fmt(goal.target, goal.target % 1 ? 1 : 0)} sessions`;
+  return String(goal.target);
+}
+function personalGoalSideHTML(repDisplay) {
+  const progress = personalGoalProgress(repDisplay);
+  if (!progress) {
+    return `<div class="meta-note" style="margin-top:0;">No personal month goal set yet.</div>`;
+  }
+  const { goal, current, pct, unit, met } = progress;
+  const curLabel = current === null ? '—' : (goal.kind === 'compositePct' ? fmt(current, 1) + '%' : fmt(current, 1) + unit);
+  const width = pct === null ? 0 : Math.max(0, Math.min(pct, 100));
+  return `
+    <div class="metrics-side-item"><span class="metrics-side-label">Target</span><span class="metrics-side-val">${personalGoalLabel(goal)}</span></div>
+    <div class="metrics-side-item"><span class="metrics-side-label">Current</span><span class="metrics-side-val">${curLabel}</span></div>
+    <div class="metrics-side-item"><span class="metrics-side-label">Progress</span><span class="metrics-side-val">${met ? '✓ Met' : (pct === null ? '—' : fmt(pct, 0) + '%')}</span></div>
+    <div class="personal-goal-progress-bar"><div class="personal-goal-progress-fill" style="width:${width}%;"></div></div>`;
+}
+function needsPersonalGoalGate(repDisplay) {
+  return ownRepDisplayName() === repDisplay && !getPersonalGoal(repDisplay);
+}
+function openPersonalGoalGate(repDisplay) {
+  const backdrop = document.getElementById('personalGoalGateBackdrop');
+  if (!backdrop) return;
+  backdrop.dataset.rep = repDisplay;
+  document.getElementById('personalGoalKind').value = 'compositePct';
+  document.getElementById('personalGoalTarget').value = '115';
+  document.getElementById('personalGoalGateStatus').textContent = '';
+  backdrop.classList.add('open');
+}
+function closePersonalGoalGate() {
+  document.getElementById('personalGoalGateBackdrop').classList.remove('open');
+}
+async function savePersonalGoalFromGate() {
+  const backdrop = document.getElementById('personalGoalGateBackdrop');
+  const status = document.getElementById('personalGoalGateStatus');
+  const rep = backdrop.dataset.rep || ownRepDisplayName();
+  const kind = document.getElementById('personalGoalKind').value;
+  const target = parseFloat(document.getElementById('personalGoalTarget').value);
+  if (!rep) { status.textContent = 'Could not resolve your rep profile.'; return; }
+  if (!(target > 0)) { status.textContent = 'Enter a positive target.'; return; }
+  status.textContent = 'Saving…';
+  try {
+    const data = await authedFetch('/api/personal-goals/set', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rep, kind, target, month: liveMonthKey() }),
+    });
+    PERSONAL_GOALS_CACHE = data.goals || Object.assign({}, PERSONAL_GOALS_CACHE, { [rep]: data.goal });
+    closePersonalGoalGate();
+    renderClientDetail();
+    if (location.hash === '#team-details') renderTeamPersonalGoalsTable();
+  } catch (e) {
+    status.textContent = 'Error: ' + e.message;
+  }
+}
+function renderTeamPersonalGoalsTable() {
+  const tbody = document.getElementById('teamPersonalGoalsBody');
+  if (!tbody) return;
+  const rows = getRoster().map((r) => {
+    const progress = personalGoalProgress(r.display);
+    if (!progress) {
+      return `<tr><td>${r.display}</td><td colspan="2" style="color:var(--text-faint);">Needs goal</td><td><span class="status-pill small st-behind">Unset</span></td></tr>`;
+    }
+    const { goal, current, pct, unit, met } = progress;
+    const curLabel = current === null ? '—' : (goal.kind === 'compositePct' ? fmt(current, 1) + '%' : fmt(current, 1) + unit);
+    const progLabel = met ? '✓ Met' : (pct === null ? '—' : fmt(pct, 0) + '% of target');
+    const status = met
+      ? '<span class="status-pill small st-gradient">Met</span>'
+      : (pct != null && pct >= 80
+        ? '<span class="status-pill small st-ontrack">On track</span>'
+        : '<span class="status-pill small st-behind">Chasing</span>');
+    return `<tr>
+      <td>${r.display}</td>
+      <td>${personalGoalLabel(goal)}</td>
+      <td>${curLabel} · ${progLabel}</td>
+      <td>${status}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = rows.join('') || `<tr><td colspan="4" style="text-align:center; color:var(--text-faint); padding:16px 0;">No roster yet.</td></tr>`;
+}
+
+// ---------- Lightweight engagement toasts / early-month ramp / lock-in ----------
+function showPaceToast(title, sub) {
+  const stack = document.getElementById('toastStack');
+  if (!stack) return;
+  const el = document.createElement('div');
+  el.className = 'pace-toast';
+  el.innerHTML = `${title}${sub ? `<span class="pace-toast-sub">${sub}</span>` : ''}`;
+  stack.appendChild(el);
+  setTimeout(() => { el.remove(); }, 5200);
+}
+function maybeTradeUpToast(repDisplay) {
+  if (ownRepDisplayName() !== repDisplay) return;
+  const pacing = computeRepPacing(repDisplay);
+  if (pacing.goalIsZero || !pacing.nowSt) return;
+  const key = 'pace_dashboard_tradeup_tier_v1';
+  const prev = loadJSON(key, {});
+  const month = liveMonthKey();
+  const prevCls = prev[repDisplay + ':' + month] || '';
+  const curCls = pacing.nowSt.cls;
+  const wasBehind = prevCls === 'st-behind' || prevCls === 'st-far';
+  const nowUp = curCls === 'st-ahead' || curCls === 'st-ontrack' || curCls === 'st-gradient';
+  if (wasBehind && nowUp) {
+    showPaceToast('📈 Trade-up!', `You moved from behind to ${pacing.nowSt.label}.`);
+  }
+  prev[repDisplay + ':' + month] = curCls;
+  saveJSON(key, prev);
+}
+function maybeMilestoneUnlockToast(repDisplay) {
+  if (ownRepDisplayName() !== repDisplay) return;
+  const pacing = computeRepPacing(repDisplay);
+  if (pacing.goalIsZero || pacing.current === null) return;
+  const key = 'pace_dashboard_milestones_seen_v1';
+  const seen = loadJSON(key, {});
+  const month = liveMonthKey();
+  const bucket = seen[repDisplay + ':' + month] || [];
+  const marks = [80, 100, 115, 150];
+  marks.forEach((m) => {
+    if (pacing.current >= m && !bucket.includes(m)) {
+      bucket.push(m);
+      showPaceToast(`🏆 Milestone unlocked: ${m}%`, 'Composite attainment vs your monthly goal.');
+    }
+  });
+  seen[repDisplay + ':' + month] = bucket;
+  saveJSON(key, seen);
+}
+const RAMP_DISMISS_KEY = 'pace_dashboard_ramp_dismissed_v1';
+function maybeShowRampCheck(repDisplay) {
+  if (ownRepDisplayName() !== repDisplay) return;
+  const asOf = loadActuals().asOf;
+  if (!asOf) return;
+  const day = Number(String(asOf).slice(8, 10));
+  if (day !== 5 && day !== 10) return;
+  const dismissed = loadJSON(RAMP_DISMISS_KEY, {});
+  if (dismissed[repDisplay] === asOf) return;
+  if (document.getElementById('celebrationModalBackdrop').classList.contains('open')) return;
+  if (document.getElementById('shoutoutCelebrationBackdrop').classList.contains('open')) return;
+  if (document.getElementById('lwomPaceBackdrop').classList.contains('open')) return;
+  if (document.getElementById('personalGoalGateBackdrop').classList.contains('open')) return;
+  const pacing = computeRepPacing(repDisplay);
+  if (pacing.goalIsZero || pacing.current === null) return;
+  const expected = pacing.expectedPct;
+  const firstName = repDisplay.split(' ')[0];
+  const backdrop = document.getElementById('rampCheckBackdrop');
+  document.getElementById('rampCheckTitle').textContent = `Day ${day} ramp check, ${firstName}`;
+  if (pacing.current >= expected) {
+    document.getElementById('rampCheckBody').textContent =
+      `Nice — you're at ${fmt(pacing.current, 0)}% vs ${fmt(expected, 0)}% expected. Protect the lead this week.`;
+  } else {
+    const gap = expected - pacing.current;
+    document.getElementById('rampCheckBody').textContent =
+      `You're at ${fmt(pacing.current, 0)}% vs ${fmt(expected, 0)}% expected (${fmt(gap, 1)} pts behind). A strong week here sets up the month.`;
+  }
+  backdrop.dataset.rep = repDisplay;
+  backdrop.dataset.asOf = asOf;
+  backdrop.classList.add('open');
+}
+function maybeLockInCelebration(repDisplay) {
+  if (ownRepDisplayName() !== repDisplay) return;
+  if (!isLastWeekOfMonth(loadActuals().asOf)) return;
+  if (!hasDoubleGoal(repDisplay)) return;
+  const key = 'pace_dashboard_lockin_seen_v1';
+  const seen = loadJSON(key, {});
+  const stamp = repDisplay + ':' + liveMonthKey();
+  if (seen[stamp]) return;
+  seen[stamp] = true;
+  saveJSON(key, seen);
+  showPaceToast('🔒 Lock-in!', 'Both Members and Sessions at 100%+ in the last week — month secured. Finish strong.');
+}
+
+document.getElementById('personalGoalGateSave').addEventListener('click', savePersonalGoalFromGate);
+document.getElementById('rampCheckClose').addEventListener('click', () => {
+  document.getElementById('rampCheckBackdrop').classList.remove('open');
+});
+document.getElementById('rampCheckDismissToday').addEventListener('click', () => {
+  const backdrop = document.getElementById('rampCheckBackdrop');
+  const map = loadJSON(RAMP_DISMISS_KEY, {});
+  map[backdrop.dataset.rep || ''] = backdrop.dataset.asOf || loadActuals().asOf;
+  saveJSON(RAMP_DISMISS_KEY, map);
+  backdrop.classList.remove('open');
+});
+document.getElementById('rampCheckBackdrop').addEventListener('click', (e) => {
+  if (e.target.id === 'rampCheckBackdrop') e.currentTarget.classList.remove('open');
+});
+document.getElementById('personalGoalSideToggle').addEventListener('click', () => {
+  personalGoalSideCollapsed = !personalGoalSideCollapsed;
+  saveJSON(PERSONAL_GOAL_SIDE_COLLAPSED_KEY, personalGoalSideCollapsed);
+  document.getElementById('personalGoalSideChevron').classList.toggle('collapsed', personalGoalSideCollapsed);
+  document.getElementById('personalGoalSideContent').classList.toggle('collapsed', personalGoalSideCollapsed);
+});
+document.getElementById('teamPersonalGoalsBtn').addEventListener('click', () => { location.hash = 'team-details'; });
+
 // ---------- Role gates (signed-in email → admin-list / coach-list / rep email) ----------
 // ADMIN_EMAIL (Aaron) is always a full admin. Additional admins live in
 // ADMIN_LIST_CACHE (admin-list Blobs). Sales Coaches live in COACH_LIST_CACHE
@@ -6937,6 +7484,8 @@ function syncRoleChrome() {
   const team = canViewTeamDetails();
   const teamDetailsBtnEl = document.getElementById('teamDetailsBtn');
   if (teamDetailsBtnEl) teamDetailsBtnEl.style.display = team ? '' : 'none';
+  const teamGoalsBtn = document.getElementById('teamPersonalGoalsBtn');
+  if (teamGoalsBtn) teamGoalsBtn.style.display = team ? '' : 'none';
   const footer = document.getElementById('adminFooterRow');
   if (footer) footer.style.display = admin ? '' : 'none';
   const shoutHist = document.getElementById('viewShoutoutHistoryLink');
@@ -7256,9 +7805,15 @@ setGoogleButtonState({ disabled: true, label: 'Checking sign-in…' });
 async function boot() {
   // Shared Blobs GETs first (roster/goals/fallback actuals), then prefer live
   // Supabase ledger actuals when the connector is configured.
-  const [approved] = await Promise.all([fetchApprovedTotals(), fetchBadgesData(), fetchShoutouts(), fetchDashboardData()]);
+  const [approved] = await Promise.all([
+    fetchApprovedTotals(),
+    fetchBadgesData(),
+    fetchShoutouts(),
+    fetchDashboardData(),
+  ]);
   APPROVED_TOTALS = approved;
   await fetchLiveActuals();
+  await fetchPersonalGoals();
   render();
   initSip();
   renderClientDetail();
