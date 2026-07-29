@@ -26,6 +26,7 @@ export default async (req: Request, context: Context) => {
 
   const rep = String(body?.rep || "").trim();
   const text = String(body?.text || "").trim();
+  const hidden = !!body?.hidden;
   if (!rep || !text) {
     return new Response(JSON.stringify({ error: "Pick a teammate and write a quick message first" }), { status: 400 });
   }
@@ -42,6 +43,7 @@ export default async (req: Request, context: Context) => {
     id,
     rep,
     text,
+    hidden,
     date: now.toISOString().slice(0, 10),
     createdAt: now.toISOString(),
     fromEmail: email,
@@ -51,7 +53,10 @@ export default async (req: Request, context: Context) => {
   await store.setJSON(id, record);
 
   return new Response(
-    JSON.stringify({ ok: true, shoutout: { id, text, date: record.date, from: fromDisplayName } }),
+    JSON.stringify({
+      ok: true,
+      shoutout: { id, text, date: record.date, from: fromDisplayName, hidden },
+    }),
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
 };

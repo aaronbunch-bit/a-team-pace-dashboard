@@ -508,6 +508,10 @@
   .detail-header-pace .detail-mini-header-badges {
     display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   }
+  .detail-header-pace-sub {
+    flex: 1 1 100%;
+    font-size: 11.5px; font-weight: 600; color: var(--text-faint);
+  }
 
   .view-menu-section {
     font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
@@ -515,59 +519,137 @@
   }
   .view-menu-btn.active-chrome { border-color: var(--text-faint); box-shadow: 0 0 0 1px var(--text-faint); }
 
-  .pace-watch-panel {
-    display: none; margin-top: 10px; padding: 10px 12px; border-radius: 14px;
+  /* Stack: team total stays expanded — no collapse. */
+  body[data-layout="split-stack"] .team-card > .rep-header .chevron { display: none !important; }
+  body[data-layout="split-stack"] .team-card > .rep-header { cursor: default; }
+  body[data-layout="split-stack"] .team-card > .details-wrapper[data-wrapper="team"] {
+    grid-template-rows: 1fr !important;
+  }
+
+  /* Culture column: Finish line + Quiet flex + Shoutout Wall + daily quote */
+  .culture-side {
+    display: none; margin-top: 10px;
+  }
+  body[data-layout="split"] .culture-side,
+  body[data-layout="split-panel"] .culture-side,
+  body[data-layout="split-stack"] .culture-side,
+  body[data-layout="split-rail"] .culture-side { display: block; }
+  body.culture-side-hidden .culture-side-body { display: none; }
+  .culture-side-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    margin: 0 0 8px;
+  }
+  .culture-side-head h3 {
+    margin: 0; font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--text-faint);
+  }
+  .culture-hide-btn {
+    background: transparent; border: 1px solid var(--card-border); color: var(--text-muted);
+    border-radius: 999px; padding: 3px 10px; font-size: 10.5px; font-weight: 700; cursor: pointer;
+  }
+  .culture-hide-btn:hover { color: var(--text); }
+  .culture-card {
+    margin-top: 10px; padding: 12px 14px; border-radius: 14px;
     background: var(--card-bg); border: 1px solid var(--card-border);
     box-shadow: 0 2px 10px var(--shadow);
   }
-  body[data-layout="split"] .pace-watch-panel,
-  body[data-layout="split-panel"] .pace-watch-panel,
-  body[data-layout="split-stack"] .pace-watch-panel,
-  body[data-layout="split-rail"] .pace-watch-panel { display: block; }
-  .team-pulse-panel {
-    display: none; margin-top: 10px; padding: 10px 12px; border-radius: 14px;
-    background: var(--card-bg); border: 1px solid var(--card-border);
-    box-shadow: 0 2px 10px var(--shadow);
-  }
-  body[data-layout="split"] .team-pulse-panel,
-  body[data-layout="split-panel"] .team-pulse-panel,
-  body[data-layout="split-stack"] .team-pulse-panel,
-  body[data-layout="split-rail"] .team-pulse-panel { display: block; }
-  .team-pulse-title {
+  .culture-card:first-child { margin-top: 0; }
+  .culture-card-title {
     font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
     color: var(--text-faint); margin: 0 0 8px;
   }
-  .team-pulse-grid {
+  .finish-line-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
   }
-  .team-pulse-stat {
+  .finish-line-stat {
     padding: 8px 10px; border-radius: 10px; background: var(--metric-box-bg);
     border: 1px solid var(--divider);
   }
-  .team-pulse-stat b {
+  .finish-line-stat.full { grid-column: 1 / -1; }
+  .finish-line-stat b {
     display: block; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text);
   }
-  .team-pulse-stat span {
+  .finish-line-stat span {
     font-size: 10.5px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em;
   }
-  /* Stack: team total stays expanded — no collapse. */
-  body[data-layout="split-stack"] .team-card .chevron { display: none !important; }
-  body[data-layout="split-stack"] .team-card .rep-header { cursor: default; }
-  body[data-layout="split-stack"] .team-card .details-wrapper {
-    grid-template-rows: 1fr !important;
+  .quiet-flex-body {
+    font-size: 13px; line-height: 1.45; color: var(--text); font-weight: 600;
   }
-  .pace-watch-title {
-    font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
-    color: var(--text-faint); margin: 0 0 8px;
+  .quiet-flex-body strong { font-weight: 800; }
+  .quiet-flex-delta { font-variant-numeric: tabular-nums; }
+  .quiet-flex-delta.up { color: #16a34a; }
+  .quiet-flex-delta.down { color: #dc2626; }
+  .quiet-flex-delta.flat { color: var(--text-muted); }
+  .shoutout-wall-item {
+    padding: 8px 0; border-top: 1px solid var(--divider);
   }
-  .pace-watch-row {
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    padding: 5px 0; border-top: 1px solid var(--divider); font-size: 12.5px; font-weight: 700;
+  .shoutout-wall-item:first-child { border-top: 0; padding-top: 0; }
+  .shoutout-wall-meta {
+    font-size: 10.5px; font-weight: 700; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 3px;
   }
-  .pace-watch-row:first-of-type { border-top: 0; }
-  .pace-watch-name { color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pace-watch-val { font-variant-numeric: tabular-nums; color: var(--text-muted); flex: none; }
-  .pace-watch-empty { font-size: 12px; color: var(--text-faint); font-weight: 600; }
+  .shoutout-wall-text {
+    font-size: 12.5px; line-height: 1.4; color: var(--text); font-weight: 600;
+  }
+  .shoutout-wall-empty {
+    text-align: center; padding: 6px 4px 2px;
+  }
+  .shoutout-wall-empty p {
+    margin: 0 0 10px; font-size: 12.5px; line-height: 1.45; color: var(--text-muted); font-weight: 600;
+  }
+  .shoutout-wall-empty .theme-btn { width: 100%; justify-content: center; }
+  .daily-quote-card {
+    background:
+      linear-gradient(135deg, rgba(244,114,182,0.12), rgba(99,102,241,0.14) 55%, rgba(56,189,248,0.12)),
+      var(--card-bg);
+  }
+  .daily-quote-text {
+    margin: 0; font-size: 13px; line-height: 1.45; color: var(--text); font-weight: 600;
+    font-style: italic;
+  }
+  .daily-quote-meta {
+    margin: 8px 0 0; font-size: 10.5px; font-weight: 700; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  body[data-layout^="split"] .pill-row:empty { display: none; }
+
+  .goal-style-toggle {
+    display: flex; gap: 4px; flex-wrap: wrap; margin: 0 0 8px;
+  }
+  .goal-style-btn {
+    background: var(--metric-box-bg); color: var(--text-muted); border: 1px solid var(--card-border);
+    border-radius: 999px; padding: 3px 9px; font-size: 10.5px; font-weight: 700; cursor: pointer;
+  }
+  .goal-style-btn.active { color: var(--text); border-color: var(--text-faint); background: var(--card-bg); }
+  .personal-goal-compact {
+    font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.4;
+  }
+  .personal-goal-compact .meta-note { margin-top: 4px; }
+  .personal-goal-meter .personal-goal-progress-bar { margin-top: 8px; }
+  .personal-goal-card {
+    padding: 10px 12px; border-radius: 12px; background: var(--metric-box-bg);
+    border: 1px solid var(--divider);
+  }
+  .personal-goal-card .goal-card-target {
+    font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text);
+  }
+  .personal-goal-card .goal-card-status {
+    margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--text-muted);
+  }
+  .detail-grid-2 {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start;
+  }
+  @media (max-width: 980px) { .detail-grid-2 { grid-template-columns: 1fr; } }
+  .detail-panel-myattr { margin-top: 14px; }
+  .session-view-as { display: none; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .session-view-as.show { display: flex; }
+  .session-view-as select.sip-select { min-width: 160px; margin: 0; font-size: 12px; padding: 4px 8px; }
+  .session-view-as .view-as-label { font-size: 11.5px; font-weight: 700; color: var(--text-faint); }
+  .session-viewing-pill {
+    display: none; font-size: 11.5px; font-weight: 700; color: #7c3aed;
+    background: rgba(124,58,237,0.12); border-radius: 999px; padding: 3px 10px;
+  }
+  .session-viewing-pill.show { display: inline-flex; }
 
   .lwom-board-sub {
     display: none; font-size: 11px; font-weight: 600; color: var(--text-faint); margin: -2px 0 8px;
@@ -1847,13 +1929,30 @@
         <div class="improved-sublabel" id="improvedActiveTitle"></div>
         <div class="leaderboard-list improved-list" id="improvedActiveList"></div>
       </div>
-      <div class="team-pulse-panel" id="teamPulsePanel">
-        <div class="team-pulse-title">Team pulse</div>
-        <div class="team-pulse-grid" id="teamPulseGrid"></div>
-      </div>
-      <div class="pace-watch-panel" id="paceWatchPanel">
-        <div class="pace-watch-title">Needs a push</div>
-        <div id="paceWatchList"></div>
+      <div class="culture-side" id="cultureSide">
+        <div class="culture-side-head">
+          <h3>Today</h3>
+          <button type="button" class="culture-hide-btn" id="cultureHideBtn">Hide</button>
+        </div>
+        <div class="culture-side-body" id="cultureSideBody">
+          <div class="culture-card" id="finishLineCard">
+            <div class="culture-card-title">Finish line</div>
+            <div class="finish-line-grid" id="finishLineGrid"></div>
+          </div>
+          <div class="culture-card" id="quietFlexCard">
+            <div class="culture-card-title">Quiet flex</div>
+            <div class="quiet-flex-body" id="quietFlexBody"></div>
+          </div>
+          <div class="culture-card" id="shoutoutWallCard">
+            <div class="culture-card-title">Shoutout wall</div>
+            <div id="shoutoutWallBody"></div>
+          </div>
+          <div class="culture-card daily-quote-card" id="dailyQuoteCard">
+            <div class="culture-card-title">Quote of the day</div>
+            <p class="daily-quote-text" id="dailyQuoteText"></p>
+            <div class="daily-quote-meta" id="dailyQuoteMeta"></div>
+          </div>
+        </div>
       </div>
     </div>
     </div>
@@ -1883,6 +1982,12 @@
   <div class="session-bar" data-session-bar aria-live="polite">
     <span class="session-label">Signed in:</span>
     <span class="session-email"></span>
+    <span class="session-viewing-pill" data-viewing-pill></span>
+    <span class="session-view-as" data-view-as>
+      <span class="view-as-label">View as</span>
+      <select class="sip-select" data-view-as-select aria-label="View as rep"></select>
+      <button type="button" class="identity-btn" data-view-as-revert>Revert to admin</button>
+    </span>
     <button type="button" class="identity-btn" data-identity-btn>Sign out</button>
   </div>
   </div>
@@ -1920,6 +2025,11 @@
         <div class="pacer-insight-strip" id="pacerInsightStrip">
           <div class="pacer-insight-block">
             <h3>🎯 My Month Goal</h3>
+            <div class="goal-style-toggle" id="goalStyleToggle" role="group" aria-label="Goal card style">
+              <button type="button" class="goal-style-btn" data-goal-style="compact">Compact</button>
+              <button type="button" class="goal-style-btn" data-goal-style="meter">Meter</button>
+              <button type="button" class="goal-style-btn" data-goal-style="card">Card</button>
+            </div>
             <div id="personalGoalSideContent" class="personal-goal-side-content"></div>
           </div>
           <div class="pacer-insight-block">
@@ -1936,7 +2046,7 @@
         <div id="detailContent">
           <div class="pacer-section-label">Activity</div>
           <div class="detail-stats" id="detailStats"></div>
-          <div class="detail-grid-3">
+          <div class="detail-grid-2">
             <div class="detail-panel">
               <div class="detail-panel-head">
                 <span class="detail-panel-title">✅ Attributions</span>
@@ -1961,19 +2071,19 @@
                 </table>
               </div>
             </div>
-            <div class="detail-panel detail-panel-myattr">
-              <div class="detail-panel-head">
-                <span class="detail-panel-title">📝 Manual Attributions</span>
-                <span class="detail-panel-count" id="detailMyAttrCount"></span>
-              </div>
-              <div class="sip-table-wrap detail-table-wrap">
-                <table class="sip-table detail-table">
-                  <thead><tr><th>Client</th><th>Sessions</th><th>Members</th><th>Reason</th><th>Status</th></tr></thead>
-                  <tbody id="detailMyAttrBody"></tbody>
-                </table>
-              </div>
-              <div class="meta-note" id="detailMyAttrStatus" style="margin-top:6px;"></div>
+          </div>
+          <div class="detail-panel detail-panel-myattr">
+            <div class="detail-panel-head">
+              <span class="detail-panel-title">📝 Manual Attributions</span>
+              <span class="detail-panel-count" id="detailMyAttrCount"></span>
             </div>
+            <div class="sip-table-wrap detail-table-wrap">
+              <table class="sip-table detail-table">
+                <thead><tr><th>Client</th><th>Sessions</th><th>Members</th><th>Reason</th><th>Status</th></tr></thead>
+                <tbody id="detailMyAttrBody"></tbody>
+              </table>
+            </div>
+            <div class="meta-note" id="detailMyAttrStatus" style="margin-top:6px;"></div>
           </div>
         </div>
         </div>
@@ -2455,6 +2565,10 @@
       <label style="display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
         Message
         <textarea id="shoutoutSendText" placeholder="Tell them why you're shouting them out..." style="min-height:70px;"></textarea>
+      </label>
+      <label style="display:flex; align-items:flex-start; gap:8px; margin-top:12px; font-size:12.5px; font-weight:650; color:var(--text-muted); text-transform:none; letter-spacing:0; cursor:pointer;">
+        <input type="checkbox" id="shoutoutSendHidden" style="margin-top:2px;">
+        <span>Keep private — hide from the Shoutout Wall (recipient still sees it)</span>
       </label>
     </div>
     <button type="button" class="celebration-modal-close" id="shoutoutSendSubmit">Send Shoutout 📣</button>
@@ -3320,7 +3434,11 @@ function render() {
   const titleMonthEl = document.getElementById('titleMonth');
   if (titleMonthEl) titleMonthEl.textContent = monthName;
 
-  document.getElementById('banner').innerHTML = `
+  // Finish line card owns day/expected/as-of on Split layouts that show the
+  // culture column — keep Classic's banner pills so OG stays intact.
+  const layoutNow = document.body.dataset.layout || 'classic';
+  const finishLineOwnsBanner = isSplitLayout(layoutNow);
+  document.getElementById('banner').innerHTML = finishLineOwnsBanner ? '' : `
     <div class="pill">Data as of <b>${actuals.asOf}</b>${lastLiveActualsOk ? ' · live' : ''}</div>
     <div class="pill">Day <b>${d}</b> of ${dim} · ${monthName}</div>
     <div class="pill">Expected pace <b>${expectedPct.toFixed(1)}%</b></div>
@@ -3549,6 +3667,7 @@ function render() {
   renderLeaderboards(repRows);
   renderImprovedBoards();
   renderGoalsForm(goals);
+  renderCultureSide(repRows, teamComposite, expectedPct, actuals.asOf, monthName, d, dim);
   syncLandingGridHeight();
   forceStackTeamExpanded();
   requestAnimationFrame(() => {
@@ -3645,7 +3764,7 @@ function sprintUnitsInWindow(repDisplay, key, from, to) {
 }
 
 function renderLeaderboards(repRows) {
-  const topN = isSplitLayout(document.body.dataset.layout) ? 5 : 3;
+  const topN = 3;
   lbBoardsCache.pacers = computeLeaderboardTop3(repRows, row => row.composite.goalIsZero ? null : row.composite.current, topN)
     .map(item => ({ ...item, valLabel: `${fmt(item.val, 0)}%` }));
   // No unit words in the value pill ("341.3" not "341.3 sessions") — the board
@@ -3711,47 +3830,147 @@ function displayLeaderboardTab() {
   }
   animateLeaderboard('lbActiveList', lbBoardsCache[leaderboardTab], leaderboardTab);
 }
-function renderPaceWatch(repRows) {
-  const host = document.getElementById('paceWatchList');
-  const pulse = document.getElementById('teamPulseGrid');
-  const rows = repRows || [];
-  if (pulse) {
-    let onPace = 0, behind = 0, goalMet = 0, tracked = 0;
-    rows.forEach((row) => {
-      if (!row || !row.composite || row.composite.goalIsZero) return;
-      tracked += 1;
-      const cur = row.composite.current ?? 0;
-      const exp = row.composite.expectedPct ?? 0;
-      if (cur >= 100) goalMet += 1;
-      if (cur >= exp) onPace += 1;
-      else behind += 1;
-    });
-    pulse.innerHTML = `
-      <div class="team-pulse-stat"><b>${tracked}</b><span>With goals</span></div>
-      <div class="team-pulse-stat"><b>${goalMet}</b><span>Goal met</span></div>
-      <div class="team-pulse-stat"><b>${onPace}</b><span>On pace</span></div>
-      <div class="team-pulse-stat"><b>${behind}</b><span>Behind</span></div>`;
+const CULTURE_HIDE_KEY = 'pace_dashboard_culture_hidden_v1';
+function syncCultureHidden() {
+  const hidden = localStorage.getItem(CULTURE_HIDE_KEY) === '1';
+  document.body.classList.toggle('culture-side-hidden', hidden);
+  const btn = document.getElementById('cultureHideBtn');
+  if (btn) btn.textContent = hidden ? 'Show' : 'Hide';
+}
+function teamCompositeAsOf(cutoffDateStr) {
+  const goals = loadGoals();
+  const parts = [];
+  getRoster().forEach((r) => {
+    const pct = compositePctAsOf(r.display, cutoffDateStr);
+    if (pct !== null) parts.push(pct);
+  });
+  if (!parts.length) return null;
+  return parts.reduce((s, v) => s + v, 0) / parts.length;
+}
+function sameDayLastMonth(asOf) {
+  const [y, m, d] = String(asOf).split('-').map(Number);
+  let pm = m - 1, py = y;
+  if (pm < 1) { pm = 12; py -= 1; }
+  const dimPrev = daysInMonth(py, pm);
+  const day = Math.min(d, dimPrev);
+  return `${py}-${String(pm).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+function hashString(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+const DAILY_QUOTES = {
+  ahead: [
+    'Protect the lead — finish the day like the month still depends on it.',
+    'Ahead feels good. Staying ahead is the real flex.',
+    'Momentum is earned in the next conversation, not the last one.',
+    'Great pace. Make today a clean, confident add-on.',
+  ],
+  onPace: [
+    'Right on schedule — keep the process tight and the energy high.',
+    'On pace is a choice you remake every call.',
+    'Steady wins months. Make the next touch count.',
+    'The month is tracking — don’t leave easy points on the table.',
+  ],
+  behind: [
+    'Gap days are just unfinished stories. Write the next page today.',
+    'Behind is information, not identity. Attack the next opportunity.',
+    'Catch-up starts with one strong conversation.',
+    'The math is honest — so is your ability to close the gap.',
+  ],
+  lwom: [
+    'Last week of the month: every yes is louder.',
+    'Finish-line week — protect the process and push the close.',
+    'Seven days. Full focus. No wasted dials.',
+    'LWOM energy: clean pipeline, clear asks, strong finishes.',
+  ],
+};
+function dailySalesQuote(teamPct, expectedPct, asOf) {
+  const lwom = isLastWeekOfMonth(asOf);
+  let bucket = 'onPace';
+  if (lwom) bucket = 'lwom';
+  else if (teamPct != null && expectedPct != null) {
+    if (teamPct >= 100 || teamPct >= expectedPct + 3) bucket = 'ahead';
+    else if (teamPct + 3 < expectedPct) bucket = 'behind';
   }
+  const list = DAILY_QUOTES[bucket] || DAILY_QUOTES.onPace;
+  const idx = hashString(String(asOf) + ':' + bucket) % list.length;
+  return { text: list[idx], bucket };
+}
+function allShoutoutsFlat() {
+  const log = loadShoutoutLog();
+  const all = [];
+  Object.keys(log).forEach((rep) => {
+    (log[rep] || []).forEach((it) => all.push({ rep, ...it }));
+  });
+  all.sort((a, b) => (b.date || '').localeCompare(a.date || '') || String(b.id || '').localeCompare(String(a.id || '')));
+  return all;
+}
+function renderShoutoutWall() {
+  const host = document.getElementById('shoutoutWallBody');
   if (!host) return;
-  const behindList = rows
-    .filter((row) => row && row.composite && !row.composite.goalIsZero && (row.composite.current ?? 0) < (row.composite.expectedPct ?? 0))
-    .map((row) => ({
-      name: row.rep.display,
-      gap: (row.composite.expectedPct ?? 0) - (row.composite.current ?? 0),
-      current: row.composite.current ?? 0,
-    }))
-    .sort((a, b) => b.gap - a.gap)
-    .slice(0, 5);
-  if (!behindList.length) {
-    host.innerHTML = '<div class="pace-watch-empty">Everyone is on pace 🎉</div>';
+  const publicItems = allShoutoutsFlat().filter((it) => !it.hidden).slice(0, 3);
+  if (!publicItems.length) {
+    host.innerHTML = `
+      <div class="shoutout-wall-empty">
+        <p>No shoutouts on the wall yet. Celebrate a teammate — it takes ten seconds.</p>
+        <button type="button" class="theme-btn" id="shoutoutWallPromptBtn">📣 Send a shoutout</button>
+      </div>`;
+    const btn = document.getElementById('shoutoutWallPromptBtn');
+    if (btn) btn.addEventListener('click', () => document.getElementById('shoutoutSendBtn')?.click());
     return;
   }
-  host.innerHTML = behindList.map((r) => (
-    `<div class="pace-watch-row">` +
-      `<span class="pace-watch-name">${r.name}</span>` +
-      `<span class="pace-watch-val">${fmt(r.current, 0)}% · −${fmt(r.gap, 0)} pts</span>` +
-    `</div>`
-  )).join('');
+  host.innerHTML = publicItems.map((it) => `
+    <div class="shoutout-wall-item">
+      <div class="shoutout-wall-meta">${it.date || ''} · to ${it.rep}${it.from ? ` · from ${it.from}` : ''}</div>
+      <div class="shoutout-wall-text">${it.text}</div>
+    </div>`).join('');
+}
+function renderCultureSide(repRows, teamComposite, expectedPct, asOf, monthName, day, dim) {
+  syncCultureHidden();
+  const finish = document.getElementById('finishLineGrid');
+  if (finish) {
+    const teamPct = teamComposite && !teamComposite.goalIsZero ? (teamComposite.current ?? null) : null;
+    const daysLeft = Math.max(0, dim - day);
+    finish.innerHTML = `
+      <div class="finish-line-stat"><b>${day}/${dim}</b><span>${monthName}</span></div>
+      <div class="finish-line-stat"><b>${daysLeft}</b><span>Days left</span></div>
+      <div class="finish-line-stat"><b>${fmt(expectedPct, 1)}%</b><span>Expected pace</span></div>
+      <div class="finish-line-stat"><b>${teamPct === null ? '—' : fmt(teamPct, 1) + '%'}</b><span>Team now</span></div>
+      <div class="finish-line-stat full"><b>${asOf}${typeof lastLiveActualsOk !== 'undefined' && lastLiveActualsOk ? ' · live' : ''}</b><span>Data as of</span></div>`;
+  }
+  const flex = document.getElementById('quietFlexBody');
+  if (flex) {
+    const nowPct = teamComposite && !teamComposite.goalIsZero ? (teamComposite.current ?? null) : null;
+    const thenPct = teamCompositeAsOf(sameDayLastMonth(asOf));
+    if (nowPct === null || thenPct === null) {
+      flex.textContent = 'Quiet flex unlocks once we can compare this month to the same day last month.';
+    } else {
+      const delta = nowPct - thenPct;
+      const cls = delta > 0.5 ? 'up' : delta < -0.5 ? 'down' : 'flat';
+      const sign = delta > 0 ? '+' : '';
+      flex.innerHTML = `Team is at <strong>${fmt(nowPct, 1)}%</strong> — last month by this day we were at <strong>${fmt(thenPct, 1)}%</strong>. <span class="quiet-flex-delta ${cls}">${sign}${fmt(delta, 1)} pts</span>`;
+    }
+  }
+  renderShoutoutWall();
+  const q = dailySalesQuote(
+    teamComposite && !teamComposite.goalIsZero ? (teamComposite.current ?? null) : null,
+    expectedPct,
+    asOf
+  );
+  const qt = document.getElementById('dailyQuoteText');
+  const qm = document.getElementById('dailyQuoteMeta');
+  if (qt) qt.textContent = '“' + q.text + '”';
+  if (qm) {
+    const label = { ahead: 'Ahead energy', onPace: 'On-pace energy', behind: 'Chase energy', lwom: 'LWOM energy' }[q.bucket] || 'Today';
+    qm.textContent = label + ' · rotates daily';
+  }
+}
+function renderPaceWatch(repRows) {
+  // Back-compat name: culture column (finish line / quiet flex / wall / quote).
+  // Caller in renderLeaderboards may not have team context — no-op here; render()
+  // invokes renderCultureSide with full context after team totals are known.
 }
 
 function fitLandingBadges() {
@@ -4670,11 +4889,11 @@ function getShoutouts(repDisplay) {
 // Identity JWT (see send-shoutout.mts) — the client never gets a say, so
 // nobody can send a shoutout that appears to come from someone else. That
 // replaces the old client-side senderDisplayName() lookup entirely.
-async function addShoutout(repDisplay, text) {
+async function addShoutout(repDisplay, text, hidden) {
   const { shoutout } = await authedFetch('/api/shoutouts/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rep: repDisplay, text }),
+    body: JSON.stringify({ rep: repDisplay, text, hidden: !!hidden }),
   });
   if (!SHOUTOUTS_CACHE[repDisplay]) SHOUTOUTS_CACHE[repDisplay] = [];
   SHOUTOUTS_CACHE[repDisplay].unshift(shoutout);
@@ -4693,7 +4912,7 @@ function shoutoutLogHTML(repDisplay) {
   const listHTML = items.length
     ? items.map(it => `
         <div class="shoutout-item">
-          <div class="shoutout-item-meta">${it.date} — from ${it.from || 'a teammate'}</div>
+          <div class="shoutout-item-meta">${it.date} — from ${it.from || 'a teammate'}${it.hidden ? ' · private' : ''}</div>
           <div class="shoutout-item-text">${it.text}</div>
         </div>`).join('')
     : `<div class="meta-note" style="margin-top:0;">No shoutouts yet.</div>`;
@@ -4726,7 +4945,7 @@ function renderMasterShoutoutLog() {
   emptyEl.style.display = 'none';
   listEl.innerHTML = all.map(it => `
     <div class="shoutout-item">
-      <div class="shoutout-item-meta">${it.date} — to ${it.rep}${it.from ? ` — from ${it.from}` : ' — from A teammate'}</div>
+      <div class="shoutout-item-meta">${it.date} — to ${it.rep}${it.from ? ` — from ${it.from}` : ' — from A teammate'}${it.hidden ? ' — private' : ''}</div>
       <div class="shoutout-item-text">${it.text}</div>
     </div>`).join('');
 }
@@ -5109,6 +5328,8 @@ document.getElementById('shoutoutSendBtn').addEventListener('click', () => {
   sel.innerHTML = getRoster().map(r => `<option value="${encodeURIComponent(r.display)}">${r.display}</option>`).join('');
   document.getElementById('shoutoutSendText').value = '';
   document.getElementById('shoutoutSendStatus').textContent = '';
+  const hiddenEl = document.getElementById('shoutoutSendHidden');
+  if (hiddenEl) hiddenEl.checked = false;
   document.getElementById('shoutoutSendBackdrop').classList.add('open');
 });
 document.getElementById('shoutoutSendCancel').addEventListener('click', () => {
@@ -5129,9 +5350,13 @@ document.getElementById('shoutoutSendSubmit').addEventListener('click', async (e
   const btn = e.currentTarget;
   btn.disabled = true;
   status.textContent = 'Sending…';
+  const hidden = !!document.getElementById('shoutoutSendHidden')?.checked;
   try {
-    await addShoutout(rep, text);
+    await addShoutout(rep, text, hidden);
     renderMasterShoutoutLog();
+    renderShoutoutWall();
+    const hiddenEl = document.getElementById('shoutoutSendHidden');
+    if (hiddenEl) hiddenEl.checked = false;
     document.getElementById('shoutoutSendBackdrop').classList.remove('open');
   } catch (err) {
     // Most likely "Not signed in" — sending now requires real Netlify
@@ -5145,6 +5370,34 @@ document.getElementById('shoutoutSendSubmit').addEventListener('click', async (e
 document.getElementById('shoutoutCelebrationClose').addEventListener('click', () => {
   document.getElementById('shoutoutCelebrationBackdrop').classList.remove('open');
 });
+document.getElementById('cultureHideBtn')?.addEventListener('click', () => {
+  const next = localStorage.getItem(CULTURE_HIDE_KEY) === '1' ? '0' : '1';
+  localStorage.setItem(CULTURE_HIDE_KEY, next);
+  syncCultureHidden();
+});
+document.getElementById('goalStyleToggle')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-goal-style]');
+  if (!btn) return;
+  localStorage.setItem(GOAL_STYLE_KEY, normalizeGoalStyle(btn.getAttribute('data-goal-style')));
+  syncGoalStyleToggle();
+  const match = location.hash.match(/^#(?:individual-pacer|client-detail)=(.+)$/);
+  if (match) {
+    const repName = decodeURIComponent(match[1]);
+    const el = document.getElementById('personalGoalSideContent');
+    if (el) el.innerHTML = personalGoalSideHTML(repName);
+  }
+});
+document.addEventListener('change', (e) => {
+  const sel = e.target.closest && e.target.closest('[data-view-as-select]');
+  if (!sel) return;
+  setViewAsRep(sel.value || '');
+});
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest && e.target.closest('[data-view-as-revert]');
+  if (!btn) return;
+  setViewAsRep('');
+});
+syncCultureHidden();
 
 // Last week of month = final 7 calendar days (day > dim - 7). Popup nudges
 // reps who still need units on Members and/or Sessions to hit 100%. Dismiss
@@ -6827,12 +7080,18 @@ document.getElementById('closeOutCommitBtn').addEventListener('click', async (e)
 // page — back button, bookmarkable, shareable — while staying in this single file.
 // Sourced from the raw per-client line items captured the last time a ledger CSV
 // was pasted in (see computeActualsFromCSV); empty until that's been done at least once.
+function detailDateMonthDay(iso) {
+  if (!iso) return '—';
+  const [y, m, d] = String(iso).split('-').map(Number);
+  if (!y || !m || !d) return String(iso);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 function detailRowHTML(it) {
   return `<tr>
     <td>${it.clientId || '—'}</td>
     <td>${fmt(it.members,1)}</td>
     <td>${fmt(it.sessions,1)}</td>
-    <td><span class="date-chip">${it.date || '—'}</span></td>
+    <td><span class="date-chip">${detailDateMonthDay(it.date)}</span></td>
   </tr>`;
 }
 function detailEmptyRowHTML(msg) {
@@ -7285,6 +7544,7 @@ function detailMiniHeaderHTML(repDisplay) {
   const grad = AVATAR_GRADIENTS[(idx >= 0 ? idx : 0) % AVATAR_GRADIENTS.length];
   const st = c.nowSt;
   const nowLabel = c.current === null ? '—' : fmt(c.current, 0) + '%';
+  const projLabel = c.projected === null ? '—' : fmt(c.projected, 0) + '%';
   const firstTo100Champion = isBadgeEnabled('firstTo100') ? getFirstTo100Champion() : null;
   const earlyBirdChampion = isBadgeEnabled('earlyBird') ? getEarlyBirdChampion() : null;
   const nightOwlChampion = isBadgeEnabled('nightOwl') ? getNightOwlChampion() : null;
@@ -7299,7 +7559,8 @@ function detailMiniHeaderHTML(repDisplay) {
       <div class="bar-fill${st.special ? ' bar-shimmer' : ''}" style="background:${st.barGrad}; width:${barWidth}%;"></div>
       <div class="bar-tick has-tip" style="left:${Math.min(c.expectedPct,100)}%;" data-tip="Expected pace today — the % you'd need to have hit by now to land at exactly 100% by month end"></div>
     </div>
-    <div class="detail-mini-header-num">${nowLabel}</div>`;
+    <div class="detail-mini-header-num">${nowLabel}</div>
+    <div class="detail-header-pace-sub">Projected ${projLabel} · expected ${fmt(c.expectedPct, 0)}% today</div>`;
 }
 
 // Tracks which rep the Bonus Payout sidebar section targets, so its toggle/input
@@ -7363,7 +7624,9 @@ function renderClientDetail(opts) {
     }
     closePersonalGoalGate();
     if (sprintChip) sprintChip.classList.toggle('show', !!lwomSprintWindow());
-    document.getElementById('detailPacingRow').innerHTML = detailRepMiniCardHTML(repName);
+    // Pace + badges live once in the page header (under Back) — not duplicated
+    // as a second mini-card in the Current body.
+    document.getElementById('detailPacingRow').innerHTML = '';
     const headerPace = document.getElementById('detailHeaderPace');
     if (headerPace) headerPace.innerHTML = detailMiniHeaderHTML(repName);
     const mini = document.getElementById('detailMiniHeader');
@@ -7394,11 +7657,12 @@ function renderClientDetail(opts) {
       maybeMilestoneUnlockToast(repName);
       maybeLockInCelebration(repName);
     }
-    animateBarWidth(document.getElementById('detailMiniBar'), pacing.current ?? 0, 50);
-    if (pacing.goalIsZero) {
-      document.getElementById('detailMiniNum').textContent = '—';
-    } else {
-      animateNumber(document.getElementById('detailMiniNum'), pacing.current ?? 0, 50);
+    const headerBar = document.querySelector('#detailHeaderPace .bar-fill');
+    const headerNum = document.querySelector('#detailHeaderPace .detail-mini-header-num');
+    if (headerBar) animateBarWidth(headerBar, pacing.current ?? 0, 50);
+    if (headerNum) {
+      if (pacing.goalIsZero) headerNum.textContent = '—';
+      else animateNumber(headerNum, pacing.current ?? 0, 50);
     }
     document.getElementById('rankSideChevron').classList.toggle('collapsed', rankSideCollapsed);
     document.getElementById('rankSideContent').classList.toggle('collapsed', rankSideCollapsed);
@@ -8367,7 +8631,21 @@ function personalGoalLabel(goal) {
   if (goal.kind === 'sessions') return `${fmt(goal.target, goal.target % 1 ? 1 : 0)} sessions`;
   return String(goal.target);
 }
+const GOAL_STYLE_KEY = 'pace_dashboard_goal_style_v1';
+function normalizeGoalStyle(v) {
+  return (v === 'compact' || v === 'meter' || v === 'card') ? v : 'meter';
+}
+function resolveGoalStyle() {
+  return normalizeGoalStyle(localStorage.getItem(GOAL_STYLE_KEY) || 'meter');
+}
+function syncGoalStyleToggle() {
+  const style = resolveGoalStyle();
+  document.querySelectorAll('#goalStyleToggle .goal-style-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.getAttribute('data-goal-style') === style);
+  });
+}
 function personalGoalSideHTML(repDisplay) {
+  syncGoalStyleToggle();
   const progress = personalGoalProgress(repDisplay);
   if (!progress) {
     return `<div class="meta-note" style="margin-top:0;">No personal month goal set yet.</div>`;
@@ -8375,11 +8653,24 @@ function personalGoalSideHTML(repDisplay) {
   const { goal, current, pct, unit, met } = progress;
   const curLabel = current === null ? '—' : (goal.kind === 'compositePct' ? fmt(current, 1) + '%' : fmt(current, 1) + unit);
   const width = pct === null ? 0 : Math.max(0, Math.min(pct, 100));
-  return `
+  const progLabel = met ? '✓ Met' : (pct === null ? '—' : fmt(pct, 0) + '% of target');
+  const style = resolveGoalStyle();
+  if (style === 'compact') {
+    return `<div class="personal-goal-compact">${personalGoalLabel(goal)} · ${curLabel} · ${progLabel}</div>`;
+  }
+  if (style === 'card') {
+    return `<div class="personal-goal-card">
+      <div class="goal-card-target">${personalGoalLabel(goal)}</div>
+      <div class="goal-card-status">${curLabel} · ${progLabel}</div>
+      <div class="personal-goal-progress-bar" style="margin-top:10px;"><div class="personal-goal-progress-fill" style="width:${width}%;"></div></div>
+    </div>`;
+  }
+  return `<div class="personal-goal-meter">
     <div class="metrics-side-item"><span class="metrics-side-label">Target</span><span class="metrics-side-val">${personalGoalLabel(goal)}</span></div>
     <div class="metrics-side-item"><span class="metrics-side-label">Current</span><span class="metrics-side-val">${curLabel}</span></div>
-    <div class="metrics-side-item"><span class="metrics-side-label">Progress</span><span class="metrics-side-val">${met ? '✓ Met' : (pct === null ? '—' : fmt(pct, 0) + '%')}</span></div>
-    <div class="personal-goal-progress-bar"><div class="personal-goal-progress-fill" style="width:${width}%;"></div></div>`;
+    <div class="metrics-side-item"><span class="metrics-side-label">Progress</span><span class="metrics-side-val">${progLabel}</span></div>
+    <div class="personal-goal-progress-bar"><div class="personal-goal-progress-fill" style="width:${width}%;"></div></div>
+  </div>`;
 }
 function needsPersonalGoalGate(repDisplay) {
   return ownRepDisplayName() === repDisplay && !getPersonalGoal(repDisplay);
@@ -8618,9 +8909,26 @@ function syncRoleChrome() {
   const shoutHist = document.getElementById('viewShoutoutHistoryLink');
   if (shoutHist) shoutHist.style.display = admin ? '' : 'none';
   syncAttrRepSelect();
+  syncViewAsChrome();
 }
 
-function ownRepDisplayName() {
+const VIEW_AS_KEY = 'pace_dashboard_view_as_v1';
+function getViewAsRep() {
+  if (!canViewAdminTools()) return '';
+  return String(localStorage.getItem(VIEW_AS_KEY) || '').trim();
+}
+function setViewAsRep(repDisplay) {
+  const name = String(repDisplay || '').trim();
+  if (!name) localStorage.removeItem(VIEW_AS_KEY);
+  else localStorage.setItem(VIEW_AS_KEY, name);
+  syncViewAsChrome();
+  // Re-render open Individual Pacer / landing so own-rep gates refresh.
+  if (typeof render === 'function') render();
+  if (location.hash && /individual-pacer|client-detail/.test(location.hash) && typeof renderClientDetail === 'function') {
+    renderClientDetail({ preserveScroll: true });
+  }
+}
+function realOwnRepDisplayName() {
   const email = currentUserEmail();
   if (!email) return null;
   const goals = loadGoals();
@@ -8629,6 +8937,38 @@ function ownRepDisplayName() {
     if (g && g.email && String(g.email).toLowerCase() === email) return r.display;
   }
   return null;
+}
+function ownRepDisplayName() {
+  const viewAs = getViewAsRep();
+  if (viewAs) return viewAs;
+  return realOwnRepDisplayName();
+}
+function syncViewAsChrome() {
+  const admin = canViewAdminTools();
+  const viewAs = getViewAsRep();
+  document.querySelectorAll('[data-view-as]').forEach((wrap) => {
+    wrap.classList.toggle('show', admin);
+    const sel = wrap.querySelector('[data-view-as-select]');
+    const revert = wrap.querySelector('[data-view-as-revert]');
+    if (sel) {
+      const names = getRoster().map((r) => r.display).sort((a, b) => a.localeCompare(b));
+      const prev = sel.value;
+      sel.innerHTML = '<option value="">Admin view…</option>' +
+        names.map((n) => `<option value="${n}">${n}</option>`).join('');
+      sel.value = viewAs && names.includes(viewAs) ? viewAs : '';
+      if (!sel.value && prev && names.includes(prev) && !viewAs) sel.value = '';
+    }
+    if (revert) revert.style.display = viewAs ? '' : 'none';
+  });
+  document.querySelectorAll('[data-viewing-pill]').forEach((pill) => {
+    if (viewAs) {
+      pill.textContent = 'Viewing as ' + viewAs;
+      pill.classList.add('show');
+    } else {
+      pill.textContent = '';
+      pill.classList.remove('show');
+    }
+  });
 }
 
 function syncAttrRepSelect() {
