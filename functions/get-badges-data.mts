@@ -19,7 +19,7 @@ const DEFAULT_TOGGLES = {
   earlyBird: true,
   hatTrick: true,
   rebound: true,
-  afterDark: true,
+  nightOwl: true,
   bestPaceDay: true,
 };
 

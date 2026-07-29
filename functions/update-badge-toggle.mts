@@ -12,7 +12,7 @@ const TOGGLE_KEYS = [
   "earlyBird",
   "hatTrick",
   "rebound",
-  "afterDark",
+  "nightOwl",
   "bestPaceDay",
 ];
 
