@@ -1218,10 +1218,11 @@
     <div class="section-toggle" id="toggleData">▸ Update actuals from ledger export</div>
     <div class="section-body" id="dataBody">
       <div class="card">
-        <div class="meta-note" style="margin-top:0;">Paste the full contents of your ledger CSV export below (including the header row), then click Update. (Once the Supabase connector is live, this can pull automatically instead.)</div>
-        <textarea id="csvInput" placeholder="Paste ledger CSV here..."></textarea>
-        <button id="updateActuals">Update actuals</button>
+        <div class="meta-note" style="margin-top:0;">Live actuals now pull automatically from Supabase (<code>sales_attribution.rep_scores_ledger_entries</code>) every ~45s — including cancels/refunds as negatives. Use this CSV paste only as an emergency fallback if the live feed is down; a successful live poll will overwrite Blobs again.</div>
+        <textarea id="csvInput" placeholder="Paste ledger CSV here (emergency fallback)..."></textarea>
+        <button id="updateActuals">Update actuals from CSV</button>
         <div class="meta-note" id="updateStatus"></div>
+        <div class="meta-note" id="liveActualsStatus" style="margin-top:8px;"></div>
       </div>
     </div>
   </div>
@@ -1772,7 +1773,7 @@ const THEME_KEY = 'pace_dashboard_theme_v1';
 // confidential compensation figures (Bonus Payout, historical $ SIP payout,
 // preliminary $ estimate). See canViewConfidentialPayout() below for the
 // actual gate; the coach list only controls WHO gets that lighter tier.
-const EXTRA_SIP_KEY = 'pace_dashboard_extra_sip_v1';
+const EXTRA_SIP_KEY = 'pace_dashboard_extra_sip_v1'; // migrate-only; live SIP extras use Blobs
 
 const ROSTER = [
   { display: 'Becky Ruffer', csv: 'becky ruffer' },
@@ -2361,7 +2362,7 @@ function render() {
   if (titleMonthEl) titleMonthEl.textContent = monthName;
 
   document.getElementById('banner').innerHTML = `
-    <div class="pill">Data as of <b>${actuals.asOf}</b></div>
+    <div class="pill">Data as of <b>${actuals.asOf}</b>${lastLiveActualsOk ? ' · live' : ''}</div>
     <div class="pill">Day <b>${d}</b> of ${dim} · ${monthName}</div>
     <div class="pill">Expected pace <b>${expectedPct.toFixed(1)}%</b></div>
   `;
@@ -2381,7 +2382,7 @@ function render() {
     const g = goals[r.display] || { sessions: 0, members: 0, tag: '' };
     const raw = (actuals.perRep && actuals.perRep[r.display]) || { members: 0, sessions: 0 };
     // Fold in Aaron-approved manual attribution requests (see Manual Attribution
-    // section below) — additive on top of the ledger CSV totals, never replacing them.
+    // section below) — additive on top of live Supabase / ledger totals, never replacing them.
     const approved = APPROVED_TOTALS[r.display] || { members: 0, sessions: 0 };
     const a = { ...raw, members: raw.members + approved.members, sessions: raw.sessions + approved.sessions };
     const memMetric = computeMetric(a.members, g.members, elapsedFrac);
@@ -6215,6 +6216,62 @@ async function fetchShoutouts() {
 // saved this from any browser yet," so the baked-in default this cache
 // already started with keeps showing, exactly like a single-browser
 // localStorage setup would look on day one.
+// Live MTD actuals from Supabase (acquisition-call-center ledger). Preferred
+// over Blobs/CSV when available; Manual Attribution approved totals stay additive.
+const LIVE_ACTUALS_POLL_MS = 45000;
+let liveActualsTimer = null;
+let lastLiveActualsOk = false;
+
+async function fetchLiveActuals() {
+  const statusEl = document.getElementById('liveActualsStatus');
+  try {
+    const res = await fetch('/api/actuals/live', { cache: 'no-store' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      lastLiveActualsOk = false;
+      if (statusEl) {
+        statusEl.textContent = 'Live Supabase feed unavailable — showing last Blobs/CSV actuals. ' +
+          (data.error || ('HTTP ' + res.status));
+        statusEl.style.color = '#b45309';
+      }
+      return false;
+    }
+    if (!data.actuals || !data.actuals.perRep) {
+      lastLiveActualsOk = false;
+      return false;
+    }
+    ACTUALS_CACHE = data.actuals;
+    if (data.prelim) PRELIM_CACHE = data.prelim;
+    lastLiveActualsOk = true;
+    if (statusEl) {
+      statusEl.textContent = `Live Supabase feed OK · as of ${data.actuals.asOf}` +
+        (data.matchedRows != null ? ` · ${data.matchedRows} ledger rows` : '') +
+        (data.fetchedAt ? ` · synced ${new Date(data.fetchedAt).toLocaleTimeString()}` : '');
+      statusEl.style.color = '#16a34a';
+    }
+    return true;
+  } catch (e) {
+    lastLiveActualsOk = false;
+    console.warn('Could not load live Supabase actuals', e);
+    if (statusEl) {
+      statusEl.textContent = 'Live Supabase feed error — showing last Blobs/CSV actuals.';
+      statusEl.style.color = '#b45309';
+    }
+    return false;
+  }
+}
+
+function startLiveActualsPolling() {
+  if (liveActualsTimer) return;
+  liveActualsTimer = setInterval(async () => {
+    const ok = await fetchLiveActuals();
+    if (ok) {
+      render();
+      renderClientDetail();
+    }
+  }, LIVE_ACTUALS_POLL_MS);
+}
+
 async function fetchDashboardData() {
   try {
     const res = await fetch('/api/dashboard/data');
@@ -6222,6 +6279,7 @@ async function fetchDashboardData() {
     const data = await res.json();
     if (data.roster) ROSTER_CACHE = data.roster;
     if (data.goals) GOALS_CACHE = data.goals;
+    // Prefer whatever Blobs has until/unless live Supabase overwrites in boot().
     if (data.actuals) ACTUALS_CACHE = data.actuals;
     if (data.prelim) PRELIM_CACHE = data.prelim;
     // Unlike the above, admins/coaches have no baked default worth protecting
@@ -6775,13 +6833,15 @@ setGoogleButtonState({ disabled: true, label: 'Checking sign-in…' });
 })();
 
 async function boot() {
-  // All four are independent public GETs — run them together instead of in
-  // series so boot isn't four round-trips deep before the first render.
+  // Shared Blobs GETs first (roster/goals/fallback actuals), then prefer live
+  // Supabase ledger actuals when the connector is configured.
   const [approved] = await Promise.all([fetchApprovedTotals(), fetchBadgesData(), fetchShoutouts(), fetchDashboardData()]);
   APPROVED_TOTALS = approved;
+  await fetchLiveActuals();
   render();
   initSip();
   renderClientDetail();
+  startLiveActualsPolling();
 }
 </script>
 </body>

@@ -3,3 +3,8 @@ node_modules/
 .DS_Store
 deploy.log
 .netlify/
+
+# MCP configs may contain personal access tokens — never commit
+mcp.json
+.mcp.json
+.cursor/mcp.json
