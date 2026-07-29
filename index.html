@@ -1510,7 +1510,7 @@
         </div>
         <div class="meta-note" id="addAdminStatus"></div>
         <div id="adminList" style="margin-top:10px;"></div>
-        <div class="meta-note">Admins can see every rep's Client Detail page, not just their own — the same access Aaron has. Aaron (aaron.bunch@varsitytutors.com) is the permanent admin and can't be removed here. This list is shared across every browser (Netlify Functions + Blobs, same as roster/goals) — adding or removing someone here takes effect for everyone right away. It only controls read-access gates like Client Detail, though; individual write actions (roster, goals, badges, attribution approvals) each still check for Aaron's email specifically, not this list.</div>
+        <div class="meta-note">Admins get the same access Aaron has — every Client Detail page, Team Details, Admin Tools, and all writes (roster, goals, actuals, badges, attribution approvals). Aaron (aaron.bunch@varsitytutors.com) is the permanent admin and can't be removed here. This list is shared across every browser (Netlify Functions + Blobs). Sales Coaches stay read-only.</div>
       </div>
     </div>
 
@@ -1526,7 +1526,7 @@
         </div>
         <div class="meta-note" id="addLimitedAdminStatus"></div>
         <div id="limitedAdminList" style="margin-top:10px;"></div>
-        <div class="meta-note">Sales Coaches can open every rep's Client Detail page — pacing %, Sessions/Members counts, sold vs. refunds — but never see Bonus Payout or historical $ SIP payout figures, which stay visible only to full admins and the rep themselves. This list is shared across every browser (Netlify Functions + Blobs, same as roster/goals) — adding or removing someone here takes effect for everyone right away. It only controls read-access gates like Client Detail and Team Details, though; write actions (like converting a cancel into Manual Attribution) still check for Aaron's email specifically, since coach identity isn't recognized by those individual write endpoints yet.</div>
+        <div class="meta-note">Sales Coaches can open every rep's Client Detail page — pacing %, Sessions/Members counts, sold vs. refunds — but never see Bonus Payout or historical $ SIP payout figures, which stay visible only to full admins and the rep themselves. They also get Team Details (read-only). This list is shared across every browser (Netlify Functions + Blobs). Coaches never get write access — converting cancels, editing goals/roster/actuals, and approving attributions stay full-admin only.</div>
       </div>
     </div>
 
@@ -1687,7 +1687,7 @@
     <button type="button" class="celebration-modal-mute" id="shoutoutSendCancel">Cancel</button>
     <div class="meta-note" id="shoutoutSendStatus" style="margin-top:10px;"></div>
     <div class="meta-note" style="margin-top:10px;"><a href="#shoutout-history" id="viewShoutoutHistoryLink">🗒️ View shoutout history →</a></div>
-    <div class="meta-note" style="margin-top:4px; font-size:10px;">Coaches/admins only for now — open to everyone until company sign-in is live.</div>
+    <div class="meta-note" style="margin-top:4px; font-size:10px;">Any signed-in teammate can send a shoutout.</div>
   </div>
 </div>
 
@@ -3267,18 +3267,11 @@ async function addShoutout(repDisplay, text) {
   if (!SHOUTOUTS_CACHE[repDisplay]) SHOUTOUTS_CACHE[repDisplay] = [];
   SHOUTOUTS_CACHE[repDisplay].unshift(shoutout);
 }
-// True if the CURRENT viewer is allowed to add/remove shoutouts for any rep
-// (full admin or Sales Coach) — separate from whether they can just VIEW the
-// log, which anyone with Client Detail access (including the rep) can do.
+// Send-a-Shoutout is open to any signed-in user (matches send-shoutout.mts).
+// Viewing a rep's received log still follows Client Detail access separately.
 function canAddShoutout() {
-  // Both preview roles (Full Admin and Sales Coach — see #previewRoleSelect)
-  // are allowed to add shoutouts, so in the temporary "preview as" mode this
-  // is simply always true; the real gate below is what matters once sign-in
-  // is live.
   if (TEMP_ALLOW_ALL_CLIENT_DETAIL) return true;
-  const email = currentUserEmail();
-  if (!email) return false;
-  return isAdminEmail(email) || isLimitedAdminEmail(email);
+  return !!currentUserEmail();
 }
 // Read-only history of shoutouts THIS rep has received — sending one now
 // lives entirely in the "📣 Send Shoutout" header button + modal (with its
@@ -6009,21 +6002,18 @@ document.getElementById('cancelConvertSubmit').addEventListener('click', async (
   }
 });
 
-// Reuses the SAME /api/attributions/list endpoint the Manual Attribution page
-// already calls — today that returns every rep's records to Aaron specifically
-// (hardcoded ADMIN_EMAIL check server-side), and just the caller's own records
-// to anyone else, including a Sales Coach — coach accounts aren't recognized
-// server-side yet (see backend-migration-plan.md), so a coach viewing this
-// page currently only sees their own attribution history here, not the whole
-// team's, until that migration happens.
+// Reuses /api/attributions/list — full admins and Sales Coaches get every
+// rep's records (canViewTeam); everyone else only their own. Approve/reject
+// (isAdmin) is full admins only — coaches stay read-only.
 async function refreshTeamAttributions() {
   const tbody = document.getElementById('teamAttributionsBody');
   const status = document.getElementById('teamAttributionsStatus');
   tbody.innerHTML = skeletonRowsHTML(3, 6);
   status.textContent = '';
   try {
-    const { isAdmin, records } = await authedFetch('/api/attributions/list');
-    if (!isAdmin) status.textContent = 'Showing only your own requests — sign in as Aaron to see the whole team\'s.';
+    const { canViewTeam, isAdmin, records } = await authedFetch('/api/attributions/list');
+    const teamVisible = canViewTeam !== undefined ? canViewTeam : isAdmin;
+    if (!teamVisible) status.textContent = 'Showing only your own requests — admin or Sales Coach access is required to see the whole team\'s.';
     tbody.innerHTML = records.length ? records.map(r => `
       <tr>
         <td>${r.repName || '—'}</td>
@@ -6043,19 +6033,11 @@ async function refreshTeamAttributions() {
 // Client Detail's own "Pending Manual Attribution" panel — filters the SAME
 // /api/attributions/list response down to just THIS rep's PENDING requests
 // for the CURRENT live month, by repName (not repEmail), so it works
-// correctly whether the viewer is Aaron (sees every rep's records, filtered
-// here to just this one) or the rep themselves signed in on their own page
-// (server already only returns their own, and their own repName always
-// matches). Deliberately narrow on purpose (Aaron, 2026-07-28): whoever's
-// looking at a rep's Client Detail — including Aaron viewing Brenda's page —
-// should see only Brenda's own still-open requests for the active month,
-// not her full history and not anyone else's. Approved/rejected requests and
-// past months live on the full Manual Attribution page's "My requests" /
-// "Pending approvals" tables, not here. A Sales Coach on someone else's page
-// currently only gets their own records back from the server (coach identity
-// isn't recognized there yet — see backend-migration-plan.md), so this can
-// come back empty for a coach viewing another rep; that's a known, already-
-// documented gap, not new to this panel.
+// correctly whether the viewer is Aaron/admin/coach (sees every rep's records,
+// filtered here to just this one) or the rep themselves signed in on their
+// own page (server already only returns their own). Deliberately narrow on
+// purpose (Aaron, 2026-07-28): whoever's looking at a rep's Client Detail
+// should see only that rep's still-open requests for the active month.
 async function refreshDetailAttributions(repName) {
   const tbody = document.getElementById('detailMyAttrBody');
   const countEl = document.getElementById('detailMyAttrCount');
@@ -6196,10 +6178,11 @@ function attrStatusPill(status) {
 }
 
 // Cached from the last successful /api/attributions/list fetch, so the month
-// filter can re-render instantly without a re-fetch. isAdmin drives BOTH what
-// the server already returned (everyone's records vs just this rep's own) and
-// whether we show the extra "Rep" column here.
+// filter can re-render instantly without a re-fetch. canViewTeam drives whether
+// we got everyone's records (and show the Rep column); isAdmin (full admins)
+// drives the Pending approvals card.
 let lastAttrRecords = [];
+let lastAttrCanViewTeam = false;
 let lastAttrIsAdmin = false;
 
 function attrLinkCell(r) {
@@ -6229,13 +6212,13 @@ function renderMyAttributionsTable() {
   const head = document.getElementById('myAttributionsHead');
   const filterVal = document.getElementById('attrMonthFilter').value || 'all';
   const records = lastAttrRecords.filter(r => filterVal === 'all' || attrMonthKey(r) === filterVal);
-  head.innerHTML = lastAttrIsAdmin
+  head.innerHTML = lastAttrCanViewTeam
     ? '<tr><th>Rep</th><th>Client Page</th><th>Contact</th><th>Sessions</th><th>Members</th><th>Reason</th><th>Status</th></tr>'
     : '<tr><th>Client Page</th><th>Contact</th><th>Sessions</th><th>Members</th><th>Reason</th><th>Status</th></tr>';
-  const colspan = lastAttrIsAdmin ? 7 : 6;
+  const colspan = lastAttrCanViewTeam ? 7 : 6;
   tbody.innerHTML = records.length ? records.map(r => `
     <tr>
-      ${lastAttrIsAdmin ? `<td>${r.repName || '—'}</td>` : ''}
+      ${lastAttrCanViewTeam ? `<td>${r.repName || '—'}</td>` : ''}
       <td>${attrLinkCell(r)}</td>
       <td>${r.contact || '—'}</td>
       <td>${fmt(r.sessions,1)}</td>
@@ -6262,20 +6245,21 @@ async function refreshMyAttributions() {
   // not instant like everything else on this page). If the admin card was
   // already visible from a previous load, skeleton its table too rather than
   // leaving stale data up during the refetch.
-  tbody.innerHTML = skeletonRowsHTML(3, lastAttrIsAdmin ? 7 : 6);
+  tbody.innerHTML = skeletonRowsHTML(3, lastAttrCanViewTeam ? 7 : 6);
   if (adminCard.style.display !== 'none') {
     document.getElementById('pendingApprovalsBody').innerHTML = skeletonRowsHTML(2, 8);
   }
 
   try {
-    const { isAdmin, records } = await authedFetch('/api/attributions/list');
+    const { isAdmin, canViewTeam, records } = await authedFetch('/api/attributions/list');
     lastAttrRecords = records;
-    lastAttrIsAdmin = isAdmin;
+    lastAttrIsAdmin = !!isAdmin;
+    lastAttrCanViewTeam = canViewTeam !== undefined ? !!canViewTeam : !!isAdmin;
     populateAttrMonthFilter(records);
     renderMyAttributionsTable();
 
-    adminCard.style.display = isAdmin ? '' : 'none';
-    if (isAdmin) {
+    adminCard.style.display = lastAttrIsAdmin ? '' : 'none';
+    if (lastAttrIsAdmin) {
       // Pending approvals stay unfiltered by month on purpose — an old pending
       // request still needs action today regardless of when it was submitted.
       const pending = records.filter(r => r.status === 'pending');
@@ -6368,15 +6352,14 @@ document.getElementById('submitAttribution').addEventListener('click', async () 
 // (Aaron) is the one permanent admin, and any additional admins Aaron adds via
 // the "Admin access" card on Edit Monthly Goals (stored in ADMIN_LIST_CACHE,
 // backed by update-admin-list.mts + Blobs — see isAdminEmail() above) get the
-// same full access — see everyone's Client Detail,
-// not just their own. Note: netlify/functions/submit-attribution.mts is a
-// separate server-side file (out of scope for this local dashboard) and has its
-// own hardcoded admin/roster mapping; that needs a manual update whenever this
-// goes live on Netlify. TEMP_ALLOW_ALL_CLIENT_DETAIL mirrors the
-// TEMP_SHOW_ATTRIBUTION_FORM pattern below: the real check is implemented and
-// wired in, but left non-blocking until company sign-in is actually live. Flip
-// this to false (and remove the `|| TEMP_ALLOW_ALL_CLIENT_DETAIL` in
-// canViewClientDetail) once it's ready to enforce.
+// same full access as Aaron (read + write). Attribution / shoutout
+// email→display resolution reads the goals Blob (with a DEFAULT_GOALS
+// fallback) via functions/_shared/roster.mts.
+//
+// TEMP_ALLOW_ALL_CLIENT_DETAIL: real role checks are implemented and wired in,
+// but left non-blocking until Aaron confirms Google sign-in + role gates work
+// end-to-end on the live Netlify site. Then DELETE this flag and every branch
+// that references it (do not just set it to false — that leaves dead code).
 const TEMP_ALLOW_ALL_CLIENT_DETAIL = true;
 const ADMIN_EMAIL = 'aaron.bunch@varsitytutors.com';
 function currentUserEmail() {

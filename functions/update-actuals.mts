@@ -1,11 +1,11 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
-import { getIdentityUser, requirePrimaryAdmin } from "./_shared/identity.mts";
+import { getIdentityUser } from "./_shared/identity.mts";
+import { requireAdmin } from "./_shared/access.mts";
 
 // Admin-only per Aaron's explicit instruction — updating actuals from a
 // pasted ledger CSV changes what every rep sees as their live numbers, so
 // it's locked down the same way badge/goal/roster writes are.
-const ADMIN_EMAIL = "aaron.bunch@varsitytutors.com";
 
 export default async (req: Request, context: Context) => {
   if (req.method !== "POST") {
@@ -13,7 +13,7 @@ export default async (req: Request, context: Context) => {
   }
 
   const user = await getIdentityUser(req, context);
-  const denied = requirePrimaryAdmin(user, ADMIN_EMAIL);
+  const denied = await requireAdmin(user);
   if (denied) return denied;
 
   let body: any;

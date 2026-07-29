@@ -96,21 +96,3 @@ export async function getIdentityUser(req: Request, context: Context): Promise<I
   user.email = email;
   return user;
 }
-
-export function requirePrimaryAdmin(user: IdentityUser | null, adminEmail: string): Response | null {
-  if (!user?.email) {
-    return new Response(JSON.stringify({ error: "Not signed in" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-  if (user.email !== adminEmail) {
-    return new Response(
-      JSON.stringify({
-        error: `Only Aaron (${adminEmail}) can do this. Signed in as ${user.email}.`,
-      }),
-      { status: 403, headers: { "Content-Type": "application/json" } }
-    );
-  }
-  return null;
-}

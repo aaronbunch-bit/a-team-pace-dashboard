@@ -1,13 +1,11 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
-import { getIdentityUser, requirePrimaryAdmin } from "./_shared/identity.mts";
+import { getIdentityUser } from "./_shared/identity.mts";
+import { requireAdmin } from "./_shared/access.mts";
 
-// "Sales Coach" access list — a lighter tier than admin-list.mts. Same
-// hardcoded-admin-only write gate as everywhere else: only Aaron can grant or
-// revoke it, even though coaches themselves get elevated READ access once
-// they're on this list (see canViewClientDetail/canViewTeamDetails on the
-// front end).
-const ADMIN_EMAIL = "aaron.bunch@varsitytutors.com";
+// "Sales Coach" access list — lighter tier than admin-list. Full admins
+// (Aaron or admin-list) can grant/revoke it. Coaches themselves get elevated
+// READ access only (see canViewClientDetail/canViewTeamDetails).
 
 export default async (req: Request, context: Context) => {
   if (req.method !== "POST") {
@@ -15,7 +13,7 @@ export default async (req: Request, context: Context) => {
   }
 
   const user = await getIdentityUser(req, context);
-  const denied = requirePrimaryAdmin(user, ADMIN_EMAIL);
+  const denied = await requireAdmin(user);
   if (denied) return denied;
 
   let body: any;

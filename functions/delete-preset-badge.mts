@@ -1,8 +1,8 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
-import { getIdentityUser, requirePrimaryAdmin } from "./_shared/identity.mts";
+import { getIdentityUser } from "./_shared/identity.mts";
+import { requireAdmin } from "./_shared/access.mts";
 
-const ADMIN_EMAIL = "aaron.bunch@varsitytutors.com";
 
 // Deletes one of the 8 BUILT-IN badge types (the 4 automatic ones in
 // BADGE_TOGGLE_META — streak/personalBest/consistency/firstTo100 — or the 4
@@ -24,7 +24,7 @@ export default async (req: Request, context: Context) => {
   }
 
   const user = await getIdentityUser(req, context);
-  const denied = requirePrimaryAdmin(user, ADMIN_EMAIL);
+  const denied = await requireAdmin(user);
   if (denied) return denied;
 
   let body: any;
