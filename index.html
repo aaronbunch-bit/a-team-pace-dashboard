@@ -6360,11 +6360,16 @@ function renderClientDetail(opts) {
   {
     const pacing = computeRepPacing(repName);
     // Own Individual Pacer stays locked until a personal month goal is set.
-    if (needsPersonalGoalGate(repName)) {
+    const gated = needsPersonalGoalGate(repName);
+    if (gated) {
       openPersonalGoalGate(repName);
-    } else {
-      closePersonalGoalGate();
+      bodyEls.forEach((el) => { if (el.id !== 'metricsStyleToggleWrap') el.style.display = 'none'; });
+      document.getElementById('metricsStyleToggleWrap').style.display = 'none';
+      document.getElementById('detailMiniHeader').innerHTML = '';
+      if (!preserveScroll) window.scrollTo(0, 0);
+      return;
     }
+    closePersonalGoalGate();
     const lwomBanner = document.getElementById('lwomModeBanner');
     if (lwomBanner) {
       if (isLastWeekOfMonth(loadActuals().asOf)) {
