@@ -311,6 +311,8 @@
     margin-right: 0;
     flex: none;
   }
+  /* Toggle only when Still Needed is expanded. */
+  .metrics-side-section-head.is-collapsed .pace-need-target-toggle { display: none; }
   .metrics-side-section-head .side-chevron { flex: none; }
   .pace-need-target-toggle {
     display: inline-flex; border: 1px solid var(--card-border);
@@ -321,7 +323,7 @@
   .pace-need-target-toggle button {
     border: 0; background: transparent; color: var(--text-muted);
     font-size: 10.5px; font-weight: 700; padding: 3px 9px; cursor: pointer;
-    line-height: 1.2;
+    line-height: 1.2; margin-top: 0;
   }
   .pace-need-target-toggle button.active {
     background: var(--text); color: var(--card-bg);
@@ -408,17 +410,19 @@
     border-radius: 9px;
     background: transparent;
     color: var(--text-muted);
-    padding: 9px 12px;
-    font-size: 13px;
+    padding: 10px 12px;
+    font-size: 13.5px;
     font-weight: 700;
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    margin-top: 0;
+    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
   }
   .pacer-layout-tab:hover { color: var(--text); }
   .pacer-layout-tab.active {
-    color: var(--text);
-    background: var(--card-bg);
-    box-shadow: 0 1px 3px var(--shadow);
+    color: #fff;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    box-shadow: 0 2px 10px rgba(79, 70, 229, 0.35);
+    font-weight: 800;
   }
   .pacer-layout-tab .tab-sub {
     display: block;
@@ -490,6 +494,12 @@
   body[data-pacer-chrome="tabs"] .detail-page-grid {
     grid-template-columns: minmax(0, 1fr) 240px;
   }
+  /* Hide all tab panes by default; each selected tab re-shows its own. */
+  body[data-pacer-chrome="tabs"] .pacer-tab-pace,
+  body[data-pacer-chrome="tabs"] .pacer-tab-activity,
+  body[data-pacer-chrome="tabs"] .pacer-tab-lastmonth,
+  body[data-pacer-chrome="tabs"] .pacer-tab-more,
+  body[data-pacer-chrome="tabs"] #clientDetailHistoryBlock { display: none; }
   body[data-pacer-chrome="tabs"][data-pacer-tab="current"] .pacer-tab-pace,
   body[data-pacer-chrome="tabs"][data-pacer-tab="current"] .pacer-tab-activity { display: block !important; }
   body[data-pacer-chrome="tabs"][data-pacer-tab="current"] .pacer-tab-lastmonth,
@@ -643,6 +653,10 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 12px 16px;
+  }
+  #clientDetailOverlay #detailManualAttroBtn {
+    margin-top: 0;
+    margin-left: auto;
   }
   #clientDetailOverlay .detail-header-pace {
     flex: 1 1 100%;
@@ -1345,6 +1359,29 @@
   }
   .section-body { display: none; }
   .section-body.open { display: block; }
+  /* Access / badges / tools: open sections by default with clearer hierarchy. */
+  #adminSettingsOverlay .admin-settings-intro {
+    margin: 0 0 16px; font-size: 13px; font-weight: 600; color: var(--text-muted); line-height: 1.45;
+  }
+  #adminSettingsOverlay .admin-settings-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 8px;
+  }
+  @media (max-width: 900px) {
+    #adminSettingsOverlay .admin-settings-grid { grid-template-columns: 1fr; }
+  }
+  #adminSettingsOverlay .admin-settings-block {
+    margin: 0;
+  }
+  #adminSettingsOverlay .admin-settings-block > .section-toggle {
+    margin: 0 0 8px; font-size: 14px; font-weight: 800; color: var(--text);
+  }
+  #adminSettingsOverlay .admin-settings-block > .section-body.open { display: block; }
+  #adminSettingsOverlay .admin-settings-stack {
+    display: flex; flex-direction: column; gap: 14px; margin-top: 18px;
+  }
+  #adminSettingsOverlay .admin-settings-stack > .admin-settings-block > .section-toggle {
+    margin: 0 0 8px;
+  }
   textarea { width: 100%; height: 130px; font-family: ui-monospace, monospace; font-size: 11.5px; padding: 8px; border: 1px solid var(--card-border); border-radius: 10px; background: var(--metric-box-bg); color: var(--text); }
   button {
     background: linear-gradient(90deg,#a855f7,#6366f1); color: white; border: none;
@@ -2100,6 +2137,7 @@
       <div class="header-aura" aria-hidden="true"></div>
       <button class="theme-btn" id="detailBackBtn" type="button">← Back to dashboard</button>
       <h2 id="detailRepName"></h2>
+      <button class="theme-btn manual-attro-btn" id="detailManualAttroBtn" type="button">📝 Manual Attribution</button>
       <div class="detail-header-pace" id="detailHeaderPace"></div>
     </div>
     <div class="pacer-layout-tabs" id="pacerLayoutTabs" role="tablist" aria-label="Individual Pacer sections">
@@ -2189,12 +2227,7 @@
             <span class="side-chevron" id="personalGoalSideChevron">▾</span>
           </div>
           <div id="personalGoalSideBody" class="personal-goal-side-content">
-            <div class="goal-style-toggle" id="goalStyleToggle" role="group" aria-label="Goal card style">
-              <button type="button" class="goal-style-btn" data-goal-style="compact">Compact</button>
-              <button type="button" class="goal-style-btn" data-goal-style="meter">Meter</button>
-              <button type="button" class="goal-style-btn" data-goal-style="card">Card</button>
-            </div>
-            <div id="personalGoalSideContent" class="personal-goal-side-content"></div>
+            <div id="personalGoalSideContent" class="personal-goal-side-inner"></div>
           </div>
           <div class="metrics-side-section-head" id="bonusSideToggle">
             <span class="metrics-side-title" style="margin-bottom:0;">💰 Bonus Payout</span>
@@ -2506,102 +2539,116 @@
       <button class="theme-btn" id="adminSettingsBackBtn" type="button">← Back to dashboard</button>
       <h2>Access, badges &amp; tools</h2>
     </div>
-    <div class="section-toggle" id="toggleAdmin">▸ Admin access</div>
-    <div class="section-body" id="adminBody">
-      <div class="card">
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
-          <label style="flex:1; min-width:180px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-            Email
-            <input type="email" id="newAdminEmail" placeholder="name@varsitytutors.com">
-          </label>
-          <button id="addAdminBtn" type="button">+ Add Admin</button>
+    <p class="admin-settings-intro">Manage who can open Individual Pacers, badges, shoutouts, and a couple of testing helpers. Main sections stay open so nothing is buried.</p>
+
+    <div class="admin-settings-grid">
+      <div class="admin-settings-block">
+        <div class="section-toggle" id="toggleAdmin">▾ Admin access</div>
+        <div class="section-body open" id="adminBody">
+          <div class="card">
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+              <label style="flex:1; min-width:180px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+                Email
+                <input type="email" id="newAdminEmail" placeholder="name@varsitytutors.com">
+              </label>
+              <button id="addAdminBtn" type="button">+ Add Admin</button>
+            </div>
+            <div class="meta-note" id="addAdminStatus"></div>
+            <div id="adminList" style="margin-top:10px;"></div>
+            <div class="meta-note">Full write access (roster, goals, badges, approvals). Aaron is permanent and can't be removed here.</div>
+          </div>
         </div>
-        <div class="meta-note" id="addAdminStatus"></div>
-        <div id="adminList" style="margin-top:10px;"></div>
-        <div class="meta-note">Admins get the same access Aaron has — every Individual Pacer page, Team Details, Admin Tools, and all writes (roster, goals, actuals, badges, attribution approvals). Aaron (aaron.bunch@varsitytutors.com) is the permanent admin and can't be removed here. This list is shared across every browser (Netlify Functions + Blobs). Sales Coaches stay read-only.</div>
+      </div>
+
+      <div class="admin-settings-block">
+        <div class="section-toggle" id="toggleLimitedAdmin">▾ Sales Coach access</div>
+        <div class="section-body open" id="limitedAdminBody">
+          <div class="card">
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+              <label style="flex:1; min-width:180px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+                Email
+                <input type="email" id="newLimitedAdminEmail" placeholder="name@varsitytutors.com">
+              </label>
+              <button id="addLimitedAdminBtn" type="button">+ Add Sales Coach</button>
+            </div>
+            <div class="meta-note" id="addLimitedAdminStatus"></div>
+            <div id="limitedAdminList" style="margin-top:10px;"></div>
+            <div class="meta-note">Read every Individual Pacer + Team Details; no Bonus Payout / $ SIP on others' pages. Can submit Manual Attribution on behalf of a rep.</div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="section-toggle" id="toggleLimitedAdmin">▸ Sales Coach access</div>
-    <div class="section-body" id="limitedAdminBody">
-      <div class="card">
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
-          <label style="flex:1; min-width:180px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-            Email
-            <input type="email" id="newLimitedAdminEmail" placeholder="name@varsitytutors.com">
-          </label>
-          <button id="addLimitedAdminBtn" type="button">+ Add Sales Coach</button>
+    <div class="admin-settings-stack">
+      <div class="admin-settings-block">
+        <div class="section-toggle" id="toggleBadgeControls">▾ Badge Controls</div>
+        <div class="section-body open" id="badgeControlsBody">
+          <div class="card">
+            <div class="m-label" style="margin-bottom:8px;">Badge Bank — every badge, on/off + delete</div>
+            <div id="badgeBankList" style="display:flex; flex-direction:column; gap:10px;"></div>
+            <div class="meta-note">Turning one off hides it everywhere but keeps it listed to re-enable. Delete removes it from this list.</div>
+          </div>
+          <div class="card" style="margin-top:12px;">
+            <div class="m-label" style="margin-bottom:8px;">Create your own badge</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+              <label style="flex:0 0 70px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+                Emoji
+                <input type="text" id="customBadgeEmoji" maxlength="4" placeholder="🏅" style="text-align:center;">
+              </label>
+              <label style="flex:1; min-width:140px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+                Name
+                <input type="text" id="customBadgeName" placeholder="e.g. Comeback Kid" maxlength="30">
+              </label>
+              <label style="flex:2; min-width:200px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+                Description
+                <input type="text" id="customBadgeDescription" placeholder="What earns this badge?" maxlength="140">
+              </label>
+              <button id="createCustomBadgeBtn" type="button">+ Create Badge</button>
+            </div>
+            <div class="meta-note" id="customBadgeStatus"></div>
+          </div>
+          <div class="card" style="margin-top:12px;">
+            <div class="m-label" style="margin-bottom:8px;">Assign a badge</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+              <label style="flex:1; min-width:160px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+                Teammate
+                <select id="badgeAssignRepSelect" class="sip-select"></select>
+              </label>
+              <label style="flex:1; min-width:160px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+                Badge
+                <select id="badgeAssignTypeSelect" class="sip-select"></select>
+              </label>
+              <button id="badgeAssignBtn" type="button">+ Assign</button>
+            </div>
+            <div class="meta-note" id="badgeAssignTypeDescription" style="margin-top:0;"></div>
+            <div class="meta-note" id="badgeAssignStatus"></div>
+            <div id="manualBadgeAssignedList" style="margin-top:10px;"></div>
+          </div>
         </div>
-        <div class="meta-note" id="addLimitedAdminStatus"></div>
-        <div id="limitedAdminList" style="margin-top:10px;"></div>
-        <div class="meta-note">Sales Coaches can open every Individual Pacer page — pacing %, Sessions/Members counts, sold vs. refunds — but never see Bonus Payout or historical $ SIP payout figures on someone else's page. If a coach is also a rep, they still see their own payout on their own Individual Pacer. They also get Team Details (read-only) and can submit Manual Attribution on behalf of a rep. Converting cancels, editing goals/roster/actuals, and approving attributions stay full-admin only.</div>
       </div>
-    </div>
 
-    <div class="section-toggle" id="toggleBadgeControls">▸ Badge Controls</div>
-    <div class="section-body" id="badgeControlsBody">
-      <div class="card">
-        <div class="m-label" style="margin-bottom:8px;">Badge Bank — every badge, on/off + delete</div>
-        <div id="badgeBankList" style="display:flex; flex-direction:column; gap:10px;"></div>
-        <div class="meta-note">Turning one off hides it everywhere on the dashboard immediately, but keeps it listed here to turn back on later — it doesn't erase anyone's underlying streak/consistency data or existing assignments, so re-enabling it picks back up wherever it would naturally be. Deleting removes it from this list entirely: for the 4 Automatic badges and 4 built-in Manual assign presets that's permanent (there's no undo from here), for anything you built yourself you can always recreate it below.</div>
-      </div>
-      <div class="card" style="margin-top:12px;">
-        <div class="m-label" style="margin-bottom:8px;">Create your own badge</div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
-          <label style="flex:0 0 70px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-            Emoji
-            <input type="text" id="customBadgeEmoji" maxlength="4" placeholder="🏅" style="text-align:center;">
-          </label>
-          <label style="flex:1; min-width:140px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-            Name
-            <input type="text" id="customBadgeName" placeholder="e.g. Comeback Kid" maxlength="30">
-          </label>
-          <label style="flex:2; min-width:200px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-            Description
-            <input type="text" id="customBadgeDescription" placeholder="What earns this badge?" maxlength="140">
-          </label>
-          <button id="createCustomBadgeBtn" type="button">+ Create Badge</button>
+      <div class="admin-settings-block">
+        <div class="section-toggle" id="toggleShoutoutLog">▾ All Shoutouts</div>
+        <div class="section-body open" id="shoutoutLogBody">
+          <div class="card">
+            <div id="masterShoutoutList"></div>
+            <div class="meta-note" id="masterShoutoutEmpty" style="display:none;">No shoutouts yet.</div>
+            <div class="meta-note">Master log across every rep, newest first.</div>
+          </div>
         </div>
-        <div class="meta-note" id="customBadgeStatus"></div>
-        <div class="meta-note">Give it an emoji, a name, and a short description of what it's for. Once created, it appears in the Badge Bank above and as an option to assign, same as any preset badge.</div>
       </div>
-      <div class="card" style="margin-top:12px;">
-        <div class="m-label" style="margin-bottom:8px;">Assign a badge</div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
-          <label style="flex:1; min-width:160px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-            Teammate
-            <select id="badgeAssignRepSelect" class="sip-select"></select>
-          </label>
-          <label style="flex:1; min-width:160px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-            Badge
-            <select id="badgeAssignTypeSelect" class="sip-select"></select>
-          </label>
-          <button id="badgeAssignBtn" type="button">+ Assign</button>
-        </div>
-        <div class="meta-note" id="badgeAssignTypeDescription" style="margin-top:0;"></div>
-        <div class="meta-note" id="badgeAssignStatus"></div>
-        <div id="manualBadgeAssignedList" style="margin-top:10px;"></div>
-        <div class="meta-note">These don't come from the data — they're for reasons only a coach/admin would know (a great save, a big improvement no formula captures). Assign as many as make sense; remove any time.</div>
-      </div>
-    </div>
 
-    <div class="section-toggle" id="toggleShoutoutLog">▸ All Shoutouts</div>
-    <div class="section-body" id="shoutoutLogBody">
-      <div class="card">
-        <div id="masterShoutoutList"></div>
-        <div class="meta-note" id="masterShoutoutEmpty" style="display:none;">No shoutouts yet.</div>
-        <div class="meta-note">Master log across every rep, newest first. Anyone can send a shoutout from the "📣 Send Shoutout" button on the landing page — this view is for coaches/admins to see them all in one place.</div>
-      </div>
-    </div>
-
-    <div class="section-toggle" id="toggleTestingTools">▸ Testing tools</div>
-    <div class="section-body" id="testingToolsBody">
-      <div class="card">
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-          <button id="resetCelebrationPopupBtn" type="button">🔄 Un-mute celebration popup</button>
-          <span class="meta-note" style="margin:0;" id="resetCelebrationStatus"></span>
+      <div class="admin-settings-block">
+        <div class="section-toggle" id="toggleTestingTools">▸ Testing tools</div>
+        <div class="section-body" id="testingToolsBody">
+          <div class="card">
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+              <button id="resetCelebrationPopupBtn" type="button">🔄 Un-mute celebration popup</button>
+              <span class="meta-note" style="margin:0;" id="resetCelebrationStatus"></span>
+            </div>
+            <div class="meta-note">Clears the permanent mute for the Double Goal celebration popup in this browser only.</div>
+          </div>
         </div>
-        <div class="meta-note">The celebration popup pops every time the current Double Goal champion's Individual Pacer page is opened — closing it with "Let's go" doesn't remember anything, only "Don't show this again" does. This button clears that permanent mute flag, for testing a rep who previously opted out. This only affects your own browser — not something reps will ever see.</div>
       </div>
     </div>
   </div>
@@ -5445,18 +5492,6 @@ function setStackBoardsHidden(hidden) {
 }
 document.getElementById('stackBoardsHideBtn')?.addEventListener('click', () => setStackBoardsHidden(true));
 document.getElementById('stackBoardsShowBtn')?.addEventListener('click', () => setStackBoardsHidden(false));
-document.getElementById('goalStyleToggle')?.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-goal-style]');
-  if (!btn) return;
-  localStorage.setItem(GOAL_STYLE_KEY, normalizeGoalStyle(btn.getAttribute('data-goal-style')));
-  syncGoalStyleToggle();
-  const match = location.hash.match(/^#(?:individual-pacer|client-detail)=(.+)$/);
-  if (match) {
-    const repName = decodeURIComponent(match[1]);
-    const el = document.getElementById('personalGoalSideContent');
-    if (el) el.innerHTML = personalGoalSideHTML(repName);
-  }
-});
 document.addEventListener('change', (e) => {
   const sel = e.target.closest && e.target.closest('[data-view-as-select]');
   if (!sel) return;
@@ -6717,9 +6752,14 @@ document.getElementById('sipMonthSelect').addEventListener('change', renderSipMo
 document.getElementById('sipFromSelect').addEventListener('change', renderSipRange);
 document.getElementById('sipToSelect').addEventListener('change', renderSipRange);
 
-function setupToggle(toggleId, bodyId, label) {
+function setupToggle(toggleId, bodyId, label, startOpen) {
   const toggle = document.getElementById(toggleId);
   const body = document.getElementById(bodyId);
+  if (!toggle || !body) return;
+  if (startOpen) {
+    body.classList.add('open');
+    toggle.textContent = '▾ ' + label;
+  }
   toggle.addEventListener('click', () => {
     const open = body.classList.toggle('open');
     toggle.textContent = (open ? '▾ ' : '▸ ') + label;
@@ -6848,11 +6888,11 @@ setupHeaderPopover('layoutToolsBtn', 'layoutToolsMenu');
   bind('toolsSipBtn', 'historical-sip');
 })();
 setupToggle('toggleRemoved', 'removedBody', 'Removed people');
-setupToggle('toggleAdmin', 'adminBody', 'Admin access');
-setupToggle('toggleLimitedAdmin', 'limitedAdminBody', 'Sales Coach access');
-setupToggle('toggleBadgeControls', 'badgeControlsBody', 'Badge Controls');
-setupToggle('toggleShoutoutLog', 'shoutoutLogBody', 'All Shoutouts');
-setupToggle('toggleTestingTools', 'testingToolsBody', 'Testing tools');
+setupToggle('toggleAdmin', 'adminBody', 'Admin access', true);
+setupToggle('toggleLimitedAdmin', 'limitedAdminBody', 'Sales Coach access', true);
+setupToggle('toggleBadgeControls', 'badgeControlsBody', 'Badge Controls', true);
+setupToggle('toggleShoutoutLog', 'shoutoutLogBody', 'All Shoutouts', true);
+setupToggle('toggleTestingTools', 'testingToolsBody', 'Testing tools', false);
 document.getElementById('resetCelebrationPopupBtn').addEventListener('click', () => {
   localStorage.removeItem(DOUBLE_GOAL_POPUP_MUTED_KEY);
   document.getElementById('resetCelebrationStatus').textContent = 'Un-muted — the current champion\'s Individual Pacer page will show the popup again.';
@@ -7745,7 +7785,7 @@ function renderClientDetail(opts) {
 
   const allowed = canViewClientDetail(repName);
   const restrictedNote = document.getElementById('detailRestrictedNote');
-  const bodyEls = ['detailPacingRow', 'doubleGoalBanner', 'metricsStyleToggleWrap', 'detailSummary', 'detailNetActuals', 'detailContent', 'clientDetailHistoryBlock', 'pacerTabLastMonth']
+  const bodyEls = ['detailPacingRow', 'doubleGoalBanner', 'metricsStyleToggleWrap', 'detailSummary', 'detailNetActuals', 'detailContent', 'pacerTabActivity', 'clientDetailHistoryBlock']
     .map(id => document.getElementById(id)).filter(Boolean);
   if (!allowed) {
     restrictedNote.style.display = '';
@@ -7757,7 +7797,7 @@ function renderClientDetail(opts) {
     return;
   }
   restrictedNote.style.display = 'none';
-  bodyEls.forEach(el => el.style.display = '');
+  bodyEls.forEach(el => { el.style.display = ''; });
 
   {
     const pacing = computeRepPacing(repName);
@@ -7812,27 +7852,12 @@ function renderClientDetail(opts) {
       if (pacing.goalIsZero) headerNum.textContent = '—';
       else animateNumber(headerNum, pacing.current ?? 0, 50);
     }
-    document.getElementById('personalGoalSideChevron').classList.toggle('collapsed', personalGoalSidePanelCollapsed);
-    document.getElementById('personalGoalSideBody').classList.toggle('collapsed', personalGoalSidePanelCollapsed);
-    document.getElementById('personalGoalSideContent').innerHTML = personalGoalSideHTML(repName);
-    document.getElementById('rankSideChevron').classList.toggle('collapsed', rankSideCollapsed);
-    document.getElementById('rankSideContent').classList.toggle('collapsed', rankSideCollapsed);
-    document.getElementById('rankSideContent').innerHTML = rankSideContentHTML(repName);
-    document.getElementById('paceNeedSideChevron').classList.toggle('collapsed', paceNeedSideCollapsed);
-    document.getElementById('paceNeedSideContent').classList.toggle('collapsed', paceNeedSideCollapsed);
-    document.getElementById('paceNeedSideContent').innerHTML = detailPaceNeedHTML(repName);
     document.getElementById('detailNetActuals').innerHTML = detailNetActualsHTML(pacing);
     syncLastMonthPacerTab(repName);
   }
 
-  // currentBonusRep tracks who the sidebar's render/save targets — content
-  // refreshes on every navigation (including switching between reps), but the
-  // collapsed/expanded state itself is a persisted preference, not reset here.
-  currentBonusRep = repName;
-  document.getElementById('bonusSideChevron').classList.toggle('collapsed', bonusSideCollapsed);
-  document.getElementById('bonusSideContent').classList.toggle('collapsed', bonusSideCollapsed);
-  document.getElementById('bonusSideContent').innerHTML = bonusPayoutHTML(repName);
-
+  // Activity (ledger attributions / refunds) — fill before side-panel HTML so a
+  // sidebar render error can never blank this section.
   const actuals = loadActuals();
   const items = (actuals.perRep && actuals.perRep[repName] && actuals.perRep[repName].items) || [];
   // Days newest → oldest; within a day, newest ledger rows first (source feed is chronological).
@@ -7850,34 +7875,59 @@ function renderClientDetail(opts) {
   const attributions = sorted.filter(it => !isRefund(it));
   const refunds = sorted.filter(isRefund);
 
-  document.getElementById('detailContent').style.display = items.length ? '' : 'none';
+  const detailContent = document.getElementById('detailContent');
+  const pacerTabActivity = document.getElementById('pacerTabActivity');
+  if (detailContent) detailContent.style.display = '';
+  if (pacerTabActivity) pacerTabActivity.style.display = '';
   document.getElementById('detailSummary').textContent = items.length
     ? ''
     : 'No client-level detail yet — live Supabase actuals (or a CSV fallback) will populate this.';
 
-  if (items.length) {
-    const sum = (arr, key) => arr.reduce((s, it) => s + it[key], 0);
-    const membersSold = sum(attributions, 'members');
-    const sessionsSold = sum(attributions, 'sessions');
-    const memberRefunds = sum(refunds, 'members');
-    const sessionRefunds = sum(refunds, 'sessions');
-    document.getElementById('detailStats').innerHTML = `
-      <div class="detail-stat"><span class="detail-stat-label">Members Sold</span><span class="detail-stat-val positive">${fmt(membersSold,1)}</span></div>
-      <div class="detail-stat"><span class="detail-stat-label">Sessions Sold</span><span class="detail-stat-val positive">${fmt(sessionsSold,1)}</span></div>
-      <div class="detail-stat"><span class="detail-stat-label">Membership Refunds</span><span class="detail-stat-val negative">${fmt(memberRefunds,1)}</span></div>
-      <div class="detail-stat"><span class="detail-stat-label">Session Refunds</span><span class="detail-stat-val negative">${fmt(sessionRefunds,1)}</span></div>
-    `;
-    document.getElementById('detailAttrCount').textContent = attributions.length + ' line item' + (attributions.length === 1 ? '' : 's');
-    document.getElementById('detailRefundCount').textContent = refunds.length + ' line item' + (refunds.length === 1 ? '' : 's');
-    document.getElementById('detailAttrBody').innerHTML = attributions.length ? attributions.map(detailRowHTML).join('') : detailEmptyRowHTML('No attributions');
-    document.getElementById('detailRefundBody').innerHTML = refunds.length ? refunds.map(detailRowHTML).join('') : detailEmptyRowHTML('No refunds 🎉');
-  }
+  const sum = (arr, key) => arr.reduce((s, it) => s + (Number(it[key]) || 0), 0);
+  const membersSold = sum(attributions, 'members');
+  const sessionsSold = sum(attributions, 'sessions');
+  const memberRefunds = sum(refunds, 'members');
+  const sessionRefunds = sum(refunds, 'sessions');
+  document.getElementById('detailStats').innerHTML = `
+    <div class="detail-stat"><span class="detail-stat-label">Members Sold</span><span class="detail-stat-val positive">${fmt(membersSold,1)}</span></div>
+    <div class="detail-stat"><span class="detail-stat-label">Sessions Sold</span><span class="detail-stat-val positive">${fmt(sessionsSold,1)}</span></div>
+    <div class="detail-stat"><span class="detail-stat-label">Membership Refunds</span><span class="detail-stat-val negative">${fmt(memberRefunds,1)}</span></div>
+    <div class="detail-stat"><span class="detail-stat-label">Session Refunds</span><span class="detail-stat-val negative">${fmt(sessionRefunds,1)}</span></div>
+  `;
+  document.getElementById('detailAttrCount').textContent = attributions.length + ' line item' + (attributions.length === 1 ? '' : 's');
+  document.getElementById('detailRefundCount').textContent = refunds.length + ' line item' + (refunds.length === 1 ? '' : 's');
+  document.getElementById('detailAttrBody').innerHTML = attributions.length ? attributions.map(detailRowHTML).join('') : detailEmptyRowHTML('No attributions');
+  document.getElementById('detailRefundBody').innerHTML = refunds.length ? refunds.map(detailRowHTML).join('') : detailEmptyRowHTML('No refunds 🎉');
   // This rep's still-PENDING Manual Attribution requests for the current month
   // (or that Aaron converted from one of their cancels) — separate from the
   // ledger-derived Attributions/Refunds panels above, and independent of
   // whether there's any ledger data at all, so this always runs, not just
   // inside the `items.length` branch.
   refreshDetailAttributions(repName);
+
+  // Side panel — after Activity so sidebar issues never blank the main column.
+  try {
+    document.getElementById('personalGoalSideChevron')?.classList.toggle('collapsed', personalGoalSidePanelCollapsed);
+    document.getElementById('personalGoalSideBody')?.classList.toggle('collapsed', personalGoalSidePanelCollapsed);
+    const goalEl = document.getElementById('personalGoalSideContent');
+    if (goalEl) goalEl.innerHTML = personalGoalSideHTML(repName);
+    document.getElementById('rankSideChevron')?.classList.toggle('collapsed', rankSideCollapsed);
+    document.getElementById('rankSideContent')?.classList.toggle('collapsed', rankSideCollapsed);
+    const rankEl = document.getElementById('rankSideContent');
+    if (rankEl) rankEl.innerHTML = rankSideContentHTML(repName);
+    document.getElementById('paceNeedSideToggle')?.classList.toggle('is-collapsed', paceNeedSideCollapsed);
+    document.getElementById('paceNeedSideChevron')?.classList.toggle('collapsed', paceNeedSideCollapsed);
+    document.getElementById('paceNeedSideContent')?.classList.toggle('collapsed', paceNeedSideCollapsed);
+    const needEl = document.getElementById('paceNeedSideContent');
+    if (needEl) needEl.innerHTML = detailPaceNeedHTML(repName);
+    currentBonusRep = repName;
+    document.getElementById('bonusSideChevron')?.classList.toggle('collapsed', bonusSideCollapsed);
+    document.getElementById('bonusSideContent')?.classList.toggle('collapsed', bonusSideCollapsed);
+    const bonusEl = document.getElementById('bonusSideContent');
+    if (bonusEl) bonusEl.innerHTML = bonusPayoutHTML(repName);
+  } catch (sideErr) {
+    console.warn('Individual Pacer side panel render failed:', sideErr);
+  }
   // Confidentiality gate for the chart's $ view — hide the option entirely for
   // a viewer who shouldn't see payout, and if they were somehow left on
   // "earnings" mode (e.g. Aaron flips the preview role while already on this
@@ -7918,8 +7968,9 @@ document.getElementById('paceNeedSideToggle')?.addEventListener('click', (e) => 
   if (e.target.closest('[data-pace-need-target]')) return;
   paceNeedSideCollapsed = !paceNeedSideCollapsed;
   saveJSON(PACE_NEED_SIDE_COLLAPSED_KEY, paceNeedSideCollapsed);
-  document.getElementById('paceNeedSideChevron').classList.toggle('collapsed', paceNeedSideCollapsed);
-  document.getElementById('paceNeedSideContent').classList.toggle('collapsed', paceNeedSideCollapsed);
+  document.getElementById('paceNeedSideToggle')?.classList.toggle('is-collapsed', paceNeedSideCollapsed);
+  document.getElementById('paceNeedSideChevron')?.classList.toggle('collapsed', paceNeedSideCollapsed);
+  document.getElementById('paceNeedSideContent')?.classList.toggle('collapsed', paceNeedSideCollapsed);
 });
 document.getElementById('bonusSideToggle').addEventListener('click', () => {
   bonusSideCollapsed = !bonusSideCollapsed;
@@ -7996,6 +8047,7 @@ function renderManualAttroPage() {
 }
 window.addEventListener('hashchange', renderManualAttroPage);
 document.getElementById('manualAttroBtn').addEventListener('click', () => { location.hash = 'manual-attribution'; });
+document.getElementById('detailManualAttroBtn')?.addEventListener('click', () => { location.hash = 'manual-attribution'; });
 document.getElementById('attroBackBtn').addEventListener('click', () => {
   if (location.hash) history.back(); else { document.getElementById('manualAttroOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
 });
@@ -8794,21 +8846,15 @@ function personalGoalLabel(goal) {
   if (goal.kind === 'sessions') return `${fmt(goal.target, goal.target % 1 ? 1 : 0)} sessions`;
   return String(goal.target);
 }
-const GOAL_STYLE_KEY = 'pace_dashboard_goal_style_v1';
-function normalizeGoalStyle(v) {
-  return (v === 'compact' || v === 'meter' || v === 'card') ? v : 'meter';
-}
-function resolveGoalStyle() {
-  return normalizeGoalStyle(localStorage.getItem(GOAL_STYLE_KEY) || 'meter');
-}
-function syncGoalStyleToggle() {
-  const style = resolveGoalStyle();
-  document.querySelectorAll('#goalStyleToggle .goal-style-btn').forEach((btn) => {
-    btn.classList.toggle('active', btn.getAttribute('data-goal-style') === style);
-  });
+function personalGoalTargetNumber(goal) {
+  if (!goal) return '—';
+  if (goal.kind === 'compositePct') return fmt(goal.target, 0) + '%';
+  if (goal.kind === 'members' || goal.kind === 'sessions') {
+    return fmt(goal.target, goal.target % 1 ? 1 : 0);
+  }
+  return String(goal.target);
 }
 function personalGoalSideHTML(repDisplay) {
-  syncGoalStyleToggle();
   const progress = personalGoalProgress(repDisplay);
   if (!progress) {
     return `<div class="meta-note" style="margin-top:0;">No personal month goal set yet.</div>`;
@@ -8817,19 +8863,8 @@ function personalGoalSideHTML(repDisplay) {
   const curLabel = current === null ? '—' : (goal.kind === 'compositePct' ? fmt(current, 1) + '%' : fmt(current, 1) + unit);
   const width = pct === null ? 0 : Math.max(0, Math.min(pct, 100));
   const progLabel = met ? '✓ Met' : (pct === null ? '—' : fmt(pct, 0) + '% of target');
-  const style = resolveGoalStyle();
-  if (style === 'compact') {
-    return `<div class="personal-goal-compact">${personalGoalLabel(goal)} · ${curLabel} · ${progLabel}</div>`;
-  }
-  if (style === 'card') {
-    return `<div class="personal-goal-card">
-      <div class="goal-card-target">${personalGoalLabel(goal)}</div>
-      <div class="goal-card-status">${curLabel} · ${progLabel}</div>
-      <div class="personal-goal-progress-bar" style="margin-top:10px;"><div class="personal-goal-progress-fill" style="width:${width}%;"></div></div>
-    </div>`;
-  }
   return `<div class="personal-goal-meter">
-    <div class="metrics-side-item"><span class="metrics-side-label">Target</span><span class="metrics-side-val">${personalGoalLabel(goal)}</span></div>
+    <div class="metrics-side-item"><span class="metrics-side-label">Target</span><span class="metrics-side-val">${personalGoalTargetNumber(goal)}</span></div>
     <div class="metrics-side-item"><span class="metrics-side-label">Current</span><span class="metrics-side-val">${curLabel}</span></div>
     <div class="metrics-side-item"><span class="metrics-side-label">Progress</span><span class="metrics-side-val">${progLabel}</span></div>
     <div class="personal-goal-progress-bar"><div class="personal-goal-progress-fill" style="width:${width}%;"></div></div>
