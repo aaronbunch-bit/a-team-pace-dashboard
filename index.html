@@ -5,6 +5,9 @@
 <title>A-Team Pacer</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
 <link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,500;0,9..40,700;1,9..40,500&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Instrument+Serif:ital@0;1&family=Sora:wght@500;700;800&family=Source+Sans+3:wght@500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <style>
   :root {
     color-scheme: light;
@@ -19,6 +22,13 @@
     --metric-box-bg: #fafaff;
     --divider: #f0eef9;
     --shadow: rgba(90,70,160,0.08);
+    --font-body: "DM Sans", "Source Sans 3", sans-serif;
+    --font-display: "Syne", "Sora", sans-serif;
+    --accent: #6366f1;
+    --accent-2: #a855f7;
+    --radius-card: 16px;
+    --radius-pill: 999px;
+    --skin-pattern: none;
   }
   body.dark {
     --bg: #131120;
@@ -36,11 +46,16 @@
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--font-body);
     background: var(--bg);
+    background-image: var(--skin-pattern);
     color: var(--text);
     padding: 28px;
     transition: background 0.25s ease, color 0.25s ease;
+  }
+  h1, h2, .grad-text, .rep-name, .composite-num, .detail-net-val,
+  .leaderboard-val, .leaderboard-title, .bonus-hero-num {
+    font-family: var(--font-display);
   }
   /* A happy medium between the original 900px (too cramped once Client
      Detail got its own wider layout) and a brief detour to 1360px to match
@@ -310,57 +325,281 @@
   .rebound-badge { color: #0891b2; background: rgba(8,145,178,0.14); }
   .night-owl-badge { color: #4f46e5; background: rgba(79,70,229,0.14); }
   .best-pace-day-badge { color: #c026d3; background: rgba(192,38,211,0.14); }
-  /* View presets — same info/placement, different presentation */
-  .view-menu-btn.active-view { border-color: var(--text-faint); box-shadow: 0 0 0 1px var(--text-faint); }
-  body[data-view="focus"] .improved-panel { display: none; }
-  body[data-view="focus"] .landing-menu-hint { display: none !important; }
-  body[data-view="focus"] .detail-net-box,
-  body[data-view="focus"] .detail-stat,
-  body[data-view="focus"] .detail-panel {
-    background: transparent; border: none; box-shadow: none; border-radius: 0;
-    border-bottom: 1px solid var(--divider); padding-left: 0; padding-right: 0;
+  /* ---------- Full UI skins (Design menu) — all info kept ---------- */
+  .view-menu-btn {
+    text-align: left; line-height: 1.25;
   }
-  body[data-view="focus"] .metrics-side-panel {
-    background: transparent; border: none; box-shadow: none; padding: 0;
+  .view-menu-btn .skin-blurb {
+    display: block; font-size: 10.5px; font-weight: 600; color: var(--text-faint);
+    margin-top: 2px; text-transform: none; letter-spacing: 0;
   }
-  body[data-view="focus"] .pacer-insight-strip {
-    background: transparent; border: none; border-top: 1px solid var(--divider);
-    border-bottom: 1px solid var(--divider); border-radius: 0;
+  .view-menu-btn.active-view { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  #viewMenu { min-width: 260px; }
+  .card { border-radius: var(--radius-card); }
+  .status-pill, .theme-btn, .engagement-badge, .workspace-tab {
+    border-radius: var(--radius-pill);
   }
-  body[data-view="focus"] .engagement-badge {
-    background: transparent !important; border: 1px solid currentColor; padding: 1px 7px;
+
+  /* RELAY — athletic track: forest + lime, sharp geometry, diagonal energy */
+  body[data-skin="relay"] {
+    --bg: #eef5e8;
+    --text: #102416;
+    --text-muted: #3d5c45;
+    --text-faint: #6a8570;
+    --card-bg: #f7fbf3;
+    --card-border: #cfe0c4;
+    --pill-border: #b9d0aa;
+    --track-bg: #dcebd1;
+    --metric-box-bg: #e7f2de;
+    --divider: #d3e4c7;
+    --shadow: rgba(24, 64, 32, 0.12);
+    --font-body: "DM Sans", sans-serif;
+    --font-display: "Syne", sans-serif;
+    --accent: #84cc16;
+    --accent-2: #166534;
+    --radius-card: 8px;
+    --radius-pill: 6px;
+    --skin-pattern: repeating-linear-gradient(
+      -18deg, transparent, transparent 22px, rgba(22, 101, 52, 0.04) 22px, rgba(22, 101, 52, 0.04) 23px
+    );
   }
-  body[data-view="board"] .composite-num,
-  body[data-view="board"] .detail-net-val,
-  body[data-view="board"] .detail-stat-val,
-  body[data-view="board"] .leaderboard-val {
-    font-size: 1.35em; letter-spacing: -0.02em;
+  body.dark[data-skin="relay"] {
+    --bg: #0c1610; --text: #e7f5df; --text-muted: #9cb89f; --text-faint: #6f8a74;
+    --card-bg: #142018; --card-border: #243828; --pill-border: #2d4533;
+    --track-bg: #1c2c20; --metric-box-bg: #101a13; --divider: #243828;
+    --shadow: rgba(0,0,0,0.5); --accent: #a3e635; --accent-2: #4d7c0f;
   }
-  body[data-view="board"] .detail-net-box,
-  body[data-view="board"] .leaderboard-panel,
-  body[data-view="board"] .card {
-    border-width: 2px;
+  body[data-skin="relay"] .grad-text {
+    background: linear-gradient(90deg, #65a30d, #166534 55%, #84cc16);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
   }
-  body[data-view="board"] .status-pill,
-  body[data-view="board"] .engagement-badge {
-    transform: scale(1.05);
+  body[data-skin="relay"] .header-aura {
+    background: linear-gradient(90deg, rgba(132,204,22,0.28), rgba(22,101,52,0.22), rgba(163,230,53,0.3), rgba(132,204,22,0.28));
+    background-size: 300% 100%;
   }
-  body[data-view="board"] .bar-track { height: 12px; }
-  body[data-view="compact"] .landing-actions-row { margin: 8px 0 12px; gap: 8px; }
-  body[data-view="compact"] .theme-btn.large { padding: 8px 14px; font-size: 12.5px; }
-  body[data-view="compact"] .leaderboard-panel { padding: 8px 10px; }
-  body[data-view="compact"] .detail-net-grid { gap: 8px; margin-bottom: 10px; }
-  body[data-view="compact"] .detail-net-val { font-size: 22px; }
-  body[data-view="compact"] .detail-stat { padding: 8px 10px; }
-  body[data-view="compact"] .detail-stat-val { font-size: 15px; }
-  body[data-view="compact"] .metrics-side-panel { padding: 10px 12px; }
-  body[data-view="compact"] .engagement-badge {
-    font-size: 10px; padding: 1px 6px;
+  body[data-skin="relay"] .landing-title-row {
+    justify-content: flex-start; text-align: left; gap: 16px;
   }
-  body[data-view="compact"] .rep-header { gap: 8px; }
-  body[data-view="compact"] .pacer-section-label { margin: 10px 0 6px; }
-  body[data-view="compact"] .pacer-insight-strip { padding: 8px; gap: 8px; margin-bottom: 10px; }
-  body[data-view="compact"] .improved-panel { display: none; }
+  body[data-skin="relay"] .landing-title-row h1 { font-size: 36px; letter-spacing: -0.04em; text-transform: uppercase; }
+  body[data-skin="relay"] .title-blood-badge {
+    background: linear-gradient(135deg, #a3e635, #166534 60%, #052e16);
+    box-shadow: 0 6px 22px rgba(22,101,52,0.4), 0 0 0 3px rgba(132,204,22,0.25);
+  }
+  body[data-skin="relay"] .manual-attro-btn {
+    background: linear-gradient(90deg, #65a30d, #166534 50%, #84cc16);
+    box-shadow: 0 2px 10px rgba(22,101,52,0.35);
+  }
+  body[data-skin="relay"] .leaderboard-panel,
+  body[data-skin="relay"] .card {
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  }
+  body[data-skin="relay"] .composite-num,
+  body[data-skin="relay"] .leaderboard-val { font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+  body[data-skin="relay"] .bar-track { border-radius: 4px; height: 10px; }
+  body[data-skin="relay"] .bar-fill { border-radius: 4px; }
+
+  /* HARBOR — coastal calm: seafoam + slate, soft air, serif display */
+  body[data-skin="harbor"] {
+    --bg: #e8f1f4;
+    --text: #16323f;
+    --text-muted: #4d6d7a;
+    --text-faint: #7a96a2;
+    --card-bg: rgba(255,255,255,0.82);
+    --card-border: #c5dce4;
+    --pill-border: #b7d0da;
+    --track-bg: #d5e6ec;
+    --metric-box-bg: #f0f7fa;
+    --divider: #d0e3ea;
+    --shadow: rgba(22, 70, 90, 0.10);
+    --font-body: "Source Sans 3", sans-serif;
+    --font-display: "Fraunces", Georgia, serif;
+    --accent: #0d9488;
+    --accent-2: #0369a1;
+    --radius-card: 22px;
+    --radius-pill: 999px;
+    --skin-pattern: radial-gradient(1200px 500px at 10% -10%, rgba(13,148,136,0.14), transparent 55%),
+      radial-gradient(900px 420px at 90% 0%, rgba(3,105,161,0.12), transparent 50%);
+  }
+  body.dark[data-skin="harbor"] {
+    --bg: #0b1a20; --text: #e6f4f8; --text-muted: #9cb8c2; --text-faint: #6f8d98;
+    --card-bg: rgba(18,36,44,0.92); --card-border: #274555; --pill-border: #2f5162;
+    --track-bg: #1a3038; --metric-box-bg: #12242c; --divider: #274555;
+    --shadow: rgba(0,0,0,0.45); --accent: #2dd4bf; --accent-2: #38bdf8;
+  }
+  body[data-skin="harbor"] .grad-text {
+    background: linear-gradient(90deg, #0f766e, #0369a1 55%, #0ea5e9);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  body[data-skin="harbor"] .header-aura {
+    background: linear-gradient(90deg, rgba(13,148,136,0.28), rgba(3,105,161,0.24), rgba(14,165,233,0.26), rgba(13,148,136,0.28));
+    background-size: 300% 100%; filter: blur(70px);
+  }
+  body[data-skin="harbor"] .landing-title-row h1 { font-weight: 600; font-size: 34px; letter-spacing: -0.01em; }
+  body[data-skin="harbor"] .title-blood-badge {
+    background: linear-gradient(135deg, #5eead4, #0f766e 50%, #164e63);
+    box-shadow: 0 8px 28px rgba(13,148,136,0.35);
+  }
+  body[data-skin="harbor"] .manual-attro-btn {
+    background: linear-gradient(90deg, #0d9488, #0369a1 55%, #0ea5e9);
+    box-shadow: 0 2px 12px rgba(3,105,161,0.3);
+  }
+  body[data-skin="harbor"] .card,
+  body[data-skin="harbor"] .leaderboard-panel,
+  body[data-skin="harbor"] .metrics-side-panel {
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 30px var(--shadow);
+  }
+  body[data-skin="harbor"] .pacer-section-label,
+  body[data-skin="harbor"] .metrics-side-title {
+    font-family: var(--font-display); font-weight: 600; letter-spacing: 0.06em;
+  }
+  body[data-skin="harbor"] .wrap { max-width: 1180px; }
+
+  /* NIGHTLINE — broadcast scoreboard: charcoal + amber (not purple glow) */
+  body[data-skin="nightline"] {
+    --bg: #121418;
+    --text: #f4f1e8;
+    --text-muted: #b7b0a0;
+    --text-faint: #8a8374;
+    --card-bg: #1a1d23;
+    --card-border: #2c313a;
+    --pill-border: #3a404b;
+    --track-bg: #262b34;
+    --metric-box-bg: #15181e;
+    --divider: #2c313a;
+    --shadow: rgba(0,0,0,0.55);
+    --font-body: "Archivo", sans-serif;
+    --font-display: "Bebas Neue", "Archivo", sans-serif;
+    --accent: #f5b301;
+    --accent-2: #ff7a18;
+    --radius-card: 4px;
+    --radius-pill: 3px;
+    --skin-pattern: linear-gradient(180deg, rgba(245,179,1,0.05), transparent 180px);
+    color-scheme: dark;
+  }
+  body.dark[data-skin="nightline"],
+  body:not(.dark)[data-skin="nightline"] {
+    /* Nightline is always a dark board — light toggle softens slightly */
+  }
+  body:not(.dark)[data-skin="nightline"] {
+    --bg: #1a1e25; --card-bg: #22262e;
+  }
+  body[data-skin="nightline"] .grad-text {
+    background: linear-gradient(90deg, #f5b301, #ff7a18 60%, #fde68a);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  body[data-skin="nightline"] .header-aura {
+    background: linear-gradient(90deg, rgba(245,179,1,0.2), rgba(255,122,24,0.16), rgba(245,179,1,0.2));
+    background-size: 300% 100%; filter: blur(50px); height: 180px;
+  }
+  body[data-skin="nightline"] .landing-title-row {
+    border-bottom: 3px solid var(--accent); padding-bottom: 14px; margin-bottom: 10px;
+  }
+  body[data-skin="nightline"] .landing-title-row h1 {
+    font-size: 44px; font-weight: 400; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  body[data-skin="nightline"] .title-blood-badge {
+    border-radius: 6px; width: 64px; height: 64px;
+    background: linear-gradient(135deg, #f5b301, #b45309 70%, #7c2d12);
+    box-shadow: 0 0 0 2px rgba(245,179,1,0.35);
+  }
+  body[data-skin="nightline"] .manual-attro-btn {
+    background: linear-gradient(90deg, #f5b301, #ff7a18); color: #1a1205;
+    box-shadow: none; animation: none;
+  }
+  body[data-skin="nightline"] .leaderboard-panel {
+    background: #10131a; border: 2px solid #3a404b;
+    box-shadow: inset 0 0 0 1px rgba(245,179,1,0.12);
+  }
+  body[data-skin="nightline"] .leaderboard-title,
+  body[data-skin="nightline"] .leaderboard-val,
+  body[data-skin="nightline"] .composite-num {
+    letter-spacing: 0.03em; text-transform: uppercase;
+  }
+  body[data-skin="nightline"] .leaderboard-val { font-size: 28px; color: var(--accent); }
+  body[data-skin="nightline"] .status-pill {
+    border-radius: 2px; text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px;
+  }
+  body[data-skin="nightline"] .bar-track { border-radius: 2px; height: 8px; }
+  body[data-skin="nightline"] .bar-fill { border-radius: 2px; }
+  body[data-skin="nightline"] .mini-header,
+  body[data-skin="nightline"] .detail-mini-header {
+    background: #10131a; border-bottom: 2px solid var(--accent);
+  }
+
+  /* ATELIER — editorial studio: ink + saffron + ice (not cream/terracotta) */
+  body[data-skin="atelier"] {
+    --bg: #f2f4f7;
+    --text: #12161c;
+    --text-muted: #4b5563;
+    --text-faint: #7b8494;
+    --card-bg: #ffffff;
+    --card-border: #d9dee7;
+    --pill-border: #cfd6e2;
+    --track-bg: #e4e9f1;
+    --metric-box-bg: #f7f8fb;
+    --divider: #e2e7ef;
+    --shadow: rgba(18, 22, 28, 0.08);
+    --font-body: "Sora", sans-serif;
+    --font-display: "Instrument Serif", Georgia, serif;
+    --accent: #d97706;
+    --accent-2: #0284c7;
+    --radius-card: 2px;
+    --radius-pill: 2px;
+    --skin-pattern: linear-gradient(90deg, rgba(2,132,199,0.05) 0 40%, transparent 40%),
+      linear-gradient(180deg, #eef2f6, #f2f4f7 120px);
+  }
+  body.dark[data-skin="atelier"] {
+    --bg: #0e1218; --text: #eef2f6; --text-muted: #a3adbb; --text-faint: #768193;
+    --card-bg: #171c24; --card-border: #2a3340; --pill-border: #343e4d;
+    --track-bg: #222a35; --metric-box-bg: #131820; --divider: #2a3340;
+    --shadow: rgba(0,0,0,0.5); --accent: #f59e0b; --accent-2: #38bdf8;
+  }
+  body[data-skin="atelier"] .grad-text {
+    background: none; -webkit-background-clip: unset; background-clip: unset;
+    color: var(--text); font-style: italic; font-weight: 400;
+  }
+  body[data-skin="atelier"] .header-aura {
+    background: linear-gradient(90deg, rgba(2,132,199,0.18), rgba(217,119,6,0.14), rgba(2,132,199,0.18));
+    background-size: 300% 100%; filter: blur(60px); opacity: 0.85;
+  }
+  body[data-skin="atelier"] .landing-title-row {
+    flex-direction: column; gap: 8px; margin-bottom: 18px;
+  }
+  body[data-skin="atelier"] .title-blood-badge { display: none; }
+  body[data-skin="atelier"] .landing-title-row h1 {
+    font-size: 42px; font-weight: 400; letter-spacing: -0.02em;
+  }
+  body[data-skin="atelier"] .landing-title-row::after {
+    content: ""; display: block; width: 72px; height: 3px; margin-top: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  }
+  body[data-skin="atelier"] .manual-attro-btn {
+    background: var(--text); color: var(--card-bg); animation: none;
+    box-shadow: none; border-radius: 2px;
+  }
+  body[data-skin="atelier"] .card {
+    border-left: 3px solid var(--accent-2);
+    box-shadow: none;
+  }
+  body[data-skin="atelier"] .leaderboard-panel {
+    border-top: 3px solid var(--accent); border-radius: 2px;
+  }
+  body[data-skin="atelier"] .pacer-section-label {
+    font-family: var(--font-body); font-size: 10px; letter-spacing: 0.14em;
+  }
+  body[data-skin="atelier"] .composite-num,
+  body[data-skin="atelier"] .detail-net-val {
+    font-family: var(--font-body); font-weight: 800;
+  }
+
+  /* CLASSIC keeps original tokens; light polish only */
+  body[data-skin="classic"] {
+    --font-body: "DM Sans", "Source Sans 3", sans-serif;
+    --font-display: "Syne", "Sora", sans-serif;
+    --accent: #6366f1;
+    --accent-2: #a855f7;
+  }
   .lwom-sprint-chip {
     display: none; margin-left: 6px; padding: 1px 6px; border-radius: 999px;
     font-size: 10px; font-weight: 800; color: #c2410c;
@@ -1390,17 +1629,18 @@
     </div>
     <button class="theme-btn large" id="shoutoutSendBtn" type="button">📣 Shoutout</button>
     <div class="header-dropdown">
-      <button class="theme-btn large" id="viewMenuBtn" type="button">👁 View ▾</button>
+      <button class="theme-btn large" id="viewMenuBtn" type="button">🎨 Design ▾</button>
       <div class="header-dropdown-menu" id="viewMenu">
-        <button class="theme-btn view-menu-btn" type="button" data-view="standard">Standard — cards</button>
-        <button class="theme-btn view-menu-btn" type="button" data-view="focus">Focus — flush / minimal chrome</button>
-        <button class="theme-btn view-menu-btn" type="button" data-view="board">Board — bigger numbers</button>
-        <button class="theme-btn view-menu-btn" type="button" data-view="compact">Compact — denser type</button>
+        <button class="theme-btn view-menu-btn" type="button" data-skin="classic">Classic<span class="skin-blurb">Original A-Team look</span></button>
+        <button class="theme-btn view-menu-btn" type="button" data-skin="relay">Relay<span class="skin-blurb">Track energy · lime on forest</span></button>
+        <button class="theme-btn view-menu-btn" type="button" data-skin="harbor">Harbor<span class="skin-blurb">Airy coastal · soft slate</span></button>
+        <button class="theme-btn view-menu-btn" type="button" data-skin="nightline">Nightline<span class="skin-blurb">Broadcast boards · amber</span></button>
+        <button class="theme-btn view-menu-btn" type="button" data-skin="atelier">Atelier<span class="skin-blurb">Editorial ink · saffron</span></button>
       </div>
     </div>
     <button class="theme-btn large" id="themeToggle" type="button">🌙 Dark</button>
   </div>
-  <div class="landing-menu-hint" id="landingMenuHint" style="display:none;">Team tools and admin settings live in the menus above — open a rep below for Individual Pacer. Use View to declutter.</div>
+  <div class="landing-menu-hint" id="landingMenuHint" style="display:none;">Team tools and admin settings live in the menus above — open a rep below for Individual Pacer. Try <b>Design</b> for full UI skins.</div>
 
   <div class="pill-row" id="banner"></div>
 
@@ -2372,28 +2612,49 @@ document.getElementById('themeToggle').addEventListener('click', () => {
   applyTheme(next);
 });
 
-// ---------- View presentation presets (localStorage) — brand/theme unchanged ----------
-const VIEW_PREF_KEY = 'pace_dashboard_view_pref_v1';
-const VIEW_PRESETS = {
-  standard: { label: 'Standard' },
-  focus: { label: 'Focus' },
-  board: { label: 'Board' },
-  compact: { label: 'Compact' },
+// ---------- Full UI skins (localStorage) — all data/surfaces kept ----------
+const SKIN_PREF_KEY = 'pace_dashboard_skin_v1';
+const VIEW_PREF_KEY = 'pace_dashboard_view_pref_v1'; // legacy migrate only
+const SKINS = {
+  classic: { label: 'Classic' },
+  relay: { label: 'Relay' },
+  harbor: { label: 'Harbor' },
+  nightline: { label: 'Nightline' },
+  atelier: { label: 'Atelier' },
 };
-function normalizeViewPref(v) {
-  // Migrate removed "focus" meaning if needed — all four keys above are valid.
-  return VIEW_PRESETS[v] ? v : 'standard';
+function normalizeSkin(v) {
+  if (SKINS[v]) return v;
+  // Migrate older View presets → closest full skin
+  const legacy = {
+    standard: 'classic',
+    focus: 'harbor',
+    board: 'nightline',
+    compact: 'relay',
+  };
+  return legacy[v] || 'classic';
 }
-function applyViewPref(pref) {
-  const view = normalizeViewPref(pref);
-  document.body.dataset.view = view;
+function resolveSavedSkin() {
+  const saved = localStorage.getItem(SKIN_PREF_KEY);
+  if (saved) return normalizeSkin(saved);
+  return normalizeSkin(localStorage.getItem(VIEW_PREF_KEY) || 'classic');
+}
+function applySkin(pref) {
+  const skin = normalizeSkin(pref);
+  document.body.dataset.skin = skin;
+  // Clear obsolete view attribute from earlier iterations
+  delete document.body.dataset.view;
   document.querySelectorAll('#viewMenu .view-menu-btn').forEach((btn) => {
-    btn.classList.toggle('active-view', btn.getAttribute('data-view') === view);
+    btn.classList.toggle('active-view', btn.getAttribute('data-skin') === skin);
   });
+  const menuBtn = document.getElementById('viewMenuBtn');
+  if (menuBtn) menuBtn.textContent = '🎨 ' + (SKINS[skin].label) + ' ▾';
   if (typeof syncLandingGridHeight === 'function') syncLandingGridHeight();
 }
-(function initViewPref() {
-  applyViewPref(localStorage.getItem(VIEW_PREF_KEY) || 'standard');
+// Back-compat aliases used by older click handlers / hot reload
+function normalizeViewPref(v) { return normalizeSkin(v); }
+function applyViewPref(pref) { applySkin(pref); }
+(function initSkin() {
+  applySkin(resolveSavedSkin());
 })();
 
 // Landing motion: Dynamic (gradients move) vs Static (colors stay put).
@@ -5784,9 +6045,9 @@ document.addEventListener('click', (e) => {
 });
 document.querySelectorAll('#viewMenu .view-menu-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    const view = normalizeViewPref(btn.getAttribute('data-view'));
-    localStorage.setItem(VIEW_PREF_KEY, view);
-    applyViewPref(view);
+    const skin = normalizeSkin(btn.getAttribute('data-skin'));
+    localStorage.setItem(SKIN_PREF_KEY, skin);
+    applySkin(skin);
   });
 });
 setupToggle('toggleRemoved', 'removedBody', 'Removed people');
