@@ -3052,6 +3052,17 @@ function forceStackTeamExpanded() {
   if (chevron) chevron.classList.add('open');
 }
 
+// Must be declared before applyLayout/initLayout — those run at parse time and
+// previously threw TDZ ("Cannot access before initialization"), which killed
+// the whole script so Google OAuth could never unlock the login gate.
+const STACK_BOARDS_HIDE_KEY = 'pace_dashboard_stack_boards_hidden_v1';
+function syncStackBoardsHidden() {
+  const hidden = localStorage.getItem(STACK_BOARDS_HIDE_KEY) === '1';
+  document.body.classList.toggle('stack-boards-hidden', hidden && isSplitLayout(document.body.dataset.layout || 'classic'));
+  const hideBtn = document.getElementById('stackBoardsHideBtn');
+  if (hideBtn) hideBtn.textContent = 'Hide side';
+}
+
 function applyLayout(pref) {
   const layout = normalizeLayout(pref);
   const chrome = effectivePacerChrome(layout);
@@ -3875,13 +3886,6 @@ function displayLeaderboardTab() {
     }
   }
   animateLeaderboard('lbActiveList', lbBoardsCache[leaderboardTab], leaderboardTab);
-}
-const STACK_BOARDS_HIDE_KEY = 'pace_dashboard_stack_boards_hidden_v1';
-function syncStackBoardsHidden() {
-  const hidden = localStorage.getItem(STACK_BOARDS_HIDE_KEY) === '1';
-  document.body.classList.toggle('stack-boards-hidden', hidden && isSplitLayout(document.body.dataset.layout || 'classic'));
-  const hideBtn = document.getElementById('stackBoardsHideBtn');
-  if (hideBtn) hideBtn.textContent = 'Hide side';
 }
 function hashString(s) {
   let h = 0;
