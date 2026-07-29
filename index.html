@@ -817,7 +817,39 @@
   .date-chip { display: inline-block; background: var(--metric-box-bg); color: var(--text-muted); font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
 
   .admin-footer-row { display: flex; gap: 10px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
-  .admin-footer-note { text-align: center; margin-top: 8px; }
+
+  /* Compact signed-in chip — top-right, not in the action button row. */
+  .session-bar {
+    position: fixed; top: 10px; right: 14px; z-index: 80;
+    display: none; align-items: center; gap: 8px;
+    max-width: min(380px, calc(100vw - 28px));
+    padding: 6px 10px 6px 12px;
+    border-radius: 999px;
+    background: var(--card-bg);
+    border: 1px solid var(--pill-border);
+    box-shadow: 0 2px 10px var(--shadow);
+    font-size: 12px; font-weight: 600; color: var(--text-muted);
+  }
+  .session-bar.visible { display: flex; }
+  .session-bar .session-label { white-space: nowrap; }
+  .session-bar .session-email {
+    font-weight: 700; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .session-bar .identity-btn {
+    flex: none; margin: 0; padding: 2px 4px;
+    border: none; background: transparent; box-shadow: none;
+    font-size: 11.5px; font-weight: 700; color: var(--text-faint);
+    text-decoration: underline; cursor: pointer; white-space: nowrap;
+  }
+  .session-bar .identity-btn:hover { opacity: 0.8; color: var(--text); }
+  body:not(.app-ready) .session-bar { display: none !important; }
+  @media (max-width: 700px) {
+    .session-bar {
+      top: auto; bottom: 12px; right: 12px; left: 12px;
+      max-width: none; justify-content: space-between;
+    }
+  }
 
   #newPersonName, #closeOutMonthInput {
     font-size: 13px; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 8px;
@@ -1078,6 +1110,11 @@
        fact/date-pace/legend row above it for space. -->
   <div class="mini-header-teambar" id="miniHeaderTeamBar"></div>
 </div>
+<div class="session-bar" id="sessionBar" aria-live="polite">
+  <span class="session-label">Signed in:</span>
+  <span class="session-email" id="sessionEmail"></span>
+  <button type="button" class="identity-btn" id="identityBtn">Sign out</button>
+</div>
 <div class="wrap">
   <div class="landing-title-row">
     <div class="header-aura" aria-hidden="true"></div>
@@ -1095,12 +1132,12 @@
        tip field nowTier()/tier() return alongside cls/label/barGrad), so
        there's no separate legend to keep in sync. Sort still uses the same
        popover pattern, just inline below the team card (see
-       .rep-list-toolbar near #repList). -->
+       .rep-list-toolbar near #repList). Signed-in state lives in #sessionBar
+       (top-right), not in this action row. -->
   <div class="landing-actions-row">
     <button class="theme-btn manual-attro-btn large" id="manualAttroBtn" type="button">📝 Manual Attribution</button>
     <button class="theme-btn large" id="teamDetailsBtn" type="button" style="display:none;">🗂️ View Team Details</button>
     <button class="theme-btn large" id="shoutoutSendBtn" type="button">📣 Shoutout</button>
-    <button class="theme-btn identity-btn large" id="identityBtn" type="button">👤 Sign out</button>
     <button class="theme-btn large" id="themeToggle" type="button">🌙 Dark</button>
   </div>
 
@@ -1165,21 +1202,22 @@
 
   <div id="repList"></div>
 
-  <div class="section-toggle" id="toggleData">▸ Update actuals from ledger export</div>
-  <div class="section-body" id="dataBody">
-    <div class="card">
-      <div class="meta-note" style="margin-top:0;">Paste the full contents of your ledger CSV export below (including the header row), then click Update. (Once the Supabase connector is live, this can pull automatically instead.)</div>
-      <textarea id="csvInput" placeholder="Paste ledger CSV here..."></textarea>
-      <button id="updateActuals">Update actuals</button>
-      <div class="meta-note" id="updateStatus"></div>
+  <div id="adminDataImportWrap" style="display:none;">
+    <div class="section-toggle" id="toggleData">▸ Update actuals from ledger export</div>
+    <div class="section-body" id="dataBody">
+      <div class="card">
+        <div class="meta-note" style="margin-top:0;">Paste the full contents of your ledger CSV export below (including the header row), then click Update. (Once the Supabase connector is live, this can pull automatically instead.)</div>
+        <textarea id="csvInput" placeholder="Paste ledger CSV here..."></textarea>
+        <button id="updateActuals">Update actuals</button>
+        <div class="meta-note" id="updateStatus"></div>
+      </div>
     </div>
   </div>
 
-  <div class="admin-footer-row">
+  <div class="admin-footer-row" id="adminFooterRow" style="display:none;">
     <button class="theme-btn" id="footerGoalsBtn" type="button">⚙️ Edit Monthly Goals</button>
     <button class="theme-btn" id="footerSipBtn" type="button">📊 Historical Performance (SIP)</button>
   </div>
-  <div class="meta-note admin-footer-note">These will be restricted to Aaron once company sign-in is live — open to everyone for now.</div>
 
 </div>
 
@@ -1203,7 +1241,6 @@
         <div class="card" id="detailRestrictedNote" style="display:none;"></div>
         <div id="detailPacingRow"></div>
         <div id="doubleGoalBanner"></div>
-        <div class="meta-note" id="detailAccessNote" style="margin-top:0;"></div>
         <div id="detailPrelimBox"></div>
         <div class="detail-summary" id="detailSummary"></div>
         <div class="detail-net-grid" id="detailNetActuals"></div>
@@ -1330,10 +1367,9 @@
     <div class="detail-header">
       <button class="theme-btn" id="attroBackBtn" type="button">← Back to dashboard</button>
       <h2>Request Manual Attribution</h2>
-      <button class="theme-btn identity-btn" id="identityBtnOverlay" type="button">👤 Sign out</button>
     </div>
     <div class="card" id="attributionSignedOutNote">
-      <div class="meta-note" style="margin-top:0;">Sign in with your company Google account (button above) to request credit for a sale the system didn't auto-attribute to you.</div>
+      <div class="meta-note" style="margin-top:0;">Sign in with your company Google account to request credit for a sale the system didn't auto-attribute to you.</div>
     </div>
     <div id="attributionSignedInArea" style="display:none;">
       <div class="card">
@@ -1389,14 +1425,10 @@
   </div>
 </div>
 
-<!-- Team Details — admin/coach-visible (canViewTeamDetails(), same TEMP_ALLOW_ALL
-     preview window as Client Detail until real sign-in replaces it). Shows every
-     cancel across the whole team (computed client-side from actuals, same data
-     Client Detail already reads) plus the full team's Manual Attribution history
-     (reusing /api/attributions/list — today that endpoint only returns everyone's
-     records to Aaron specifically; a Sales Coach calling it still only sees their
-     own until the coach-email list is migrated to the shared backend, same
-     limitation noted on the confidential-payout gate elsewhere). -->
+<!-- Team Details — admin/coach-visible (canViewTeamDetails()). Cancels are
+     computed client-side from actuals; Manual Attribution history comes from
+     /api/attributions/list (full team for admins/coaches). Cancel → attribution
+     conversion is full-admin write only. -->
 <div class="detail-overlay" id="teamDetailsOverlay">
   <div class="detail-page">
     <div class="detail-header">
@@ -1461,8 +1493,7 @@
   </div>
 </div>
 
-<!-- Admin-only (eventually) pages, reached via the footer buttons. Not actually
-     access-restricted yet — open to everyone until real company sign-in is live. -->
+<!-- Admin-only pages (canViewAdminTools()), reached via the footer buttons. -->
 <div class="detail-overlay" id="goalsOverlay">
   <div class="detail-page">
     <div class="detail-header">
@@ -1487,7 +1518,7 @@
         <button id="saveGoals">Save goals</button>
         <span class="field-toggle-tag" id="toggleAdvancedFields">+ Tag / Email / Cap</span>
       </div>
-      <div class="meta-note">Goals persist on this device. Update at the start of each month. Sessions and Members goals stay visible by default; click above to also show Tag, Email, and Cap bonus @ 200% (set-once fields you'll touch far less often). Monthly OTE feeds the Bonus Calculator on each rep's Client Detail page. "Cap bonus @ 200%" caps that rep's calculated payout at 200% of their (prorated) OTE, regardless of how high their achievement % runs — SPIFF is added on top and is never capped. Email is that rep's @varsitytutors.com sign-in — entering it is what gives them access to their own Client Detail page once company sign-in is live; leave it blank for admin-only access. Use the ✕ next to a name to remove someone from the dashboard (their goals/history stay saved and they can be restored below).</div>
+      <div class="meta-note">Update at the start of each month. Sessions and Members goals stay visible by default; click above to also show Tag, Email, and Cap bonus @ 200% (set-once fields you'll touch far less often). Monthly OTE feeds the Bonus Calculator on each rep's Client Detail page. "Cap bonus @ 200%" caps that rep's calculated payout at 200% of their (prorated) OTE, regardless of how high their achievement % runs — SPIFF is added on top and is never capped. Email is that rep's @varsitytutors.com sign-in — entering it gives them access to their own Client Detail page; leave it blank for admin-only access. Use the ✕ next to a name to remove someone from the dashboard (their goals/history stay saved and they can be restored below).</div>
     </div>
 
     <div class="section-toggle" id="toggleRemoved">▸ Removed people</div>
@@ -1807,6 +1838,8 @@ async function saveRoster(newRoster) {
   });
   ROSTER_CACHE = newRoster;
 }
+// Permanent primary admin. Listed admins (ADMIN_LIST_CACHE) get the same access.
+const ADMIN_EMAIL = 'aaron.bunch@varsitytutors.com';
 // Additional admins beyond ADMIN_EMAIL (Aaron), managed from the Admin access
 // card on Edit Monthly Goals. ADMIN_EMAIL itself is never stored here — it's
 // the one permanent admin and can't be removed through this UI. Backed by
@@ -2207,7 +2240,9 @@ function buildDetailsHTML(uid, repDisplay) {
         <div class="metric-grid" data-cancelgrid="${uid}" style="margin-top:12px;"></div>
       </div>
     </div>
-    ${repDisplay ? `<button class="client-detail-btn" data-repname="${encodeURIComponent(repDisplay)}" type="button">View Client Detail →</button>` : ''}
+    ${repDisplay && canViewClientDetail(repDisplay)
+      ? `<button class="client-detail-btn" data-repname="${encodeURIComponent(repDisplay)}" type="button">View Client Detail →</button>`
+      : ''}
   `;
 }
 
@@ -2283,8 +2318,7 @@ function trackGoalMetTransitions(repRows) {
 }
 
 function render() {
-  const teamDetailsBtnEl = document.getElementById('teamDetailsBtn');
-  if (teamDetailsBtnEl) teamDetailsBtnEl.style.display = canViewTeamDetails() ? '' : 'none';
+  syncRoleChrome();
   const goals = loadGoals();
   const actuals = loadActuals();
   const [y, m, d] = actuals.asOf.split('-').map(Number);
@@ -3270,7 +3304,6 @@ async function addShoutout(repDisplay, text) {
 // Send-a-Shoutout is open to any signed-in user (matches send-shoutout.mts).
 // Viewing a rep's received log still follows Client Detail access separately.
 function canAddShoutout() {
-  if (TEMP_ALLOW_ALL_CLIENT_DETAIL) return true;
   return !!currentUserEmail();
 }
 // Read-only history of shoutouts THIS rep has received — sending one now
@@ -4960,34 +4993,28 @@ document.getElementById('toggleAdvancedFields').addEventListener('click', () => 
     (compact ? '+' : '−') + ' Tag / Email / Cap';
 });
 
-// ---------- Admin-only (eventually) footer pages: Edit Goals / Historical SIP ----------
-// Not actually access-restricted yet — everyone can reach these until real company
-// sign-in is live, per Aaron's request. When that's ready, gate these two hash
-// routes (and hide the footer buttons) behind an isAdmin check.
-// #shoutout-history reuses the same Edit Monthly Goals overlay as #edit-goals
-// (the "All Shoutouts" master log already lives there — see
-// renderMasterShoutoutLog()) but auto-expands that one section and scrolls
-// straight to it, so clicking "View shoutout history" from the Send Shoutout
-// modal lands directly on the log instead of the top of a page full of
-// unrelated admin settings.
-// Every full-page overlay (Edit Goals, Historical Performance, Client Detail,
-// Manual Attribution) is `.detail-overlay`: position:fixed + its own
-// overflow-y:auto, stacked on top of the landing page. The landing page's
-// <body> never shrinks or hides behind it, though, so without this the
-// document keeps its own scrollbar for the (invisible) page underneath at
-// the same time the overlay scrolls its own content — two scrollbars, and
-// scrolling can move either one depending on where the cursor happens to be.
-// Locking body scroll while ANY of these is open — and only restoring it once
-// NONE of them are — fixes that regardless of which overlay opened or how
-// (nav button, back button, browser back/forward all route through here).
+// ---------- Admin-only footer pages: Edit Goals / Historical SIP ----------
+// Gated by canViewAdminTools() (Aaron + admin-list). #shoutout-history reuses
+// the Edit Monthly Goals overlay but auto-expands the All Shoutouts section.
+// Every full-page overlay is `.detail-overlay`: lock body scroll while any is open.
 function syncOverlayBodyScroll() {
   const anyOpen = ['clientDetailOverlay', 'manualAttroOverlay', 'goalsOverlay', 'sipOverlay', 'teamDetailsOverlay']
     .some(id => document.getElementById(id).classList.contains('open'));
   document.body.style.overflow = anyOpen ? 'hidden' : '';
 }
+function denyHashIfUnauthorized(allowed) {
+  if (allowed) return false;
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  return true;
+}
 function renderGoalsOverlay() {
   const overlay = document.getElementById('goalsOverlay');
   if (location.hash === '#edit-goals' || location.hash === '#shoutout-history') {
+    if (denyHashIfUnauthorized(canViewAdminTools())) {
+      overlay.classList.remove('open');
+      syncOverlayBodyScroll();
+      return;
+    }
     overlay.classList.add('open');
     if (location.hash === '#shoutout-history') {
       document.getElementById('shoutoutSendBackdrop').classList.remove('open');
@@ -5005,8 +5032,17 @@ function renderGoalsOverlay() {
 }
 function renderSipOverlay() {
   const overlay = document.getElementById('sipOverlay');
-  if (location.hash === '#historical-sip') { overlay.classList.add('open'); window.scrollTo(0, 0); }
-  else overlay.classList.remove('open');
+  if (location.hash === '#historical-sip') {
+    if (denyHashIfUnauthorized(canViewAdminTools())) {
+      overlay.classList.remove('open');
+      syncOverlayBodyScroll();
+      return;
+    }
+    overlay.classList.add('open');
+    window.scrollTo(0, 0);
+  } else {
+    overlay.classList.remove('open');
+  }
   syncOverlayBodyScroll();
 }
 window.addEventListener('hashchange', renderGoalsOverlay);
@@ -5687,36 +5723,13 @@ function renderClientDetail() {
   syncOverlayBodyScroll();
   document.getElementById('detailRepName').textContent = repName + ' — Client Detail';
 
-  // Access control: admin (Aaron) + the rep themselves, once real sign-in exists.
-  // Non-blocking for now (TEMP_ALLOW_ALL_CLIENT_DETAIL) — see that flag's comment.
   const allowed = canViewClientDetail(repName);
   const restrictedNote = document.getElementById('detailRestrictedNote');
   const bodyEls = ['detailPacingRow', 'doubleGoalBanner', 'metricsStyleToggleWrap', 'detailPrelimBox', 'detailSummary', 'detailNetActuals', 'detailContent', 'clientDetailHistoryBlock']
     .map(id => document.getElementById(id)).filter(Boolean);
-  // The "Preview as" selector only exists during this TEMP_ALLOW_ALL_CLIENT_DETAIL
-  // window — real sign-in will determine the viewer's actual role once it's
-  // live, and this whole block goes away. It lets Aaron see the Sales Coach
-  // confidentiality gate (Bonus Payout, $ SIP payout) working locally today.
-  document.getElementById('detailAccessNote').innerHTML = TEMP_ALLOW_ALL_CLIENT_DETAIL
-    ? `🔒 This page will be restricted to Aaron and ${repName} once company sign-in is live — open to everyone for now.
-       <label style="margin-left:10px; font-weight:700;">Preview as:
-         <select id="previewRoleSelect" style="margin-left:4px; font-size:11.5px; padding:2px 6px; border-radius:6px; border:1px solid var(--card-border); background:var(--card-bg); color:var(--text);">
-           <option value="admin">Full Admin</option>
-           <option value="salescoach">Sales Coach</option>
-         </select>
-       </label>`
-    : '';
-  if (TEMP_ALLOW_ALL_CLIENT_DETAIL) {
-    const roleSelect = document.getElementById('previewRoleSelect');
-    roleSelect.value = loadJSON(PREVIEW_ROLE_KEY, 'admin');
-    roleSelect.addEventListener('change', () => {
-      saveJSON(PREVIEW_ROLE_KEY, roleSelect.value);
-      renderClientDetail(); // re-render this same page under the new preview role
-    });
-  }
   if (!allowed) {
     restrictedNote.style.display = '';
-    restrictedNote.innerHTML = `<div class="meta-note" style="margin-top:0;">🔒 You don't have access to ${repName}'s client detail. Sign in as ${repName} or as Aaron to view this page.</div>`;
+    restrictedNote.innerHTML = `<div class="meta-note" style="margin-top:0;">🔒 You don't have access to ${repName}'s Client Detail.</div>`;
     bodyEls.forEach(el => el.style.display = 'none');
     window.scrollTo(0, 0);
     return;
@@ -5877,6 +5890,11 @@ document.getElementById('attroBackBtn').addEventListener('click', () => {
 function renderTeamDetailsOverlay() {
   const overlay = document.getElementById('teamDetailsOverlay');
   if (location.hash === '#team-details') {
+    if (denyHashIfUnauthorized(canViewTeamDetails())) {
+      overlay.classList.remove('open');
+      syncOverlayBodyScroll();
+      return;
+    }
     overlay.classList.add('open');
     window.scrollTo(0, 0);
     renderTeamCancelsTable();
@@ -5927,9 +5945,16 @@ function renderTeamCancelsTable() {
     return;
   }
   empty.style.display = 'none';
+  const canConvert = canViewAdminTools();
   tbody.innerHTML = rows.map(row => {
     const key = cancelRowKey(row);
     const already = cancelsConvertedThisSession.has(key);
+    let actionCell = '—';
+    if (canConvert) {
+      actionCell = already
+        ? '<span class="meta-note" style="margin:0;">Requested ✓</span>'
+        : `<button type="button" class="theme-btn" data-move-to-attro data-rep="${encodeURIComponent(row.rep)}" data-client-id="${encodeURIComponent(row.clientId || '')}" data-date="${row.date || ''}" data-members="${row.members}" data-sessions="${row.sessions}">Move to Manual Attribution</button>`;
+    }
     return `
     <tr>
       <td>${row.date || '—'}</td>
@@ -5937,10 +5962,7 @@ function renderTeamCancelsTable() {
       <td>${row.clientId || '—'}</td>
       <td>${fmt(row.members,1)}</td>
       <td>${fmt(row.sessions,1)}</td>
-      <td>${already
-        ? '<span class="meta-note" style="margin:0;">Requested ✓</span>'
-        : `<button type="button" class="theme-btn" data-move-to-attro data-rep="${encodeURIComponent(row.rep)}" data-client-id="${encodeURIComponent(row.clientId || '')}" data-date="${row.date || ''}" data-members="${row.members}" data-sessions="${row.sessions}">Move to Manual Attribution</button>`}
-      </td>
+      <td>${actionCell}</td>
     </tr>`;
   }).join('');
 }
@@ -6326,7 +6348,7 @@ document.getElementById('submitAttribution').addEventListener('click', async () 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    statusEl.textContent = 'Request submitted — pending Aaron\'s approval.';
+    statusEl.textContent = 'Request submitted — pending admin approval.';
     statusEl.style.color = '#16a34a';
     document.getElementById('attrClientLink').value = '';
     document.getElementById('attrContact').value = '';
@@ -6341,71 +6363,37 @@ document.getElementById('submitAttribution').addEventListener('click', async () 
   }
 });
 
-// ---------- Client Detail access control (admins + the rep themselves) ----------
-// Reuses the same Netlify Identity sign-in already built for Manual Attribution —
-// no separate auth system. canViewClientDetail() reads each rep's email from
-// the Email field on Edit Monthly Goals (goals[repDisplay].email) — that's now
-// the single source of truth for every rep, original 9 included (seeded in
-// DEFAULT_GOALS). No hardcoded name-to-email map lives in this file anymore, so
-// a newly added rep gets Client Detail access the moment their email is entered
-// here — no code change required. Admin access works the same way: ADMIN_EMAIL
-// (Aaron) is the one permanent admin, and any additional admins Aaron adds via
-// the "Admin access" card on Edit Monthly Goals (stored in ADMIN_LIST_CACHE,
-// backed by update-admin-list.mts + Blobs — see isAdminEmail() above) get the
-// same full access as Aaron (read + write). Attribution / shoutout
-// email→display resolution reads the goals Blob (with a DEFAULT_GOALS
-// fallback) via functions/_shared/roster.mts.
-//
-// TEMP_ALLOW_ALL_CLIENT_DETAIL: real role checks are implemented and wired in,
-// but left non-blocking until Aaron confirms Google sign-in + role gates work
-// end-to-end on the live Netlify site. Then DELETE this flag and every branch
-// that references it (do not just set it to false — that leaves dead code).
-const TEMP_ALLOW_ALL_CLIENT_DETAIL = true;
-const ADMIN_EMAIL = 'aaron.bunch@varsitytutors.com';
+// ---------- Role gates (signed-in email → admin-list / coach-list / rep email) ----------
+// ADMIN_EMAIL (Aaron) is always a full admin. Additional admins live in
+// ADMIN_LIST_CACHE (admin-list Blobs). Sales Coaches live in COACH_LIST_CACHE
+// (coach-list Blobs) — elevated read only, never writes / $ payouts.
 function currentUserEmail() {
   const user = window.netlifyIdentity && netlifyIdentity.currentUser();
   return user && user.email ? String(user.email).toLowerCase() : null;
 }
-// View-only gate for the Team Details page (cancels + team attributions) —
-// same admin/coach-or-nobody-else shape as canViewClientDetail, reusing the
-// same TEMP_ALLOW_ALL_CLIENT_DETAIL preview window so Aaron can see and test
-// this today. Unlike Client Detail there's no "or the rep themselves" branch
-// here — this page is specifically the admin/coach-facing team-wide view.
+function canViewAdminTools() {
+  const email = currentUserEmail();
+  return !!email && isAdminEmail(email);
+}
 function canViewTeamDetails() {
-  if (TEMP_ALLOW_ALL_CLIENT_DETAIL) return true;
   const email = currentUserEmail();
   if (!email) return false;
   return isAdminEmail(email) || isLimitedAdminEmail(email);
 }
 function canViewClientDetail(repDisplay) {
-  if (TEMP_ALLOW_ALL_CLIENT_DETAIL) return true;
   const email = currentUserEmail();
   if (!email) return false;
   if (isAdminEmail(email)) return true;
-  if (isLimitedAdminEmail(email)) return true; // Sales Coach: read access to everyone's page, no confidential $ (see below)
+  if (isLimitedAdminEmail(email)) return true; // Sales Coach: read access, no confidential $
   const goals = loadGoals();
   const g = goals[repDisplay];
   const repEmail = g && g.email ? String(g.email).toLowerCase() : null;
   return !!repEmail && repEmail === email;
 }
 
-// ---------- Confidential compensation gate (Bonus Payout, $ SIP history) ----------
-// Separate from canViewClientDetail above: a Sales Coach can open ANY rep's
-// Client Detail page (pacing, sessions/members, sold/refund counts — anything
-// that's a percent or a raw count), but should never see what that rep is
-// actually paid. Full admins and the rep themselves always see both.
-// PREVIEW_ROLE_KEY exists only because real sign-in isn't live yet (see
-// TEMP_ALLOW_ALL_CLIENT_DETAIL) — it's a local-only "preview as" switcher on
-// the Client Detail page so Aaron can see the confidentiality gate working
-// today, before there's a real signed-in Sales Coach to test it against.
-// Remove the whole TEMP_ALLOW_ALL_CLIENT_DETAIL branch below once sign-in and
-// real roles are live — canViewConfidentialPayout will then key entirely off
-// currentUserEmail() like canViewClientDetail does.
-const PREVIEW_ROLE_KEY = 'pace_dashboard_preview_role_v1';
+// Sales Coaches can open any Client Detail page for pacing/counts, but never
+// Bonus Payout or historical $ SIP. Full admins and the rep themselves see both.
 function canViewConfidentialPayout(repDisplay) {
-  if (TEMP_ALLOW_ALL_CLIENT_DETAIL) {
-    return loadJSON(PREVIEW_ROLE_KEY, 'admin') !== 'salescoach';
-  }
   const email = currentUserEmail();
   if (!email) return false;
   if (isAdminEmail(email)) return true;
@@ -6414,6 +6402,20 @@ function canViewConfidentialPayout(repDisplay) {
   const g = goals[repDisplay];
   const repEmail = g && g.email ? String(g.email).toLowerCase() : null;
   return !!repEmail && repEmail === email;
+}
+
+/** Show/hide chrome that depends on the signed-in role (footer, CSV, Team Details). */
+function syncRoleChrome() {
+  const admin = canViewAdminTools();
+  const team = canViewTeamDetails();
+  const teamDetailsBtnEl = document.getElementById('teamDetailsBtn');
+  if (teamDetailsBtnEl) teamDetailsBtnEl.style.display = team ? '' : 'none';
+  const footer = document.getElementById('adminFooterRow');
+  if (footer) footer.style.display = admin ? '' : 'none';
+  const dataWrap = document.getElementById('adminDataImportWrap');
+  if (dataWrap) dataWrap.style.display = admin ? '' : 'none';
+  const shoutHist = document.getElementById('viewShoutoutHistoryLink');
+  if (shoutHist) shoutHist.style.display = admin ? '' : 'none';
 }
 
 // Full-page Google login gate.
@@ -6616,15 +6618,24 @@ async function startGoogleLogin() {
 }
 
 function updateIdentityUI(user) {
-  document.querySelectorAll('.identity-btn').forEach((btn) => {
-    const email = identityEmail(user);
-    btn.textContent = email ? ('👤 ' + email + ' · Sign out') : '👤 Sign out';
-  });
+  const email = identityEmail(user);
+  const bar = document.getElementById('sessionBar');
+  const emailEl = document.getElementById('sessionEmail');
+  if (bar && emailEl) {
+    if (email) {
+      emailEl.textContent = email;
+      bar.classList.add('visible');
+    } else {
+      emailEl.textContent = '';
+      bar.classList.remove('visible');
+    }
+  }
   const showForm = !!user;
   const signedOutNote = document.getElementById('attributionSignedOutNote');
   const signedInArea = document.getElementById('attributionSignedInArea');
   if (signedOutNote) signedOutNote.style.display = showForm ? 'none' : '';
   if (signedInArea) signedInArea.style.display = showForm ? '' : 'none';
+  syncRoleChrome();
 }
 
 function wireIdentityButton(btn) {
