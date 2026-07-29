@@ -1,6 +1,6 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
-import { getIdentityUser } from "./_shared/identity.mts";
+import { getIdentityUser, requirePrimaryAdmin } from "./_shared/identity.mts";
 
 // Same hardcoded-admin pattern as every other write path in this app. Aaron's
 // own email is never stored in this list — he's the one permanent admin and
@@ -14,9 +14,8 @@ export default async (req: Request, context: Context) => {
   }
 
   const user = await getIdentityUser(req, context);
-  if (!user || !user.email || String(user.email).toLowerCase() !== ADMIN_EMAIL) {
-    return new Response(JSON.stringify({ error: "Only Aaron can manage admin access" }), { status: 403 });
-  }
+  const denied = requirePrimaryAdmin(user, ADMIN_EMAIL);
+  if (denied) return denied;
 
   let body: any;
   try {

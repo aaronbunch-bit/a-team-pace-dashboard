@@ -1,6 +1,6 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
-import { getIdentityUser } from "./_shared/identity.mts";
+import { getIdentityUser, requirePrimaryAdmin } from "./_shared/identity.mts";
 
 // "Sales Coach" access list — a lighter tier than admin-list.mts. Same
 // hardcoded-admin-only write gate as everywhere else: only Aaron can grant or
@@ -15,9 +15,8 @@ export default async (req: Request, context: Context) => {
   }
 
   const user = await getIdentityUser(req, context);
-  if (!user || !user.email || String(user.email).toLowerCase() !== ADMIN_EMAIL) {
-    return new Response(JSON.stringify({ error: "Only Aaron can manage Sales Coach access" }), { status: 403 });
-  }
+  const denied = requirePrimaryAdmin(user, ADMIN_EMAIL);
+  if (denied) return denied;
 
   let body: any;
   try {
