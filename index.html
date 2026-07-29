@@ -6498,8 +6498,14 @@ function wireIdentityButton(btn) {
   const hash = window.location.hash || '';
   if (!hash.includes('error=')) return;
   const params = new URLSearchParams(hash.replace(/^#/, ''));
-  const err = params.get('error_description') || params.get('error') || 'Google sign-in failed.';
-  showLoginGateError(decodeURIComponent(err.replace(/\+/g, ' ')));
+  let err = params.get('error_description') || params.get('error') || 'Google sign-in failed.';
+  err = decodeURIComponent(String(err).replace(/\+/g, ' '));
+  // Netlify Identity surfaces any validate-webhook failure as this generic string,
+  // including domain denials — rewrite it into something actionable for reps.
+  if (/failed to handle signup webhook/i.test(err)) {
+    err = 'Google sign-in did not complete. Use your @varsitytutors.com account. If you already did, wait for the latest deploy and try again.';
+  }
+  showLoginGateError(err);
 })();
 
 const googleLoginBtn = document.getElementById('googleLoginBtn');
