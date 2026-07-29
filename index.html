@@ -412,19 +412,124 @@
 
   /* ===== Shared Split family ===== */
   body[data-layout^="split"] .pacer-layout-tabs { display: flex; }
-  body[data-layout^="split"][data-pacer-tab="pace"] .pacer-tab-activity,
-  body[data-layout^="split"][data-pacer-tab="pace"] #pacerTabMore,
-  body[data-layout^="split"][data-pacer-tab="pace"] #clientDetailHistoryBlock,
-  body[data-layout^="split"][data-pacer-tab="activity"] .pacer-tab-pace,
-  body[data-layout^="split"][data-pacer-tab="activity"] #pacerTabMore,
-  body[data-layout^="split"][data-pacer-tab="activity"] #clientDetailHistoryBlock,
-  body[data-layout^="split"][data-pacer-tab="more"] .pacer-tab-pace,
-  body[data-layout^="split"][data-pacer-tab="more"] .pacer-tab-activity { display: none !important; }
-  body[data-layout^="split"] .detail-page-grid { grid-template-columns: 1fr; }
-  body[data-layout^="split"] .pacer-side-inline .metrics-side-panel {
+  body[data-layout^="split"] .layout-boards-switch { display: none; }
+
+  /* Split chrome: left-align header with the content columns (centered title
+     over a 38/62 body reads as "off-center"). */
+  body[data-layout^="split"] .landing-title-row {
+    justify-content: flex-start; text-align: left; gap: 14px;
+  }
+  body[data-layout^="split"] .landing-top-bar { justify-content: flex-start; }
+  body[data-layout^="split"] .landing-actions-row {
+    justify-content: flex-start; margin: 8px 0 12px;
+  }
+  body[data-layout^="split"] .landing-menu-hint { text-align: left; }
+  body[data-layout^="split"] .pill-row { justify-content: flex-start; }
+  body[data-layout^="split"] .title-blood-badge { width: 56px; height: 56px; }
+  body[data-layout^="split"] .title-blood-emoji { font-size: 30px; }
+
+  /* Individual Pacer chrome modes (Layout menu). Classic landing always uses OG. */
+  body[data-pacer-chrome="og"] .pacer-layout-tabs { display: none !important; }
+  body[data-pacer-chrome="og"] .pacer-tab-pace,
+  body[data-pacer-chrome="og"] .pacer-tab-activity,
+  body[data-pacer-chrome="og"] .pacer-tab-more,
+  body[data-pacer-chrome="og"] #clientDetailHistoryBlock { display: block !important; }
+  body[data-pacer-chrome="og"] .detail-page-grid {
+    grid-template-columns: minmax(0, 1fr) 240px;
+  }
+  body[data-pacer-chrome="og"] .pacer-side-inline .metrics-side-panel,
+  body[data-pacer-chrome="og"] #metricsStyleToggleWrap .metrics-side-panel {
+    position: sticky; top: calc(16px + var(--detail-sticky-top)); max-height: calc(100vh - 40px - var(--detail-sticky-top));
+  }
+  body[data-pacer-chrome="og"] #pacerMoreHint { display: none !important; }
+
+  /* Overview: Pace keeps OG-style side panel; Activity is the ledger tab. */
+  body[data-pacer-chrome="overview"] .pacer-layout-tab[data-pacer-tab="more"] { display: none !important; }
+  body[data-pacer-chrome="overview"] .detail-page-grid {
+    grid-template-columns: minmax(0, 1fr) 240px;
+  }
+  body[data-pacer-chrome="overview"][data-pacer-tab="pace"] .pacer-tab-activity { display: none !important; }
+  body[data-pacer-chrome="overview"][data-pacer-tab="pace"] .pacer-tab-more,
+  body[data-pacer-chrome="overview"][data-pacer-tab="pace"] #clientDetailHistoryBlock { display: block !important; }
+  body[data-pacer-chrome="overview"][data-pacer-tab="activity"] .pacer-tab-pace,
+  body[data-pacer-chrome="overview"][data-pacer-tab="activity"] .pacer-tab-more,
+  body[data-pacer-chrome="overview"][data-pacer-tab="activity"] #clientDetailHistoryBlock,
+  body[data-pacer-chrome="overview"][data-pacer-tab="activity"] #metricsStyleToggleWrap { display: none !important; }
+  body[data-pacer-chrome="overview"] #pacerMoreHint { display: none !important; }
+  body[data-pacer-chrome="overview"] .metrics-side-panel {
+    position: sticky; top: calc(16px + var(--detail-sticky-top)); max-height: calc(100vh - 40px - var(--detail-sticky-top));
+  }
+
+  /* 3-way tabs: denser Pace (side panel on Pace), More = history. */
+  body[data-pacer-chrome="tabs"] .detail-page-grid {
+    grid-template-columns: minmax(0, 1fr) 240px;
+  }
+  body[data-pacer-chrome="tabs"][data-pacer-tab="pace"] .pacer-tab-activity,
+  body[data-pacer-chrome="tabs"][data-pacer-tab="pace"] .pacer-tab-more,
+  body[data-pacer-chrome="tabs"][data-pacer-tab="pace"] #clientDetailHistoryBlock { display: none !important; }
+  body[data-pacer-chrome="tabs"][data-pacer-tab="activity"] .pacer-tab-pace,
+  body[data-pacer-chrome="tabs"][data-pacer-tab="activity"] .pacer-tab-more,
+  body[data-pacer-chrome="tabs"][data-pacer-tab="activity"] #clientDetailHistoryBlock,
+  body[data-pacer-chrome="tabs"][data-pacer-tab="activity"] #metricsStyleToggleWrap { display: none !important; }
+  body[data-pacer-chrome="tabs"][data-pacer-tab="more"] .pacer-tab-pace,
+  body[data-pacer-chrome="tabs"][data-pacer-tab="more"] .pacer-tab-activity,
+  body[data-pacer-chrome="tabs"][data-pacer-tab="more"] #metricsStyleToggleWrap { display: none !important; }
+  body[data-pacer-chrome="tabs"][data-pacer-tab="more"] .pacer-tab-more,
+  body[data-pacer-chrome="tabs"][data-pacer-tab="more"] #clientDetailHistoryBlock { display: block !important; }
+  body[data-pacer-chrome="tabs"][data-pacer-tab="pace"] #metricsStyleToggleWrap { display: block !important; }
+  body[data-pacer-chrome="tabs"] #pacerMoreHint { display: none !important; }
+  body[data-pacer-chrome="tabs"] .metrics-side-panel {
+    position: sticky; top: calc(16px + var(--detail-sticky-top)); max-height: calc(100vh - 40px - var(--detail-sticky-top));
+  }
+
+  /* Dense: single-column Pace with bonus/standings open; History tab. */
+  body[data-pacer-chrome="dense"] .detail-page-grid { grid-template-columns: 1fr; }
+  body[data-pacer-chrome="dense"][data-pacer-tab="pace"] .pacer-tab-activity,
+  body[data-pacer-chrome="dense"][data-pacer-tab="pace"] #clientDetailHistoryBlock { display: none !important; }
+  body[data-pacer-chrome="dense"][data-pacer-tab="pace"] .pacer-tab-more { display: block !important; }
+  body[data-pacer-chrome="dense"][data-pacer-tab="activity"] .pacer-tab-pace,
+  body[data-pacer-chrome="dense"][data-pacer-tab="activity"] .pacer-tab-more,
+  body[data-pacer-chrome="dense"][data-pacer-tab="activity"] #clientDetailHistoryBlock { display: none !important; }
+  body[data-pacer-chrome="dense"][data-pacer-tab="more"] .pacer-tab-pace,
+  body[data-pacer-chrome="dense"][data-pacer-tab="more"] .pacer-tab-activity,
+  body[data-pacer-chrome="dense"][data-pacer-tab="more"] .pacer-tab-more { display: none !important; }
+  body[data-pacer-chrome="dense"][data-pacer-tab="more"] #clientDetailHistoryBlock { display: block !important; }
+  body[data-pacer-chrome="dense"] .pacer-side-inline .metrics-side-panel {
     position: static; max-height: none; margin-top: 12px;
   }
-  body[data-layout^="split"] .layout-boards-switch { display: none; }
+  body[data-pacer-chrome="dense"] .pacer-insight-strip { margin-bottom: 10px; }
+  body[data-pacer-chrome="dense"] #pacerMoreHint { display: none !important; }
+
+  .view-menu-section {
+    font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-faint); padding: 10px 4px 4px; margin-top: 4px;
+  }
+  .view-menu-btn.active-chrome { border-color: var(--text-faint); box-shadow: 0 0 0 1px var(--text-faint); }
+
+  .pace-watch-panel {
+    display: none; margin-top: 10px; padding: 10px 12px; border-radius: 14px;
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    box-shadow: 0 2px 10px var(--shadow);
+  }
+  body[data-layout="split"] .pace-watch-panel,
+  body[data-layout="split-panel"] .pace-watch-panel { display: block; }
+  .pace-watch-title {
+    font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-faint); margin: 0 0 8px;
+  }
+  .pace-watch-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 5px 0; border-top: 1px solid var(--divider); font-size: 12.5px; font-weight: 700;
+  }
+  .pace-watch-row:first-of-type { border-top: 0; }
+  .pace-watch-name { color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pace-watch-val { font-variant-numeric: tabular-nums; color: var(--text-muted); flex: none; }
+  .pace-watch-empty { font-size: 12px; color: var(--text-faint); font-weight: 600; }
+
+  .lwom-board-sub {
+    display: none; font-size: 11px; font-weight: 600; color: var(--text-faint); margin: -2px 0 8px;
+  }
+  .lwom-board-sub.show { display: block; }
 
   @media (min-width: 1000px) {
     body[data-layout^="split"] .wrap {
@@ -439,14 +544,13 @@
     body[data-layout^="split"] .landing-region-foot { grid-area: foot; }
     body[data-layout^="split"] .landing-grid { padding-right: 0; margin: 0; display: contents; }
     body[data-layout^="split"] .landing-side-col { position: static; width: auto; }
-    body[data-layout^="split"] .landing-actions-row { justify-content: flex-start; margin: 8px 0 12px; }
     body[data-layout^="split"] .landing-title-row { margin-bottom: 4px; }
   }
 
-  /* Dock — sticky scoreboards left, roster right (original Split, header-safe). */
+  /* Dock — sticky boards beside roster; pace-watch fills leftover height. */
   @media (min-width: 1000px) {
     body[data-layout="split"] .wrap {
-      grid-template-columns: minmax(320px, 38%) minmax(0, 62%);
+      grid-template-columns: minmax(300px, 36%) minmax(0, 64%);
       grid-template-areas:
         "title title"
         "tools tools"
@@ -462,33 +566,28 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
-      max-height: calc(100vh - var(--sticky-top) - 16px);
-      overflow: auto;
+      /* No overflow:auto — that clipped hover tips. Page scroll + sticky is enough. */
+      overflow: visible;
     }
     body[data-layout="split"] .landing-region-right { grid-area: right; min-width: 0; }
   }
 
-  /* Flow — same two columns, both scroll with the page (no sticky clash). */
+  /* Flow — team + boards in a short top band; roster full width (no empty gutter). */
   @media (min-width: 1000px) {
     body[data-layout="split-flow"] .wrap {
-      grid-template-columns: minmax(320px, 38%) minmax(0, 62%);
+      grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
       grid-template-areas:
         "title title"
         "tools tools"
         "status status"
-        "left right"
+        "team boards"
+        "reps reps"
         "foot foot";
     }
-    body[data-layout="split-flow"] .landing-region-left {
-      grid-area: left;
-      position: static;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      max-height: none;
-      overflow: visible;
-    }
-    body[data-layout="split-flow"] .landing-region-right { grid-area: right; min-width: 0; }
+    body[data-layout="split-flow"] .landing-region-left { display: contents; }
+    body[data-layout="split-flow"] .landing-region-team { grid-area: team; min-width: 0; }
+    body[data-layout="split-flow"] .landing-region-boards { grid-area: boards; min-width: 0; }
+    body[data-layout="split-flow"] .landing-region-reps { grid-area: reps; min-width: 0; }
   }
 
   /* Rail — thin boards column; team card sits above the roster. */
@@ -510,8 +609,7 @@
       position: sticky;
       top: var(--sticky-top);
       align-self: start;
-      max-height: calc(100vh - var(--sticky-top) - 16px);
-      overflow: auto;
+      overflow: visible;
     }
     body[data-layout="split-rail"] .landing-region-reps { grid-area: reps; min-width: 0; }
   }
@@ -535,8 +633,7 @@
       position: sticky;
       top: var(--sticky-top);
       align-self: start;
-      max-height: calc(100vh - var(--sticky-top) - 16px);
-      overflow: auto;
+      overflow: visible;
     }
     body[data-layout="split-stack"] .landing-region-reps { grid-area: reps; min-width: 0; }
   }
@@ -545,7 +642,7 @@
   @media (min-width: 1000px) {
     body[data-layout="split-panel"] .split-panel-toggle { display: inline-flex; }
     body[data-layout="split-panel"] .wrap {
-      grid-template-columns: minmax(320px, 38%) minmax(0, 62%);
+      grid-template-columns: minmax(300px, 36%) minmax(0, 64%);
       grid-template-areas:
         "title title"
         "tools tools"
@@ -562,8 +659,7 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
-      max-height: calc(100vh - var(--sticky-top) - 16px);
-      overflow: auto;
+      overflow: visible;
     }
     body[data-layout="split-panel"] .landing-region-right { grid-area: right; min-width: 0; }
     body[data-layout="split-panel"].split-panel-collapsed .wrap {
@@ -571,7 +667,6 @@
     }
     body[data-layout="split-panel"].split-panel-collapsed .landing-region-left {
       overflow: visible;
-      max-height: none;
       align-items: stretch;
     }
     body[data-layout="split-panel"].split-panel-collapsed .landing-region-left > *:not(.split-panel-toggle) {
@@ -706,21 +801,25 @@
      pace tick, Most Improved value pills) uses this instead: a real DOM
      pseudo-element, guaranteed to render, styled to match the app. */
   .has-tip { position: relative; cursor: help; }
-  .has-tip::after {
-    content: attr(data-tip);
-    position: absolute; left: 50%; bottom: calc(100% + 9px); transform: translateX(-50%) translateY(4px);
+  /* Pseudo-element tips are disabled — they get clipped by overflow/sticky
+     columns. A single #appTip portal (see initTipPortal) renders instead. */
+  .has-tip::after, .has-tip::before { content: none !important; display: none !important; }
+  .app-tip {
+    position: fixed; z-index: 400; left: 0; top: 0;
     background: var(--text); color: var(--card-bg); font-size: 10.5px; font-weight: 600;
-    padding: 6px 10px; border-radius: 7px; white-space: normal; width: max-content; max-width: 220px;
+    padding: 6px 10px; border-radius: 7px; white-space: normal; width: max-content; max-width: 240px;
     text-align: center; line-height: 1.35; box-shadow: 0 6px 16px var(--shadow);
-    opacity: 0; pointer-events: none; transition: opacity 0.12s ease, transform 0.12s ease;
-    z-index: 90;
+    opacity: 0; pointer-events: none; transform: translateY(4px);
+    transition: opacity 0.12s ease, transform 0.12s ease;
   }
-  .has-tip::before {
-    content: ''; position: absolute; left: 50%; bottom: calc(100% + 4px); transform: translateX(-50%) translateY(4px);
+  .app-tip.show { opacity: 1; transform: translateY(0); }
+  .app-tip::after {
+    content: ''; position: absolute; left: 50%; bottom: -5px; transform: translateX(-50%);
     border: 5px solid transparent; border-top-color: var(--text);
-    opacity: 0; transition: opacity 0.12s ease, transform 0.12s ease; z-index: 90;
   }
-  .has-tip:hover::after, .has-tip:hover::before { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .app-tip.tip-below::after {
+    bottom: auto; top: -5px; border-top-color: transparent; border-bottom-color: var(--text);
+  }
   .month-story-label {
     font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
     color: var(--text-faint); margin-bottom: 6px;
@@ -1636,12 +1735,18 @@
     <div class="header-dropdown">
       <button class="theme-btn large" id="viewMenuBtn" type="button">🗂 Layout ▾</button>
       <div class="header-dropdown-menu" id="viewMenu">
+        <div class="view-menu-section">Landing</div>
         <button class="theme-btn view-menu-btn" type="button" data-layout="classic">Classic (OG)<span class="skin-blurb">Original layout — never removed</span></button>
-        <button class="theme-btn view-menu-btn" type="button" data-layout="split">Split · Dock<span class="skin-blurb">Sticky scoreboards left · roster right</span></button>
-        <button class="theme-btn view-menu-btn" type="button" data-layout="split-flow">Split · Flow<span class="skin-blurb">Same split, both columns scroll together</span></button>
+        <button class="theme-btn view-menu-btn" type="button" data-layout="split">Split · Dock<span class="skin-blurb">Sticky scoreboards · pace watch fills the column</span></button>
+        <button class="theme-btn view-menu-btn" type="button" data-layout="split-flow">Split · Flow<span class="skin-blurb">Team + boards on top · full-width roster</span></button>
         <button class="theme-btn view-menu-btn" type="button" data-layout="split-rail">Split · Rail<span class="skin-blurb">Thin boards rail · team above roster</span></button>
         <button class="theme-btn view-menu-btn" type="button" data-layout="split-stack">Split · Stack<span class="skin-blurb">Team full-width, then boards | roster</span></button>
         <button class="theme-btn view-menu-btn" type="button" data-layout="split-panel">Split · Panel<span class="skin-blurb">Dock with collapsible scoreboard</span></button>
+        <div class="view-menu-section">Individual Pacer</div>
+        <button class="theme-btn view-menu-btn chrome-menu-btn" type="button" data-pacer-chrome="og">OG side panel<span class="skin-blurb">Classic detail — no tabs, sticky sidebar</span></button>
+        <button class="theme-btn view-menu-btn chrome-menu-btn" type="button" data-pacer-chrome="overview">Tabs · Overview<span class="skin-blurb">Overview (pace + sidebar) · Activity</span></button>
+        <button class="theme-btn view-menu-btn chrome-menu-btn" type="button" data-pacer-chrome="tabs">Tabs · 3-way<span class="skin-blurb">Pace + sidebar · Activity · History</span></button>
+        <button class="theme-btn view-menu-btn chrome-menu-btn" type="button" data-pacer-chrome="dense">Tabs · Dense<span class="skin-blurb">Stacked pace + bonus · Activity · History</span></button>
       </div>
     </div>
     <button class="theme-btn large" id="themeToggle" type="button">🌙 Dark</button>
@@ -1675,10 +1780,11 @@
           <button type="button" class="leaderboard-tab has-tip" data-board="pacers" data-tip="Highest Pacers">🔥</button>
           <button type="button" class="leaderboard-tab has-tip" data-board="members" data-tip="Most Members Sold">👥</button>
           <button type="button" class="leaderboard-tab has-tip" data-board="sessions" data-tip="Most Sessions Sold">📅</button>
-          <button type="button" class="leaderboard-tab has-tip" data-board="sprintM" data-tip="Sprint — Members (last 7 days)" id="sprintMembersTab" style="display:none;">🏁👥</button>
-          <button type="button" class="leaderboard-tab has-tip" data-board="sprintS" data-tip="Sprint — Sessions (last 7 days)" id="sprintSessionsTab" style="display:none;">🏁📅</button>
+          <button type="button" class="leaderboard-tab has-tip" data-board="sprintM" data-tip="LWOM — Members sold in the last 7 days of the month" id="sprintMembersTab" style="display:none;">🏁👥</button>
+          <button type="button" class="leaderboard-tab has-tip" data-board="sprintS" data-tip="LWOM — Sessions sold in the last 7 days of the month" id="sprintSessionsTab" style="display:none;">🏁📅</button>
         </div>
         <div class="leaderboard-title" id="leaderboardActiveTitle"></div>
+        <div class="lwom-board-sub" id="lwomBoardSub"></div>
         <div class="leaderboard-list" id="lbActiveList"></div>
       </div>
 
@@ -1699,6 +1805,10 @@
         </div>
         <div class="improved-sublabel" id="improvedActiveTitle"></div>
         <div class="leaderboard-list improved-list" id="improvedActiveList"></div>
+      </div>
+      <div class="pace-watch-panel" id="paceWatchPanel">
+        <div class="pace-watch-title">Needs a push</div>
+        <div id="paceWatchList"></div>
       </div>
     </div>
     </div>
@@ -1745,13 +1855,13 @@
       <div class="header-aura" aria-hidden="true"></div>
       <button class="theme-btn" id="detailBackBtn" type="button">← Back to dashboard</button>
       <h2 id="detailRepName"></h2>
-      <span class="lwom-sprint-chip" id="detailSprintChip">🏁 Sprint <button type="button" class="lwom-inline-link" id="detailSprintLink">open boards</button></span>
+      <span class="lwom-sprint-chip" id="detailSprintChip">🏁 LWOM <button type="button" class="lwom-inline-link" id="detailSprintLink">open boards</button></span>
     </div>
     <div class="pacer-layout-tabs" id="pacerLayoutTabs" role="tablist" aria-label="Individual Pacer sections">
       <div class="pacer-tab-track">
-        <button type="button" class="pacer-layout-tab active" role="tab" aria-selected="true" data-pacer-tab="pace">Pace<span class="tab-sub">Goals &amp; pacing</span></button>
-        <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="activity">Activity<span class="tab-sub">Sales &amp; activity</span></button>
-        <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="more">More<span class="tab-sub">Bonus &amp; history</span></button>
+        <button type="button" class="pacer-layout-tab active" role="tab" aria-selected="true" data-pacer-tab="pace" data-tab-label-pace="Pace" data-tab-label-overview="Overview">Pace<span class="tab-sub" data-tab-sub>Goals &amp; pacing</span></button>
+        <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="activity">Activity<span class="tab-sub">Ledger &amp; tables</span></button>
+        <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="more" data-tab-label-more="History" data-tab-label-tabs="History">History<span class="tab-sub">Bonus stays on Pace</span></button>
       </div>
     </div>
 
@@ -2656,6 +2766,7 @@ const LAYOUT_PREF_KEY = 'pace_dashboard_layout_v1';
 const SKIN_PREF_KEY = 'pace_dashboard_skin_v1'; // legacy ignore
 const VIEW_PREF_KEY = 'pace_dashboard_view_pref_v1'; // legacy ignore
 const SPLIT_PANEL_KEY = 'pace_dashboard_split_panel_v1';
+const PACER_CHROME_KEY = 'pace_dashboard_pacer_chrome_v1';
 const LAYOUTS = {
   classic: { label: 'Classic' },
   split: { label: 'Split · Dock' },
@@ -2663,6 +2774,12 @@ const LAYOUTS = {
   'split-rail': { label: 'Split · Rail' },
   'split-stack': { label: 'Split · Stack' },
   'split-panel': { label: 'Split · Panel' },
+};
+const PACER_CHROMES = {
+  og: { label: 'OG side panel' },
+  overview: { label: 'Tabs · Overview' },
+  tabs: { label: 'Tabs · 3-way' },
+  dense: { label: 'Tabs · Dense' },
 };
 // Old structural layouts from PR #23 map into the nearest Split variant.
 const LAYOUT_ALIASES = {
@@ -2677,14 +2794,21 @@ function normalizeLayout(v) {
   const mapped = LAYOUT_ALIASES[v] || v;
   return LAYOUTS[mapped] ? mapped : 'classic';
 }
+function normalizePacerChrome(v) {
+  return PACER_CHROMES[v] ? v : 'overview';
+}
 function resolveSavedLayout() {
   const raw = localStorage.getItem(LAYOUT_PREF_KEY) || 'classic';
   const layout = normalizeLayout(raw);
   if (raw !== layout) localStorage.setItem(LAYOUT_PREF_KEY, layout);
   return layout;
 }
+function resolveSavedPacerChrome() {
+  return normalizePacerChrome(localStorage.getItem(PACER_CHROME_KEY) || 'overview');
+}
 let pacerTab = 'pace';
 let boardSurface = 'leaders';
+let pacerChrome = resolveSavedPacerChrome();
 
 function syncSplitPanelCollapsed() {
   const collapsed = localStorage.getItem(SPLIT_PANEL_KEY) === 'collapsed';
@@ -2696,12 +2820,41 @@ function syncSplitPanelCollapsed() {
   }
 }
 
-function syncPacerSidePlacement(layout) {
+function effectivePacerChrome(layout) {
+  // Classic landing always keeps the OG Individual Pacer.
+  if (!isSplitLayout(layout)) return 'og';
+  return normalizePacerChrome(pacerChrome);
+}
+
+function syncPacerTabLabels(chrome) {
+  const paceBtn = document.querySelector('#pacerLayoutTabs .pacer-layout-tab[data-pacer-tab="pace"]');
+  const moreBtn = document.querySelector('#pacerLayoutTabs .pacer-layout-tab[data-pacer-tab="more"]');
+  if (paceBtn) {
+    const sub = paceBtn.querySelector('.tab-sub');
+    if (chrome === 'overview') {
+      paceBtn.childNodes[0].textContent = 'Overview';
+      if (sub) sub.textContent = 'Pace + sidebar';
+    } else {
+      paceBtn.childNodes[0].textContent = 'Pace';
+      if (sub) sub.textContent = chrome === 'dense' ? 'Pace + bonus' : 'Pace + sidebar';
+    }
+  }
+  if (moreBtn) {
+    const sub = moreBtn.querySelector('.tab-sub');
+    moreBtn.childNodes[0].textContent = 'History';
+    if (sub) sub.textContent = chrome === 'dense' ? 'Charts & shoutouts' : 'Charts & shoutouts';
+  }
+}
+
+function syncPacerSidePlacement(layout, chrome) {
   const wrap = document.getElementById('metricsStyleToggleWrap');
   const inline = document.getElementById('pacerSideInline');
   const grid = document.querySelector('#clientDetailOverlay .detail-page-grid');
   if (!wrap || !inline || !grid) return;
-  if (isSplitLayout(layout)) {
+  const mode = chrome || effectivePacerChrome(layout);
+  // Dense stacks the side panel under Pace content (inside More slot on Pace tab).
+  // Overview/tabs/og keep the sticky sidebar in the detail grid.
+  if (mode === 'dense') {
     if (wrap.parentElement !== inline) inline.appendChild(wrap);
   } else {
     const main = grid.querySelector('.detail-main-col');
@@ -2714,22 +2867,37 @@ function syncPacerSidePlacement(layout) {
 
 function applyLayout(pref) {
   const layout = normalizeLayout(pref);
+  const chrome = effectivePacerChrome(layout);
   document.body.dataset.layout = layout;
+  document.body.dataset.pacerChrome = chrome;
   delete document.body.dataset.skin;
   delete document.body.dataset.view;
   delete document.body.dataset.boardSurface;
-  if (layout === 'classic') {
+
+  // Tabs only when a tabbed chrome is active.
+  if (chrome === 'og') {
     delete document.body.dataset.pacerTab;
   } else {
+    if (chrome === 'overview' && pacerTab === 'more') pacerTab = 'pace';
     document.body.dataset.pacerTab = pacerTab;
   }
 
-  document.querySelectorAll('#viewMenu .view-menu-btn').forEach((btn) => {
+  document.querySelectorAll('#viewMenu .view-menu-btn[data-layout]').forEach((btn) => {
     btn.classList.toggle('active-view', btn.getAttribute('data-layout') === layout);
   });
+  document.querySelectorAll('#viewMenu .chrome-menu-btn').forEach((btn) => {
+    const c = btn.getAttribute('data-pacer-chrome');
+    btn.classList.toggle('active-chrome', c === pacerChrome);
+    btn.disabled = layout === 'classic';
+    btn.style.opacity = layout === 'classic' ? '0.45' : '';
+  });
   const menuBtn = document.getElementById('viewMenuBtn');
-  if (menuBtn) menuBtn.textContent = '🗂 ' + LAYOUTS[layout].label + ' ▾';
+  if (menuBtn) {
+    const chromeBit = layout === 'classic' ? '' : ' · ' + PACER_CHROMES[pacerChrome].label.replace(/^Tabs · /, '');
+    menuBtn.textContent = '🗂 ' + LAYOUTS[layout].label + chromeBit + ' ▾';
+  }
 
+  syncPacerTabLabels(chrome);
   document.querySelectorAll('#pacerLayoutTabs .pacer-layout-tab').forEach((btn) => {
     const on = btn.getAttribute('data-pacer-tab') === pacerTab;
     btn.classList.toggle('active', on);
@@ -2740,10 +2908,10 @@ function applyLayout(pref) {
   });
 
   const moreHint = document.getElementById('pacerMoreHint');
-  if (moreHint) moreHint.style.display = (layout === 'classic') ? 'none' : '';
+  if (moreHint) moreHint.style.display = 'none';
 
   syncSplitPanelCollapsed();
-  syncPacerSidePlacement(layout);
+  syncPacerSidePlacement(layout, chrome);
   if (typeof syncLandingGridHeight === 'function') syncLandingGridHeight();
   if (typeof syncRoleChrome === 'function') syncRoleChrome();
 }
@@ -3390,8 +3558,8 @@ const LEADERBOARD_META = {
   pacers: { title: '🔥 Highest Pacers' },
   members: { title: '👥 Most Members Sold' },
   sessions: { title: '📅 Most Sessions Sold' },
-  sprintM: { title: '🏁 Sprint · Members' },
-  sprintS: { title: '🏁 Sprint · Sessions' },
+  sprintM: { title: '🏁 LWOM · Members' },
+  sprintS: { title: '🏁 LWOM · Sessions' },
 };
 // Cached so switching tabs re-displays instantly off already-computed data
 // instead of re-running render() (which would restart every other animation
@@ -3411,12 +3579,13 @@ const lbAnimGens = {};
 // instead of replaying the countdown every single time.
 const lbAnimatedBoards = new Set();
 
-function computeLeaderboardTop3(repRows, valueFn) {
+function computeLeaderboardTop3(repRows, valueFn, limit) {
+  const n = limit || 3;
   return repRows
     .map(row => ({ name: row.rep.display, val: valueFn(row) }))
     .filter(item => item.val !== null && item.val !== undefined && item.val > 0)
     .sort((a, b) => b.val - a.val)
-    .slice(0, 3);
+    .slice(0, n);
 }
 
 function lwomSprintWindow() {
@@ -3440,14 +3609,15 @@ function sprintUnitsInWindow(repDisplay, key, from, to) {
 }
 
 function renderLeaderboards(repRows) {
-  lbBoardsCache.pacers = computeLeaderboardTop3(repRows, row => row.composite.goalIsZero ? null : row.composite.current)
+  const topN = isSplitLayout(document.body.dataset.layout) ? 5 : 3;
+  lbBoardsCache.pacers = computeLeaderboardTop3(repRows, row => row.composite.goalIsZero ? null : row.composite.current, topN)
     .map(item => ({ ...item, valLabel: `${fmt(item.val, 0)}%` }));
   // No unit words in the value pill ("341.3" not "341.3 sessions") — the board
   // title above already says what's being counted, so that horizontal space
   // goes toward a bigger, more legible number instead.
-  lbBoardsCache.members = computeLeaderboardTop3(repRows, row => row.a.members)
+  lbBoardsCache.members = computeLeaderboardTop3(repRows, row => row.a.members, topN)
     .map(item => ({ ...item, valLabel: fmt(item.val, 1) }));
-  lbBoardsCache.sessions = computeLeaderboardTop3(repRows, row => row.a.sessions)
+  lbBoardsCache.sessions = computeLeaderboardTop3(repRows, row => row.a.sessions, topN)
     .map(item => ({ ...item, valLabel: fmt(item.val, 1) }));
 
   const sprint = lwomSprintWindow();
@@ -3456,9 +3626,9 @@ function renderLeaderboards(repRows) {
   if (sprintMTab) sprintMTab.style.display = sprint ? '' : 'none';
   if (sprintSTab) sprintSTab.style.display = sprint ? '' : 'none';
   if (sprint) {
-    lbBoardsCache.sprintM = computeLeaderboardTop3(repRows, row => sprintUnitsInWindow(row.rep.display, 'members', sprint.from, sprint.to))
+    lbBoardsCache.sprintM = computeLeaderboardTop3(repRows, row => sprintUnitsInWindow(row.rep.display, 'members', sprint.from, sprint.to), topN)
       .map(item => ({ ...item, valLabel: fmt(item.val, 1) }));
-    lbBoardsCache.sprintS = computeLeaderboardTop3(repRows, row => sprintUnitsInWindow(row.rep.display, 'sessions', sprint.from, sprint.to))
+    lbBoardsCache.sprintS = computeLeaderboardTop3(repRows, row => sprintUnitsInWindow(row.rep.display, 'sessions', sprint.from, sprint.to), topN)
       .map(item => ({ ...item, valLabel: fmt(item.val, 1) }));
   } else {
     lbBoardsCache.sprintM = [];
@@ -3471,6 +3641,7 @@ function renderLeaderboards(repRows) {
 
   syncLeaderboardTabButtons();
   displayLeaderboardTab();
+  if (typeof renderPaceWatch === 'function') renderPaceWatch(repRows);
 }
 
 function syncLeaderboardTabButtons() {
@@ -3479,9 +3650,53 @@ function syncLeaderboardTabButtons() {
   });
 }
 
+function formatLwomRange(sprint) {
+  if (!sprint) return '';
+  const fmtShort = (iso) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    return dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+  return `${fmtShort(sprint.from)} – ${fmtShort(sprint.to)} · final 7 days`;
+}
 function displayLeaderboardTab() {
   document.getElementById('leaderboardActiveTitle').textContent = LEADERBOARD_META[leaderboardTab].title;
+  const sub = document.getElementById('lwomBoardSub');
+  const sprint = lwomSprintWindow();
+  const isLwom = leaderboardTab === 'sprintM' || leaderboardTab === 'sprintS';
+  if (sub) {
+    if (isLwom && sprint) {
+      sub.textContent = formatLwomRange(sprint);
+      sub.classList.add('show');
+    } else {
+      sub.textContent = '';
+      sub.classList.remove('show');
+    }
+  }
   animateLeaderboard('lbActiveList', lbBoardsCache[leaderboardTab], leaderboardTab);
+}
+function renderPaceWatch(repRows) {
+  const host = document.getElementById('paceWatchList');
+  if (!host) return;
+  const behind = (repRows || [])
+    .filter((row) => row && row.composite && !row.composite.goalIsZero && (row.composite.current ?? 0) < (row.composite.expectedPct ?? 0))
+    .map((row) => ({
+      name: row.rep.display,
+      gap: (row.composite.expectedPct ?? 0) - (row.composite.current ?? 0),
+      current: row.composite.current ?? 0,
+    }))
+    .sort((a, b) => b.gap - a.gap)
+    .slice(0, 5);
+  if (!behind.length) {
+    host.innerHTML = '<div class="pace-watch-empty">Everyone is on pace 🎉</div>';
+    return;
+  }
+  host.innerHTML = behind.map((r) => (
+    `<div class="pace-watch-row">` +
+      `<span class="pace-watch-name">${r.name}</span>` +
+      `<span class="pace-watch-val">${fmt(r.current, 0)}% · −${fmt(r.gap, 0)} pts</span>` +
+    `</div>`
+  )).join('');
 }
 
 function leaderboardMedal(i) { return ['gold', 'silver', 'bronze'][i]; }
@@ -6142,7 +6357,7 @@ document.addEventListener('click', (e) => {
     if (e.target.closest('button')) menu.classList.remove('open');
   });
 });
-document.querySelectorAll('#viewMenu .view-menu-btn').forEach((btn) => {
+document.querySelectorAll('#viewMenu .view-menu-btn[data-layout]').forEach((btn) => {
   btn.addEventListener('click', () => {
     const layout = normalizeLayout(btn.getAttribute('data-layout'));
     localStorage.setItem(LAYOUT_PREF_KEY, layout);
@@ -6155,6 +6370,60 @@ document.querySelectorAll('#pacerLayoutTabs .pacer-layout-tab').forEach((btn) =>
     applyLayout(document.body.dataset.layout || 'classic');
   });
 });
+document.querySelectorAll('#viewMenu .chrome-menu-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    if ((document.body.dataset.layout || 'classic') === 'classic') return;
+    pacerChrome = normalizePacerChrome(btn.getAttribute('data-pacer-chrome'));
+    localStorage.setItem(PACER_CHROME_KEY, pacerChrome);
+    applyLayout(document.body.dataset.layout || 'classic');
+  });
+});
+(function initTipPortal() {
+  const tip = document.createElement('div');
+  tip.id = 'appTip';
+  tip.className = 'app-tip';
+  tip.setAttribute('role', 'tooltip');
+  document.body.appendChild(tip);
+  let activeEl = null;
+  function hideTip() {
+    activeEl = null;
+    tip.classList.remove('show', 'tip-below');
+  }
+  function placeTip(el) {
+    const raw = el.getAttribute('data-tip') || '';
+    if (!raw) { hideTip(); return; }
+    tip.textContent = raw;
+    tip.classList.remove('tip-below');
+    tip.classList.add('show');
+    const r = el.getBoundingClientRect();
+    const pad = 8;
+    let left = r.left + r.width / 2 - tip.offsetWidth / 2;
+    left = Math.max(pad, Math.min(left, window.innerWidth - tip.offsetWidth - pad));
+    let top = r.top - tip.offsetHeight - 10;
+    if (top < pad) {
+      top = r.bottom + 10;
+      tip.classList.add('tip-below');
+    }
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  }
+  document.addEventListener('mouseover', (e) => {
+    const el = e.target.closest && e.target.closest('.has-tip[data-tip]');
+    if (!el || el === activeEl) return;
+    activeEl = el;
+    placeTip(el);
+  });
+  document.addEventListener('mouseout', (e) => {
+    if (!activeEl) return;
+    const to = e.relatedTarget;
+    if (to && activeEl.contains(to)) return;
+    if (e.target.closest && e.target.closest('.has-tip') === activeEl && to && activeEl.contains(to)) return;
+    const leaving = e.target.closest && e.target.closest('.has-tip[data-tip]');
+    if (leaving === activeEl) hideTip();
+  });
+  document.addEventListener('scroll', hideTip, true);
+  window.addEventListener('resize', hideTip);
+})();
 document.querySelectorAll('#layoutBoardsSwitch .theme-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     boardSurface = btn.getAttribute('data-board-surface') || 'leaders';
@@ -7054,13 +7323,18 @@ function renderClientDetail(opts) {
     } else {
       animateNumber(document.getElementById('detailMiniNum'), pacing.current ?? 0, 50);
     }
-    document.getElementById('rankSideChevron').classList.toggle('collapsed', rankSideCollapsed);
-    document.getElementById('rankSideContent').classList.toggle('collapsed', rankSideCollapsed);
+    // Dense tab chrome stacks bonus/standings under Pace — keep them open in
+    // that mode so the tab isn't an empty shell (preference unchanged).
+    const chromeNow = document.body.dataset.pacerChrome || 'og';
+    const rankCollapsedView = chromeNow === 'dense' ? false : rankSideCollapsed;
+    const liveCollapsedView = chromeNow === 'dense' ? false : liveMetricsSideCollapsed;
+    document.getElementById('rankSideChevron').classList.toggle('collapsed', rankCollapsedView);
+    document.getElementById('rankSideContent').classList.toggle('collapsed', rankCollapsedView);
     document.getElementById('rankSideContent').innerHTML = rankSideContentHTML(repName);
     document.getElementById('personalGoalSideContent').innerHTML = personalGoalSideHTML(repName);
     document.getElementById('paceNeedSideContent').innerHTML = detailPaceNeedHTML(repName);
-    document.getElementById('liveMetricsSideChevron').classList.toggle('collapsed', liveMetricsSideCollapsed);
-    document.getElementById('liveMetricsSideContent').classList.toggle('collapsed', liveMetricsSideCollapsed);
+    document.getElementById('liveMetricsSideChevron').classList.toggle('collapsed', liveCollapsedView);
+    document.getElementById('liveMetricsSideContent').classList.toggle('collapsed', liveCollapsedView);
     document.getElementById('liveMetricsSideContent').innerHTML = liveMetricsSideHTML(repName);
     document.getElementById('detailPrelimBox').innerHTML = prelimBoxHTML(repName);
     document.getElementById('detailNetActuals').innerHTML = detailNetActualsHTML(pacing);
@@ -7070,8 +7344,12 @@ function renderClientDetail(opts) {
   // refreshes on every navigation (including switching between reps), but the
   // collapsed/expanded state itself is a persisted preference, not reset here.
   currentBonusRep = repName;
-  document.getElementById('bonusSideChevron').classList.toggle('collapsed', bonusSideCollapsed);
-  document.getElementById('bonusSideContent').classList.toggle('collapsed', bonusSideCollapsed);
+  {
+    const chromeNow = document.body.dataset.pacerChrome || 'og';
+    const bonusCollapsedView = chromeNow === 'dense' ? false : bonusSideCollapsed;
+    document.getElementById('bonusSideChevron').classList.toggle('collapsed', bonusCollapsedView);
+    document.getElementById('bonusSideContent').classList.toggle('collapsed', bonusCollapsedView);
+  }
   document.getElementById('bonusSideContent').innerHTML = bonusPayoutHTML(repName);
 
   const actuals = loadActuals();
@@ -7134,7 +7412,12 @@ function renderClientDetail(opts) {
   // Historical Performance is sourced from SIP_HISTORY (separate from the ledger
   // paste above), so it renders regardless of whether client line items exist yet.
   // Re-collapse only on real navigation — not on quiet live-data polls.
-  if (!preserveScroll) setHistoryCollapsed(true);
+  if (!preserveScroll) {
+    const chromeNow = document.body.dataset.pacerChrome || 'og';
+    const onHistoryTab = document.body.dataset.pacerTab === 'more';
+    // History tab should show charts immediately; elsewhere keep the OG collapse.
+    setHistoryCollapsed(!(onHistoryTab && (chromeNow === 'tabs' || chromeNow === 'dense')));
+  }
   initRepSip(repName);
   document.getElementById('shoutoutContainer').innerHTML = shoutoutLogHTML(repName);
   if (!preserveScroll) window.scrollTo(0, 0);
