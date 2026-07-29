@@ -6503,7 +6503,7 @@ function wireIdentityButton(btn) {
   // Netlify Identity surfaces any validate-webhook failure as this generic string,
   // including domain denials — rewrite it into something actionable for reps.
   if (/failed to handle signup webhook/i.test(err)) {
-    err = 'Google sign-in did not complete. Use your @varsitytutors.com account. If you already did, wait for the latest deploy and try again.';
+    err = 'Google sign-in hit a Netlify Identity webhook error. Ask a site admin to open Netlify → Identity → Notifications and delete any signup webhook URLs, then try again.';
   }
   showLoginGateError(err);
 })();
