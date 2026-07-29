@@ -399,6 +399,7 @@
   body[data-layout="command"][data-pacer-tab="more"] #metricsStyleToggleWrap { display: block; }
 
   /* ===== STORY: single-column narrative stack ===== */
+  body[data-layout="story"] .landing-region-left { display: contents; }
   body[data-layout="story"] .landing-grid {
     padding-right: 0; display: flex; flex-direction: column; gap: 14px;
   }
@@ -406,6 +407,16 @@
     position: static; width: 100%;
     display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
   }
+  body[data-layout="story"] .layout-boards-switch { display: none; }
+  body[data-layout="story"] .pacer-layout-tabs { display: flex; }
+  body[data-layout="story"][data-pacer-tab="pace"] .pacer-tab-activity,
+  body[data-layout="story"][data-pacer-tab="pace"] #pacerTabMore,
+  body[data-layout="story"][data-pacer-tab="pace"] #clientDetailHistoryBlock,
+  body[data-layout="story"][data-pacer-tab="activity"] .pacer-tab-pace,
+  body[data-layout="story"][data-pacer-tab="activity"] #pacerTabMore,
+  body[data-layout="story"][data-pacer-tab="activity"] #clientDetailHistoryBlock,
+  body[data-layout="story"][data-pacer-tab="more"] .pacer-tab-pace,
+  body[data-layout="story"][data-pacer-tab="more"] .pacer-tab-activity { display: none !important; }
   @media (max-width: 800px) {
     body[data-layout="story"] .landing-side-col { grid-template-columns: 1fr; }
   }
