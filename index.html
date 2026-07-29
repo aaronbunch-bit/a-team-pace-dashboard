@@ -7080,12 +7080,18 @@ document.getElementById('closeOutCommitBtn').addEventListener('click', async (e)
 // page — back button, bookmarkable, shareable — while staying in this single file.
 // Sourced from the raw per-client line items captured the last time a ledger CSV
 // was pasted in (see computeActualsFromCSV); empty until that's been done at least once.
+function detailDateMonthDay(iso) {
+  if (!iso) return '—';
+  const [y, m, d] = String(iso).split('-').map(Number);
+  if (!y || !m || !d) return String(iso);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 function detailRowHTML(it) {
   return `<tr>
     <td>${it.clientId || '—'}</td>
     <td>${fmt(it.members,1)}</td>
     <td>${fmt(it.sessions,1)}</td>
-    <td><span class="date-chip">${it.date || '—'}</span></td>
+    <td><span class="date-chip">${detailDateMonthDay(it.date)}</span></td>
   </tr>`;
 }
 function detailEmptyRowHTML(msg) {
