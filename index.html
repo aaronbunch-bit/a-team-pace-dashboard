@@ -425,11 +425,12 @@
     box-shadow: 0 4px 16px rgba(168,85,247,0.35);
   }
 
-  /* One-time celebration popup — shown only to the single most-recent Double
-     Goal champion, only once per unique crossing event (name+date, deduped
-     via localStorage in maybeShowDoubleGoalCelebration), the first time they
-     open their own Client Detail page after crossing. Not hash-routed like
-     .detail-overlay — plain JS class toggle, sits above it (z-index 200). */
+  /* Celebration popup — shown to the single most-recent Double Goal champion
+     every time their Client Detail page is opened; closing it via "Let's go"
+     doesn't remember anything, only "Don't show this again" (permanent mute,
+     see DOUBLE_GOAL_POPUP_MUTED_KEY in maybeShowDoubleGoalCelebration) does.
+     Not hash-routed like .detail-overlay — plain JS class toggle, sits above
+     it (z-index 200). */
   .celebration-modal-backdrop {
     display: none; position: fixed; inset: 0; z-index: 200;
     background: rgba(10,10,20,0.55); backdrop-filter: blur(2px);
@@ -704,6 +705,14 @@
   .detail-panel-count { font-size: 10.5px; font-weight: 700; color: var(--text-faint); background: var(--metric-box-bg); padding: 3px 11px; border-radius: 999px; }
   .detail-panel-refund .detail-panel-title { color: #dc2626; }
   .detail-table-wrap { max-height: 380px; }
+  /* Right-hand column of .detail-grid: Refunds + Manual Attribution Requests
+     stacked, so Attributions (left) and this stack (right) read as two even
+     columns instead of a 3rd panel wrapping below both. The requests panel
+     gets its own shorter cap so the stack doesn't grow taller than the
+     Attributions panel next to it even when both have real content. */
+  .detail-grid-col { display: flex; flex-direction: column; gap: 14px; }
+  .detail-table-wrap-compact { max-height: 150px; }
+  .detail-panel-myattr .detail-panel-title { color: #7c3aed; }
   .detail-history-block { margin-top: 20px; }
   .detail-history-block h2 { font-size: 15px; }
   .detail-history-block .meta-note { margin-bottom: 10px; }
@@ -1001,6 +1010,7 @@
        .rep-list-toolbar near #repList). -->
   <div class="landing-actions-row">
     <button class="theme-btn manual-attro-btn large" id="manualAttroBtn" type="button">📝 Manual Attribution</button>
+    <button class="theme-btn large" id="teamDetailsBtn" type="button" style="display:none;">🗂️ View Team Details</button>
     <button class="theme-btn large" id="shoutoutSendBtn" type="button">📣 Shoutout</button>
     <button class="theme-btn identity-btn large" id="identityBtn" type="button">🔐 Sign in</button>
     <button class="theme-btn large" id="themeToggle" type="button">🌙 Dark</button>
@@ -1124,16 +1134,31 @@
                 </table>
               </div>
             </div>
-            <div class="detail-panel detail-panel-refund">
-              <div class="detail-panel-head">
-                <span class="detail-panel-title">↩️ Refunds</span>
-                <span class="detail-panel-count" id="detailRefundCount"></span>
+            <div class="detail-grid-col">
+              <div class="detail-panel detail-panel-refund">
+                <div class="detail-panel-head">
+                  <span class="detail-panel-title">↩️ Refunds</span>
+                  <span class="detail-panel-count" id="detailRefundCount"></span>
+                </div>
+                <div class="sip-table-wrap detail-table-wrap">
+                  <table class="sip-table detail-table">
+                    <thead><tr><th>Client ID</th><th>Members</th><th>Sessions</th><th>Date</th></tr></thead>
+                    <tbody id="detailRefundBody"></tbody>
+                  </table>
+                </div>
               </div>
-              <div class="sip-table-wrap detail-table-wrap">
-                <table class="sip-table detail-table">
-                  <thead><tr><th>Client ID</th><th>Members</th><th>Sessions</th><th>Date</th></tr></thead>
-                  <tbody id="detailRefundBody"></tbody>
-                </table>
+              <div class="detail-panel detail-panel-myattr">
+                <div class="detail-panel-head">
+                  <span class="detail-panel-title">📝 Pending Manual Attribution</span>
+                  <span class="detail-panel-count" id="detailMyAttrCount"></span>
+                </div>
+                <div class="sip-table-wrap detail-table-wrap detail-table-wrap-compact">
+                  <table class="sip-table detail-table">
+                    <thead><tr><th>Client</th><th>Sessions</th><th>Members</th><th>Reason</th><th>Status</th></tr></thead>
+                    <tbody id="detailMyAttrBody"></tbody>
+                  </table>
+                </div>
+                <div class="meta-note" id="detailMyAttrStatus" style="margin-top:6px;"></div>
               </div>
             </div>
           </div>
@@ -1276,6 +1301,78 @@
   </div>
 </div>
 
+<!-- Team Details — admin/coach-visible (canViewTeamDetails(), same TEMP_ALLOW_ALL
+     preview window as Client Detail until real sign-in replaces it). Shows every
+     cancel across the whole team (computed client-side from actuals, same data
+     Client Detail already reads) plus the full team's Manual Attribution history
+     (reusing /api/attributions/list — today that endpoint only returns everyone's
+     records to Aaron specifically; a Sales Coach calling it still only sees their
+     own until the coach-email list is migrated to the shared backend, same
+     limitation noted on the confidential-payout gate elsewhere). -->
+<div class="detail-overlay" id="teamDetailsOverlay">
+  <div class="detail-page">
+    <div class="detail-header">
+      <button class="theme-btn" id="teamDetailsBackBtn" type="button">← Back to dashboard</button>
+      <h2>Team Details</h2>
+    </div>
+    <div class="card">
+      <h2>Cancels — team-wide</h2>
+      <div class="sip-table-wrap">
+        <table class="sip-table">
+          <thead><tr><th>Date</th><th>Rep</th><th>Client ID</th><th>Members</th><th>Sessions</th><th>Action</th></tr></thead>
+          <tbody id="teamCancelsBody"></tbody>
+        </table>
+      </div>
+      <div class="meta-note" id="teamCancelsEmpty" style="display:none;">No cancels in the current ledger.</div>
+      <div class="meta-note">Every negative line item across every rep's actuals, newest first. "Move to Manual Attribution" pre-fills a correction request for whoever's cancel it is — the rep is locked so it can't accidentally land on the wrong person — then it goes through the normal pending → approval flow, same as any rep-submitted request.</div>
+    </div>
+    <div class="card" style="margin-top:12px;">
+      <h2>Attributions — team-wide (positive &amp; negative adjustments)</h2>
+      <div class="sip-table-wrap">
+        <table class="sip-table">
+          <thead><tr><th>Rep</th><th>Client Page</th><th>Sessions</th><th>Members</th><th>Reason</th><th>Status</th></tr></thead>
+          <tbody id="teamAttributionsBody"></tbody>
+        </table>
+      </div>
+      <div class="meta-note" id="teamAttributionsStatus"></div>
+      <div class="meta-note">Every Manual Attribution request across the team, any status — sign in as Aaron to see everyone's; a signed-in Sales Coach currently still only sees their own here until coach accounts are recognized server-side.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Cancel → Manual Attribution conversion modal, opened from a "Move to Manual
+     Attribution" button in the Cancels table above. Rep/Client ID/Date are
+     locked (read-only) so the conversion always lands on the correct person —
+     only the reversal amounts, reason, and comments are editable. -->
+<div class="celebration-modal-backdrop" id="cancelConvertBackdrop">
+  <div class="celebration-modal shoutout-modal-glow" style="text-align:left; max-width:420px;">
+    <div class="celebration-modal-title" style="text-align:center;">Move Cancel to Manual Attribution</div>
+    <div class="attribution-form-grid" style="margin-top:10px;">
+      <label>Rep <input type="text" id="cancelConvertRep" disabled></label>
+      <label>Client ID <input type="text" id="cancelConvertClientId" disabled></label>
+      <label>Sale Date <input type="date" id="cancelConvertDate" disabled></label>
+      <label>Sessions requested <input type="number" step="0.01" id="cancelConvertSessions"></label>
+      <label>Members requested <input type="number" step="0.01" id="cancelConvertMembers"></label>
+      <label>Adjustment Reason
+        <select id="cancelConvertReason">
+          <option value="">Select a reason…</option>
+          <option selected>Cancellation Error</option>
+          <option>BUCA / Class Wallet</option>
+          <option>Duplicate Lead Page</option>
+          <option>No Attro Given in Flex</option>
+          <option>Shifting Attro Between Reps</option>
+        </select>
+      </label>
+    </div>
+    <label style="display:block; margin-top:10px;">Comments <span style="color:#dc2626;">(required)</span>
+      <textarea id="cancelConvertComments" style="height:70px;" placeholder="Why this cancel should be reversed as a Manual Attribution — required."></textarea>
+    </label>
+    <button type="button" class="celebration-modal-close" id="cancelConvertSubmit" style="margin-top:12px;">Submit request</button>
+    <button type="button" class="celebration-modal-mute" id="cancelConvertCancel">Cancel</button>
+    <div class="meta-note" id="cancelConvertStatus"></div>
+  </div>
+</div>
+
 <!-- Admin-only (eventually) pages, reached via the footer buttons. Not actually
      access-restricted yet — open to everyone until real company sign-in is live. -->
 <div class="detail-overlay" id="goalsOverlay">
@@ -1325,7 +1422,7 @@
         </div>
         <div class="meta-note" id="addAdminStatus"></div>
         <div id="adminList" style="margin-top:10px;"></div>
-        <div class="meta-note">Admins can see every rep's Client Detail page, not just their own — the same access Aaron has. Aaron (aaron.bunch@varsitytutors.com) is the permanent admin and can't be removed here. This only controls the local dashboard's Client Detail gate; it doesn't touch the separate Netlify Function that will eventually run the live site.</div>
+        <div class="meta-note">Admins can see every rep's Client Detail page, not just their own — the same access Aaron has. Aaron (aaron.bunch@varsitytutors.com) is the permanent admin and can't be removed here. This list is shared across every browser (Netlify Functions + Blobs, same as roster/goals) — adding or removing someone here takes effect for everyone right away. It only controls read-access gates like Client Detail, though; individual write actions (roster, goals, badges, attribution approvals) each still check for Aaron's email specifically, not this list.</div>
       </div>
     </div>
 
@@ -1341,16 +1438,16 @@
         </div>
         <div class="meta-note" id="addLimitedAdminStatus"></div>
         <div id="limitedAdminList" style="margin-top:10px;"></div>
-        <div class="meta-note">Sales Coaches can open every rep's Client Detail page — pacing %, Sessions/Members counts, sold vs. refunds — but never see Bonus Payout or historical $ SIP payout figures, which stay visible only to full admins and the rep themselves. This only controls the local dashboard's Client Detail gate; it doesn't touch the separate Netlify Function that will eventually run the live site.</div>
+        <div class="meta-note">Sales Coaches can open every rep's Client Detail page — pacing %, Sessions/Members counts, sold vs. refunds — but never see Bonus Payout or historical $ SIP payout figures, which stay visible only to full admins and the rep themselves. This list is shared across every browser (Netlify Functions + Blobs, same as roster/goals) — adding or removing someone here takes effect for everyone right away. It only controls read-access gates like Client Detail and Team Details, though; write actions (like converting a cancel into Manual Attribution) still check for Aaron's email specifically, since coach identity isn't recognized by those individual write endpoints yet.</div>
       </div>
     </div>
 
     <div class="section-toggle" id="toggleBadgeControls">▸ Badge Controls</div>
     <div class="section-body" id="badgeControlsBody">
       <div class="card">
-        <div class="m-label" style="margin-bottom:8px;">On/off, dashboard-wide</div>
-        <div id="badgeToggleList" style="display:flex; flex-direction:column; gap:8px;"></div>
-        <div class="meta-note">Turning one off hides it everywhere on the dashboard immediately — it doesn't erase anyone's underlying streak/consistency data, so re-enabling it later picks back up wherever it would naturally be.</div>
+        <div class="m-label" style="margin-bottom:8px;">Badge Bank — every badge, on/off + delete</div>
+        <div id="badgeBankList" style="display:flex; flex-direction:column; gap:10px;"></div>
+        <div class="meta-note">Turning one off hides it everywhere on the dashboard immediately, but keeps it listed here to turn back on later — it doesn't erase anyone's underlying streak/consistency data or existing assignments, so re-enabling it picks back up wherever it would naturally be. Deleting removes it from this list entirely: for the 4 Automatic badges and 4 built-in Manual assign presets that's permanent (there's no undo from here), for anything you built yourself you can always recreate it below.</div>
       </div>
       <div class="card" style="margin-top:12px;">
         <div class="m-label" style="margin-bottom:8px;">Create your own badge</div>
@@ -1370,8 +1467,7 @@
           <button id="createCustomBadgeBtn" type="button">+ Create Badge</button>
         </div>
         <div class="meta-note" id="customBadgeStatus"></div>
-        <div id="customBadgeList" style="margin-top:10px;"></div>
-        <div class="meta-note">Build your own beyond the 4 presets below — give it an emoji, a name, and a short description of what it's for. Once created, it shows up as an option to assign, same as any preset badge.</div>
+        <div class="meta-note">Give it an emoji, a name, and a short description of what it's for. Once created, it appears in the Badge Bank above and as an option to assign, same as any preset badge.</div>
       </div>
       <div class="card" style="margin-top:12px;">
         <div class="m-label" style="margin-bottom:8px;">Assign a badge</div>
@@ -1406,10 +1502,10 @@
     <div class="section-body" id="testingToolsBody">
       <div class="card">
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-          <button id="resetCelebrationPopupBtn" type="button">🔄 Reset celebration popup</button>
+          <button id="resetCelebrationPopupBtn" type="button">🔄 Un-mute celebration popup</button>
           <span class="meta-note" style="margin:0;" id="resetCelebrationStatus"></span>
         </div>
-        <div class="meta-note">Clears the local "already seen" and "don't show again" flags for the double-goal celebration popup, so it's ready to pop up again the next time you load the dashboard while someone's hit double goal. This only affects your own browser — for testing, not something reps will ever see.</div>
+        <div class="meta-note">The celebration popup pops every time the current Double Goal champion's Client Detail page is opened — closing it with "Let's go" doesn't remember anything, only "Don't show this again" does. This button clears that permanent mute flag, for testing a rep who previously opted out. This only affects your own browser — not something reps will ever see.</div>
       </div>
     </div>
   </div>
@@ -1535,14 +1631,12 @@
 // ACTUALS_CACHE/PRELIM_CACHE and fetchDashboardData() further down), so
 // there's nothing left to key into localStorage for any of them.
 const THEME_KEY = 'pace_dashboard_theme_v1';
-const ADMIN_LIST_KEY = 'pace_dashboard_admin_list_v1';
 // "Sales Coach" role — a lighter admin tier for someone like a coach who needs
 // to read every rep's Client Detail page (pacing, sessions/members, sold vs.
 // refunds — anything expressed as a percent or a count) but should NOT see
 // confidential compensation figures (Bonus Payout, historical $ SIP payout,
 // preliminary $ estimate). See canViewConfidentialPayout() below for the
-// actual gate; this list only controls WHO gets that lighter tier.
-const LIMITED_ADMIN_LIST_KEY = 'pace_dashboard_limited_admin_list_v1';
+// actual gate; the coach list only controls WHO gets that lighter tier.
 const EXTRA_SIP_KEY = 'pace_dashboard_extra_sip_v1';
 
 const ROSTER = [
@@ -1628,9 +1722,19 @@ async function saveRoster(newRoster) {
 }
 // Additional admins beyond ADMIN_EMAIL (Aaron), managed from the Admin access
 // card on Edit Monthly Goals. ADMIN_EMAIL itself is never stored here — it's
-// the one permanent admin and can't be removed through this UI.
-function loadAdminList() { return loadJSON(ADMIN_LIST_KEY, []); }
-function saveAdminList(list) { saveJSON(ADMIN_LIST_KEY, list); }
+// the one permanent admin and can't be removed through this UI. Backed by
+// Netlify Functions + Blobs now (update-admin-list.mts / get-dashboard-data.mts),
+// same pattern as roster/goals — see ADMIN_LIST_CACHE and fetchDashboardData().
+let ADMIN_LIST_CACHE = [];
+function loadAdminList() { return ADMIN_LIST_CACHE; }
+async function saveAdminList(list) {
+  await authedFetch('/api/admin-list/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ admins: list }),
+  });
+  ADMIN_LIST_CACHE = list;
+}
 function isAdminEmail(email) {
   if (!email) return false;
   const e = String(email).toLowerCase();
@@ -1640,9 +1744,19 @@ function isAdminEmail(email) {
 // Sales Coach list — managed from its own card on Edit Monthly Goals, separate
 // from the full Admin list above. A full admin is automatically NOT also a
 // limited admin (isAdminEmail already covers them with full access), so this
-// only needs to check its own list.
-function loadLimitedAdminList() { return loadJSON(LIMITED_ADMIN_LIST_KEY, []); }
-function saveLimitedAdminList(list) { saveJSON(LIMITED_ADMIN_LIST_KEY, list); }
+// only needs to check its own list. Backed by Netlify Functions + Blobs now
+// (update-coach-list.mts / get-dashboard-data.mts), same pattern as the admin
+// list above.
+let COACH_LIST_CACHE = [];
+function loadLimitedAdminList() { return COACH_LIST_CACHE; }
+async function saveLimitedAdminList(list) {
+  await authedFetch('/api/coach-list/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ coaches: list }),
+  });
+  COACH_LIST_CACHE = list;
+}
 function isLimitedAdminEmail(email) {
   if (!email) return false;
   return loadLimitedAdminList().includes(String(email).toLowerCase());
@@ -2082,6 +2196,8 @@ function trackGoalMetTransitions(repRows) {
 }
 
 function render() {
+  const teamDetailsBtnEl = document.getElementById('teamDetailsBtn');
+  if (teamDetailsBtnEl) teamDetailsBtnEl.style.display = canViewTeamDetails() ? '' : 'none';
   const goals = loadGoals();
   const actuals = loadActuals();
   const [y, m, d] = actuals.asOf.split('-').map(Number);
@@ -2742,7 +2858,18 @@ function getFirstTo100Champion() {
 const DEFAULT_BADGE_TOGGLES = { streak: true, personalBest: true, consistency: true, firstTo100: true };
 let BADGE_TOGGLES_CACHE = Object.assign({}, DEFAULT_BADGE_TOGGLES);
 function loadBadgeToggles() { return BADGE_TOGGLES_CACHE; }
-function isBadgeEnabled(key) { return loadBadgeToggles()[key] !== false; }
+// Deleted preset keys (see deletePresetBadge below) always read as disabled,
+// regardless of whatever's in BADGE_TOGGLES_CACHE for that key — a deleted
+// badge shouldn't come back just because its last-known toggle value was
+// "on". This is the one gate every auto badge (streak/personalBest/
+// consistency/firstTo100) already checks before firing, and now also the
+// gate allBadgeOptions() checks before offering a manual/custom badge to
+// assign — so toggling any badge off (preset or custom) hides it dashboard-
+// wide immediately, same behavior across all badge kinds.
+function isBadgeEnabled(key) {
+  if (loadDeletedPresetKeys().includes(key)) return false;
+  return loadBadgeToggles()[key] !== false;
+}
 async function saveBadgeToggle(key, enabled) {
   await authedFetch('/api/badges/toggle', {
     method: 'POST',
@@ -2750,6 +2877,23 @@ async function saveBadgeToggle(key, enabled) {
     body: JSON.stringify({ key, enabled }),
   });
   BADGE_TOGGLES_CACHE = Object.assign({}, BADGE_TOGGLES_CACHE, { [key]: enabled });
+}
+// Permanent denylist for the 8 BUILT-IN badge keys (4 automatic + 4 manual-
+// assign presets) — see delete-preset-badge.mts for why these can't just be
+// removed from a store the way custom badges are (they're hardcoded constants
+// below, not stored records). Once deleted, a preset key never shows in the
+// Badge Bank again and is always treated as disabled (see isBadgeEnabled).
+// Custom badges use the existing deleteCustomBadgeOption() instead — this is
+// only for the built-ins.
+let DELETED_PRESET_KEYS_CACHE = [];
+function loadDeletedPresetKeys() { return DELETED_PRESET_KEYS_CACHE; }
+async function deletePresetBadge(key) {
+  const { deletedPresets } = await authedFetch('/api/badges/preset/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key }),
+  });
+  DELETED_PRESET_KEYS_CACHE = deletedPresets || DELETED_PRESET_KEYS_CACHE.concat([key]);
 }
 
 // A handful of reasons-a-human-decided badges, distinct from the computed
@@ -2800,7 +2944,14 @@ async function deleteCustomBadgeOption(key) {
 // needs to look up a badge TYPE by key (assigning, rendering, the dropdown)
 // should search this, not MANUAL_BADGE_OPTIONS alone, so custom badges work
 // everywhere the 4 presets do.
-function allBadgeOptions() { return MANUAL_BADGE_OPTIONS.concat(loadCustomBadgeOptions()); }
+// Filters out anything toggled off OR deleted — a badge hidden dashboard-
+// wide shouldn't still be offered in the "Assign a badge" dropdown, and an
+// existing assignment referencing a now-hidden key quietly stops rendering
+// (see manualBadgesHTML's `if (!opt) return ''`), same as a fully deleted
+// custom badge always has.
+function allBadgeOptions() {
+  return MANUAL_BADGE_OPTIONS.concat(loadCustomBadgeOptions()).filter(o => isBadgeEnabled(o.key));
+}
 let MANUAL_BADGES_CACHE = {};
 function loadManualBadges() { return MANUAL_BADGES_CACHE; }
 function getManualBadges(repDisplay) {
@@ -3098,17 +3249,38 @@ const BADGE_TOGGLE_META = [
   { key: 'consistency', emoji: '🛡️', label: 'Steady (consistency)', description: 'Recognizes a rep who has stayed at or above the consistency threshold every single tracked day this month — no dips, however small.' },
   { key: 'firstTo100', emoji: '🥇', label: 'First to 100%', description: "Goes to whoever's blended pacing crossed 100%+ earliest this month, team-wide. One winner, and it resets fresh at the start of each month." },
 ];
-function renderBadgeToggleList() {
-  const el = document.getElementById('badgeToggleList');
+// Single unified "Badge Bank" — every badge the dashboard knows about, one
+// place: the 4 automatic ones (computed from pacing, can't be assigned to
+// anyone directly), the 4 built-in manual-assign presets, and whatever's been
+// custom-built. Each row gets the same on/off toggle and delete control,
+// regardless of kind. Deleted preset keys (built-ins only) are filtered out
+// entirely here; custom badges that get deleted are just gone from
+// loadCustomBadgeOptions() already, same as before.
+function badgeBankEntries() {
+  const deleted = loadDeletedPresetKeys();
+  const auto = BADGE_TOGGLE_META.filter(b => !deleted.includes(b.key))
+    .map(b => Object.assign({ kind: 'auto', kindLabel: 'Automatic — fires on its own from pacing data' }, b));
+  const manual = MANUAL_BADGE_OPTIONS.filter(b => !deleted.includes(b.key))
+    .map(b => Object.assign({ kind: 'manual', kindLabel: 'Manual assign — built-in preset' }, b));
+  const custom = loadCustomBadgeOptions()
+    .map(b => Object.assign({ kind: 'custom', kindLabel: 'Manual assign — custom' }, b));
+  return auto.concat(manual, custom);
+}
+function renderBadgeBank() {
+  const el = document.getElementById('badgeBankList');
   if (!el) return;
   const toggles = loadBadgeToggles();
-  el.innerHTML = BADGE_TOGGLE_META.map(b => `
-    <div>
-      <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--text);">
-        <input type="checkbox" data-badge-toggle="${b.key}" ${toggles[b.key] !== false ? 'checked' : ''}>
-        ${b.emoji} ${b.label}
+  el.innerHTML = badgeBankEntries().map(b => `
+    <div class="shoutout-item" style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+      <label style="display:flex; align-items:flex-start; gap:8px; flex:1; cursor:pointer;">
+        <input type="checkbox" data-badge-toggle="${b.key}" style="margin-top:3px;" ${toggles[b.key] !== false ? 'checked' : ''}>
+        <span>
+          <span style="font-size:13px; font-weight:700; color:var(--text);">${b.emoji} ${b.label}</span>
+          <span class="meta-note" style="display:block; margin-top:2px;">${b.description || ''}</span>
+          <span class="meta-note" style="display:block; margin-top:2px; font-style:italic;">${b.kindLabel}</span>
+        </span>
       </label>
-      <div class="meta-note" style="margin:2px 0 0 26px;">${b.description}</div>
+      <button type="button" class="shoutout-remove-btn" data-delete-badge="${b.key}" data-badge-kind="${b.kind}" title="Delete this badge">✕</button>
     </div>`).join('');
 }
 function renderManualBadgeAssignedList() {
@@ -3153,22 +3325,6 @@ function updateBadgeAssignTypeDescription() {
   const opt = allBadgeOptions().find(o => o.key === sel.value);
   out.textContent = opt && opt.description ? opt.description : '';
 }
-// List of custom-built badge TYPES (not assignments) with a delete button —
-// separate from "Assigned badges" above, which lists who currently HAS one.
-function renderCustomBadgeList() {
-  const el = document.getElementById('customBadgeList');
-  if (!el) return;
-  const list = loadCustomBadgeOptions();
-  if (!list.length) {
-    el.innerHTML = '<div class="meta-note" style="margin-top:0;">No custom badges yet — build one above.</div>';
-    return;
-  }
-  el.innerHTML = list.map(o => `
-    <div class="shoutout-item" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-      <span style="color:${o.color};">${o.emoji} <strong>${o.label}</strong>${o.description ? ` — ${o.description}` : ''}</span>
-      <button type="button" class="shoutout-remove-btn" data-remove-custom-badge="${o.key}" title="Delete this badge type">✕</button>
-    </div>`).join('');
-}
 document.getElementById('createCustomBadgeBtn').addEventListener('click', async (e) => {
   const emoji = document.getElementById('customBadgeEmoji').value.trim();
   const name = document.getElementById('customBadgeName').value.trim();
@@ -3183,8 +3339,8 @@ document.getElementById('createCustomBadgeBtn').addEventListener('click', async 
     document.getElementById('customBadgeEmoji').value = '';
     document.getElementById('customBadgeName').value = '';
     document.getElementById('customBadgeDescription').value = '';
-    status.textContent = `"${name}" created — it's now available in the Assign a badge dropdown below.`;
-    renderCustomBadgeList();
+    status.textContent = `"${name}" created — it's now in the Badge Bank above, and available in the Assign a badge dropdown below.`;
+    renderBadgeBank();
     renderBadgeAssignTypeOptions();
   } catch (err) {
     status.textContent = 'Error: ' + err.message;
@@ -3192,24 +3348,8 @@ document.getElementById('createCustomBadgeBtn').addEventListener('click', async 
     btn.disabled = false;
   }
 });
-document.getElementById('customBadgeList').addEventListener('click', async (e) => {
-  const btn = e.target.closest('[data-remove-custom-badge]');
-  if (!btn) return;
-  if (!confirm('Delete this badge type? Anyone currently wearing it will lose it.')) return;
-  btn.disabled = true;
-  try {
-    await deleteCustomBadgeOption(btn.getAttribute('data-remove-custom-badge'));
-    renderCustomBadgeList();
-    renderBadgeAssignTypeOptions();
-    renderManualBadgeAssignedList();
-    render();
-  } catch (err) {
-    alert(err.message);
-    btn.disabled = false;
-  }
-});
 document.getElementById('badgeAssignTypeSelect').addEventListener('change', updateBadgeAssignTypeDescription);
-document.getElementById('badgeToggleList').addEventListener('change', async (e) => {
+document.getElementById('badgeBankList').addEventListener('change', async (e) => {
   const cb = e.target.closest('[data-badge-toggle]');
   if (!cb) return;
   const key = cb.getAttribute('data-badge-toggle');
@@ -3217,12 +3357,39 @@ document.getElementById('badgeToggleList').addEventListener('change', async (e) 
   cb.disabled = true;
   try {
     await saveBadgeToggle(key, enabled);
+    renderBadgeAssignTypeOptions(); // a manual/custom badge toggled off should drop out of the assign dropdown right away
+    renderManualBadgeAssignedList();
     render(); // badges live inside the landing-page rep rows — refresh so the change is visible right away
   } catch (err) {
     cb.checked = !enabled; // revert the checkbox — the write didn't actually take
     alert(err.message);
   } finally {
     cb.disabled = false;
+  }
+});
+document.getElementById('badgeBankList').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-delete-badge]');
+  if (!btn) return;
+  const key = btn.getAttribute('data-delete-badge');
+  const kind = btn.getAttribute('data-badge-kind');
+  const confirmMsg = kind === 'custom'
+    ? 'Delete this badge type? Anyone currently wearing it will lose it.'
+    : 'Delete this built-in badge? It will disappear from the Badge Bank for good and stop showing anywhere on the dashboard — there\'s no undo for a built-in badge from here.';
+  if (!confirm(confirmMsg)) return;
+  btn.disabled = true;
+  try {
+    if (kind === 'custom') {
+      await deleteCustomBadgeOption(key);
+    } else {
+      await deletePresetBadge(key);
+    }
+    renderBadgeBank();
+    renderBadgeAssignTypeOptions();
+    renderManualBadgeAssignedList();
+    render();
+  } catch (err) {
+    alert(err.message);
+    btn.disabled = false;
   }
 });
 document.getElementById('manualBadgeAssignedList').addEventListener('click', async (e) => {
@@ -3390,14 +3557,15 @@ function doubleGoalBannerHTML(repDisplay) {
     </div>`;
 }
 
-// One-time celebration popup — shown only to the current Double Goal champion
-// (the single most-recent crosser, same rep who gets the landing-page glow),
-// only once per unique crossing event. The dedupe key stores {name, date} of
-// the last crossing shown and compares it against the CURRENT champion +
-// their computeDoubleGoalHitDate() result: a genuinely new event (a different
-// rep taking over, or the same rep dipping out and re-crossing later) pops
-// again, but repeat visits to a still-standing crossing do not.
-const DOUBLE_GOAL_POPUP_KEY = 'pace_dashboard_double_goal_popup_seen_v1';
+// Celebration popup for the current Double Goal champion (the single most-
+// recent crosser, same rep who gets the landing-page glow). Per Aaron's spec
+// (2026-07-26): "Let's go" is a plain close for THIS viewing only — it does
+// NOT remember anything, so the popup shows again the next time this rep's
+// Client Detail page is opened. The ONLY thing that permanently suppresses it
+// is clicking "Don't show this again" (muteDoubleGoalPopup below). There is
+// deliberately no "already seen this crossing" dedupe key anymore — that was
+// the earlier (wrong) behavior this replaces.
+//
 // Per-rep opt-out — some people just don't want the celebratory pop-up, even
 // if they're happy to keep showing up as the champion elsewhere (glow,
 // banner). Muting is permanent until they change their mind; there's no
@@ -3419,14 +3587,11 @@ function maybeShowDoubleGoalCelebration(repName) {
   const crossDate = computeDoubleGoalHitDate(champion);
   if (!crossDate) { backdrop.classList.remove('open'); return; }
   if (isDoubleGoalPopupMuted(champion)) return; // this rep opted out — keep respecting it on every future crossing
-  const seen = loadJSON(DOUBLE_GOAL_POPUP_KEY, null);
-  if (seen && seen.name === champion && seen.date === crossDate) return; // already celebrated this exact crossing
   const firstName = champion.split(' ')[0];
   document.getElementById('celebrationModalTitle').textContent = `You did it, ${firstName}! 🏆`;
   document.getElementById('celebrationModalBody').textContent =
     `You're the most recent A-Teamer to hit 100% of BOTH Members and Sessions this month — the total package. Congratulations, keep that momentum rolling!`;
   backdrop.classList.add('open');
-  saveJSON(DOUBLE_GOAL_POPUP_KEY, { name: champion, date: crossDate });
 }
 document.getElementById('celebrationModalClose').addEventListener('click', () => {
   document.getElementById('celebrationModalBackdrop').classList.remove('open');
@@ -3513,11 +3678,10 @@ function renderGoalsForm(goals) {
   renderAdminList();
   renderLimitedAdminList();
   renderMasterShoutoutLog();
-  renderBadgeToggleList();
+  renderBadgeBank();
   document.getElementById('badgeAssignRepSelect').innerHTML =
     getRoster().map(r => `<option value="${encodeURIComponent(r.display)}">${r.display}</option>`).join('');
   renderBadgeAssignTypeOptions();
-  renderCustomBadgeList();
   renderManualBadgeAssignedList();
 }
 
@@ -3659,7 +3823,7 @@ document.getElementById('removedRosterList').addEventListener('click', async (e)
   }
 });
 
-document.getElementById('addAdminBtn').addEventListener('click', () => {
+document.getElementById('addAdminBtn').addEventListener('click', async (e) => {
   const input = document.getElementById('newAdminEmail');
   const statusEl = document.getElementById('addAdminStatus');
   const email = input.value.trim().toLowerCase();
@@ -3673,26 +3837,41 @@ document.getElementById('addAdminBtn').addEventListener('click', () => {
     statusEl.style.color = '#dc2626';
     return;
   }
-  const admins = loadAdminList();
-  admins.push(email);
-  saveAdminList(admins);
-  input.value = '';
-  statusEl.textContent = `Added ${email} as an admin.`;
-  statusEl.style.color = '#16a34a';
-  renderAdminList();
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  statusEl.textContent = 'Adding…';
+  statusEl.style.color = '';
+  try {
+    await saveAdminList(loadAdminList().concat([email]));
+    input.value = '';
+    statusEl.textContent = `Added ${email} as an admin.`;
+    statusEl.style.color = '#16a34a';
+    renderAdminList();
+  } catch (err) {
+    statusEl.textContent = 'Error: ' + err.message;
+    statusEl.style.color = '#dc2626';
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 // Event delegation since adminList rows are rebuilt on every renderAdminList() call.
-document.getElementById('adminList').addEventListener('click', (e) => {
+document.getElementById('adminList').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-remove-admin]');
   if (!btn) return;
   const email = decodeURIComponent(btn.getAttribute('data-remove-admin'));
   if (!confirm(`Remove admin access for ${email}?`)) return;
-  saveAdminList(loadAdminList().filter(existing => existing !== email));
-  renderAdminList();
+  btn.disabled = true;
+  try {
+    await saveAdminList(loadAdminList().filter(existing => existing !== email));
+    renderAdminList();
+  } catch (err) {
+    alert(err.message);
+    btn.disabled = false;
+  }
 });
 
-document.getElementById('addLimitedAdminBtn').addEventListener('click', () => {
+document.getElementById('addLimitedAdminBtn').addEventListener('click', async (e) => {
   const input = document.getElementById('newLimitedAdminEmail');
   const statusEl = document.getElementById('addLimitedAdminStatus');
   const email = input.value.trim().toLowerCase();
@@ -3711,23 +3890,38 @@ document.getElementById('addLimitedAdminBtn').addEventListener('click', () => {
     statusEl.style.color = '#dc2626';
     return;
   }
-  const coaches = loadLimitedAdminList();
-  coaches.push(email);
-  saveLimitedAdminList(coaches);
-  input.value = '';
-  statusEl.textContent = `Added ${email} as a Sales Coach.`;
-  statusEl.style.color = '#16a34a';
-  renderLimitedAdminList();
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  statusEl.textContent = 'Adding…';
+  statusEl.style.color = '';
+  try {
+    await saveLimitedAdminList(loadLimitedAdminList().concat([email]));
+    input.value = '';
+    statusEl.textContent = `Added ${email} as a Sales Coach.`;
+    statusEl.style.color = '#16a34a';
+    renderLimitedAdminList();
+  } catch (err) {
+    statusEl.textContent = 'Error: ' + err.message;
+    statusEl.style.color = '#dc2626';
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 // Event delegation since limitedAdminList rows are rebuilt on every renderLimitedAdminList() call.
-document.getElementById('limitedAdminList').addEventListener('click', (e) => {
+document.getElementById('limitedAdminList').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-remove-limited-admin]');
   if (!btn) return;
   const email = decodeURIComponent(btn.getAttribute('data-remove-limited-admin'));
   if (!confirm(`Remove Sales Coach access for ${email}?`)) return;
-  saveLimitedAdminList(loadLimitedAdminList().filter(existing => existing !== email));
-  renderLimitedAdminList();
+  btn.disabled = true;
+  try {
+    await saveLimitedAdminList(loadLimitedAdminList().filter(existing => existing !== email));
+    renderLimitedAdminList();
+  } catch (err) {
+    alert(err.message);
+    btn.disabled = false;
+  }
 });
 
 document.getElementById('updateActuals').addEventListener('click', async (e) => {
@@ -4675,9 +4869,8 @@ setupToggle('toggleBadgeControls', 'badgeControlsBody', 'Badge Controls');
 setupToggle('toggleShoutoutLog', 'shoutoutLogBody', 'All Shoutouts');
 setupToggle('toggleTestingTools', 'testingToolsBody', 'Testing tools');
 document.getElementById('resetCelebrationPopupBtn').addEventListener('click', () => {
-  localStorage.removeItem(DOUBLE_GOAL_POPUP_KEY);
   localStorage.removeItem(DOUBLE_GOAL_POPUP_MUTED_KEY);
-  document.getElementById('resetCelebrationStatus').textContent = 'Reset — reload the dashboard (or go back to the landing page) to see it pop up again.';
+  document.getElementById('resetCelebrationStatus').textContent = 'Un-muted — the current champion\'s Client Detail page will show the popup again.';
 });
 
 document.getElementById('toggleAdvancedFields').addEventListener('click', () => {
@@ -4697,6 +4890,21 @@ document.getElementById('toggleAdvancedFields').addEventListener('click', () => 
 // straight to it, so clicking "View shoutout history" from the Send Shoutout
 // modal lands directly on the log instead of the top of a page full of
 // unrelated admin settings.
+// Every full-page overlay (Edit Goals, Historical Performance, Client Detail,
+// Manual Attribution) is `.detail-overlay`: position:fixed + its own
+// overflow-y:auto, stacked on top of the landing page. The landing page's
+// <body> never shrinks or hides behind it, though, so without this the
+// document keeps its own scrollbar for the (invisible) page underneath at
+// the same time the overlay scrolls its own content — two scrollbars, and
+// scrolling can move either one depending on where the cursor happens to be.
+// Locking body scroll while ANY of these is open — and only restoring it once
+// NONE of them are — fixes that regardless of which overlay opened or how
+// (nav button, back button, browser back/forward all route through here).
+function syncOverlayBodyScroll() {
+  const anyOpen = ['clientDetailOverlay', 'manualAttroOverlay', 'goalsOverlay', 'sipOverlay', 'teamDetailsOverlay']
+    .some(id => document.getElementById(id).classList.contains('open'));
+  document.body.style.overflow = anyOpen ? 'hidden' : '';
+}
 function renderGoalsOverlay() {
   const overlay = document.getElementById('goalsOverlay');
   if (location.hash === '#edit-goals' || location.hash === '#shoutout-history') {
@@ -4713,11 +4921,13 @@ function renderGoalsOverlay() {
   } else {
     overlay.classList.remove('open');
   }
+  syncOverlayBodyScroll();
 }
 function renderSipOverlay() {
   const overlay = document.getElementById('sipOverlay');
   if (location.hash === '#historical-sip') { overlay.classList.add('open'); window.scrollTo(0, 0); }
   else overlay.classList.remove('open');
+  syncOverlayBodyScroll();
 }
 window.addEventListener('hashchange', renderGoalsOverlay);
 window.addEventListener('hashchange', renderSipOverlay);
@@ -4727,10 +4937,10 @@ document.getElementById('viewShoutoutHistoryLink').addEventListener('click', () 
   document.getElementById('shoutoutSendBackdrop').classList.remove('open');
 });
 document.getElementById('goalsBackBtn').addEventListener('click', () => {
-  if (location.hash) history.back(); else document.getElementById('goalsOverlay').classList.remove('open');
+  if (location.hash) history.back(); else { document.getElementById('goalsOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
 });
 document.getElementById('sipBackBtn').addEventListener('click', () => {
-  if (location.hash) history.back(); else document.getElementById('sipOverlay').classList.remove('open');
+  if (location.hash) history.back(); else { document.getElementById('sipOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
 });
 
 // ---------- Close Out Month: import a finalized SIP month from pasted CSV ----------
@@ -5391,9 +5601,10 @@ let rankSideCollapsed = loadJSON(RANK_SIDE_COLLAPSED_KEY, true);
 function renderClientDetail() {
   const overlay = document.getElementById('clientDetailOverlay');
   const match = location.hash.match(/^#client-detail=(.+)$/);
-  if (!match) { overlay.classList.remove('open'); return; }
+  if (!match) { overlay.classList.remove('open'); syncOverlayBodyScroll(); return; }
   const repName = decodeURIComponent(match[1]);
   overlay.classList.add('open');
+  syncOverlayBodyScroll();
   document.getElementById('detailRepName').textContent = repName + ' — Client Detail';
 
   // Access control: admin (Aaron) + the rep themselves, once real sign-in exists.
@@ -5498,6 +5709,12 @@ function renderClientDetail() {
     document.getElementById('detailAttrBody').innerHTML = attributions.length ? attributions.map(detailRowHTML).join('') : detailEmptyRowHTML('No attributions');
     document.getElementById('detailRefundBody').innerHTML = refunds.length ? refunds.map(detailRowHTML).join('') : detailEmptyRowHTML('No refunds 🎉');
   }
+  // This rep's still-PENDING Manual Attribution requests for the current month
+  // (or that Aaron converted from one of their cancels) — separate from the
+  // ledger-derived Attributions/Refunds panels above, and independent of
+  // whether there's any ledger data at all, so this always runs, not just
+  // inside the `items.length` branch.
+  refreshDetailAttributions(repName);
   // Confidentiality gate for the chart's $ view — hide the option entirely for
   // a viewer who shouldn't see payout, and if they were somehow left on
   // "earnings" mode (e.g. Aaron flips the preview role while already on this
@@ -5518,7 +5735,7 @@ function renderClientDetail() {
 }
 window.addEventListener('hashchange', renderClientDetail);
 document.getElementById('detailBackBtn').addEventListener('click', () => {
-  if (location.hash) history.back(); else document.getElementById('clientDetailOverlay').classList.remove('open');
+  if (location.hash) history.back(); else { document.getElementById('clientDetailOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
 });
 
 document.getElementById('bonusSideToggle').addEventListener('click', () => {
@@ -5565,12 +5782,229 @@ function renderManualAttroPage() {
   } else {
     overlay.classList.remove('open');
   }
+  syncOverlayBodyScroll();
 }
 window.addEventListener('hashchange', renderManualAttroPage);
 document.getElementById('manualAttroBtn').addEventListener('click', () => { location.hash = 'manual-attribution'; });
 document.getElementById('attroBackBtn').addEventListener('click', () => {
-  if (location.hash) history.back(); else document.getElementById('manualAttroOverlay').classList.remove('open');
+  if (location.hash) history.back(); else { document.getElementById('manualAttroOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
 });
+
+// ---------- Team Details full-page overlay routing (#team-details) ----------
+// Admin/coach-only view (canViewTeamDetails()) combining every cancel across
+// the whole team with the team's full Manual Attribution history, plus the
+// cancel -> Manual Attribution conversion flow.
+function renderTeamDetailsOverlay() {
+  const overlay = document.getElementById('teamDetailsOverlay');
+  if (location.hash === '#team-details') {
+    overlay.classList.add('open');
+    window.scrollTo(0, 0);
+    renderTeamCancelsTable();
+    refreshTeamAttributions();
+  } else {
+    overlay.classList.remove('open');
+  }
+  syncOverlayBodyScroll();
+}
+window.addEventListener('hashchange', renderTeamDetailsOverlay);
+document.getElementById('teamDetailsBtn').addEventListener('click', () => { location.hash = 'team-details'; });
+document.getElementById('teamDetailsBackBtn').addEventListener('click', () => {
+  if (location.hash) history.back(); else { document.getElementById('teamDetailsOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
+});
+
+// Walks every rep's raw ledger line items (the same `items` array Client
+// Detail's per-rep drill-down already reads) and pulls out anything negative
+// on either metric — that's a cancel. Team-wide, newest first.
+function computeTeamCancels() {
+  const actuals = loadActuals();
+  const rows = [];
+  getRoster().forEach(r => {
+    const raw = (actuals.perRep && actuals.perRep[r.display]) || {};
+    (raw.items || []).forEach(it => {
+      if (it.members < 0 || it.sessions < 0) {
+        rows.push({ rep: r.display, clientId: it.clientId || '', date: it.date || '', members: it.members, sessions: it.sessions });
+      }
+    });
+  });
+  rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  return rows;
+}
+// Cancels converted this session — client-side only, just to stop an obvious
+// accidental double-submit of the same line item in one sitting. Doesn't
+// persist across a reload and isn't a real dedupe (the raw ledger item itself
+// isn't modified by converting it), since there's no field on a ledger line
+// item marking it "already requested" — would need real tracking to do that
+// properly, out of scope for this round.
+const cancelsConvertedThisSession = new Set();
+function cancelRowKey(row) { return row.date + '|' + row.clientId + '|' + row.rep; }
+function renderTeamCancelsTable() {
+  const tbody = document.getElementById('teamCancelsBody');
+  const empty = document.getElementById('teamCancelsEmpty');
+  const rows = computeTeamCancels();
+  if (!rows.length) {
+    tbody.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  tbody.innerHTML = rows.map(row => {
+    const key = cancelRowKey(row);
+    const already = cancelsConvertedThisSession.has(key);
+    return `
+    <tr>
+      <td>${row.date || '—'}</td>
+      <td>${row.rep}</td>
+      <td>${row.clientId || '—'}</td>
+      <td>${fmt(row.members,1)}</td>
+      <td>${fmt(row.sessions,1)}</td>
+      <td>${already
+        ? '<span class="meta-note" style="margin:0;">Requested ✓</span>'
+        : `<button type="button" class="theme-btn" data-move-to-attro data-rep="${encodeURIComponent(row.rep)}" data-client-id="${encodeURIComponent(row.clientId || '')}" data-date="${row.date || ''}" data-members="${row.members}" data-sessions="${row.sessions}">Move to Manual Attribution</button>`}
+      </td>
+    </tr>`;
+  }).join('');
+}
+document.getElementById('teamCancelsBody').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-move-to-attro]');
+  if (!btn) return;
+  const rep = decodeURIComponent(btn.getAttribute('data-rep'));
+  const clientId = decodeURIComponent(btn.getAttribute('data-client-id'));
+  const date = btn.getAttribute('data-date');
+  const members = parseFloat(btn.getAttribute('data-members')) || 0;
+  const sessions = parseFloat(btn.getAttribute('data-sessions')) || 0;
+  document.getElementById('cancelConvertRep').value = rep;
+  document.getElementById('cancelConvertClientId').value = clientId;
+  document.getElementById('cancelConvertDate').value = date;
+  // Pre-fill the REVERSAL of the cancel (a -1 member cancel becomes a +1
+  // members-requested correction) — this is what "moving a cancel into Manual
+  // Attribution" means: requesting the cancel be credited back.
+  document.getElementById('cancelConvertMembers').value = Math.abs(members);
+  document.getElementById('cancelConvertSessions').value = Math.abs(sessions);
+  document.getElementById('cancelConvertReason').value = 'Cancellation Error';
+  document.getElementById('cancelConvertComments').value = '';
+  document.getElementById('cancelConvertStatus').textContent = '';
+  document.getElementById('cancelConvertBackdrop').dataset.rowKey = cancelRowKey({ rep, clientId, date });
+  document.getElementById('cancelConvertBackdrop').classList.add('open');
+});
+document.getElementById('cancelConvertCancel').addEventListener('click', () => {
+  document.getElementById('cancelConvertBackdrop').classList.remove('open');
+});
+document.getElementById('cancelConvertBackdrop').addEventListener('click', (e) => {
+  if (e.target.id === 'cancelConvertBackdrop') e.currentTarget.classList.remove('open');
+});
+document.getElementById('cancelConvertSubmit').addEventListener('click', async (e) => {
+  const status = document.getElementById('cancelConvertStatus');
+  const comments = document.getElementById('cancelConvertComments').value.trim();
+  if (!comments) { status.textContent = 'Comments are required.'; return; }
+  const payload = {
+    repName: document.getElementById('cancelConvertRep').value,
+    clientId: document.getElementById('cancelConvertClientId').value,
+    saleDate: document.getElementById('cancelConvertDate').value,
+    members: parseFloat(document.getElementById('cancelConvertMembers').value) || 0,
+    sessions: parseFloat(document.getElementById('cancelConvertSessions').value) || 0,
+    reason: document.getElementById('cancelConvertReason').value,
+    comments,
+  };
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  status.textContent = 'Submitting…';
+  try {
+    await submitAttributionAsAdmin(payload);
+    const key = document.getElementById('cancelConvertBackdrop').dataset.rowKey;
+    if (key) cancelsConvertedThisSession.add(key);
+    document.getElementById('cancelConvertBackdrop').classList.remove('open');
+    renderTeamCancelsTable();
+    refreshTeamAttributions();
+  } catch (err) {
+    status.textContent = 'Error: ' + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// Reuses the SAME /api/attributions/list endpoint the Manual Attribution page
+// already calls — today that returns every rep's records to Aaron specifically
+// (hardcoded ADMIN_EMAIL check server-side), and just the caller's own records
+// to anyone else, including a Sales Coach — coach accounts aren't recognized
+// server-side yet (see backend-migration-plan.md), so a coach viewing this
+// page currently only sees their own attribution history here, not the whole
+// team's, until that migration happens.
+async function refreshTeamAttributions() {
+  const tbody = document.getElementById('teamAttributionsBody');
+  const status = document.getElementById('teamAttributionsStatus');
+  tbody.innerHTML = skeletonRowsHTML(3, 6);
+  status.textContent = '';
+  try {
+    const { isAdmin, records } = await authedFetch('/api/attributions/list');
+    if (!isAdmin) status.textContent = 'Showing only your own requests — sign in as Aaron to see the whole team\'s.';
+    tbody.innerHTML = records.length ? records.map(r => `
+      <tr>
+        <td>${r.repName || '—'}</td>
+        <td>${attrLinkCell(r)}</td>
+        <td>${fmt(r.sessions,1)}</td>
+        <td>${fmt(r.members,1)}</td>
+        <td>${r.adjustmentReason || r.reason || '—'}</td>
+        <td>${attrStatusPill(r.status)}</td>
+      </tr>`).join('') : `<tr><td colspan="6" style="text-align:center; color:var(--text-faint); padding:16px 0;">No attribution requests yet.</td></tr>`;
+  } catch (err) {
+    tbody.innerHTML = '';
+    status.textContent = err.message === 'Not signed in'
+      ? 'Sign in (from the Manual Attribution page) to load the team\'s attribution history here.'
+      : 'Error: ' + err.message;
+  }
+}
+// Client Detail's own "Pending Manual Attribution" panel — filters the SAME
+// /api/attributions/list response down to just THIS rep's PENDING requests
+// for the CURRENT live month, by repName (not repEmail), so it works
+// correctly whether the viewer is Aaron (sees every rep's records, filtered
+// here to just this one) or the rep themselves signed in on their own page
+// (server already only returns their own, and their own repName always
+// matches). Deliberately narrow on purpose (Aaron, 2026-07-28): whoever's
+// looking at a rep's Client Detail — including Aaron viewing Brenda's page —
+// should see only Brenda's own still-open requests for the active month,
+// not her full history and not anyone else's. Approved/rejected requests and
+// past months live on the full Manual Attribution page's "My requests" /
+// "Pending approvals" tables, not here. A Sales Coach on someone else's page
+// currently only gets their own records back from the server (coach identity
+// isn't recognized there yet — see backend-migration-plan.md), so this can
+// come back empty for a coach viewing another rep; that's a known, already-
+// documented gap, not new to this panel.
+async function refreshDetailAttributions(repName) {
+  const tbody = document.getElementById('detailMyAttrBody');
+  const countEl = document.getElementById('detailMyAttrCount');
+  const statusEl = document.getElementById('detailMyAttrStatus');
+  if (!tbody) return;
+  tbody.innerHTML = skeletonRowsHTML(2, 5);
+  countEl.textContent = '';
+  statusEl.textContent = '';
+  try {
+    const { records } = await authedFetch('/api/attributions/list');
+    const liveMonth = String((loadActuals().asOf || '')).slice(0, 7);
+    const mine = records.filter(r => r.repName === repName && r.status === 'pending' && attrMonthKey(r) === liveMonth);
+    countEl.textContent = mine.length ? mine.length + ' pending' : '';
+    tbody.innerHTML = mine.length ? mine.map(r => `
+      <tr>
+        <td>${attrLinkCell(r)}</td>
+        <td>${fmt(r.sessions,1)}</td>
+        <td>${fmt(r.members,1)}</td>
+        <td>${r.adjustmentReason || r.reason || '—'}</td>
+        <td>${attrStatusPill(r.status)}</td>
+      </tr>`).join('') : `<tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:14px 0;">No pending requests this month.</td></tr>`;
+  } catch (err) {
+    tbody.innerHTML = '';
+    statusEl.textContent = err.message === 'Not signed in'
+      ? 'Sign in to view pending manual attribution requests here.'
+      : 'Error: ' + err.message;
+  }
+}
+async function submitAttributionAsAdmin(payload) {
+  const { record } = await authedFetch('/api/attributions/submit-admin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return record;
+}
 
 
 // ---------- Manual Attribution (Netlify Identity + Functions + Blobs) ----------
@@ -5610,6 +6044,7 @@ async function fetchBadgesData() {
     BADGE_TOGGLES_CACHE = Object.assign({}, DEFAULT_BADGE_TOGGLES, data.toggles || {});
     CUSTOM_BADGES_CACHE = data.custom || [];
     MANUAL_BADGES_CACHE = data.assignments || {};
+    DELETED_PRESET_KEYS_CACHE = data.deletedPresets || [];
   } catch (e) {
     console.warn('Could not load badges data', e);
   }
@@ -5645,6 +6080,11 @@ async function fetchDashboardData() {
     if (data.goals) GOALS_CACHE = data.goals;
     if (data.actuals) ACTUALS_CACHE = data.actuals;
     if (data.prelim) PRELIM_CACHE = data.prelim;
+    // Unlike the above, admins/coaches have no baked default worth protecting
+    // (an empty list is a perfectly valid real state — Aaron's own access never
+    // depends on it), so these apply unconditionally rather than only-if-truthy.
+    ADMIN_LIST_CACHE = data.admins || [];
+    COACH_LIST_CACHE = data.coaches || [];
   } catch (e) {
     console.warn('Could not load roster/goals/actuals', e);
   }
@@ -5839,8 +6279,9 @@ document.getElementById('submitAttribution').addEventListener('click', async () 
 // a newly added rep gets Client Detail access the moment their email is entered
 // here — no code change required. Admin access works the same way: ADMIN_EMAIL
 // (Aaron) is the one permanent admin, and any additional admins Aaron adds via
-// the "Admin access" card on Edit Monthly Goals (stored in ADMIN_LIST_KEY, see
-// isAdminEmail() above) get the same full access — see everyone's Client Detail,
+// the "Admin access" card on Edit Monthly Goals (stored in ADMIN_LIST_CACHE,
+// backed by update-admin-list.mts + Blobs — see isAdminEmail() above) get the
+// same full access — see everyone's Client Detail,
 // not just their own. Note: netlify/functions/submit-attribution.mts is a
 // separate server-side file (out of scope for this local dashboard) and has its
 // own hardcoded admin/roster mapping; that needs a manual update whenever this
@@ -5854,6 +6295,17 @@ const ADMIN_EMAIL = 'aaron.bunch@varsitytutors.com';
 function currentUserEmail() {
   const user = window.netlifyIdentity && netlifyIdentity.currentUser();
   return user && user.email ? String(user.email).toLowerCase() : null;
+}
+// View-only gate for the Team Details page (cancels + team attributions) —
+// same admin/coach-or-nobody-else shape as canViewClientDetail, reusing the
+// same TEMP_ALLOW_ALL_CLIENT_DETAIL preview window so Aaron can see and test
+// this today. Unlike Client Detail there's no "or the rep themselves" branch
+// here — this page is specifically the admin/coach-facing team-wide view.
+function canViewTeamDetails() {
+  if (TEMP_ALLOW_ALL_CLIENT_DETAIL) return true;
+  const email = currentUserEmail();
+  if (!email) return false;
+  return isAdminEmail(email) || isLimitedAdminEmail(email);
 }
 function canViewClientDetail(repDisplay) {
   if (TEMP_ALLOW_ALL_CLIENT_DETAIL) return true;
