@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <title>A-Team Pacer</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
+<link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml">
 <style>
   :root {
     color-scheme: light;
@@ -820,12 +821,16 @@
 
   .admin-footer-row { display: flex; gap: 10px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
 
-  /* Subtle signed-in chip — bottom of screen, low emphasis. */
+  /* Subtle signed-in chip — fixed bottom-right; does not scroll with the page. */
   .session-bar {
-    position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
-    z-index: 40;
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    left: auto;
+    transform: none;
+    z-index: 120;
     display: none; align-items: center; gap: 8px;
-    max-width: min(420px, calc(100vw - 28px));
+    max-width: min(340px, calc(100vw - 24px));
     padding: 5px 12px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--card-bg) 70%, transparent);
@@ -1140,7 +1145,7 @@
        there's no separate legend to keep in sync. Sort still uses the same
        popover pattern, just inline below the team card (see
        .rep-list-toolbar near #repList). Signed-in state lives in #sessionBar
-       (bottom, subtle), not in this action row. -->
+       (fixed bottom-right), not in this action row. -->
   <div class="landing-actions-row">
     <button class="theme-btn manual-attro-btn large" id="manualAttroBtn" type="button">📝 Manual Attribution</button>
     <button class="theme-btn large" id="teamDetailsBtn" type="button" style="display:none;">🗂️ View Team Details</button>

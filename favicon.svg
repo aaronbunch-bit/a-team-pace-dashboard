@@ -1,3 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <text x="32" y="48" text-anchor="middle" font-size="48"><p</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Blood-type A badge — path geometry (no emoji) so browsers reliably show the favicon -->
+  <rect width="32" height="32" rx="7" fill="#dc2626"/>
+  <circle cx="16" cy="16" r="11.5" fill="none" stroke="#ffffff" stroke-width="1.75"/>
+  <path fill="#ffffff" d="M16 7.2 21.8 24h-2.55l-1.15-3.35h-5.2L11.75 24H9.2L16 7.2zm-2.15 10.7h4.3L16 12.1l-2.15 5.8z"/>
 </svg>
