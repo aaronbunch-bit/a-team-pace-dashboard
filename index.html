@@ -1720,20 +1720,39 @@
      so nothing behind it is readable or clickable until Identity confirms a
      @varsitytutors.com session. */
   .login-gate {
-    position: fixed; inset: 0; z-index: 10000;
+    position: fixed; inset: 0; z-index: 2147483000;
     display: flex; align-items: center; justify-content: center;
     padding: 28px 20px;
     background:
       radial-gradient(ellipse 80% 55% at 50% -10%, rgba(99,102,241,0.22), transparent 60%),
       radial-gradient(ellipse 60% 40% at 85% 90%, rgba(244,114,182,0.14), transparent 55%),
       var(--bg);
+    pointer-events: auto;
   }
   body.app-ready .login-gate { display: none; }
   body:not(.app-ready) { overflow: hidden; padding: 0; }
+  /* Netlify Identity widget injects a full-page iframe that often sits above
+     custom UI and silently eats clicks (including Continue with Google).
+     We never use the modal — only direct /.netlify/identity/authorize — so
+     keep the iframe inert. */
+  #netlify-identity-widget,
+  .netlify-identity-iframe,
+  iframe[name="netlify-identity-widget"],
+  body:not(.app-ready) iframe[src*="netlify-identity"],
+  body:not(.app-ready) .netlify-identity-menu {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    opacity: 0 !important;
+    z-index: -1 !important;
+    width: 0 !important; height: 0 !important;
+  }
   .login-gate-panel {
     width: min(420px, 100%);
     text-align: center;
     padding: 36px 28px 32px;
+    position: relative;
+    z-index: 1;
   }
   .login-gate-brand {
     font-size: 28px; font-weight: 800; letter-spacing: -0.02em;
@@ -1750,9 +1769,10 @@
     display: inline-flex; align-items: center; justify-content: center; gap: 10px;
     box-shadow: 0 8px 24px var(--shadow);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
+    text-decoration: none; box-sizing: border-box;
   }
   .login-google-btn:hover { transform: translateY(-1px); box-shadow: 0 12px 28px var(--shadow); }
-  .login-google-btn:disabled { opacity: 0.65; cursor: wait; transform: none; }
+  .login-google-btn.is-busy { opacity: 0.85; }
   .login-google-icon {
     width: 20px; height: 20px; flex: none;
   }
@@ -1781,7 +1801,9 @@
   <div class="login-gate-panel">
     <h1 id="loginGateTitle" class="login-gate-brand"><span class="grad-text">A-Team</span> Pacer</h1>
     <p class="login-gate-sub">Sign in with your Varsity Tutors Google account to open the dashboard.</p>
-    <button type="button" class="login-google-btn" id="googleLoginBtn">
+    <!-- Real link so Google login works even if later dashboard JS fails or the
+         Identity widget iframe tries to swallow clicks. -->
+    <a class="login-google-btn" id="googleLoginBtn" href="/.netlify/identity/authorize?provider=google">
       <svg class="login-google-icon" viewBox="0 0 48 48" aria-hidden="true">
         <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/>
         <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12 24 12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.1 4 9.2 8.5 6.3 14.7z"/>
@@ -1789,7 +1811,7 @@
         <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.3 4.1-4.1 5.4l.0.0 6.2 5.2C39.2 36.3 44 32 44 24c0-1.3-.1-2.3-.4-3.5z"/>
       </svg>
       <span id="googleLoginBtnLabel">Continue with Google</span>
-    </button>
+    </a>
     <div id="loginGateError" class="login-gate-error" role="alert"></div>
     <div id="loginGateSetup" class="login-gate-setup" hidden>
       <p><strong>Site admin setup required</strong> (this is why Google never opens an account chooser):</p>
@@ -1806,6 +1828,21 @@
     <p class="login-gate-hint">Only <strong>@varsitytutors.com</strong> Google accounts can open the dashboard. You do not need a Netlify account.</p>
   </div>
 </div>
+<!-- Tiny login bootstrap: navigate immediately, independent of the huge app script. -->
+<script>
+(function () {
+  var btn = document.getElementById('googleLoginBtn');
+  if (!btn) return;
+  var href = (window.location.origin || '') + '/.netlify/identity/authorize?provider=google';
+  btn.setAttribute('href', href);
+  btn.addEventListener('click', function (e) {
+    // Hard navigation — do not call Identity widget logout/open (those leave an
+    // invisible iframe that eats subsequent clicks).
+    e.preventDefault();
+    window.location.href = href;
+  }, true);
+})();
+</script>
 <!-- Slim reminder bar — hidden until the main banner (day/expected pace pills)
      scrolls out of view, so the context isn't lost while scrolling a long rep
      list. Toggled by an IntersectionObserver watching #banner (see bottom of
@@ -9075,7 +9112,13 @@ function showLoginGateSetup(show) {
 function setGoogleButtonState({ disabled, label }) {
   const btn = document.getElementById('googleLoginBtn');
   const labelEl = document.getElementById('googleLoginBtnLabel');
-  if (btn) btn.disabled = !!disabled;
+  if (btn) {
+    // Never strip href / block clicks — a dead Continue button is worse than
+    // letting authorize fail with a browser error. "disabled" only updates label.
+    btn.classList.toggle('is-busy', !!disabled);
+    btn.setAttribute('aria-disabled', 'false');
+    btn.setAttribute('href', IDENTITY_API + '/authorize?provider=google');
+  }
   if (labelEl && label) labelEl.textContent = label;
 }
 
@@ -9161,12 +9204,13 @@ async function diagnoseIdentityBackend() {
 
 function applyIdentityBackendDiagnosis(diag) {
   identityBackend = diag;
+  // Always leave Continue with Google clickable — setup messages are advisory.
+  setGoogleButtonState({ disabled: false, label: 'Continue with Google' });
   if (diag.status === 'ready') {
     showLoginGateSetup(false);
-    setGoogleButtonState({ disabled: false, label: 'Continue with Google' });
+    showLoginGateError('');
     return;
   }
-  setGoogleButtonState({ disabled: true, label: 'Google sign-in unavailable' });
   showLoginGateSetup(true);
   if (diag.status === 'missing') {
     showLoginGateError('Netlify Identity is not enabled on this site (/.netlify/identity returns 404). Google cannot show an account chooser until Identity is enabled on THIS Netlify site.');
@@ -9174,8 +9218,10 @@ function applyIdentityBackendDiagnosis(diag) {
     showLoginGateError('This site is locked behind Netlify Visitor Access / SAML (edge-access). That is Netlify team SSO, not Google login. Turn Site protection / Team login OFF, then use Identity + Google instead.');
   } else if (diag.status === 'google_off') {
     showLoginGateError('Netlify Identity is on, but the Google provider is not. In Identity → Registration → External providers, add Google.');
+  } else if (diag.status === 'checking') {
+    showLoginGateSetup(false);
   } else {
-    showLoginGateError('Could not reach Netlify Identity (' + (diag.detail || 'unknown error') + ').');
+    showLoginGateError('Could not reach Netlify Identity (' + (diag.detail || 'unknown error') + '). You can still try Continue with Google.');
   }
 }
 
@@ -9207,36 +9253,15 @@ async function acceptIdentityUser(user) {
   revealAppAfterLogin(user);
 }
 
-async function startGoogleLogin() {
+function startGoogleLogin(e) {
+  if (e) e.preventDefault();
   showLoginGateError('');
-  setGoogleButtonState({ disabled: true, label: 'Redirecting to Google…' });
-
-  // Re-check only if we haven't confirmed Identity+Google yet. Always use a
-  // timeout so a hung settings fetch can't leave the button dead.
-  let diag = identityBackend;
-  if (diag.status !== 'ready') {
-    diag = await diagnoseIdentityBackend();
-    applyIdentityBackendDiagnosis(diag);
-  }
-  if (diag.status !== 'ready') return;
-
-  // Do NOT await netlifyIdentity.logout() here. clearGoTrueStorage() removes
-  // the tokens logout needs, and a stale/half-broken session can make logout()
-  // hang forever — which previously made "Continue with Google" appear to do
-  // nothing because the authorize redirect never ran.
+  // Never touch netlifyIdentity.open/logout here — the widget iframe is a known
+  // click-eater. Go straight to the authorize URL (same as the <a href>).
   try { clearGoTrueStorage(); } catch (_) {}
-  safeIdentityLogout();
-
-  // Clean authorize URL only — extra query params are not reliably forwarded
-  // by GoTrue and previously contributed to broken round-trips.
-  window.location.assign(IDENTITY_API + '/authorize?provider=google');
-
-  // If navigation is blocked, restore the button so the user can retry.
-  setTimeout(() => {
-    if (!document.body.classList.contains('app-ready')) {
-      setGoogleButtonState({ disabled: false, label: 'Continue with Google' });
-    }
-  }, 3000);
+  try { if (window.netlifyIdentity && typeof netlifyIdentity.close === 'function') netlifyIdentity.close(); } catch (_) {}
+  setGoogleButtonState({ disabled: true, label: 'Redirecting to Google…' });
+  window.location.href = IDENTITY_API + '/authorize?provider=google';
 }
 
 function updateIdentityUI(user) {
@@ -9288,38 +9313,47 @@ const googleLoginBtn = document.getElementById('googleLoginBtn');
 if (googleLoginBtn) googleLoginBtn.addEventListener('click', startGoogleLogin);
 document.querySelectorAll('.identity-btn').forEach(wireIdentityButton);
 showLoginGateSetup(false);
-setGoogleButtonState({ disabled: true, label: 'Checking sign-in…' });
+// Keep the link clickable immediately — diagnosis is informational, not a gate
+// that can leave the button dead on "Checking sign-in…".
+setGoogleButtonState({ disabled: false, label: 'Continue with Google' });
 
 (async function bootAuth() {
   const diag = await diagnoseIdentityBackend();
   applyIdentityBackendDiagnosis(diag);
 
   if (!window.netlifyIdentity) {
-    showLoginGateError('Sign-in is unavailable because the Netlify Identity widget failed to load.');
-    showLoginGateSetup(true);
+    // Link still works for OAuth; warn only.
+    showLoginGateError('Identity widget script failed to load — if Google sign-in fails after redirect, hard-refresh and try again.');
     return;
   }
 
-  netlifyIdentity.on('init', (user) => { acceptIdentityUser(user); });
+  netlifyIdentity.on('init', (user) => {
+    try { netlifyIdentity.close(); } catch (_) {}
+    acceptIdentityUser(user);
+  });
   netlifyIdentity.on('login', (user) => {
-    netlifyIdentity.close();
+    try { netlifyIdentity.close(); } catch (_) {}
     acceptIdentityUser(user);
   });
   netlifyIdentity.on('logout', () => {
     appBooted = false;
     updateIdentityUI(null);
     lockAppToLoginGate();
+    try { netlifyIdentity.close(); } catch (_) {}
   });
   netlifyIdentity.on('error', (err) => {
     console.warn('Netlify Identity error', err);
     showLoginGateError((err && err.message) || 'Sign-in failed.');
+    try { netlifyIdentity.close(); } catch (_) {}
   });
 
   if (diag.status !== 'ready') {
     clearGoTrueStorage();
     // Still init so a later enablement + refresh can recover cleanly.
   }
+  // Hide the modal UI — we only use authorize redirects + currentUser().
   netlifyIdentity.init({ APIUrl: IDENTITY_API });
+  try { netlifyIdentity.close(); } catch (_) {}
 })();
 
 async function boot() {
