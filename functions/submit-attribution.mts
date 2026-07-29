@@ -1,21 +1,7 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
-
-// Company email (lowercase) -> the exact rep display name used in the dashboard's
-// ROSTER / DEFAULT_GOALS. Keep this in sync with team-pace-dashboard.html's ROSTER
-// whenever the team roster changes.
-const ROSTER_EMAILS: Record<string, string> = {
-  "becky.ruffer@varsitytutors.com": "Becky Ruffer",
-  "brenda.wong@varsitytutors.com": "Brenda Wong",
-  "christopher.jones@varsitytutors.com": "Chris Jones",
-  "david.valverde@varsitytutors.com": "David Valverde",
-  "del.ali@varsitytutors.com": "Del Ali",
-  "domenica.sorrentino@varsitytutors.com": "Domenica Sorrentino",
-  "jenna.salupo@varsitytutors.com": "Jenna Salupo",
-  "liz.weiss@varsitytutors.com": "Liz Weiss",
-  "timothy.carr@varsitytutors.com": "Tim Carr",
-};
+import { resolveRepNameFromEmail } from "./_shared/roster.mts";
 
 export default async (req: Request, context: Context) => {
   if (req.method !== "POST") {
@@ -28,7 +14,7 @@ export default async (req: Request, context: Context) => {
   }
 
   const email = String(user.email).toLowerCase();
-  const repName = ROSTER_EMAILS[email];
+  const repName = await resolveRepNameFromEmail(email);
   if (!repName) {
     return new Response(
       JSON.stringify({ error: "Your account isn't mapped to a rep on this dashboard yet — ask Aaron to add you." }),

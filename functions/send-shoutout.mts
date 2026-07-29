@@ -1,30 +1,12 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
+import { ADMIN_EMAIL } from "./_shared/access.mts";
+import { resolveRepNameFromEmail } from "./_shared/roster.mts";
 
-// Open to any signed-in user, not just Aaron/admins — matches the front end's
-// existing "Send a Shoutout — open to anyone, no admin/coach gate" behavior.
-// Still requires real sign-in (unlike the old localStorage version, which
-// didn't check at all) so `from` can be attributed truthfully instead of
-// trusting whatever the client claims — mirrors submit-attribution.mts's
-// reasoning exactly.
-const ADMIN_EMAIL = "aaron.bunch@varsitytutors.com";
-// Same email -> display-name mapping submit-attribution.mts keeps for its own
-// ROSTER_EMAILS — duplicated here rather than shared, since these are two
-// separate Netlify Functions. Keep both in sync with the dashboard's ROSTER
-// whenever the team roster changes.
-const ROSTER_EMAILS: Record<string, string> = {
-  "becky.ruffer@varsitytutors.com": "Becky Ruffer",
-  "brenda.wong@varsitytutors.com": "Brenda Wong",
-  "christopher.jones@varsitytutors.com": "Chris Jones",
-  "david.valverde@varsitytutors.com": "David Valverde",
-  "del.ali@varsitytutors.com": "Del Ali",
-  "domenica.sorrentino@varsitytutors.com": "Domenica Sorrentino",
-  "jenna.salupo@varsitytutors.com": "Jenna Salupo",
-  "liz.weiss@varsitytutors.com": "Liz Weiss",
-  "timothy.carr@varsitytutors.com": "Tim Carr",
-};
-
+// Open to any signed-in user, not just Aaron/admins — deliberate design.
+// Still requires real sign-in so `from` can be attributed truthfully instead
+// of trusting whatever the client claims.
 export default async (req: Request, context: Context) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
@@ -48,11 +30,11 @@ export default async (req: Request, context: Context) => {
     return new Response(JSON.stringify({ error: "Pick a teammate and write a quick message first" }), { status: 400 });
   }
 
-  // Server decides who "from" is — the client's body is never trusted for
-  // this, so nobody can send a shoutout that appears to come from someone
-  // else.
+  // Server decides who "from" is — the client's body is never trusted for this.
   const email = String(user.email).toLowerCase();
-  const fromDisplayName = email === ADMIN_EMAIL ? "Aaron Bunch" : ROSTER_EMAILS[email] || user.email;
+  const resolvedName = await resolveRepNameFromEmail(email);
+  const fromDisplayName =
+    email === ADMIN_EMAIL ? "Aaron Bunch" : resolvedName || user.email;
 
   const now = new Date();
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
