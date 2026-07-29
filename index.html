@@ -9095,12 +9095,52 @@ function revealAppAfterLogin(user) {
   refreshMyAttributions();
 }
 
+function withTimeout(promise, ms, fallback) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve(fallback);
+    }, ms);
+    Promise.resolve(promise).then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(fallback);
+      }
+    );
+  });
+}
+
+// Never block UI on widget logout — after clearing gotrue storage (or with a
+// half-broken session) logout() can hang forever.
+function safeIdentityLogout() {
+  try {
+    if (window.netlifyIdentity) {
+      Promise.resolve(netlifyIdentity.logout()).catch(() => {});
+    }
+  } catch (_) {}
+}
+
 async function diagnoseIdentityBackend() {
   try {
-    const res = await fetch(IDENTITY_API + '/settings', {
-      headers: { Accept: 'application/json' },
-      redirect: 'manual',
-    });
+    const res = await withTimeout(
+      fetch(IDENTITY_API + '/settings', {
+        headers: { Accept: 'application/json' },
+        redirect: 'manual',
+      }),
+      5000,
+      null
+    );
+    if (!res) return { status: 'error', detail: 'Timed out reaching Identity' };
     const text = await res.text();
     if (res.status === 401 || /edge-access|strict_saml/i.test(text)) {
       return { status: 'edge_access' };
@@ -9148,15 +9188,15 @@ async function acceptIdentityUser(user) {
     // Stale localStorage sessions look like "signed in with no email" when
     // Identity isn't actually provisioned on this site. Wipe them.
     clearGoTrueStorage();
-    try { if (window.netlifyIdentity) await netlifyIdentity.logout(); } catch (_) {}
+    safeIdentityLogout();
     lockAppToLoginGate();
     return;
   }
   const email = await resolveIdentityEmail(user);
   if (!email.endsWith(ALLOWED_EMAIL_DOMAIN)) {
     lockAppToLoginGate();
-    try { await netlifyIdentity.logout(); } catch (_) {}
     clearGoTrueStorage();
+    safeIdentityLogout();
     if (!email) {
       showLoginGateError('Sign-in did not return an email. Use Continue with Google again and choose your @varsitytutors.com account.');
     } else {
@@ -9169,17 +9209,34 @@ async function acceptIdentityUser(user) {
 
 async function startGoogleLogin() {
   showLoginGateError('');
-  const diag = await diagnoseIdentityBackend();
-  applyIdentityBackendDiagnosis(diag);
+  setGoogleButtonState({ disabled: true, label: 'Redirecting to Google…' });
+
+  // Re-check only if we haven't confirmed Identity+Google yet. Always use a
+  // timeout so a hung settings fetch can't leave the button dead.
+  let diag = identityBackend;
+  if (diag.status !== 'ready') {
+    diag = await diagnoseIdentityBackend();
+    applyIdentityBackendDiagnosis(diag);
+  }
   if (diag.status !== 'ready') return;
 
-  setGoogleButtonState({ disabled: true, label: 'Redirecting to Google…' });
-  clearGoTrueStorage();
-  try { if (window.netlifyIdentity) await netlifyIdentity.logout(); } catch (_) {}
+  // Do NOT await netlifyIdentity.logout() here. clearGoTrueStorage() removes
+  // the tokens logout needs, and a stale/half-broken session can make logout()
+  // hang forever — which previously made "Continue with Google" appear to do
+  // nothing because the authorize redirect never ran.
+  try { clearGoTrueStorage(); } catch (_) {}
+  safeIdentityLogout();
 
   // Clean authorize URL only — extra query params are not reliably forwarded
   // by GoTrue and previously contributed to broken round-trips.
   window.location.assign(IDENTITY_API + '/authorize?provider=google');
+
+  // If navigation is blocked, restore the button so the user can retry.
+  setTimeout(() => {
+    if (!document.body.classList.contains('app-ready')) {
+      setGoogleButtonState({ disabled: false, label: 'Continue with Google' });
+    }
+  }, 3000);
 }
 
 function updateIdentityUI(user) {
