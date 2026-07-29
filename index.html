@@ -292,17 +292,36 @@
   .pace-need-side-content.collapsed { display: none; }
   .live-metrics-side-content { margin-top: 8px; }
   .live-metrics-side-content.collapsed { display: none; }
-  .pace-need-panel-head {
-    display: flex; align-items: center; justify-content: flex-end;
-    gap: 10px; flex-wrap: wrap; margin-bottom: 8px;
+  .pace-need-panel-head { display: none; } /* toggle lives in the section head */
+  /* Keep Still Needed title + toggle + chevron on one row (no wrap gap above the toggle). */
+  .metrics-side-section-head {
+    flex-wrap: nowrap;
+    gap: 8px;
   }
+  .metrics-side-section-head .metrics-side-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-bottom: 0 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .metrics-side-section-head .pace-need-target-toggle {
+    margin-left: 0;
+    margin-right: 0;
+    flex: none;
+  }
+  .metrics-side-section-head .side-chevron { flex: none; }
   .pace-need-target-toggle {
     display: inline-flex; border: 1px solid var(--card-border);
     border-radius: 999px; overflow: hidden; background: var(--card-bg);
+    flex: none;
+    align-self: center;
   }
   .pace-need-target-toggle button {
     border: 0; background: transparent; color: var(--text-muted);
-    font-size: 11px; font-weight: 700; padding: 4px 10px; cursor: pointer;
+    font-size: 10.5px; font-weight: 700; padding: 3px 9px; cursor: pointer;
+    line-height: 1.2;
   }
   .pace-need-target-toggle button.active {
     background: var(--text); color: var(--card-bg);
@@ -340,9 +359,7 @@
   body[data-layout="classic"] .finish-line-card,
   body:not([data-layout]) .finish-line-card,
   body[data-layout="classic"] #shoutoutWallCard,
-  body:not([data-layout]) #shoutoutWallCard,
-  body[data-layout="classic"] #dailyQuoteCard,
-  body:not([data-layout]) #dailyQuoteCard { display: none !important; }
+  body:not([data-layout]) #shoutoutWallCard { display: none !important; }
   .view-menu-btn { text-align: left; line-height: 1.25; }
   .view-menu-btn .skin-blurb {
     display: block; font-size: 10.5px; font-weight: 600; color: var(--text-faint);
@@ -475,18 +492,29 @@
   }
   body[data-pacer-chrome="tabs"][data-pacer-tab="current"] .pacer-tab-pace,
   body[data-pacer-chrome="tabs"][data-pacer-tab="current"] .pacer-tab-activity { display: block !important; }
+  body[data-pacer-chrome="tabs"][data-pacer-tab="current"] .pacer-tab-lastmonth,
   body[data-pacer-chrome="tabs"][data-pacer-tab="current"] .pacer-tab-more,
   body[data-pacer-chrome="tabs"][data-pacer-tab="current"] #clientDetailHistoryBlock { display: none !important; }
+  body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .pacer-tab-lastmonth { display: block !important; }
+  body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .pacer-tab-pace,
+  body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .pacer-tab-activity,
+  body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .pacer-tab-more,
+  body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] #metricsStyleToggleWrap,
+  body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] #clientDetailHistoryBlock { display: none !important; }
+  body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .detail-page-grid { grid-template-columns: 1fr; }
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .pacer-tab-pace,
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .pacer-tab-activity,
+  body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .pacer-tab-lastmonth,
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .pacer-tab-more,
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] #metricsStyleToggleWrap { display: none !important; }
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] #clientDetailHistoryBlock { display: block !important; }
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .detail-page-grid { grid-template-columns: 1fr; }
   body[data-pacer-chrome="tabs"] #pacerMoreHint { display: none !important; }
   body[data-pacer-chrome="tabs"] .metrics-side-panel {
-    position: static; max-height: none;
+    position: sticky; top: 16px; max-height: calc(100vh - 40px); overflow: auto;
   }
+  body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .metrics-side-panel,
+  body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .metrics-side-panel { position: static; max-height: none; }
   /* Historical: open charts immediately; collapse chrome is optional. */
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] #historyCollapseBody { display: block !important; }
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] #historyCollapseBody.collapsed { display: block !important; }
@@ -554,6 +582,10 @@
   }
   .landing-side-col > .culture-card:first-of-type,
   .landing-side-col > .finish-line-card { margin-top: 0; }
+  /* Breathing room between Finish line and the leaderboard panel. */
+  .landing-side-col > .finish-line-card { margin-bottom: 28px; }
+  .landing-side-col > .leaderboard-panel { margin-top: 8px; }
+  .landing-side-col { display: flex; flex-direction: column; gap: 0; }
   .culture-card-title {
     font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
     color: var(--text-faint); margin: 0 0 8px;
@@ -605,8 +637,18 @@
   body[data-layout="split-stack"] .pill-row:empty { display: none; }
   .pacer-insight-strip-single { grid-template-columns: 1fr; }
 
-  /* Individual Pacer header pace: bar spans full width */
-  .detail-header-pace {
+  /* Individual Pacer header pace: bar spans full width of the page header */
+  #clientDetailOverlay .detail-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 16px;
+  }
+  #clientDetailOverlay .detail-header-pace {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
@@ -619,7 +661,8 @@
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   }
   .detail-header-pace .detail-mini-header-num { grid-column: 3; grid-row: 1; }
-  .detail-header-pace .detail-mini-header-bar {
+  .detail-header-pace .detail-mini-header-bar,
+  .detail-header-pace .bar-track.detail-mini-header-bar {
     grid-column: 1 / -1; grid-row: 2; width: 100%; min-width: 0; margin-top: 0;
   }
   .detail-header-pace .detail-header-pace-sub {
@@ -654,8 +697,6 @@
   }
   @media (max-width: 980px) { .detail-grid-2 { grid-template-columns: 1fr; } }
   .detail-panel-myattr { margin-top: 14px; }
-  .session-view-as { display: none; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .session-view-as.show { display: flex; }
   .session-view-as select.sip-select { min-width: 160px; margin: 0; font-size: 12px; padding: 4px 8px; }
   .session-view-as .view-as-label { font-size: 11.5px; font-weight: 700; color: var(--text-faint); }
   .session-viewing-pill {
@@ -934,10 +975,18 @@
   .personal-goal-side-content.collapsed { display: none; }
   .personal-goal-gate-backdrop.open { display: flex; }
   .personal-goal-progress-bar {
+    display: block; width: 100%; max-width: 100%; box-sizing: border-box;
     height: 8px; border-radius: 999px; background: var(--bar-track, rgba(0,0,0,0.08));
     overflow: hidden; margin-top: 8px;
   }
   .personal-goal-progress-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg,#60a5fa,#6366f1); }
+  #personalGoalSideBody,
+  #personalGoalSideContent,
+  .personal-goal-meter,
+  .personal-goal-card { width: 100%; box-sizing: border-box; }
+  .personal-goal-meter .metrics-side-item { width: 100%; box-sizing: border-box; }
+  .personal-goal-meter .personal-goal-progress-bar,
+  .personal-goal-card .personal-goal-progress-bar { width: 100%; }
   /* Manually-assigned badges (see MANUAL_BADGE_OPTIONS) get their color inline
      per-option rather than a fixed class, since there are several of them. */
   .manual-badge { }
@@ -1506,7 +1555,12 @@
   .metrics-side-item:first-of-type { border-top: none; }
   .metrics-side-label { color: var(--text-muted); font-weight: 600; }
   .metrics-side-val { font-weight: 800; font-variant-numeric: tabular-nums; }
-  .metrics-side-section-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--divider); user-select: none; }
+  .metrics-side-section-head {
+    display: flex; justify-content: flex-start; align-items: center;
+    flex-wrap: nowrap; gap: 8px;
+    cursor: pointer; margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid var(--divider); user-select: none;
+  }
   .side-chevron { font-size: 10.5px; color: var(--text-faint); transition: transform 0.2s; }
   .side-chevron.collapsed { transform: rotate(-90deg); }
   .bonus-side { margin-top: 8px; }
@@ -1526,36 +1580,49 @@
   .detail-table tr:hover { background: var(--metric-box-bg); }
   .date-chip { display: inline-block; background: var(--metric-box-bg); color: var(--text-muted); font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
 
-  /* Signed-in footer — in document flow at the foot of each page (not fixed). */
+  /* Signed-in footer — full-width room for View as / Revert. */
   .session-bar {
     display: none;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
-    width: fit-content;
-    max-width: min(420px, 100%);
-    margin: 28px auto 20px;
-    padding: 6px 14px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--card-bg) 85%, transparent);
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 12px 18px;
+    width: 100%;
+    max-width: min(980px, 100%);
+    margin: 32px auto 24px;
+    padding: 14px 22px;
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--card-bg) 92%, transparent);
     border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
     box-shadow: none;
-    font-size: 11px; font-weight: 500; color: var(--text-faint);
-    opacity: 0.55;
+    font-size: 12.5px; font-weight: 500; color: var(--text-faint);
+    opacity: 0.95;
   }
   .session-bar.visible { display: flex; }
   .session-bar .session-label { white-space: nowrap; }
   .session-bar .session-email {
     font-weight: 600; color: var(--text-muted);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    max-width: 280px;
   }
   .session-bar .identity-btn {
-    flex: none; margin: 0; padding: 2px 4px;
+    flex: none; margin: 0; padding: 6px 10px;
     border: none; background: transparent; box-shadow: none;
-    font-size: 11px; font-weight: 600; color: var(--text-faint);
+    font-size: 12.5px; font-weight: 600; color: var(--text-faint);
     text-decoration: underline; cursor: pointer; white-space: nowrap;
   }
   .session-bar .identity-btn:hover { color: var(--text-muted); }
+  .session-bar .session-view-as {
+    display: none; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-left: auto;
+    padding-left: 8px;
+  }
+  .session-bar .session-view-as.show { display: flex; }
+  .session-bar [data-view-as-revert] {
+    font-weight: 700; color: #7c3aed; text-decoration: none;
+    background: rgba(124,58,237,0.1); border-radius: 999px; padding: 6px 12px;
+  }
+  .session-bar [data-view-as-revert]:hover { background: rgba(124,58,237,0.18); color: #6d28d9; }
   body:not(.app-ready) .session-bar { display: none !important; }
   .detail-page .session-bar,
   .detail-overlay .session-bar { margin-top: 36px; }
@@ -1902,6 +1969,7 @@
       <button class="theme-btn large" id="adminMenuBtn" type="button">⚙️ Admin ▾</button>
       <div class="header-dropdown-menu" id="adminMenu">
         <button class="theme-btn" id="footerGoalsBtn" type="button">Edit Monthly Goals</button>
+        <button class="theme-btn" id="footerAdminSettingsBtn" type="button">Access, badges &amp; tools</button>
         <button class="theme-btn" id="footerSipBtn" type="button">Historical SIP</button>
       </div>
     </div>
@@ -1918,19 +1986,8 @@
         <button class="theme-btn" type="button" id="toolsSipBtn">Historical SIP</button>
       </div>
     </div>
-    <div class="header-dropdown">
-      <button class="theme-btn large" id="viewMenuBtn" type="button">🗂 Layout ▾</button>
-      <div class="header-dropdown-menu" id="viewMenu">
-        <div class="view-menu-section">Landing</div>
-        <button class="theme-btn view-menu-btn" type="button" data-layout="classic">Classic (OG)<span class="skin-blurb">Original layout — never removed</span></button>
-        <button class="theme-btn view-menu-btn" type="button" data-layout="split-stack">Stack<span class="skin-blurb">Team full-width · boards left · roster right</span></button>
-        <div class="view-menu-section">Individual Pacer</div>
-        <button class="theme-btn view-menu-btn chrome-menu-btn" type="button" data-pacer-chrome="og">OG (no tabs)<span class="skin-blurb">Classic detail layout — everything on one page</span></button>
-        <button class="theme-btn view-menu-btn chrome-menu-btn" type="button" data-pacer-chrome="tabs">Current / Historical<span class="skin-blurb">Current ≈ OG · Historical charts auto-open</span></button>
-      </div>
-    </div>
   </div>
-  <div class="landing-menu-hint" id="landingMenuHint" style="display:none;">Team tools and admin settings live in the menus above — open a rep below for Individual Pacer. Use <b>Layout</b> for Classic (OG) or Stack.</div>
+  <div class="landing-menu-hint" id="landingMenuHint" style="display:none;">Team tools and admin settings live in the menus above — open a rep below for Individual Pacer.</div>
   </div>
 
   <div class="landing-region landing-region-status" id="landingStatus">
@@ -1996,9 +2053,6 @@
         <div class="culture-card-title">Shoutout wall</div>
         <div id="shoutoutWallBody"></div>
       </div>
-      <div class="culture-card daily-quote-card" id="dailyQuoteCard">
-        <p class="daily-quote-text" id="dailyQuoteText"></p>
-      </div>
     </div>
     </div>
   </div>
@@ -2046,13 +2100,13 @@
       <div class="header-aura" aria-hidden="true"></div>
       <button class="theme-btn" id="detailBackBtn" type="button">← Back to dashboard</button>
       <h2 id="detailRepName"></h2>
-      <span class="lwom-sprint-chip" id="detailSprintChip">🏁 LWOM <button type="button" class="lwom-inline-link" id="detailSprintLink">open boards</button></span>
       <div class="detail-header-pace" id="detailHeaderPace"></div>
     </div>
     <div class="pacer-layout-tabs" id="pacerLayoutTabs" role="tablist" aria-label="Individual Pacer sections">
       <div class="pacer-tab-track">
-        <button type="button" class="pacer-layout-tab active" role="tab" aria-selected="true" data-pacer-tab="current">Current<span class="tab-sub">This month · OG layout</span></button>
-        <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="historical">Historical<span class="tab-sub">Charts &amp; month search</span></button>
+        <button type="button" class="pacer-layout-tab active" role="tab" aria-selected="true" data-pacer-tab="current">Current</button>
+        <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="lastmonth" id="pacerTabLastMonthBtn" hidden>Last Month</button>
+        <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="historical">Historical</button>
       </div>
     </div>
 
@@ -2068,21 +2122,14 @@
         <div class="pacer-tab-pace" id="pacerTabPace">
         <div id="detailPacingRow"></div>
         <div id="doubleGoalBanner"></div>
-        <div class="pacer-insight-strip pacer-insight-strip-single" id="pacerInsightStrip">
-          <div class="pacer-insight-block">
-            <h3>🎯 My Month Goal</h3>
-            <div class="goal-style-toggle" id="goalStyleToggle" role="group" aria-label="Goal card style">
-              <button type="button" class="goal-style-btn" data-goal-style="compact">Compact</button>
-              <button type="button" class="goal-style-btn" data-goal-style="meter">Meter</button>
-              <button type="button" class="goal-style-btn" data-goal-style="card">Card</button>
-            </div>
-            <div id="personalGoalSideContent" class="personal-goal-side-content"></div>
-          </div>
-        </div>
-        <div id="detailPrelimBox"></div>
+        <div id="detailPrelimBox" style="display:none;"></div>
         <div class="detail-summary" id="detailSummary"></div>
         <div class="pacer-section-label">This month</div>
         <div class="detail-net-grid" id="detailNetActuals"></div>
+        </div>
+        <div class="pacer-tab-lastmonth" id="pacerTabLastMonth" style="display:none;">
+          <div class="meta-note" style="margin:0 0 12px;">Frozen snapshot of last month — not updated by new attributions.</div>
+          <div id="lastMonthFrozenBody"></div>
         </div>
         <div class="pacer-tab-activity" id="pacerTabActivity">
         <div id="detailContent">
@@ -2137,26 +2184,42 @@
 
       <div id="metricsStyleToggleWrap">
         <div class="metrics-side-panel" id="metricsSidePanel">
-          <div class="metrics-side-section-head first-section-head" id="paceNeedSideToggle">
-            <span class="metrics-side-title" style="margin-bottom:0;">📈 Still Needed</span>
-            <span class="side-chevron" id="paceNeedSideChevron">▾</span>
+          <div class="metrics-side-section-head first-section-head" id="personalGoalSideToggle">
+            <span class="metrics-side-title" style="margin-bottom:0;">🎯 My Month Goal</span>
+            <span class="side-chevron" id="personalGoalSideChevron">▾</span>
           </div>
-          <div id="paceNeedSideContent" class="pace-need-side-content"></div>
+          <div id="personalGoalSideBody" class="personal-goal-side-content">
+            <div class="goal-style-toggle" id="goalStyleToggle" role="group" aria-label="Goal card style">
+              <button type="button" class="goal-style-btn" data-goal-style="compact">Compact</button>
+              <button type="button" class="goal-style-btn" data-goal-style="meter">Meter</button>
+              <button type="button" class="goal-style-btn" data-goal-style="card">Card</button>
+            </div>
+            <div id="personalGoalSideContent" class="personal-goal-side-content"></div>
+          </div>
           <div class="metrics-side-section-head" id="bonusSideToggle">
             <span class="metrics-side-title" style="margin-bottom:0;">💰 Bonus Payout</span>
             <span class="side-chevron" id="bonusSideChevron">▾</span>
           </div>
           <div id="bonusSideContent" class="bonus-side"></div>
+          <div class="metrics-side-section-head" id="paceNeedSideToggle">
+            <span class="metrics-side-title" style="margin-bottom:0;">📈 Still Needed</span>
+            <div class="pace-need-target-toggle" id="paceNeedTargetToggleHead" role="group" aria-label="Pace target">
+              <button type="button" data-pace-need-target="100">to 100%</button>
+              <button type="button" data-pace-need-target="80">to 80%</button>
+            </div>
+            <span class="side-chevron" id="paceNeedSideChevron">▾</span>
+          </div>
+          <div id="paceNeedSideContent" class="pace-need-side-content"></div>
           <div class="metrics-side-section-head" id="rankSideToggle">
             <span class="metrics-side-title" style="margin-bottom:0;">🏆 Team Standings</span>
             <span class="side-chevron" id="rankSideChevron">▾</span>
           </div>
           <div id="rankSideContent" class="rank-side-content"></div>
-          <div class="metrics-side-section-head" id="liveMetricsSideToggle">
+          <div class="metrics-side-section-head" id="liveMetricsSideToggle" style="display:none;">
             <span class="metrics-side-title" style="margin-bottom:0;">📡 Live Metrics</span>
             <span class="side-chevron" id="liveMetricsSideChevron">▾</span>
           </div>
-          <div id="liveMetricsSideContent" class="live-metrics-side-content"></div>
+          <div id="liveMetricsSideContent" class="live-metrics-side-content" style="display:none;"></div>
         </div>
       </div>
     </div>
@@ -2218,6 +2281,12 @@
     <div class="session-bar" data-session-bar aria-live="polite">
       <span class="session-label">Signed in:</span>
       <span class="session-email"></span>
+      <span class="session-viewing-pill" data-viewing-pill></span>
+      <span class="session-view-as" data-view-as>
+        <span class="view-as-label">View as</span>
+        <select class="sip-select" data-view-as-select aria-label="View as rep"></select>
+        <button type="button" class="identity-btn" data-view-as-revert>Revert to admin</button>
+      </span>
       <button type="button" class="identity-btn" data-identity-btn>Sign out</button>
     </div>
   </div>
@@ -2393,7 +2462,7 @@
   </div>
 </div>
 
-<!-- Admin-only pages (canViewAdminTools()), reached via the footer buttons. -->
+<!-- Admin-only: monthly goals + roster only. Access/badges/tools live in #adminSettingsOverlay. -->
 <div class="detail-overlay" id="goalsOverlay">
   <div class="detail-page">
     <div class="detail-header">
@@ -2418,7 +2487,7 @@
         <button id="saveGoals">Save goals</button>
         <span class="field-toggle-tag" id="toggleAdvancedFields">+ Tag / Email / Cap</span>
       </div>
-      <div class="meta-note">Update at the start of each month. Sessions and Members goals stay visible by default; click above to also show Tag, Email, and Cap bonus @ 200% (set-once fields you'll touch far less often). Monthly OTE feeds the Bonus Calculator on each rep's Individual Pacer page. "Cap bonus @ 200%" caps that rep's calculated payout at 200% of their (prorated) OTE, regardless of how high their achievement % runs — SPIFF is added on top and is never capped. Email is that rep's @varsitytutors.com sign-in — entering it gives them access to their own Individual Pacer page; leave it blank for admin-only access. Use the ✕ next to a name to remove someone from the dashboard (their goals/history stay saved and they can be restored below).</div>
+      <div class="meta-note">Update at the start of each month. Sessions and Members goals stay visible by default; click <b>+ Tag / Email / Cap</b> for set-once fields. Monthly OTE feeds Bonus Payout. Email is that rep’s @varsitytutors.com sign-in for their own Individual Pacer. Use ✕ to remove someone (restorable below). Access lists, badges, and shoutout history are under <b>Admin → Access, badges &amp; tools</b>.</div>
     </div>
 
     <div class="section-toggle" id="toggleRemoved">▸ Removed people</div>
@@ -2428,7 +2497,15 @@
         <div class="meta-note" id="removedRosterEmpty">No one is currently removed from the roster.</div>
       </div>
     </div>
+  </div>
+</div>
 
+<div class="detail-overlay" id="adminSettingsOverlay">
+  <div class="detail-page">
+    <div class="detail-header">
+      <button class="theme-btn" id="adminSettingsBackBtn" type="button">← Back to dashboard</button>
+      <h2>Access, badges &amp; tools</h2>
+    </div>
     <div class="section-toggle" id="toggleAdmin">▸ Admin access</div>
     <div class="section-body" id="adminBody">
       <div class="card">
@@ -2958,27 +3035,27 @@ document.getElementById('themeToggle').addEventListener('click', () => {
   applyTheme(next);
 });
 
-// ---------- Structural layouts (localStorage). Classic = OG, never removed. ----------
+// ---------- Structural layouts — Stack is the only landing layout now. ----------
 const LAYOUT_PREF_KEY = 'pace_dashboard_layout_v1';
 const SKIN_PREF_KEY = 'pace_dashboard_skin_v1'; // legacy ignore
 const VIEW_PREF_KEY = 'pace_dashboard_view_pref_v1'; // legacy ignore
 const SPLIT_PANEL_KEY = 'pace_dashboard_split_panel_v1';
 const PACER_CHROME_KEY = 'pace_dashboard_pacer_chrome_v1';
 const LAYOUTS = {
-  classic: { label: 'Classic' },
   'split-stack': { label: 'Stack' },
 };
 const PACER_CHROMES = {
-  og: { label: 'OG' },
   tabs: { label: 'Current / Historical' },
 };
 const PACER_CHROME_ALIASES = {
+  og: 'tabs',
   overview: 'tabs',
   dense: 'tabs',
   'tabs-3': 'tabs',
 };
-// Older layout prefs all collapse to Stack (Classic stays Classic).
+// Every older layout pref collapses to Stack.
 const LAYOUT_ALIASES = {
+  classic: 'split-stack',
   command: 'split-stack',
   story: 'split-stack',
   deck: 'split-stack',
@@ -2992,24 +3069,24 @@ function isSplitLayout(layout) {
 }
 function normalizeLayout(v) {
   const mapped = LAYOUT_ALIASES[v] || v;
-  return LAYOUTS[mapped] ? mapped : 'classic';
+  return LAYOUTS[mapped] ? mapped : 'split-stack';
 }
 function normalizePacerChrome(v) {
-  const mapped = PACER_CHROME_ALIASES[v] || v;
-  return PACER_CHROMES[mapped] ? mapped : 'tabs';
+  return 'tabs';
 }
 function normalizePacerTab(v) {
   if (v === 'historical' || v === 'more') return 'historical';
-  return 'current'; // pace / activity / current / anything else
+  if (v === 'lastmonth') return 'lastmonth';
+  return 'current';
 }
 function resolveSavedLayout() {
-  const raw = localStorage.getItem(LAYOUT_PREF_KEY) || 'classic';
-  const layout = normalizeLayout(raw);
-  if (raw !== layout) localStorage.setItem(LAYOUT_PREF_KEY, layout);
+  const layout = 'split-stack';
+  localStorage.setItem(LAYOUT_PREF_KEY, layout);
   return layout;
 }
 function resolveSavedPacerChrome() {
-  return normalizePacerChrome(localStorage.getItem(PACER_CHROME_KEY) || 'tabs');
+  localStorage.setItem(PACER_CHROME_KEY, 'tabs');
+  return 'tabs';
 }
 let pacerTab = 'current';
 let boardSurface = 'leaders';
@@ -3026,9 +3103,7 @@ function syncSplitPanelCollapsed() {
 }
 
 function effectivePacerChrome(layout) {
-  // Classic landing always keeps the OG Individual Pacer.
-  if (!isSplitLayout(layout)) return 'og';
-  return normalizePacerChrome(pacerChrome);
+  return 'tabs';
 }
 
 function syncPacerSidePlacement(layout, chrome) {
@@ -3077,21 +3152,6 @@ function applyLayout(pref) {
     delete document.body.dataset.pacerTab;
   } else {
     document.body.dataset.pacerTab = pacerTab;
-  }
-
-  document.querySelectorAll('#viewMenu .view-menu-btn[data-layout]').forEach((btn) => {
-    btn.classList.toggle('active-view', btn.getAttribute('data-layout') === layout);
-  });
-  document.querySelectorAll('#viewMenu .chrome-menu-btn').forEach((btn) => {
-    const c = btn.getAttribute('data-pacer-chrome');
-    btn.classList.toggle('active-chrome', c === pacerChrome);
-    btn.disabled = layout === 'classic';
-    btn.style.opacity = layout === 'classic' ? '0.45' : '';
-  });
-  const menuBtn = document.getElementById('viewMenuBtn');
-  if (menuBtn) {
-    const chromeBit = layout === 'classic' ? '' : ' · ' + PACER_CHROMES[pacerChrome].label;
-    menuBtn.textContent = '🗂 ' + LAYOUTS[layout].label + chromeBit + ' ▾';
   }
 
   document.querySelectorAll('#pacerLayoutTabs .pacer-layout-tab').forEach((btn) => {
@@ -3974,11 +4034,6 @@ function renderCultureSide(repRows, teamComposite, expectedPct, asOf, monthName,
       <div class="finish-line-stat"><b>${fmt(expectedPct, 1)}%</b><span>End of day pace</span></div>`;
   }
   renderShoutoutWall();
-  const q = dailySalesQuote(asOf);
-  const qt = document.getElementById('dailyQuoteText');
-  if (qt) {
-    qt.innerHTML = '“' + q.text + '”<span class="daily-quote-author">— ' + q.author + '</span>';
-  }
 }
 function renderPaceWatch(repRows) {
   // Back-compat name: culture column (finish line / quiet flex / wall / quote).
@@ -4260,18 +4315,18 @@ function paceNeedItemHTML(label, unit, result) {
   </div>`;
 }
 
+function syncPaceNeedTargetToggleHead() {
+  document.querySelectorAll('#paceNeedTargetToggleHead [data-pace-need-target]').forEach((btn) => {
+    btn.classList.toggle('active', Number(btn.getAttribute('data-pace-need-target')) === paceNeedTargetPct);
+  });
+}
 function detailPaceNeedHTML(repDisplay) {
+  syncPaceNeedTargetToggleHead();
   const need = paceNeedByMetric(repDisplay, paceNeedTargetPct);
   if (!need) {
     return `<div class="meta-note" style="margin-top:0;">No goals set yet — still-needed counts show once Members / Sessions goals are in place.</div>`;
   }
   return `
-    <div class="pace-need-panel-head">
-      <div class="pace-need-target-toggle" role="group" aria-label="Pace target">
-        <button type="button" data-pace-need-target="100" class="${paceNeedTargetPct === 100 ? 'active' : ''}">to 100%</button>
-        <button type="button" data-pace-need-target="80" class="${paceNeedTargetPct === 80 ? 'active' : ''}">to 80%</button>
-      </div>
-    </div>
     <div class="pace-need-grid">
       ${paceNeedItemHTML('Members', 'member', need.members)}
       ${paceNeedItemHTML('Sessions', 'session', need.sessions)}
@@ -5486,9 +5541,10 @@ document.getElementById('lwomPaceBackdrop').addEventListener('click', (e) => {
   if (e.target.id === 'lwomPaceBackdrop') closeLwomPacePopup();
 });
 
-document.getElementById('paceNeedSideContent').addEventListener('click', (e) => {
+document.getElementById('paceNeedTargetToggleHead')?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-pace-need-target]');
   if (!btn) return;
+  e.stopPropagation(); // don't collapse the Still Needed section
   const next = Number(btn.getAttribute('data-pace-need-target'));
   if (next !== 80 && next !== 100) return;
   paceNeedTargetPct = next;
@@ -6690,41 +6746,25 @@ function setupHeaderPopover(btnId, menuId) {
 }
 setupHeaderPopover('teamMenuBtn', 'teamMenu');
 setupHeaderPopover('adminMenuBtn', 'adminMenu');
-setupHeaderPopover('viewMenuBtn', 'viewMenu');
 document.addEventListener('click', (e) => {
   if (e.target.closest('.header-dropdown')) return;
   document.querySelectorAll('.header-dropdown-menu.open').forEach(m => m.classList.remove('open'));
 });
-// Close Team/Admin/View/Tools menus after picking an action.
-['teamMenu', 'adminMenu', 'viewMenu', 'layoutToolsMenu'].forEach((menuId) => {
+// Close Team/Admin/Tools menus after picking an action.
+['teamMenu', 'adminMenu', 'layoutToolsMenu'].forEach((menuId) => {
   const menu = document.getElementById(menuId);
   if (!menu) return;
   menu.addEventListener('click', (e) => {
     if (e.target.closest('button')) menu.classList.remove('open');
   });
 });
-document.querySelectorAll('#viewMenu .view-menu-btn[data-layout]').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const layout = normalizeLayout(btn.getAttribute('data-layout'));
-    localStorage.setItem(LAYOUT_PREF_KEY, layout);
-    applyLayout(layout);
-  });
-});
 document.querySelectorAll('#pacerLayoutTabs .pacer-layout-tab').forEach((btn) => {
   btn.addEventListener('click', () => {
     pacerTab = normalizePacerTab(btn.getAttribute('data-pacer-tab') || 'current');
-    applyLayout(document.body.dataset.layout || 'classic');
+    applyLayout(document.body.dataset.layout || 'split-stack');
     if (pacerTab === 'historical' && typeof setHistoryCollapsed === 'function') {
       setHistoryCollapsed(false);
     }
-  });
-});
-document.querySelectorAll('#viewMenu .chrome-menu-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    if ((document.body.dataset.layout || 'classic') === 'classic') return;
-    pacerChrome = normalizePacerChrome(btn.getAttribute('data-pacer-chrome'));
-    localStorage.setItem(PACER_CHROME_KEY, pacerChrome);
-    applyLayout(document.body.dataset.layout || 'classic');
   });
 });
 (function initTipPortal() {
@@ -6830,8 +6870,11 @@ document.getElementById('toggleAdvancedFields').addEventListener('click', () => 
 // the Edit Monthly Goals overlay but auto-expands the All Shoutouts section.
 // Every full-page overlay is `.detail-overlay`: lock body scroll while any is open.
 function syncOverlayBodyScroll() {
-  const anyOpen = ['clientDetailOverlay', 'manualAttroOverlay', 'goalsOverlay', 'sipOverlay', 'teamDetailsOverlay']
-    .some(id => document.getElementById(id).classList.contains('open'));
+  const anyOpen = ['clientDetailOverlay', 'manualAttroOverlay', 'goalsOverlay', 'adminSettingsOverlay', 'sipOverlay', 'teamDetailsOverlay']
+    .some(id => {
+      const el = document.getElementById(id);
+      return el && el.classList.contains('open');
+    });
   document.body.style.overflow = anyOpen ? 'hidden' : '';
 }
 function denyHashIfUnauthorized(allowed) {
@@ -6841,31 +6884,48 @@ function denyHashIfUnauthorized(allowed) {
 }
 function renderGoalsOverlay() {
   const overlay = document.getElementById('goalsOverlay');
-  if (location.hash === '#edit-goals' || location.hash === '#shoutout-history') {
-    if (denyHashIfUnauthorized(canViewAdminTools())) {
+  const settings = document.getElementById('adminSettingsOverlay');
+  if (location.hash === '#edit-goals') {
+    if (denyHashIfUnauthorized(isRealAdmin())) {
       overlay.classList.remove('open');
+      if (settings) settings.classList.remove('open');
       syncOverlayBodyScroll();
       return;
     }
     overlay.classList.add('open');
+    if (settings) settings.classList.remove('open');
+    window.scrollTo(0, 0);
+  } else if (location.hash === '#admin-settings' || location.hash === '#shoutout-history') {
+    if (denyHashIfUnauthorized(isRealAdmin())) {
+      overlay.classList.remove('open');
+      if (settings) settings.classList.remove('open');
+      syncOverlayBodyScroll();
+      return;
+    }
+    overlay.classList.remove('open');
+    if (settings) settings.classList.add('open');
     if (location.hash === '#shoutout-history') {
       document.getElementById('shoutoutSendBackdrop').classList.remove('open');
       const body = document.getElementById('shoutoutLogBody');
       const toggle = document.getElementById('toggleShoutoutLog');
-      if (!body.classList.contains('open')) { body.classList.add('open'); toggle.textContent = '▾ All Shoutouts'; }
-      requestAnimationFrame(() => body.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      if (body && !body.classList.contains('open')) {
+        body.classList.add('open');
+        if (toggle) toggle.textContent = '▾ All Shoutouts';
+      }
+      requestAnimationFrame(() => body && body.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     } else {
       window.scrollTo(0, 0);
     }
   } else {
     overlay.classList.remove('open');
+    if (settings) settings.classList.remove('open');
   }
   syncOverlayBodyScroll();
 }
 function renderSipOverlay() {
   const overlay = document.getElementById('sipOverlay');
   if (location.hash === '#historical-sip') {
-    if (denyHashIfUnauthorized(canViewAdminTools())) {
+    if (denyHashIfUnauthorized(isRealAdmin())) {
       overlay.classList.remove('open');
       syncOverlayBodyScroll();
       return;
@@ -6880,12 +6940,19 @@ function renderSipOverlay() {
 window.addEventListener('hashchange', renderGoalsOverlay);
 window.addEventListener('hashchange', renderSipOverlay);
 document.getElementById('footerGoalsBtn').addEventListener('click', () => { location.hash = 'edit-goals'; });
+document.getElementById('footerAdminSettingsBtn')?.addEventListener('click', () => { location.hash = 'admin-settings'; });
 document.getElementById('footerSipBtn').addEventListener('click', () => { location.hash = 'historical-sip'; });
 document.getElementById('viewShoutoutHistoryLink').addEventListener('click', () => {
   document.getElementById('shoutoutSendBackdrop').classList.remove('open');
 });
 document.getElementById('goalsBackBtn').addEventListener('click', () => {
   if (location.hash) history.back(); else { document.getElementById('goalsOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
+});
+document.getElementById('adminSettingsBackBtn')?.addEventListener('click', () => {
+  if (location.hash) history.back(); else {
+    document.getElementById('adminSettingsOverlay')?.classList.remove('open');
+    syncOverlayBodyScroll();
+  }
 });
 document.getElementById('sipBackBtn').addEventListener('click', () => {
   if (location.hash) history.back(); else { document.getElementById('sipOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
@@ -7253,69 +7320,128 @@ function rankSideContentHTML(repDisplay) {
   return rows + noteHTML;
 }
 
-// "Last Month (Preliminary)" box — only appears for the single calendar month
-// immediately before the live month, only while that month hasn't been
-// Closed Out yet (once it has, Historical Performance is the source of truth
-// and this box has nothing to show — see clearPrelimSnapshot in the
-// closeOutCommitBtn handler). Uses elapsedFrac=1 since the snapshotted month
-// is, by definition, already over.
-function prelimBoxHTML(repDisplay) {
+function previousMonthKeyFromActuals() {
   const actuals = loadActuals();
   const liveMonth = String(actuals.asOf || '').slice(0, 7);
   const [ly, lm] = liveMonth.split('-').map(Number);
-  if (!ly || !lm) return '';
-  const prevDate = new Date(ly, lm - 2, 1); // one calendar month before the live month
-  const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
-  if (sipHasMonth(prevKey)) return '';
-  const snap = loadPrelimSnapshots()[prevKey];
-  if (!snap) return '';
-
+  if (!ly || !lm) return null;
+  const prevDate = new Date(ly, lm - 2, 1);
+  return {
+    key: `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`,
+    label: prevDate.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
+  };
+}
+function lastMonthFrozenSource(repDisplay) {
+  const prev = previousMonthKeyFromActuals();
+  if (!prev) return null;
+  // Prefer closed-out SIP (official frozen). Else preliminary snapshot.
+  if (sipHasMonth(prev.key)) {
+    const att = repMonthAttainment(prev.key, (getRoster().find(r => r.display === repDisplay) || {}).csv || '');
+    if (att && att.compositePct != null) {
+      return {
+        kind: 'sip',
+        monthKey: prev.key,
+        monthLabel: prev.label,
+        members: att.mA, membersGoal: att.mG,
+        sessions: att.sA, sessionsGoal: att.sG,
+        compositePct: att.compositePct,
+      };
+    }
+  }
+  const snap = loadPrelimSnapshots()[prev.key];
+  if (!snap) return null;
   const g = (snap.goals && snap.goals[repDisplay]) || { sessions: 0, members: 0, ote: 0, capAt200: false };
   const a = (snap.perRep && snap.perRep[repDisplay]) || { members: 0, sessions: 0 };
   const memMetric = computeMetric(a.members, g.members, 1);
   const sesMetric = computeMetric(a.sessions, g.sessions, 1);
   const composite = compositeOf(memMetric, sesMetric);
-  if (composite.goalIsZero) return '';
-
-  const st = composite.nowSt;
+  if (composite.goalIsZero || composite.current === null) return null;
+  return {
+    kind: 'prelim',
+    monthKey: prev.key,
+    monthLabel: prev.label,
+    members: a.members, membersGoal: g.members,
+    sessions: a.sessions, sessionsGoal: g.sessions,
+    compositePct: composite.current,
+    memMetric, sesMetric, composite, ote: g.ote || 0, capAt200: !!g.capAt200,
+  };
+}
+function lastMonthFrozenHTML(repDisplay) {
+  const src = lastMonthFrozenSource(repDisplay);
+  if (!src) {
+    return `<div class="meta-note" style="margin-top:0;">No frozen last-month snapshot yet. It appears after the calendar month rolls and a preliminary/SIP record exists.</div>`;
+  }
+  const st = src.composite
+    ? src.composite.nowSt
+    : (src.compositePct >= 100
+      ? { cls: 'st-gradient', label: 'Goal Met', barGrad: 'linear-gradient(90deg,#f472b6,#6366f1)' }
+      : { cls: 'st-ontrack', label: 'Closed', barGrad: 'linear-gradient(90deg,#60a5fa,#6366f1)' });
   const heroStyle = `background:${st.barGrad}; -webkit-background-clip:text; background-clip:text; color:transparent;`;
-  const monthLabel = new Date(ly, lm - 2, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
-
+  const badge = src.kind === 'sip'
+    ? '<span class="status-pill small st-ontrack">Official SIP</span>'
+    : '<span class="status-pill small st-na">Preliminary</span>';
   let earningsBlock = '';
-  const ote = g.ote || 0;
-  if (ote && !canViewConfidentialPayout(repDisplay)) {
-    earningsBlock = `<div class="meta-note" style="margin:8px 0 0; font-size:10.5px;">🔒 Estimated payout is confidential — visible to admins and this rep only.</div>`;
-  } else if (ote) {
-    const memPay = memMetric.currentPct === null ? null : payoutTier(memMetric.currentPct / 100);
-    const sesPay = sesMetric.currentPct === null ? null : payoutTier(sesMetric.currentPct / 100);
-    const parts = [memPay, sesPay].filter(v => v !== null);
-    if (parts.length) {
-      const rawPct = parts.reduce((s, v) => s + v, 0) / parts.length;
-      const capped = !!g.capAt200 && rawPct > 2;
-      const payoutPct = g.capAt200 ? Math.min(rawPct, 2) : rawPct;
-      earningsBlock = `
-        <div class="mini-earnings-block">
-          <div class="mini-earnings-label">💰 Estimated Payout (Preliminary)</div>
-          <div class="mini-earnings-num">$${fmt(payoutPct * ote, 2)}</div>
-          ${capped ? '<div class="mini-earnings-capped">Capped at 200% of OTE</div>' : ''}
-        </div>`;
+  if (src.kind === 'prelim' && src.ote) {
+    if (!canViewConfidentialPayout(repDisplay)) {
+      earningsBlock = `<div class="meta-note" style="margin:8px 0 0; font-size:10.5px;">🔒 Estimated payout is confidential — visible to admins and this rep only.</div>`;
+    } else {
+      const memPay = src.memMetric.currentPct === null ? null : payoutTier(src.memMetric.currentPct / 100);
+      const sesPay = src.sesMetric.currentPct === null ? null : payoutTier(src.sesMetric.currentPct / 100);
+      const parts = [memPay, sesPay].filter(v => v !== null);
+      if (parts.length) {
+        const rawPct = parts.reduce((s, v) => s + v, 0) / parts.length;
+        const capped = src.capAt200 && rawPct > 2;
+        const payoutPct = src.capAt200 ? Math.min(rawPct, 2) : rawPct;
+        earningsBlock = `
+          <div class="mini-earnings-block">
+            <div class="mini-earnings-label">💰 Estimated Payout</div>
+            <div class="mini-earnings-num">$${fmt(payoutPct * src.ote, 2)}</div>
+            ${capped ? '<div class="mini-earnings-capped">Capped at 200% of OTE</div>' : ''}
+          </div>`;
+      }
     }
   }
-
+  const barW = Math.max(0, Math.min(src.compositePct, 100));
   return `
-    <div class="metric-box" style="margin-bottom:16px; border:1px dashed var(--card-border);">
+    <div class="metric-box" style="margin-bottom:16px;">
       <div class="metric-box-head">
-        <span class="m-label">📋 Last Month (Preliminary) — ${monthLabel}</span>
-        <span class="status-pill small st-na">Unofficial</span>
+        <span class="m-label">📋 ${src.monthLabel}</span>
+        ${badge}
       </div>
       <div class="metric-hero">
-        <span class="metric-hero-num" style="${heroStyle}">${fmt(composite.current, 0)}%</span>
-        <span class="metric-hero-sub">Sessions ${fmt(a.sessions,1)}/${fmt(g.sessions,1)} · Members ${fmt(a.members,1)}/${fmt(g.members,1)}</span>
+        <span class="metric-hero-num" style="${heroStyle}">${fmt(src.compositePct, 1)}%</span>
+        <span class="metric-hero-sub">Total Average Attainment · frozen</span>
+      </div>
+      <div class="bar-track" style="margin-top:10px;"><div class="bar-fill" style="background:${st.barGrad}; width:${barW}%;"></div></div>
+      <div class="detail-net-grid" style="margin-top:14px;">
+        <div class="metric-box">
+          <div class="metric-box-head"><span class="m-label">Net Members</span></div>
+          <div class="metric-hero"><span class="metric-hero-num">${fmt(src.members, 1)}</span>
+          <span class="metric-hero-sub">of ${fmt(src.membersGoal, 1)} goal</span></div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-box-head"><span class="m-label">Net Sessions</span></div>
+          <div class="metric-hero"><span class="metric-hero-num">${fmt(src.sessions, 1)}</span>
+          <span class="metric-hero-sub">of ${fmt(src.sessionsGoal, 1)} goal</span></div>
+        </div>
       </div>
       ${earningsBlock}
-      <div class="meta-note" style="margin:8px 0 0;">Pending Aaron's SIP lock — will be replaced by the official record once ${monthLabel} is closed out in Historical Performance.</div>
+      <div class="meta-note" style="margin:10px 0 0;">This view does not change when new attributions land — it's a point-in-time close for ${src.monthLabel}.</div>
     </div>`;
 }
+function syncLastMonthPacerTab(repDisplay) {
+  const btn = document.getElementById('pacerTabLastMonthBtn');
+  const body = document.getElementById('lastMonthFrozenBody');
+  const src = lastMonthFrozenSource(repDisplay);
+  if (btn) btn.hidden = !src;
+  if (body) body.innerHTML = lastMonthFrozenHTML(repDisplay);
+  if (!src && pacerTab === 'lastmonth') {
+    pacerTab = 'current';
+    applyLayout(document.body.dataset.layout || 'split-stack');
+  }
+}
+// Back-compat stub — Last Month now lives in its own pacer tab.
+function prelimBoxHTML(repDisplay) { return ''; }
 
 // Two boxes (Net Members, Net Sessions) showing this month's actual totals, colored
 // using each metric's OWN "now" tier — the exact same barGrad/legend logic driving
@@ -7597,13 +7723,13 @@ let currentBonusRep = null;
 // time) — but once someone expands or collapses it, that preference persists
 // across reps and page loads until they change it again.
 const BONUS_SIDE_COLLAPSED_KEY = 'pace_dashboard_bonus_side_collapsed_v1';
-let bonusSideCollapsed = loadJSON(BONUS_SIDE_COLLAPSED_KEY, true);
-// Team Standings — same collapsed-by-default treatment as Bonus Payout, so
-// the sidebar doesn't open with two expanded sections crowding the page.
+let bonusSideCollapsed = loadJSON(BONUS_SIDE_COLLAPSED_KEY, false); // default open
 const RANK_SIDE_COLLAPSED_KEY = 'pace_dashboard_rank_side_collapsed_v1';
 let rankSideCollapsed = loadJSON(RANK_SIDE_COLLAPSED_KEY, true);
 const PACE_NEED_SIDE_COLLAPSED_KEY = 'pace_dashboard_pace_need_side_collapsed_v1';
 let paceNeedSideCollapsed = loadJSON(PACE_NEED_SIDE_COLLAPSED_KEY, false);
+const PERSONAL_GOAL_SIDE_COLLAPSED_KEY_V2 = 'pace_dashboard_personal_goal_side_collapsed_v2';
+let personalGoalSidePanelCollapsed = loadJSON(PERSONAL_GOAL_SIDE_COLLAPSED_KEY_V2, false);
 const LIVE_METRICS_SIDE_COLLAPSED_KEY = 'pace_dashboard_live_metrics_side_collapsed_v1';
 let liveMetricsSideCollapsed = loadJSON(LIVE_METRICS_SIDE_COLLAPSED_KEY, true);
 
@@ -7619,14 +7745,12 @@ function renderClientDetail(opts) {
 
   const allowed = canViewClientDetail(repName);
   const restrictedNote = document.getElementById('detailRestrictedNote');
-  const bodyEls = ['detailPacingRow', 'pacerInsightStrip', 'doubleGoalBanner', 'metricsStyleToggleWrap', 'detailPrelimBox', 'detailSummary', 'detailNetActuals', 'detailContent', 'clientDetailHistoryBlock']
+  const bodyEls = ['detailPacingRow', 'doubleGoalBanner', 'metricsStyleToggleWrap', 'detailSummary', 'detailNetActuals', 'detailContent', 'clientDetailHistoryBlock', 'pacerTabLastMonth']
     .map(id => document.getElementById(id)).filter(Boolean);
-  const sprintChip = document.getElementById('detailSprintChip');
   if (!allowed) {
     restrictedNote.style.display = '';
     restrictedNote.innerHTML = `<div class="meta-note" style="margin-top:0;">🔒 You don't have access to ${repName}'s Individual Pacer.</div>`;
     bodyEls.forEach(el => el.style.display = 'none');
-    if (sprintChip) sprintChip.classList.remove('show');
     const headerPace = document.getElementById('detailHeaderPace');
     if (headerPace) headerPace.innerHTML = '';
     window.scrollTo(0, 0);
@@ -7644,12 +7768,10 @@ function renderClientDetail(opts) {
       bodyEls.forEach((el) => { if (el.id !== 'metricsStyleToggleWrap') el.style.display = 'none'; });
       document.getElementById('metricsStyleToggleWrap').style.display = 'none';
       document.getElementById('detailMiniHeader').innerHTML = '';
-      if (sprintChip) sprintChip.classList.remove('show');
       if (!preserveScroll) window.scrollTo(0, 0);
       return;
     }
     closePersonalGoalGate();
-    if (sprintChip) sprintChip.classList.toggle('show', !!lwomSprintWindow());
     // Pace + badges live once in the page header (under Back) — not duplicated
     // as a second mini-card in the Current body.
     document.getElementById('detailPacingRow').innerHTML = '';
@@ -7690,18 +7812,17 @@ function renderClientDetail(opts) {
       if (pacing.goalIsZero) headerNum.textContent = '—';
       else animateNumber(headerNum, pacing.current ?? 0, 50);
     }
+    document.getElementById('personalGoalSideChevron').classList.toggle('collapsed', personalGoalSidePanelCollapsed);
+    document.getElementById('personalGoalSideBody').classList.toggle('collapsed', personalGoalSidePanelCollapsed);
+    document.getElementById('personalGoalSideContent').innerHTML = personalGoalSideHTML(repName);
     document.getElementById('rankSideChevron').classList.toggle('collapsed', rankSideCollapsed);
     document.getElementById('rankSideContent').classList.toggle('collapsed', rankSideCollapsed);
     document.getElementById('rankSideContent').innerHTML = rankSideContentHTML(repName);
-    document.getElementById('personalGoalSideContent').innerHTML = personalGoalSideHTML(repName);
     document.getElementById('paceNeedSideChevron').classList.toggle('collapsed', paceNeedSideCollapsed);
     document.getElementById('paceNeedSideContent').classList.toggle('collapsed', paceNeedSideCollapsed);
     document.getElementById('paceNeedSideContent').innerHTML = detailPaceNeedHTML(repName);
-    document.getElementById('liveMetricsSideChevron').classList.toggle('collapsed', liveMetricsSideCollapsed);
-    document.getElementById('liveMetricsSideContent').classList.toggle('collapsed', liveMetricsSideCollapsed);
-    document.getElementById('liveMetricsSideContent').innerHTML = liveMetricsSideHTML(repName);
-    document.getElementById('detailPrelimBox').innerHTML = prelimBoxHTML(repName);
     document.getElementById('detailNetActuals').innerHTML = detailNetActualsHTML(pacing);
+    syncLastMonthPacerTab(repName);
   }
 
   // currentBonusRep tracks who the sidebar's render/save targets — content
@@ -7787,7 +7908,14 @@ document.getElementById('detailBackBtn').addEventListener('click', () => {
   if (location.hash) history.back(); else { document.getElementById('clientDetailOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
 });
 
-document.getElementById('paceNeedSideToggle')?.addEventListener('click', () => {
+document.getElementById('personalGoalSideToggle')?.addEventListener('click', () => {
+  personalGoalSidePanelCollapsed = !personalGoalSidePanelCollapsed;
+  saveJSON(PERSONAL_GOAL_SIDE_COLLAPSED_KEY_V2, personalGoalSidePanelCollapsed);
+  document.getElementById('personalGoalSideChevron').classList.toggle('collapsed', personalGoalSidePanelCollapsed);
+  document.getElementById('personalGoalSideBody').classList.toggle('collapsed', personalGoalSidePanelCollapsed);
+});
+document.getElementById('paceNeedSideToggle')?.addEventListener('click', (e) => {
+  if (e.target.closest('[data-pace-need-target]')) return;
   paceNeedSideCollapsed = !paceNeedSideCollapsed;
   saveJSON(PACE_NEED_SIDE_COLLAPSED_KEY, paceNeedSideCollapsed);
   document.getElementById('paceNeedSideChevron').classList.toggle('collapsed', paceNeedSideCollapsed);
@@ -8888,11 +9016,17 @@ function currentUserEmail() {
   const user = window.netlifyIdentity && netlifyIdentity.currentUser();
   return user && user.email ? String(user.email).toLowerCase() : null;
 }
-function canViewAdminTools() {
+function isRealAdmin() {
   const email = currentUserEmail();
   return !!email && isAdminEmail(email);
 }
+function canViewAdminTools() {
+  // While "View as" is active, hide admin chrome — impersonate that rep's access.
+  if (getViewAsRepRaw()) return false;
+  return isRealAdmin();
+}
 function canViewTeamDetails() {
+  if (getViewAsRepRaw()) return false;
   const email = currentUserEmail();
   if (!email) return false;
   return isAdminEmail(email) || isLimitedAdminEmail(email);
@@ -8900,7 +9034,18 @@ function canViewTeamDetails() {
 function canViewClientDetail(repDisplay) {
   const email = currentUserEmail();
   if (!email) return false;
-  if (isAdminEmail(email)) return true;
+  // View as: use that person's access (own pacer, or coach/admin-level if their
+  // roster email is on those lists). Revert in the footer restores full admin.
+  const viewAs = getViewAsRepRaw();
+  if (viewAs) {
+    if (viewAs === repDisplay) return true;
+    const goals = loadGoals();
+    const g = goals[viewAs];
+    const viewEmail = g && g.email ? String(g.email).toLowerCase() : null;
+    if (viewEmail && (isAdminEmail(viewEmail) || isLimitedAdminEmail(viewEmail))) return true;
+    return false;
+  }
+  if (isRealAdmin()) return true;
   if (isLimitedAdminEmail(email)) return true; // Sales Coach: read access, no confidential $
   const goals = loadGoals();
   const g = goals[repDisplay];
@@ -8910,10 +9055,15 @@ function canViewClientDetail(repDisplay) {
 
 // Full admins see payout on every page. A Sales Coach who is also a rep sees
 // payout on THEIR OWN Individual Pacer only — never on anyone else's.
+// View-as: use the impersonated rep's visibility (admin still sees $ if real admin).
 function canViewConfidentialPayout(repDisplay) {
   const email = currentUserEmail();
   if (!email) return false;
-  if (isAdminEmail(email)) return true;
+  const viewAs = getViewAsRepRaw();
+  // Full admin (not impersonating) sees every payout.
+  if (isRealAdmin() && !viewAs) return true;
+  // View as: only what that person would see — their own page payout.
+  if (viewAs) return viewAs === repDisplay;
   const goals = loadGoals();
   const g = goals[repDisplay];
   const repEmail = g && g.email ? String(g.email).toLowerCase() : null;
@@ -8950,15 +9100,17 @@ function syncRoleChrome() {
 }
 
 const VIEW_AS_KEY = 'pace_dashboard_view_as_v1';
-function getViewAsRep() {
-  if (!canViewAdminTools()) return '';
+function getViewAsRepRaw() {
+  if (!isRealAdmin()) return '';
   return String(localStorage.getItem(VIEW_AS_KEY) || '').trim();
 }
+function getViewAsRep() { return getViewAsRepRaw(); }
 function setViewAsRep(repDisplay) {
+  if (!isRealAdmin()) return;
   const name = String(repDisplay || '').trim();
   if (!name) localStorage.removeItem(VIEW_AS_KEY);
   else localStorage.setItem(VIEW_AS_KEY, name);
-  syncViewAsChrome();
+  syncRoleChrome();
   // Re-render open Individual Pacer / landing so own-rep gates refresh.
   if (typeof render === 'function') render();
   if (location.hash && /individual-pacer|client-detail/.test(location.hash) && typeof renderClientDetail === 'function') {
@@ -8976,24 +9128,23 @@ function realOwnRepDisplayName() {
   return null;
 }
 function ownRepDisplayName() {
-  const viewAs = getViewAsRep();
+  const viewAs = getViewAsRepRaw();
   if (viewAs) return viewAs;
   return realOwnRepDisplayName();
 }
 function syncViewAsChrome() {
-  const admin = canViewAdminTools();
-  const viewAs = getViewAsRep();
+  // Real admins always keep View as / Revert in the footer, even while impersonating.
+  const admin = isRealAdmin();
+  const viewAs = getViewAsRepRaw();
   document.querySelectorAll('[data-view-as]').forEach((wrap) => {
     wrap.classList.toggle('show', admin);
     const sel = wrap.querySelector('[data-view-as-select]');
     const revert = wrap.querySelector('[data-view-as-revert]');
     if (sel) {
       const names = getRoster().map((r) => r.display).sort((a, b) => a.localeCompare(b));
-      const prev = sel.value;
       sel.innerHTML = '<option value="">Admin view…</option>' +
         names.map((n) => `<option value="${n}">${n}</option>`).join('');
       sel.value = viewAs && names.includes(viewAs) ? viewAs : '';
-      if (!sel.value && prev && names.includes(prev) && !viewAs) sel.value = '';
     }
     if (revert) revert.style.display = viewAs ? '' : 'none';
   });
