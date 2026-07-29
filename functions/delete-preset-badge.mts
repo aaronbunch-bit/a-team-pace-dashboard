@@ -5,7 +5,7 @@ import { requireAdmin } from "./_shared/access.mts";
 
 
 // Deletes one of the 8 BUILT-IN badge types (the 4 automatic ones in
-// BADGE_TOGGLE_META — streak/personalBest/consistency/firstTo100 — or the 4
+// BADGE_TOGGLE_META — streak/personalBest/consistency/firstTo100/earlyBird — or the 4
 // built-in manual-assign presets in MANUAL_BADGE_OPTIONS — mvp/coachspick/
 // risingstar/clutch) from the front end's "Badge Bank" list. Unlike custom
 // badges (delete-custom-badge.mts), these keys are hardcoded in

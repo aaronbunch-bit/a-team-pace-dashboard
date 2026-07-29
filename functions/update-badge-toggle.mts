@@ -4,7 +4,7 @@ import { getIdentityUser } from "./_shared/identity.mts";
 import { requireAdmin } from "./_shared/access.mts";
 
 // Full admins only (Aaron or admin-list). Sales Coaches stay read-only.
-const TOGGLE_KEYS = ["streak", "personalBest", "consistency", "firstTo100"];
+const TOGGLE_KEYS = ["streak", "personalBest", "consistency", "firstTo100", "earlyBird"];
 
 export default async (req: Request, context: Context) => {
   if (req.method !== "POST") {
