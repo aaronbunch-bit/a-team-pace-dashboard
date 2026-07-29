@@ -5,9 +5,6 @@
 <title>A-Team Pacer</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
 <link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,500;0,9..40,700;1,9..40,500&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Instrument+Serif:ital@0;1&family=Sora:wght@500;700;800&family=Source+Sans+3:wght@500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <style>
   :root {
     color-scheme: light;
@@ -22,13 +19,6 @@
     --metric-box-bg: #fafaff;
     --divider: #f0eef9;
     --shadow: rgba(90,70,160,0.08);
-    --font-body: "DM Sans", "Source Sans 3", sans-serif;
-    --font-display: "Syne", "Sora", sans-serif;
-    --accent: #6366f1;
-    --accent-2: #a855f7;
-    --radius-card: 16px;
-    --radius-pill: 999px;
-    --skin-pattern: none;
   }
   body.dark {
     --bg: #131120;
@@ -46,16 +36,11 @@
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: var(--font-body);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background: var(--bg);
-    background-image: var(--skin-pattern);
     color: var(--text);
     padding: 28px;
     transition: background 0.25s ease, color 0.25s ease;
-  }
-  h1, h2, .grad-text, .rep-name, .composite-num, .detail-net-val,
-  .leaderboard-val, .leaderboard-title, .bonus-hero-num {
-    font-family: var(--font-display);
   }
   /* A happy medium between the original 900px (too cramped once Client
      Detail got its own wider layout) and a brief detour to 1360px to match
@@ -325,281 +310,198 @@
   .rebound-badge { color: #0891b2; background: rgba(8,145,178,0.14); }
   .night-owl-badge { color: #4f46e5; background: rgba(79,70,229,0.14); }
   .best-pace-day-badge { color: #c026d3; background: rgba(192,38,211,0.14); }
-  /* ---------- Full UI skins (Design menu) — all info kept ---------- */
-  .view-menu-btn {
-    text-align: left; line-height: 1.25;
-  }
+  /* ---------- Structural layouts (Layout menu). Classic = untouched OG. ---------- */
+  /* Classic: region wrappers dissolve so the original CSS still owns the page. */
+  body[data-layout="classic"] .landing-region,
+  body:not([data-layout]) .landing-region { display: contents; }
+  body[data-layout="classic"] .layout-boards-switch,
+  body:not([data-layout]) .layout-boards-switch,
+  body[data-layout="classic"] #layoutToolsWrap,
+  body:not([data-layout]) #layoutToolsWrap,
+  body[data-layout="classic"] .pacer-layout-tabs,
+  body:not([data-layout]) .pacer-layout-tabs { display: none !important; }
+  .view-menu-btn { text-align: left; line-height: 1.25; }
   .view-menu-btn .skin-blurb {
     display: block; font-size: 10.5px; font-weight: 600; color: var(--text-faint);
-    margin-top: 2px; text-transform: none; letter-spacing: 0;
+    margin-top: 2px;
   }
-  .view-menu-btn.active-view { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-  #viewMenu { min-width: 260px; }
-  .card { border-radius: var(--radius-card); }
-  .status-pill, .theme-btn, .engagement-badge, .workspace-tab {
-    border-radius: var(--radius-pill);
+  .view-menu-btn.active-view { border-color: var(--text-faint); box-shadow: 0 0 0 1px var(--text-faint); }
+  #viewMenu { min-width: 280px; }
+  .layout-boards-switch { display: none; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
+  .layout-boards-switch .theme-btn { margin-top: 0; }
+  .layout-boards-switch .theme-btn.active { border-color: var(--text); }
+  .pacer-layout-tabs { display: none; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
+  .pacer-layout-tab {
+    background: var(--card-bg); color: var(--text-muted); border: 1px solid var(--card-border);
+    border-radius: 999px; padding: 8px 14px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  }
+  .pacer-layout-tab.active { color: var(--text); border-color: var(--text-faint); }
+
+  /* ===== COMMAND: left tools rail + main reps + right boards ===== */
+  @media (min-width: 1100px) {
+    body[data-layout="command"] .wrap {
+      max-width: 1400px;
+      display: grid;
+      grid-template-columns: 200px minmax(0, 1fr) 280px;
+      grid-template-areas:
+        "title title title"
+        "tools status boards"
+        "tools team boards"
+        "tools reps boards"
+        "tools foot foot";
+      column-gap: 18px;
+      row-gap: 10px;
+      align-items: start;
+    }
+    body[data-layout="command"] .landing-region-title { grid-area: title; }
+    body[data-layout="command"] .landing-region-tools {
+      grid-area: tools; position: sticky; top: 16px;
+      display: flex; flex-direction: column; gap: 8px; align-items: stretch;
+    }
+    body[data-layout="command"] .landing-region-tools .landing-actions-row {
+      flex-direction: column; align-items: stretch; margin: 0; gap: 8px;
+    }
+    body[data-layout="command"] .landing-region-tools .theme-btn.large {
+      width: 100%; text-align: left;
+    }
+    body[data-layout="command"] .landing-region-tools .header-dropdown { width: 100%; }
+    body[data-layout="command"] .landing-region-tools .header-dropdown-menu { left: 0; transform: none; min-width: 100%; }
+    body[data-layout="command"] .landing-region-status { grid-area: status; }
+    body[data-layout="command"] .landing-region-team { grid-area: team; }
+    body[data-layout="command"] .landing-region-boards { grid-area: boards; position: sticky; top: 16px; }
+    body[data-layout="command"] .landing-region-reps { grid-area: reps; }
+    body[data-layout="command"] .landing-region-foot { grid-area: foot; }
+    body[data-layout="command"] .landing-top-bar { justify-content: flex-start; margin: 0 0 8px; }
+    body[data-layout="command"] .landing-title-row { justify-content: flex-start; text-align: left; margin-bottom: 8px; }
+    body[data-layout="command"] .landing-region-left { display: contents; }
+    body[data-layout="command"] .landing-grid { padding-right: 0; margin-bottom: 0; display: contents; }
+    body[data-layout="command"] .landing-side-col {
+      position: static; width: auto; display: flex; flex-direction: column; gap: 12px;
+    }
+    body[data-layout="command"] .layout-boards-switch { display: none; }
+    body[data-layout="command"] .landing-menu-hint { text-align: left; margin: 0; }
+    body[data-layout="command"] .rep-list-toolbar { margin-top: 8px; }
+  }
+  body[data-layout="command"] .detail-page-grid {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+  body[data-layout="command"] #metricsStyleToggleWrap { order: -1; }
+  body[data-layout="command"] .detail-main-col { display: flex; flex-direction: column; }
+  body[data-layout="command"] .pacer-layout-tabs { display: flex; }
+  body[data-layout="command"][data-pacer-tab="pace"] .pacer-tab-activity,
+  body[data-layout="command"][data-pacer-tab="pace"] #pacerTabMore,
+  body[data-layout="command"][data-pacer-tab="pace"] #clientDetailHistoryBlock,
+  body[data-layout="command"][data-pacer-tab="activity"] .pacer-tab-pace,
+  body[data-layout="command"][data-pacer-tab="activity"] #pacerTabMore,
+  body[data-layout="command"][data-pacer-tab="activity"] #clientDetailHistoryBlock,
+  body[data-layout="command"][data-pacer-tab="more"] .pacer-tab-pace,
+  body[data-layout="command"][data-pacer-tab="more"] .pacer-tab-activity { display: none !important; }
+  body[data-layout="command"][data-pacer-tab="more"] #metricsStyleToggleWrap { display: block; }
+
+  /* ===== STORY: single-column narrative stack ===== */
+  body[data-layout="story"] .landing-grid {
+    padding-right: 0; display: flex; flex-direction: column; gap: 14px;
+  }
+  body[data-layout="story"] .landing-side-col {
+    position: static; width: 100%;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  }
+  @media (max-width: 800px) {
+    body[data-layout="story"] .landing-side-col { grid-template-columns: 1fr; }
+  }
+  body[data-layout="story"] .landing-actions-row { justify-content: flex-start; }
+  body[data-layout="story"] .landing-title-row { margin-bottom: 12px; }
+  body[data-layout="story"] .landing-region-boards { order: 3; }
+  body[data-layout="story"] .landing-region-reps { order: 4; }
+  body[data-layout="story"] .wrap {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  body[data-layout="story"] .detail-page-grid { grid-template-columns: 1fr; }
+  body[data-layout="story"] #metricsStyleToggleWrap { order: 2; margin-top: 8px; }
+  body[data-layout="story"] .metrics-side-panel { position: static; max-height: none; }
+  body[data-layout="story"] .pacer-insight-strip { order: 1; }
+  body[data-layout="story"] .detail-main-col { display: flex; flex-direction: column; }
+  body[data-layout="story"] details.layout-collapse {
+    border: 1px solid var(--card-border); border-radius: 14px; padding: 10px 12px;
+    background: var(--card-bg); margin-bottom: 12px;
+  }
+  body[data-layout="story"] details.layout-collapse > summary {
+    cursor: pointer; font-weight: 800; font-size: 13px; list-style: none;
+  }
+  body[data-layout="story"] details.layout-collapse > summary::-webkit-details-marker { display: none; }
+
+  /* ===== SPLIT: left scoreboard stack, right roster ===== */
+  @media (min-width: 1000px) {
+    body[data-layout="split"] .wrap {
+      max-width: 1360px;
+      display: grid;
+      grid-template-columns: minmax(320px, 38%) minmax(0, 62%);
+      grid-template-areas:
+        "chrome chrome"
+        "left right"
+        "foot foot";
+      gap: 16px 20px;
+    }
+    body[data-layout="split"] .landing-region-chrome { grid-area: chrome; }
+    body[data-layout="split"] .landing-region-left {
+      grid-area: left; position: sticky; top: 12px; align-self: start;
+      display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 24px); overflow: auto;
+    }
+    body[data-layout="split"] .landing-region-right { grid-area: right; min-width: 0; }
+    body[data-layout="split"] .landing-region-foot { grid-area: foot; }
+    body[data-layout="split"] .landing-grid { padding-right: 0; margin: 0; display: contents; }
+    body[data-layout="split"] .landing-side-col { position: static; width: auto; }
+    body[data-layout="split"] .landing-actions-row { justify-content: flex-start; margin: 8px 0 12px; }
+  }
+  body[data-layout="split"] .detail-page-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  body[data-layout="split"] .pacer-layout-tabs { display: flex; }
+  body[data-layout="split"][data-pacer-tab="pace"] .pacer-tab-activity,
+  body[data-layout="split"][data-pacer-tab="pace"] #pacerTabMore,
+  body[data-layout="split"][data-pacer-tab="pace"] #clientDetailHistoryBlock,
+  body[data-layout="split"][data-pacer-tab="activity"] .pacer-tab-pace,
+  body[data-layout="split"][data-pacer-tab="activity"] #pacerTabMore,
+  body[data-layout="split"][data-pacer-tab="activity"] #clientDetailHistoryBlock,
+  body[data-layout="split"][data-pacer-tab="more"] .pacer-tab-pace,
+  body[data-layout="split"][data-pacer-tab="more"] .pacer-tab-activity { display: none !important; }
+  body[data-layout="split"] .detail-page-grid { grid-template-columns: 1fr; }
+  body[data-layout="split"] .pacer-side-inline .metrics-side-panel {
+    position: static; max-height: none; margin-top: 12px;
   }
 
-  /* RELAY — athletic track: forest + lime, sharp geometry, diagonal energy */
-  body[data-skin="relay"] {
-    --bg: #eef5e8;
-    --text: #102416;
-    --text-muted: #3d5c45;
-    --text-faint: #6a8570;
-    --card-bg: #f7fbf3;
-    --card-border: #cfe0c4;
-    --pill-border: #b9d0aa;
-    --track-bg: #dcebd1;
-    --metric-box-bg: #e7f2de;
-    --divider: #d3e4c7;
-    --shadow: rgba(24, 64, 32, 0.12);
-    --font-body: "DM Sans", sans-serif;
-    --font-display: "Syne", sans-serif;
-    --accent: #84cc16;
-    --accent-2: #166534;
-    --radius-card: 8px;
-    --radius-pill: 6px;
-    --skin-pattern: repeating-linear-gradient(
-      -18deg, transparent, transparent 22px, rgba(22, 101, 52, 0.04) 22px, rgba(22, 101, 52, 0.04) 23px
-    );
+  /* ===== DECK: compact tools + one board surface + dense roster ===== */
+  body[data-layout="deck"] .landing-actions-row .theme-btn.large:not(#layoutToolsBtn):not(#themeToggle):not(#viewMenuBtn),
+  body[data-layout="deck"] #teamMenuWrap,
+  body[data-layout="deck"] #adminMenuWrap,
+  body[data-layout="deck"] #manualAttroBtn,
+  body[data-layout="deck"] #shoutoutSendBtn { display: none !important; }
+  body[data-layout="deck"] #layoutToolsWrap { display: inline-flex !important; }
+  body[data-layout="deck"] .layout-boards-switch { display: flex; }
+  body[data-layout="deck"] .landing-side-col { position: static; width: 100%; }
+  body[data-layout="deck"] .landing-grid { padding-right: 0; }
+  body[data-layout="deck"][data-board-surface="leaders"] .improved-panel { display: none; }
+  body[data-layout="deck"][data-board-surface="improved"] .leaderboard-panel:not(.improved-panel) { display: none; }
+  body[data-layout="deck"] .rep-card .accordion-body { display: none !important; }
+  body[data-layout="deck"] .rep-card .chevron { display: none; }
+  body[data-layout="deck"] .rep-header { cursor: pointer; }
+  body[data-layout="deck"] .landing-title-row { margin-bottom: 6px; }
+  body[data-layout="deck"] .pill-row { margin-bottom: 8px; }
+  body[data-layout="deck"] .pacer-layout-tabs { display: flex; }
+  body[data-layout="deck"][data-pacer-tab="pace"] .pacer-tab-activity,
+  body[data-layout="deck"][data-pacer-tab="pace"] #pacerTabMore,
+  body[data-layout="deck"][data-pacer-tab="pace"] #clientDetailHistoryBlock,
+  body[data-layout="deck"][data-pacer-tab="activity"] .pacer-tab-pace,
+  body[data-layout="deck"][data-pacer-tab="activity"] #pacerTabMore,
+  body[data-layout="deck"][data-pacer-tab="activity"] #clientDetailHistoryBlock,
+  body[data-layout="deck"][data-pacer-tab="more"] .pacer-tab-pace,
+  body[data-layout="deck"][data-pacer-tab="more"] .pacer-tab-activity { display: none !important; }
+  body[data-layout="deck"] .detail-page-grid { grid-template-columns: 1fr; }
+  body[data-layout="deck"] .pacer-side-inline .metrics-side-panel {
+    position: static; max-height: none; margin-top: 10px;
   }
-  body.dark[data-skin="relay"] {
-    --bg: #0c1610; --text: #e7f5df; --text-muted: #9cb89f; --text-faint: #6f8a74;
-    --card-bg: #142018; --card-border: #243828; --pill-border: #2d4533;
-    --track-bg: #1c2c20; --metric-box-bg: #101a13; --divider: #243828;
-    --shadow: rgba(0,0,0,0.5); --accent: #a3e635; --accent-2: #4d7c0f;
-  }
-  body[data-skin="relay"] .grad-text {
-    background: linear-gradient(90deg, #65a30d, #166534 55%, #84cc16);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
-  body[data-skin="relay"] .header-aura {
-    background: linear-gradient(90deg, rgba(132,204,22,0.28), rgba(22,101,52,0.22), rgba(163,230,53,0.3), rgba(132,204,22,0.28));
-    background-size: 300% 100%;
-  }
-  body[data-skin="relay"] .landing-title-row {
-    justify-content: flex-start; text-align: left; gap: 16px;
-  }
-  body[data-skin="relay"] .landing-title-row h1 { font-size: 36px; letter-spacing: -0.04em; text-transform: uppercase; }
-  body[data-skin="relay"] .title-blood-badge {
-    background: linear-gradient(135deg, #a3e635, #166534 60%, #052e16);
-    box-shadow: 0 6px 22px rgba(22,101,52,0.4), 0 0 0 3px rgba(132,204,22,0.25);
-  }
-  body[data-skin="relay"] .manual-attro-btn {
-    background: linear-gradient(90deg, #65a30d, #166534 50%, #84cc16);
-    box-shadow: 0 2px 10px rgba(22,101,52,0.35);
-  }
-  body[data-skin="relay"] .leaderboard-panel,
-  body[data-skin="relay"] .card {
-    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
-  }
-  body[data-skin="relay"] .composite-num,
-  body[data-skin="relay"] .leaderboard-val { font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
-  body[data-skin="relay"] .bar-track { border-radius: 4px; height: 10px; }
-  body[data-skin="relay"] .bar-fill { border-radius: 4px; }
+  body[data-layout="deck"] .pacer-insight-strip { grid-template-columns: 1fr; }
 
-  /* HARBOR — coastal calm: seafoam + slate, soft air, serif display */
-  body[data-skin="harbor"] {
-    --bg: #e8f1f4;
-    --text: #16323f;
-    --text-muted: #4d6d7a;
-    --text-faint: #7a96a2;
-    --card-bg: rgba(255,255,255,0.82);
-    --card-border: #c5dce4;
-    --pill-border: #b7d0da;
-    --track-bg: #d5e6ec;
-    --metric-box-bg: #f0f7fa;
-    --divider: #d0e3ea;
-    --shadow: rgba(22, 70, 90, 0.10);
-    --font-body: "Source Sans 3", sans-serif;
-    --font-display: "Fraunces", Georgia, serif;
-    --accent: #0d9488;
-    --accent-2: #0369a1;
-    --radius-card: 22px;
-    --radius-pill: 999px;
-    --skin-pattern: radial-gradient(1200px 500px at 10% -10%, rgba(13,148,136,0.14), transparent 55%),
-      radial-gradient(900px 420px at 90% 0%, rgba(3,105,161,0.12), transparent 50%);
-  }
-  body.dark[data-skin="harbor"] {
-    --bg: #0b1a20; --text: #e6f4f8; --text-muted: #9cb8c2; --text-faint: #6f8d98;
-    --card-bg: rgba(18,36,44,0.92); --card-border: #274555; --pill-border: #2f5162;
-    --track-bg: #1a3038; --metric-box-bg: #12242c; --divider: #274555;
-    --shadow: rgba(0,0,0,0.45); --accent: #2dd4bf; --accent-2: #38bdf8;
-  }
-  body[data-skin="harbor"] .grad-text {
-    background: linear-gradient(90deg, #0f766e, #0369a1 55%, #0ea5e9);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
-  body[data-skin="harbor"] .header-aura {
-    background: linear-gradient(90deg, rgba(13,148,136,0.28), rgba(3,105,161,0.24), rgba(14,165,233,0.26), rgba(13,148,136,0.28));
-    background-size: 300% 100%; filter: blur(70px);
-  }
-  body[data-skin="harbor"] .landing-title-row h1 { font-weight: 600; font-size: 34px; letter-spacing: -0.01em; }
-  body[data-skin="harbor"] .title-blood-badge {
-    background: linear-gradient(135deg, #5eead4, #0f766e 50%, #164e63);
-    box-shadow: 0 8px 28px rgba(13,148,136,0.35);
-  }
-  body[data-skin="harbor"] .manual-attro-btn {
-    background: linear-gradient(90deg, #0d9488, #0369a1 55%, #0ea5e9);
-    box-shadow: 0 2px 12px rgba(3,105,161,0.3);
-  }
-  body[data-skin="harbor"] .card,
-  body[data-skin="harbor"] .leaderboard-panel,
-  body[data-skin="harbor"] .metrics-side-panel {
-    backdrop-filter: blur(10px);
-    box-shadow: 0 8px 30px var(--shadow);
-  }
-  body[data-skin="harbor"] .pacer-section-label,
-  body[data-skin="harbor"] .metrics-side-title {
-    font-family: var(--font-display); font-weight: 600; letter-spacing: 0.06em;
-  }
-  body[data-skin="harbor"] .wrap { max-width: 1180px; }
-
-  /* NIGHTLINE — broadcast scoreboard: charcoal + amber (not purple glow) */
-  body[data-skin="nightline"] {
-    --bg: #121418;
-    --text: #f4f1e8;
-    --text-muted: #b7b0a0;
-    --text-faint: #8a8374;
-    --card-bg: #1a1d23;
-    --card-border: #2c313a;
-    --pill-border: #3a404b;
-    --track-bg: #262b34;
-    --metric-box-bg: #15181e;
-    --divider: #2c313a;
-    --shadow: rgba(0,0,0,0.55);
-    --font-body: "Archivo", sans-serif;
-    --font-display: "Bebas Neue", "Archivo", sans-serif;
-    --accent: #f5b301;
-    --accent-2: #ff7a18;
-    --radius-card: 4px;
-    --radius-pill: 3px;
-    --skin-pattern: linear-gradient(180deg, rgba(245,179,1,0.05), transparent 180px);
-    color-scheme: dark;
-  }
-  body.dark[data-skin="nightline"],
-  body:not(.dark)[data-skin="nightline"] {
-    /* Nightline is always a dark board — light toggle softens slightly */
-  }
-  body:not(.dark)[data-skin="nightline"] {
-    --bg: #1a1e25; --card-bg: #22262e;
-  }
-  body[data-skin="nightline"] .grad-text {
-    background: linear-gradient(90deg, #f5b301, #ff7a18 60%, #fde68a);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
-  body[data-skin="nightline"] .header-aura {
-    background: linear-gradient(90deg, rgba(245,179,1,0.2), rgba(255,122,24,0.16), rgba(245,179,1,0.2));
-    background-size: 300% 100%; filter: blur(50px); height: 180px;
-  }
-  body[data-skin="nightline"] .landing-title-row {
-    border-bottom: 3px solid var(--accent); padding-bottom: 14px; margin-bottom: 10px;
-  }
-  body[data-skin="nightline"] .landing-title-row h1 {
-    font-size: 44px; font-weight: 400; letter-spacing: 0.04em; text-transform: uppercase;
-  }
-  body[data-skin="nightline"] .title-blood-badge {
-    border-radius: 6px; width: 64px; height: 64px;
-    background: linear-gradient(135deg, #f5b301, #b45309 70%, #7c2d12);
-    box-shadow: 0 0 0 2px rgba(245,179,1,0.35);
-  }
-  body[data-skin="nightline"] .manual-attro-btn {
-    background: linear-gradient(90deg, #f5b301, #ff7a18); color: #1a1205;
-    box-shadow: none; animation: none;
-  }
-  body[data-skin="nightline"] .leaderboard-panel {
-    background: #10131a; border: 2px solid #3a404b;
-    box-shadow: inset 0 0 0 1px rgba(245,179,1,0.12);
-  }
-  body[data-skin="nightline"] .leaderboard-title,
-  body[data-skin="nightline"] .leaderboard-val,
-  body[data-skin="nightline"] .composite-num {
-    letter-spacing: 0.03em; text-transform: uppercase;
-  }
-  body[data-skin="nightline"] .leaderboard-val { font-size: 28px; color: var(--accent); }
-  body[data-skin="nightline"] .status-pill {
-    border-radius: 2px; text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px;
-  }
-  body[data-skin="nightline"] .bar-track { border-radius: 2px; height: 8px; }
-  body[data-skin="nightline"] .bar-fill { border-radius: 2px; }
-  body[data-skin="nightline"] .mini-header,
-  body[data-skin="nightline"] .detail-mini-header {
-    background: #10131a; border-bottom: 2px solid var(--accent);
-  }
-
-  /* ATELIER — editorial studio: ink + saffron + ice (not cream/terracotta) */
-  body[data-skin="atelier"] {
-    --bg: #f2f4f7;
-    --text: #12161c;
-    --text-muted: #4b5563;
-    --text-faint: #7b8494;
-    --card-bg: #ffffff;
-    --card-border: #d9dee7;
-    --pill-border: #cfd6e2;
-    --track-bg: #e4e9f1;
-    --metric-box-bg: #f7f8fb;
-    --divider: #e2e7ef;
-    --shadow: rgba(18, 22, 28, 0.08);
-    --font-body: "Sora", sans-serif;
-    --font-display: "Instrument Serif", Georgia, serif;
-    --accent: #d97706;
-    --accent-2: #0284c7;
-    --radius-card: 2px;
-    --radius-pill: 2px;
-    --skin-pattern: linear-gradient(90deg, rgba(2,132,199,0.05) 0 40%, transparent 40%),
-      linear-gradient(180deg, #eef2f6, #f2f4f7 120px);
-  }
-  body.dark[data-skin="atelier"] {
-    --bg: #0e1218; --text: #eef2f6; --text-muted: #a3adbb; --text-faint: #768193;
-    --card-bg: #171c24; --card-border: #2a3340; --pill-border: #343e4d;
-    --track-bg: #222a35; --metric-box-bg: #131820; --divider: #2a3340;
-    --shadow: rgba(0,0,0,0.5); --accent: #f59e0b; --accent-2: #38bdf8;
-  }
-  body[data-skin="atelier"] .grad-text {
-    background: none; -webkit-background-clip: unset; background-clip: unset;
-    color: var(--text); font-style: italic; font-weight: 400;
-  }
-  body[data-skin="atelier"] .header-aura {
-    background: linear-gradient(90deg, rgba(2,132,199,0.18), rgba(217,119,6,0.14), rgba(2,132,199,0.18));
-    background-size: 300% 100%; filter: blur(60px); opacity: 0.85;
-  }
-  body[data-skin="atelier"] .landing-title-row {
-    flex-direction: column; gap: 8px; margin-bottom: 18px;
-  }
-  body[data-skin="atelier"] .title-blood-badge { display: none; }
-  body[data-skin="atelier"] .landing-title-row h1 {
-    font-size: 42px; font-weight: 400; letter-spacing: -0.02em;
-  }
-  body[data-skin="atelier"] .landing-title-row::after {
-    content: ""; display: block; width: 72px; height: 3px; margin-top: 4px;
-    background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  }
-  body[data-skin="atelier"] .manual-attro-btn {
-    background: var(--text); color: var(--card-bg); animation: none;
-    box-shadow: none; border-radius: 2px;
-  }
-  body[data-skin="atelier"] .card {
-    border-left: 3px solid var(--accent-2);
-    box-shadow: none;
-  }
-  body[data-skin="atelier"] .leaderboard-panel {
-    border-top: 3px solid var(--accent); border-radius: 2px;
-  }
-  body[data-skin="atelier"] .pacer-section-label {
-    font-family: var(--font-body); font-size: 10px; letter-spacing: 0.14em;
-  }
-  body[data-skin="atelier"] .composite-num,
-  body[data-skin="atelier"] .detail-net-val {
-    font-family: var(--font-body); font-weight: 800;
-  }
-
-  /* CLASSIC keeps original tokens; light polish only */
-  body[data-skin="classic"] {
-    --font-body: "DM Sans", "Source Sans 3", sans-serif;
-    --font-display: "Syne", "Sora", sans-serif;
-    --accent: #6366f1;
-    --accent-2: #a855f7;
-  }
   .lwom-sprint-chip {
     display: none; margin-left: 6px; padding: 1px 6px; border-radius: 999px;
     font-size: 10px; font-weight: 800; color: #c2410c;
@@ -1589,6 +1491,7 @@
   <div class="mini-header-teambar" id="miniHeaderTeamBar"></div>
 </div>
 <div class="wrap">
+  <div class="landing-region landing-region-chrome landing-region-title" id="landingChromeTitle">
   <div class="landing-top-bar">
     <button type="button" class="theme-btn motion-toggle" id="motionToggle" aria-pressed="true">✨ Dynamic</button>
   </div>
@@ -1598,6 +1501,8 @@
     <h1><span class="grad-text">A-Team</span> <span id="titleMonth">Monthly</span> Pacer</h1>
     <span class="title-blood-badge" aria-hidden="true"><span class="title-blood-emoji">🅰️</span></span>
   </div>
+  </div>
+  <div class="landing-region landing-region-chrome landing-region-tools" id="landingTools">
   <!-- Centered under the title, isolated from anything else so new buttons
        (or a longer title) never squeeze each other again — the trigger that
        used to happen at the top of the page (see .top-row's old flex layout)
@@ -1628,29 +1533,52 @@
       </div>
     </div>
     <button class="theme-btn large" id="shoutoutSendBtn" type="button">📣 Shoutout</button>
+    <div class="header-dropdown" id="layoutToolsWrap" style="display:none;">
+      <button class="theme-btn large" id="layoutToolsBtn" type="button">🧰 Tools ▾</button>
+      <div class="header-dropdown-menu" id="layoutToolsMenu">
+        <button class="theme-btn" type="button" id="toolsManualAttroBtn">📝 Manual Attribution</button>
+        <button class="theme-btn" type="button" id="toolsTeamDetailsBtn">🗂️ Cancels &amp; attributions</button>
+        <button class="theme-btn" type="button" id="toolsTeamGoalsBtn">🎯 Personal month goals</button>
+        <button class="theme-btn" type="button" id="toolsTeamScheduleBtn">📅 Weekly schedules</button>
+        <button class="theme-btn" type="button" id="toolsShoutoutBtn">📣 Shoutout</button>
+        <button class="theme-btn" type="button" id="toolsGoalsBtn">Edit Monthly Goals</button>
+        <button class="theme-btn" type="button" id="toolsSipBtn">Historical SIP</button>
+      </div>
+    </div>
     <div class="header-dropdown">
-      <button class="theme-btn large" id="viewMenuBtn" type="button">🎨 Design ▾</button>
+      <button class="theme-btn large" id="viewMenuBtn" type="button">🗂 Layout ▾</button>
       <div class="header-dropdown-menu" id="viewMenu">
-        <button class="theme-btn view-menu-btn" type="button" data-skin="classic">Classic<span class="skin-blurb">Original A-Team look</span></button>
-        <button class="theme-btn view-menu-btn" type="button" data-skin="relay">Relay<span class="skin-blurb">Track energy · lime on forest</span></button>
-        <button class="theme-btn view-menu-btn" type="button" data-skin="harbor">Harbor<span class="skin-blurb">Airy coastal · soft slate</span></button>
-        <button class="theme-btn view-menu-btn" type="button" data-skin="nightline">Nightline<span class="skin-blurb">Broadcast boards · amber</span></button>
-        <button class="theme-btn view-menu-btn" type="button" data-skin="atelier">Atelier<span class="skin-blurb">Editorial ink · saffron</span></button>
+        <button class="theme-btn view-menu-btn" type="button" data-layout="classic">Classic (OG)<span class="skin-blurb">Original layout — never removed</span></button>
+        <button class="theme-btn view-menu-btn" type="button" data-layout="command">Command<span class="skin-blurb">Tools rail · reps center · boards right</span></button>
+        <button class="theme-btn view-menu-btn" type="button" data-layout="story">Story<span class="skin-blurb">Single-column stack · boards mid-page</span></button>
+        <button class="theme-btn view-menu-btn" type="button" data-layout="split">Split<span class="skin-blurb">Scoreboard left · roster right</span></button>
+        <button class="theme-btn view-menu-btn" type="button" data-layout="deck">Deck<span class="skin-blurb">Tools menu · one board · dense roster</span></button>
       </div>
     </div>
     <button class="theme-btn large" id="themeToggle" type="button">🌙 Dark</button>
   </div>
-  <div class="landing-menu-hint" id="landingMenuHint" style="display:none;">Team tools and admin settings live in the menus above — open a rep below for Individual Pacer. Try <b>Design</b> for full UI skins.</div>
+  <div class="landing-menu-hint" id="landingMenuHint" style="display:none;">Team tools and admin settings live in the menus above — open a rep below for Individual Pacer. Use <b>Layout</b> for alternate arrangements (Classic stays the OG).</div>
+  </div>
 
+  <div class="landing-region landing-region-status" id="landingStatus">
   <div class="pill-row" id="banner"></div>
+  </div>
 
   <!-- Two-column grid ends at the bottom of the team card — the leaderboard
        sidebar rides alongside A-Team Total only. Sort toggle + rep list live
        outside this grid entirely, back at full page width, so the rep list
        isn't squeezed narrower than it needs to be for the sidebar's sake. -->
+  <div class="landing-region landing-region-left" id="landingLeft">
+  <div class="layout-boards-switch" id="layoutBoardsSwitch">
+    <button type="button" class="theme-btn active" data-board-surface="leaders">Leaderboards</button>
+    <button type="button" class="theme-btn" data-board-surface="improved">Most Improved</button>
+  </div>
   <div class="landing-grid">
+    <div class="landing-region landing-region-team" id="landingTeam">
     <div class="card team-card" id="teamCard"></div>
+    </div>
 
+    <div class="landing-region landing-region-boards" id="landingBoards">
     <div class="landing-side-col">
       <div class="leaderboard-panel">
         <div class="leaderboard-tabs" id="leaderboardTabs">
@@ -1683,8 +1611,11 @@
         <div class="leaderboard-list improved-list" id="improvedActiveList"></div>
       </div>
     </div>
+    </div>
+  </div>
   </div>
 
+  <div class="landing-region landing-region-right landing-region-reps" id="landingReps">
   <!-- Sort lives here now — right below the team card, collapsed to just its
        toggle button by default. Its panel opens as a side flyout (see
        .header-dropdown-menu-side) instead of expanding downward, so opening
@@ -1704,13 +1635,16 @@
   </div>
 
   <div id="repList"></div>
+  </div>
 
+  <div class="landing-region landing-region-foot" id="landingFoot">
   <div class="meta-note" id="liveActualsStatus" style="margin:10px 0 0;"></div>
 
   <div class="session-bar" data-session-bar aria-live="polite">
     <span class="session-label">Signed in:</span>
     <span class="session-email"></span>
     <button type="button" class="identity-btn" data-identity-btn>Sign out</button>
+  </div>
   </div>
 </div>
 
@@ -1723,6 +1657,11 @@
       <h2 id="detailRepName"></h2>
       <span class="lwom-sprint-chip" id="detailSprintChip">🏁 Sprint <button type="button" class="lwom-inline-link" id="detailSprintLink">open boards</button></span>
     </div>
+    <div class="pacer-layout-tabs" id="pacerLayoutTabs">
+      <button type="button" class="pacer-layout-tab active" data-pacer-tab="pace">Pace</button>
+      <button type="button" class="pacer-layout-tab" data-pacer-tab="activity">Activity</button>
+      <button type="button" class="pacer-layout-tab" data-pacer-tab="more">Bonus &amp; more</button>
+    </div>
 
     <!-- Sidebar (Live Metrics + Bonus Payout) lives next to the TOP section only
          (pacing/summary/net actuals/attributions+refunds) — that's a real grid,
@@ -1733,6 +1672,7 @@
     <div class="detail-page-grid">
       <div class="detail-main-col">
         <div class="card" id="detailRestrictedNote" style="display:none;"></div>
+        <div class="pacer-tab-pace" id="pacerTabPace">
         <div id="detailPacingRow"></div>
         <div id="doubleGoalBanner"></div>
         <div class="pacer-insight-strip" id="pacerInsightStrip">
@@ -1749,6 +1689,8 @@
         <div class="detail-summary" id="detailSummary"></div>
         <div class="pacer-section-label">This month</div>
         <div class="detail-net-grid" id="detailNetActuals"></div>
+        </div>
+        <div class="pacer-tab-activity" id="pacerTabActivity">
         <div id="detailContent">
           <div class="pacer-section-label">Activity</div>
           <div class="detail-stats" id="detailStats"></div>
@@ -1792,6 +1734,11 @@
             </div>
           </div>
         </div>
+        </div>
+        <div class="pacer-tab-more" id="pacerTabMore">
+          <div class="pacer-side-inline" id="pacerSideInline"></div>
+          <div class="meta-note" id="pacerMoreHint" style="display:none; margin-top:8px;">Bonus, standings, live metrics, and historical performance are in this tab.</div>
+        </div>
       </div>
 
       <div id="metricsStyleToggleWrap">
@@ -1815,7 +1762,7 @@
       </div>
     </div>
 
-    <div class="detail-history-block" id="clientDetailHistoryBlock">
+    <div class="detail-history-block pacer-tab-more" id="clientDetailHistoryBlock">
       <div class="history-collapse-toggle" id="historyCollapseToggle" role="button" tabindex="0" aria-expanded="false">
         <h2>Historical performance</h2>
         <span class="side-chevron collapsed" id="historyCollapseChevron">▾</span>
@@ -2612,49 +2559,81 @@ document.getElementById('themeToggle').addEventListener('click', () => {
   applyTheme(next);
 });
 
-// ---------- Full UI skins (localStorage) — all data/surfaces kept ----------
-const SKIN_PREF_KEY = 'pace_dashboard_skin_v1';
-const VIEW_PREF_KEY = 'pace_dashboard_view_pref_v1'; // legacy migrate only
-const SKINS = {
+// ---------- Structural layouts (localStorage). Classic = OG, never removed. ----------
+const LAYOUT_PREF_KEY = 'pace_dashboard_layout_v1';
+const SKIN_PREF_KEY = 'pace_dashboard_skin_v1'; // legacy ignore
+const VIEW_PREF_KEY = 'pace_dashboard_view_pref_v1'; // legacy ignore
+const LAYOUTS = {
   classic: { label: 'Classic' },
-  relay: { label: 'Relay' },
-  harbor: { label: 'Harbor' },
-  nightline: { label: 'Nightline' },
-  atelier: { label: 'Atelier' },
+  command: { label: 'Command' },
+  story: { label: 'Story' },
+  split: { label: 'Split' },
+  deck: { label: 'Deck' },
 };
-function normalizeSkin(v) {
-  if (SKINS[v]) return v;
-  // Migrate older View presets → closest full skin
-  const legacy = {
-    standard: 'classic',
-    focus: 'harbor',
-    board: 'nightline',
-    compact: 'relay',
-  };
-  return legacy[v] || 'classic';
+function normalizeLayout(v) {
+  return LAYOUTS[v] ? v : 'classic';
 }
-function resolveSavedSkin() {
-  const saved = localStorage.getItem(SKIN_PREF_KEY);
-  if (saved) return normalizeSkin(saved);
-  return normalizeSkin(localStorage.getItem(VIEW_PREF_KEY) || 'classic');
+function resolveSavedLayout() {
+  return normalizeLayout(localStorage.getItem(LAYOUT_PREF_KEY) || 'classic');
 }
-function applySkin(pref) {
-  const skin = normalizeSkin(pref);
-  document.body.dataset.skin = skin;
-  // Clear obsolete view attribute from earlier iterations
+let pacerTab = 'pace';
+let boardSurface = 'leaders';
+
+function syncPacerSidePlacement(layout) {
+  const wrap = document.getElementById('metricsStyleToggleWrap');
+  const inline = document.getElementById('pacerSideInline');
+  const grid = document.querySelector('#clientDetailOverlay .detail-page-grid');
+  if (!wrap || !inline || !grid) return;
+  if (layout === 'split' || layout === 'deck' || layout === 'story') {
+    if (wrap.parentElement !== inline) inline.appendChild(wrap);
+  } else {
+    const main = grid.querySelector('.detail-main-col');
+    if (main && wrap.parentElement !== grid) {
+      if (main.nextSibling) grid.insertBefore(wrap, main.nextSibling);
+      else grid.appendChild(wrap);
+    }
+  }
+}
+
+function applyLayout(pref) {
+  const layout = normalizeLayout(pref);
+  document.body.dataset.layout = layout;
+  delete document.body.dataset.skin;
   delete document.body.dataset.view;
+  if (layout === 'classic') {
+    delete document.body.dataset.pacerTab;
+    delete document.body.dataset.boardSurface;
+  } else {
+    document.body.dataset.pacerTab = pacerTab;
+    if (layout === 'deck') document.body.dataset.boardSurface = boardSurface;
+    else delete document.body.dataset.boardSurface;
+  }
+
   document.querySelectorAll('#viewMenu .view-menu-btn').forEach((btn) => {
-    btn.classList.toggle('active-view', btn.getAttribute('data-skin') === skin);
+    btn.classList.toggle('active-view', btn.getAttribute('data-layout') === layout);
   });
   const menuBtn = document.getElementById('viewMenuBtn');
-  if (menuBtn) menuBtn.textContent = '🎨 ' + (SKINS[skin].label) + ' ▾';
+  if (menuBtn) menuBtn.textContent = '🗂 ' + LAYOUTS[layout].label + ' ▾';
+
+  document.querySelectorAll('#pacerLayoutTabs .pacer-layout-tab').forEach((btn) => {
+    btn.classList.toggle('active', btn.getAttribute('data-pacer-tab') === pacerTab);
+  });
+  document.querySelectorAll('#layoutBoardsSwitch .theme-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.getAttribute('data-board-surface') === boardSurface);
+  });
+
+  const moreHint = document.getElementById('pacerMoreHint');
+  if (moreHint) moreHint.style.display = (layout === 'classic') ? 'none' : '';
+
+  syncPacerSidePlacement(layout);
   if (typeof syncLandingGridHeight === 'function') syncLandingGridHeight();
+  if (typeof syncRoleChrome === 'function') syncRoleChrome();
 }
-// Back-compat aliases used by older click handlers / hot reload
-function normalizeViewPref(v) { return normalizeSkin(v); }
-function applyViewPref(pref) { applySkin(pref); }
-(function initSkin() {
-  applySkin(resolveSavedSkin());
+function normalizeViewPref(v) { return normalizeLayout(v); }
+function applyViewPref(pref) { applyLayout(pref); }
+function applySkin() { applyLayout('classic'); }
+(function initLayout() {
+  applyLayout(resolveSavedLayout());
 })();
 
 // Landing motion: Dynamic (gradients move) vs Static (colors stay put).
@@ -3273,7 +3252,9 @@ function syncLandingGridHeight() {
   const grid = document.querySelector('.landing-grid');
   const sideCol = document.querySelector('.landing-side-col');
   if (!grid || !sideCol) return;
-  if (window.innerWidth <= 980) { grid.style.minHeight = ''; return; }
+  const layout = document.body.dataset.layout || 'classic';
+  // Only Classic uses the absolute-positioned side column that needs a min-height.
+  if (layout !== 'classic' || window.innerWidth <= 980) { grid.style.minHeight = ''; return; }
   grid.style.minHeight = sideCol.offsetHeight + 'px';
 }
 window.addEventListener('resize', syncLandingGridHeight);
@@ -6035,8 +6016,8 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('.header-dropdown')) return;
   document.querySelectorAll('.header-dropdown-menu.open').forEach(m => m.classList.remove('open'));
 });
-// Close Team/Admin/View menus after picking an action.
-['teamMenu', 'adminMenu', 'viewMenu'].forEach((menuId) => {
+// Close Team/Admin/View/Tools menus after picking an action.
+['teamMenu', 'adminMenu', 'viewMenu', 'layoutToolsMenu'].forEach((menuId) => {
   const menu = document.getElementById(menuId);
   if (!menu) return;
   menu.addEventListener('click', (e) => {
@@ -6045,11 +6026,41 @@ document.addEventListener('click', (e) => {
 });
 document.querySelectorAll('#viewMenu .view-menu-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    const skin = normalizeSkin(btn.getAttribute('data-skin'));
-    localStorage.setItem(SKIN_PREF_KEY, skin);
-    applySkin(skin);
+    const layout = normalizeLayout(btn.getAttribute('data-layout'));
+    localStorage.setItem(LAYOUT_PREF_KEY, layout);
+    applyLayout(layout);
   });
 });
+document.querySelectorAll('#pacerLayoutTabs .pacer-layout-tab').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    pacerTab = btn.getAttribute('data-pacer-tab') || 'pace';
+    applyLayout(document.body.dataset.layout || 'classic');
+  });
+});
+document.querySelectorAll('#layoutBoardsSwitch .theme-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    boardSurface = btn.getAttribute('data-board-surface') || 'leaders';
+    applyLayout(document.body.dataset.layout || 'classic');
+  });
+});
+setupHeaderPopover('layoutToolsBtn', 'layoutToolsMenu');
+(function wireLayoutTools() {
+  const bind = (id, action) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('click', () => {
+      if (typeof action === 'function') action();
+      else location.hash = action;
+    });
+  };
+  bind('toolsManualAttroBtn', 'manual-attribution');
+  bind('toolsTeamDetailsBtn', 'team-details');
+  bind('toolsTeamGoalsBtn', 'team-goals');
+  bind('toolsTeamScheduleBtn', 'team-schedule');
+  bind('toolsShoutoutBtn', () => document.getElementById('shoutoutSendBtn')?.click());
+  bind('toolsGoalsBtn', 'edit-goals');
+  bind('toolsSipBtn', 'historical-sip');
+})();
 setupToggle('toggleRemoved', 'removedBody', 'Removed people');
 setupToggle('toggleAdmin', 'adminBody', 'Admin access');
 setupToggle('toggleLimitedAdmin', 'limitedAdminBody', 'Sales Coach access');
@@ -8107,10 +8118,24 @@ function canViewConfidentialPayout(repDisplay) {
 function syncRoleChrome() {
   const admin = canViewAdminTools();
   const team = canViewTeamDetails();
+  const layout = document.body.dataset.layout || 'classic';
+  const deck = layout === 'deck';
   const teamMenu = document.getElementById('teamMenuWrap');
-  if (teamMenu) teamMenu.style.display = team ? '' : 'none';
+  if (teamMenu) teamMenu.style.display = (!deck && team) ? '' : 'none';
   const adminMenu = document.getElementById('adminMenuWrap');
-  if (adminMenu) adminMenu.style.display = admin ? '' : 'none';
+  if (adminMenu) adminMenu.style.display = (!deck && admin) ? '' : 'none';
+  const tools = document.getElementById('layoutToolsWrap');
+  // Deck collapses tools into one menu; Classic/others keep the normal buttons.
+  if (tools) tools.style.display = deck ? '' : 'none';
+  const toolsGoals = document.getElementById('toolsGoalsBtn');
+  const toolsSip = document.getElementById('toolsSipBtn');
+  if (toolsGoals) toolsGoals.style.display = admin ? '' : 'none';
+  if (toolsSip) toolsSip.style.display = admin ? '' : 'none';
+  const toolsTeam = ['toolsTeamDetailsBtn', 'toolsTeamGoalsBtn', 'toolsTeamScheduleBtn'];
+  toolsTeam.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = team ? '' : 'none';
+  });
   const hint = document.getElementById('landingMenuHint');
   if (hint) hint.style.display = (team || admin) ? '' : 'none';
   const shoutHist = document.getElementById('viewShoutoutHistoryLink');
