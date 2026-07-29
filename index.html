@@ -392,17 +392,28 @@
     z-index: 45;
     padding: 8px 0;
     background: linear-gradient(180deg, var(--bg) 70%, transparent);
+    /* Full-width sticky bar must not steal clicks from the side panel below. */
+    pointer-events: none;
   }
   .pacer-tab-track {
     display: flex;
     flex: 1;
     min-width: 0;
+    max-width: calc(100% - 264px); /* leave room for the 240px side panel + gap */
     gap: 2px;
     padding: 4px;
     border-radius: 12px;
     background: var(--metric-box-bg);
     border: 1px solid var(--card-border);
+    pointer-events: auto;
   }
+  @media (max-width: 900px) {
+    .pacer-tab-track { max-width: 100%; }
+  }
+  #doubleGoalBanner {
+    margin: 0 0 12px;
+  }
+  #doubleGoalBanner:empty { display: none; }
   .pacer-layout-tab {
     flex: 1;
     min-width: 0;
@@ -478,7 +489,6 @@
   /* Individual Pacer: OG (no tabs) or Current / Historical tabs. */
   body[data-pacer-chrome="og"] .pacer-layout-tabs { display: none !important; }
   body[data-pacer-chrome="og"] .pacer-tab-pace,
-  body[data-pacer-chrome="og"] .pacer-tab-activity,
   body[data-pacer-chrome="og"] .pacer-tab-more,
   body[data-pacer-chrome="og"] #clientDetailHistoryBlock { display: block !important; }
   body[data-pacer-chrome="og"] .detail-page-grid {
@@ -494,26 +504,23 @@
   body[data-pacer-chrome="tabs"] .detail-page-grid {
     grid-template-columns: minmax(0, 1fr) 240px;
   }
-  /* Hide all tab panes by default; each selected tab re-shows its own. */
+  /* Hide all tab panes by default; each selected tab re-shows its own.
+     Activity lives inside .pacer-tab-pace so Current always shows ledger tables. */
   body[data-pacer-chrome="tabs"] .pacer-tab-pace,
-  body[data-pacer-chrome="tabs"] .pacer-tab-activity,
   body[data-pacer-chrome="tabs"] .pacer-tab-lastmonth,
   body[data-pacer-chrome="tabs"] .pacer-tab-more,
   body[data-pacer-chrome="tabs"] #clientDetailHistoryBlock { display: none; }
-  body[data-pacer-chrome="tabs"][data-pacer-tab="current"] .pacer-tab-pace,
-  body[data-pacer-chrome="tabs"][data-pacer-tab="current"] .pacer-tab-activity { display: block !important; }
+  body[data-pacer-chrome="tabs"][data-pacer-tab="current"] .pacer-tab-pace { display: block !important; }
   body[data-pacer-chrome="tabs"][data-pacer-tab="current"] .pacer-tab-lastmonth,
   body[data-pacer-chrome="tabs"][data-pacer-tab="current"] .pacer-tab-more,
   body[data-pacer-chrome="tabs"][data-pacer-tab="current"] #clientDetailHistoryBlock { display: none !important; }
   body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .pacer-tab-lastmonth { display: block !important; }
   body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .pacer-tab-pace,
-  body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .pacer-tab-activity,
   body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .pacer-tab-more,
   body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] #metricsStyleToggleWrap,
   body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] #clientDetailHistoryBlock { display: none !important; }
   body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .detail-page-grid { grid-template-columns: 1fr; }
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .pacer-tab-pace,
-  body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .pacer-tab-activity,
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .pacer-tab-lastmonth,
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .pacer-tab-more,
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] #metricsStyleToggleWrap { display: none !important; }
@@ -521,7 +528,9 @@
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .detail-page-grid { grid-template-columns: 1fr; }
   body[data-pacer-chrome="tabs"] #pacerMoreHint { display: none !important; }
   body[data-pacer-chrome="tabs"] .metrics-side-panel {
-    position: sticky; top: 16px; max-height: calc(100vh - 40px); overflow: auto;
+    position: sticky; top: 64px; z-index: 46;
+    max-height: calc(100vh - 80px); overflow: auto;
+    pointer-events: auto;
   }
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .metrics-side-panel,
   body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .metrics-side-panel { position: static; max-height: none; }
@@ -2140,6 +2149,7 @@
       <button class="theme-btn manual-attro-btn" id="detailManualAttroBtn" type="button">📝 Manual Attribution</button>
       <div class="detail-header-pace" id="detailHeaderPace"></div>
     </div>
+    <div id="doubleGoalBanner"></div>
     <div class="pacer-layout-tabs" id="pacerLayoutTabs" role="tablist" aria-label="Individual Pacer sections">
       <div class="pacer-tab-track">
         <button type="button" class="pacer-layout-tab active" role="tab" aria-selected="true" data-pacer-tab="current">Current</button>
@@ -2148,28 +2158,17 @@
       </div>
     </div>
 
-    <!-- Sidebar (Live Metrics + Bonus Payout) lives next to the TOP section only
-         (pacing/summary/net actuals/attributions+refunds) — that's a real grid,
-         so the sidebar sticks while scrolling through this part. Historical
-         Performance sits below, outside the grid entirely, so once you scroll
-         into it the sidebar's containing row has already ended — it stops
-         following you there instead of trailing down the whole page. -->
+    <!-- Sidebar lives next to the TOP section only (pacing/summary/net actuals/
+         attributions+refunds). Historical sits below, outside this grid. -->
     <div class="detail-page-grid">
       <div class="detail-main-col">
         <div class="card" id="detailRestrictedNote" style="display:none;"></div>
         <div class="pacer-tab-pace" id="pacerTabPace">
         <div id="detailPacingRow"></div>
-        <div id="doubleGoalBanner"></div>
         <div id="detailPrelimBox" style="display:none;"></div>
         <div class="detail-summary" id="detailSummary"></div>
         <div class="pacer-section-label">This month</div>
         <div class="detail-net-grid" id="detailNetActuals"></div>
-        </div>
-        <div class="pacer-tab-lastmonth" id="pacerTabLastMonth" style="display:none;">
-          <div class="meta-note" style="margin:0 0 12px;">Frozen snapshot of last month — not updated by new attributions.</div>
-          <div id="lastMonthFrozenBody"></div>
-        </div>
-        <div class="pacer-tab-activity" id="pacerTabActivity">
         <div id="detailContent">
           <div class="pacer-section-label">Activity</div>
           <div class="detail-stats" id="detailStats"></div>
@@ -2213,6 +2212,10 @@
             <div class="meta-note" id="detailMyAttrStatus" style="margin-top:6px;"></div>
           </div>
         </div>
+        </div>
+        <div class="pacer-tab-lastmonth" id="pacerTabLastMonth" style="display:none;">
+          <div class="meta-note" style="margin:0 0 12px;">Frozen snapshot of last month — not updated by new attributions.</div>
+          <div id="lastMonthFrozenBody"></div>
         </div>
         <div class="pacer-tab-more" id="pacerTabMore">
           <div class="pacer-side-inline" id="pacerSideInline"></div>
@@ -7218,15 +7221,89 @@ function detailDateMonthDay(iso) {
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 function detailRowHTML(it) {
+  const client = (it && (it.clientId || it.client_id)) || '—';
+  const members = it ? Number(it.members) || 0 : 0;
+  const sessions = it ? Number(it.sessions) || 0 : 0;
   return `<tr>
-    <td>${it.clientId || '—'}</td>
-    <td>${fmt(it.members,1)}</td>
-    <td>${fmt(it.sessions,1)}</td>
-    <td><span class="date-chip">${detailDateMonthDay(it.date)}</span></td>
+    <td>${client}</td>
+    <td>${fmt(members, 1)}</td>
+    <td>${fmt(sessions, 1)}</td>
+    <td><span class="date-chip">${detailDateMonthDay(it && it.date)}</span></td>
   </tr>`;
 }
 function detailEmptyRowHTML(msg) {
   return `<tr><td colspan="4" style="text-align:center; color:var(--text-faint); padding:20px 0;">${msg}</td></tr>`;
+}
+
+/** Fill Activity stats + attribution/refund tables for an Individual Pacer. */
+function fillDetailActivity(repName) {
+  const detailContent = document.getElementById('detailContent');
+  const statsEl = document.getElementById('detailStats');
+  const attrBody = document.getElementById('detailAttrBody');
+  const refundBody = document.getElementById('detailRefundBody');
+  const summaryEl = document.getElementById('detailSummary');
+  if (!detailContent || !statsEl || !attrBody || !refundBody) return;
+
+  detailContent.style.removeProperty('display');
+  const actuals = loadActuals();
+  const items = (actuals.perRep && actuals.perRep[repName] && actuals.perRep[repName].items) || [];
+  const sorted = items
+    .map((it, idx) => ({ it, idx }))
+    .sort((a, b) => {
+      const dc = (b.it.date || '').localeCompare(a.it.date || '');
+      if (dc) return dc;
+      return b.idx - a.idx;
+    })
+    .map((x) => x.it);
+  const isRefund = (it) => (Number(it.members) || 0) < 0 || (Number(it.sessions) || 0) < 0;
+  const attributions = sorted.filter(it => !isRefund(it));
+  const refunds = sorted.filter(isRefund);
+  const sum = (arr, key) => arr.reduce((s, it) => s + (Number(it[key]) || 0), 0);
+
+  if (summaryEl) {
+    summaryEl.textContent = items.length
+      ? ''
+      : 'No client-level detail yet — live Supabase actuals (or a CSV fallback) will populate this.';
+  }
+  statsEl.innerHTML = `
+    <div class="detail-stat"><span class="detail-stat-label">Members Sold</span><span class="detail-stat-val positive">${fmt(sum(attributions, 'members'), 1)}</span></div>
+    <div class="detail-stat"><span class="detail-stat-label">Sessions Sold</span><span class="detail-stat-val positive">${fmt(sum(attributions, 'sessions'), 1)}</span></div>
+    <div class="detail-stat"><span class="detail-stat-label">Membership Refunds</span><span class="detail-stat-val negative">${fmt(sum(refunds, 'members'), 1)}</span></div>
+    <div class="detail-stat"><span class="detail-stat-label">Session Refunds</span><span class="detail-stat-val negative">${fmt(sum(refunds, 'sessions'), 1)}</span></div>
+  `;
+  const attrCount = document.getElementById('detailAttrCount');
+  const refundCount = document.getElementById('detailRefundCount');
+  if (attrCount) attrCount.textContent = attributions.length + ' line item' + (attributions.length === 1 ? '' : 's');
+  if (refundCount) refundCount.textContent = refunds.length + ' line item' + (refunds.length === 1 ? '' : 's');
+  attrBody.innerHTML = attributions.length ? attributions.map(detailRowHTML).join('') : detailEmptyRowHTML('No attributions');
+  refundBody.innerHTML = refunds.length ? refunds.map(detailRowHTML).join('') : detailEmptyRowHTML('No refunds 🎉');
+  refreshDetailAttributions(repName);
+}
+
+/** Apply collapsed state + HTML for the Individual Pacer right side panel. */
+function syncMetricsSidePanel(repName) {
+  try {
+    document.getElementById('personalGoalSideChevron')?.classList.toggle('collapsed', personalGoalSidePanelCollapsed);
+    document.getElementById('personalGoalSideBody')?.classList.toggle('collapsed', personalGoalSidePanelCollapsed);
+    const goalEl = document.getElementById('personalGoalSideContent');
+    if (goalEl) goalEl.innerHTML = personalGoalSideHTML(repName);
+    document.getElementById('rankSideChevron')?.classList.toggle('collapsed', rankSideCollapsed);
+    document.getElementById('rankSideContent')?.classList.toggle('collapsed', rankSideCollapsed);
+    const rankEl = document.getElementById('rankSideContent');
+    if (rankEl) rankEl.innerHTML = rankSideContentHTML(repName);
+    document.getElementById('paceNeedSideToggle')?.classList.toggle('is-collapsed', paceNeedSideCollapsed);
+    document.getElementById('paceNeedSideChevron')?.classList.toggle('collapsed', paceNeedSideCollapsed);
+    document.getElementById('paceNeedSideContent')?.classList.toggle('collapsed', paceNeedSideCollapsed);
+    const needEl = document.getElementById('paceNeedSideContent');
+    if (needEl) needEl.innerHTML = detailPaceNeedHTML(repName);
+    currentBonusRep = repName;
+    document.getElementById('bonusSideChevron')?.classList.toggle('collapsed', bonusSideCollapsed);
+    document.getElementById('bonusSideContent')?.classList.toggle('collapsed', bonusSideCollapsed);
+    const bonusEl = document.getElementById('bonusSideContent');
+    if (bonusEl) bonusEl.innerHTML = bonusPayoutHTML(repName);
+  } catch (sideErr) {
+    console.warn('Individual Pacer side panel render failed:', sideErr);
+  }
 }
 
 // Current-month actual/projected composite pacing for one rep — same numbers
@@ -7785,7 +7862,7 @@ function renderClientDetail(opts) {
 
   const allowed = canViewClientDetail(repName);
   const restrictedNote = document.getElementById('detailRestrictedNote');
-  const bodyEls = ['detailPacingRow', 'doubleGoalBanner', 'metricsStyleToggleWrap', 'detailSummary', 'detailNetActuals', 'detailContent', 'pacerTabActivity', 'clientDetailHistoryBlock']
+  const bodyEls = ['detailPacingRow', 'doubleGoalBanner', 'metricsStyleToggleWrap', 'detailSummary', 'detailNetActuals', 'detailContent', 'pacerTabPace', 'clientDetailHistoryBlock']
     .map(id => document.getElementById(id)).filter(Boolean);
   if (!allowed) {
     restrictedNote.style.display = '';
@@ -7797,7 +7874,8 @@ function renderClientDetail(opts) {
     return;
   }
   restrictedNote.style.display = 'none';
-  bodyEls.forEach(el => { el.style.display = ''; });
+  // Clear any leftover inline display so tab CSS can own visibility.
+  bodyEls.forEach(el => { el.style.removeProperty('display'); });
 
   {
     const pacing = computeRepPacing(repName);
@@ -7853,81 +7931,12 @@ function renderClientDetail(opts) {
       else animateNumber(headerNum, pacing.current ?? 0, 50);
     }
     document.getElementById('detailNetActuals').innerHTML = detailNetActualsHTML(pacing);
-    syncLastMonthPacerTab(repName);
   }
 
-  // Activity (ledger attributions / refunds) — fill before side-panel HTML so a
-  // sidebar render error can never blank this section.
-  const actuals = loadActuals();
-  const items = (actuals.perRep && actuals.perRep[repName] && actuals.perRep[repName].items) || [];
-  // Days newest → oldest; within a day, newest ledger rows first (source feed is chronological).
-  const sorted = items
-    .map((it, idx) => ({ it, idx }))
-    .sort((a, b) => {
-      const dc = (b.it.date || '').localeCompare(a.it.date || '');
-      if (dc) return dc;
-      return b.idx - a.idx;
-    })
-    .map((x) => x.it);
-  // A line item is a refund/cancellation if either metric came in negative — split
-  // those out from positive attributions rather than mixing them in one list.
-  const isRefund = (it) => it.members < 0 || it.sessions < 0;
-  const attributions = sorted.filter(it => !isRefund(it));
-  const refunds = sorted.filter(isRefund);
-
-  const detailContent = document.getElementById('detailContent');
-  const pacerTabActivity = document.getElementById('pacerTabActivity');
-  if (detailContent) detailContent.style.display = '';
-  if (pacerTabActivity) pacerTabActivity.style.display = '';
-  document.getElementById('detailSummary').textContent = items.length
-    ? ''
-    : 'No client-level detail yet — live Supabase actuals (or a CSV fallback) will populate this.';
-
-  const sum = (arr, key) => arr.reduce((s, it) => s + (Number(it[key]) || 0), 0);
-  const membersSold = sum(attributions, 'members');
-  const sessionsSold = sum(attributions, 'sessions');
-  const memberRefunds = sum(refunds, 'members');
-  const sessionRefunds = sum(refunds, 'sessions');
-  document.getElementById('detailStats').innerHTML = `
-    <div class="detail-stat"><span class="detail-stat-label">Members Sold</span><span class="detail-stat-val positive">${fmt(membersSold,1)}</span></div>
-    <div class="detail-stat"><span class="detail-stat-label">Sessions Sold</span><span class="detail-stat-val positive">${fmt(sessionsSold,1)}</span></div>
-    <div class="detail-stat"><span class="detail-stat-label">Membership Refunds</span><span class="detail-stat-val negative">${fmt(memberRefunds,1)}</span></div>
-    <div class="detail-stat"><span class="detail-stat-label">Session Refunds</span><span class="detail-stat-val negative">${fmt(sessionRefunds,1)}</span></div>
-  `;
-  document.getElementById('detailAttrCount').textContent = attributions.length + ' line item' + (attributions.length === 1 ? '' : 's');
-  document.getElementById('detailRefundCount').textContent = refunds.length + ' line item' + (refunds.length === 1 ? '' : 's');
-  document.getElementById('detailAttrBody').innerHTML = attributions.length ? attributions.map(detailRowHTML).join('') : detailEmptyRowHTML('No attributions');
-  document.getElementById('detailRefundBody').innerHTML = refunds.length ? refunds.map(detailRowHTML).join('') : detailEmptyRowHTML('No refunds 🎉');
-  // This rep's still-PENDING Manual Attribution requests for the current month
-  // (or that Aaron converted from one of their cancels) — separate from the
-  // ledger-derived Attributions/Refunds panels above, and independent of
-  // whether there's any ledger data at all, so this always runs, not just
-  // inside the `items.length` branch.
-  refreshDetailAttributions(repName);
-
-  // Side panel — after Activity so sidebar issues never blank the main column.
-  try {
-    document.getElementById('personalGoalSideChevron')?.classList.toggle('collapsed', personalGoalSidePanelCollapsed);
-    document.getElementById('personalGoalSideBody')?.classList.toggle('collapsed', personalGoalSidePanelCollapsed);
-    const goalEl = document.getElementById('personalGoalSideContent');
-    if (goalEl) goalEl.innerHTML = personalGoalSideHTML(repName);
-    document.getElementById('rankSideChevron')?.classList.toggle('collapsed', rankSideCollapsed);
-    document.getElementById('rankSideContent')?.classList.toggle('collapsed', rankSideCollapsed);
-    const rankEl = document.getElementById('rankSideContent');
-    if (rankEl) rankEl.innerHTML = rankSideContentHTML(repName);
-    document.getElementById('paceNeedSideToggle')?.classList.toggle('is-collapsed', paceNeedSideCollapsed);
-    document.getElementById('paceNeedSideChevron')?.classList.toggle('collapsed', paceNeedSideCollapsed);
-    document.getElementById('paceNeedSideContent')?.classList.toggle('collapsed', paceNeedSideCollapsed);
-    const needEl = document.getElementById('paceNeedSideContent');
-    if (needEl) needEl.innerHTML = detailPaceNeedHTML(repName);
-    currentBonusRep = repName;
-    document.getElementById('bonusSideChevron')?.classList.toggle('collapsed', bonusSideCollapsed);
-    document.getElementById('bonusSideContent')?.classList.toggle('collapsed', bonusSideCollapsed);
-    const bonusEl = document.getElementById('bonusSideContent');
-    if (bonusEl) bonusEl.innerHTML = bonusPayoutHTML(repName);
-  } catch (sideErr) {
-    console.warn('Individual Pacer side panel render failed:', sideErr);
-  }
+  // Activity ledgers (inside Current / .pacer-tab-pace) — fill early and always.
+  fillDetailActivity(repName);
+  try { syncLastMonthPacerTab(repName); } catch (e) { console.warn('Last Month tab sync failed:', e); }
+  syncMetricsSidePanel(repName);
   // Confidentiality gate for the chart's $ view — hide the option entirely for
   // a viewer who shouldn't see payout, and if they were somehow left on
   // "earnings" mode (e.g. Aaron flips the preview role while already on this
@@ -7958,25 +7967,40 @@ document.getElementById('detailBackBtn').addEventListener('click', () => {
   if (location.hash) history.back(); else { document.getElementById('clientDetailOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
 });
 
-document.getElementById('personalGoalSideToggle')?.addEventListener('click', () => {
-  personalGoalSidePanelCollapsed = !personalGoalSidePanelCollapsed;
-  saveJSON(PERSONAL_GOAL_SIDE_COLLAPSED_KEY_V2, personalGoalSidePanelCollapsed);
-  document.getElementById('personalGoalSideChevron').classList.toggle('collapsed', personalGoalSidePanelCollapsed);
-  document.getElementById('personalGoalSideBody').classList.toggle('collapsed', personalGoalSidePanelCollapsed);
-});
-document.getElementById('paceNeedSideToggle')?.addEventListener('click', (e) => {
+// Side-panel section heads — delegated so sticky-tab overlays / re-renders
+// can't leave orphaned listeners, and so nested toggle buttons don't break expand.
+document.getElementById('metricsSidePanel')?.addEventListener('click', (e) => {
   if (e.target.closest('[data-pace-need-target]')) return;
-  paceNeedSideCollapsed = !paceNeedSideCollapsed;
-  saveJSON(PACE_NEED_SIDE_COLLAPSED_KEY, paceNeedSideCollapsed);
-  document.getElementById('paceNeedSideToggle')?.classList.toggle('is-collapsed', paceNeedSideCollapsed);
-  document.getElementById('paceNeedSideChevron')?.classList.toggle('collapsed', paceNeedSideCollapsed);
-  document.getElementById('paceNeedSideContent')?.classList.toggle('collapsed', paceNeedSideCollapsed);
-});
-document.getElementById('bonusSideToggle').addEventListener('click', () => {
-  bonusSideCollapsed = !bonusSideCollapsed;
-  saveJSON(BONUS_SIDE_COLLAPSED_KEY, bonusSideCollapsed);
-  document.getElementById('bonusSideChevron').classList.toggle('collapsed', bonusSideCollapsed);
-  document.getElementById('bonusSideContent').classList.toggle('collapsed', bonusSideCollapsed);
+  const head = e.target.closest('.metrics-side-section-head');
+  if (!head || !document.getElementById('metricsSidePanel')?.contains(head)) return;
+  const id = head.id;
+  if (id === 'personalGoalSideToggle') {
+    personalGoalSidePanelCollapsed = !personalGoalSidePanelCollapsed;
+    saveJSON(PERSONAL_GOAL_SIDE_COLLAPSED_KEY_V2, personalGoalSidePanelCollapsed);
+    document.getElementById('personalGoalSideChevron')?.classList.toggle('collapsed', personalGoalSidePanelCollapsed);
+    document.getElementById('personalGoalSideBody')?.classList.toggle('collapsed', personalGoalSidePanelCollapsed);
+  } else if (id === 'paceNeedSideToggle') {
+    paceNeedSideCollapsed = !paceNeedSideCollapsed;
+    saveJSON(PACE_NEED_SIDE_COLLAPSED_KEY, paceNeedSideCollapsed);
+    head.classList.toggle('is-collapsed', paceNeedSideCollapsed);
+    document.getElementById('paceNeedSideChevron')?.classList.toggle('collapsed', paceNeedSideCollapsed);
+    document.getElementById('paceNeedSideContent')?.classList.toggle('collapsed', paceNeedSideCollapsed);
+  } else if (id === 'bonusSideToggle') {
+    bonusSideCollapsed = !bonusSideCollapsed;
+    saveJSON(BONUS_SIDE_COLLAPSED_KEY, bonusSideCollapsed);
+    document.getElementById('bonusSideChevron')?.classList.toggle('collapsed', bonusSideCollapsed);
+    document.getElementById('bonusSideContent')?.classList.toggle('collapsed', bonusSideCollapsed);
+  } else if (id === 'rankSideToggle') {
+    rankSideCollapsed = !rankSideCollapsed;
+    saveJSON(RANK_SIDE_COLLAPSED_KEY, rankSideCollapsed);
+    document.getElementById('rankSideChevron')?.classList.toggle('collapsed', rankSideCollapsed);
+    document.getElementById('rankSideContent')?.classList.toggle('collapsed', rankSideCollapsed);
+  } else if (id === 'liveMetricsSideToggle') {
+    liveMetricsSideCollapsed = !liveMetricsSideCollapsed;
+    saveJSON(LIVE_METRICS_SIDE_COLLAPSED_KEY, liveMetricsSideCollapsed);
+    document.getElementById('liveMetricsSideChevron')?.classList.toggle('collapsed', liveMetricsSideCollapsed);
+    document.getElementById('liveMetricsSideContent')?.classList.toggle('collapsed', liveMetricsSideCollapsed);
+  }
 });
 
 // Historical Performance on Individual Pacer — always starts collapsed; toggle is session-only.
@@ -7998,19 +8022,6 @@ document.getElementById('historyCollapseToggle').addEventListener('keydown', (e)
     e.preventDefault();
     document.getElementById('historyCollapseToggle').click();
   }
-});
-
-document.getElementById('rankSideToggle').addEventListener('click', () => {
-  rankSideCollapsed = !rankSideCollapsed;
-  saveJSON(RANK_SIDE_COLLAPSED_KEY, rankSideCollapsed);
-  document.getElementById('rankSideChevron').classList.toggle('collapsed', rankSideCollapsed);
-  document.getElementById('rankSideContent').classList.toggle('collapsed', rankSideCollapsed);
-});
-document.getElementById('liveMetricsSideToggle').addEventListener('click', () => {
-  liveMetricsSideCollapsed = !liveMetricsSideCollapsed;
-  saveJSON(LIVE_METRICS_SIDE_COLLAPSED_KEY, liveMetricsSideCollapsed);
-  document.getElementById('liveMetricsSideChevron').classList.toggle('collapsed', liveMetricsSideCollapsed);
-  document.getElementById('liveMetricsSideContent').classList.toggle('collapsed', liveMetricsSideCollapsed);
 });
 // Event delegation since the section's inner HTML is rebuilt on every change —
 // re-renders the whole thing so the payout math stays in sync with whatever
