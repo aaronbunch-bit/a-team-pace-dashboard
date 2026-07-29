@@ -7,7 +7,10 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@netlify/blobs": "^10.7.9"
+    "@netlify/blobs": "10.7.10"
+  },
+  "overrides": {
+    "@netlify/otel": "6.0.4"
   },
   "keywords": [],
   "author": "",
