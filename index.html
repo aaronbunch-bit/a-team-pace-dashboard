@@ -47,7 +47,30 @@
      Client Detail exactly (too wide — made the landing page's shorter rows
      of content read as sparse and harder to scan). 1140px gives noticeably
      more room than the original without stretching things thin. */
-  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 20px; }
+  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 20px; position: relative; }
+  .landing-top-bar {
+    display: flex; justify-content: flex-end; align-items: center;
+    margin: 10px 0 2px; min-height: 34px;
+  }
+  .motion-toggle { font-size: 11.5px; padding: 6px 11px; opacity: 0.85; }
+  /* Quiet live-data refreshes: skip animation/transition restarts so polls don't flash. */
+  body.quiet-refresh *,
+  body.quiet-refresh *::before,
+  body.quiet-refresh *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  /* Static motion mode — keep gradient colors, stop moving backgrounds. */
+  body.motion-static .header-aura,
+  body.motion-static .title-blood-badge,
+  body.motion-static .manual-attro-btn,
+  body.motion-static .bar-shimmer,
+  body.motion-static .double-goal-glow,
+  body.motion-static .double-goal-glow-subtle,
+  body.motion-static .goal-met-pulse {
+    animation: none !important;
+  }
+  body.motion-static .header-aura { transform: translateY(-50%); }
 
   .landing-title-row {
     position: relative;
@@ -821,28 +844,24 @@
 
   .admin-footer-row { display: flex; gap: 10px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
 
-  /* Subtle signed-in chip — fixed bottom-right; does not scroll with the page. */
+  /* Signed-in footer — in document flow at the foot of each page (not fixed). */
   .session-bar {
-    position: fixed;
-    right: 12px;
-    bottom: 12px;
-    left: auto;
-    transform: none;
-    z-index: 120;
-    display: none; align-items: center; gap: 8px;
-    max-width: min(340px, calc(100vw - 24px));
-    padding: 5px 12px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: fit-content;
+    max-width: min(420px, 100%);
+    margin: 28px auto 20px;
+    padding: 6px 14px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--card-bg) 70%, transparent);
+    background: color-mix(in srgb, var(--card-bg) 85%, transparent);
     border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
     box-shadow: none;
     font-size: 11px; font-weight: 500; color: var(--text-faint);
-    opacity: 0.4;
-    pointer-events: auto;
-    transition: opacity 0.2s ease;
+    opacity: 0.55;
   }
   .session-bar.visible { display: flex; }
-  .session-bar:hover { opacity: 0.85; }
   .session-bar .session-label { white-space: nowrap; }
   .session-bar .session-email {
     font-weight: 600; color: var(--text-muted);
@@ -856,6 +875,8 @@
   }
   .session-bar .identity-btn:hover { color: var(--text-muted); }
   body:not(.app-ready) .session-bar { display: none !important; }
+  .detail-page .session-bar,
+  .detail-overlay .session-bar { margin-top: 36px; }
   .history-collapse-toggle {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
     cursor: pointer; user-select: none; margin-bottom: 10px;
@@ -1122,12 +1143,10 @@
        fact/date-pace/legend row above it for space. -->
   <div class="mini-header-teambar" id="miniHeaderTeamBar"></div>
 </div>
-<div class="session-bar" id="sessionBar" aria-live="polite">
-  <span class="session-label">Signed in:</span>
-  <span class="session-email" id="sessionEmail"></span>
-  <button type="button" class="identity-btn" id="identityBtn">Sign out</button>
-</div>
 <div class="wrap">
+  <div class="landing-top-bar">
+    <button type="button" class="theme-btn motion-toggle" id="motionToggle" aria-pressed="true">✨ Dynamic</button>
+  </div>
   <div class="landing-title-row">
     <div class="header-aura" aria-hidden="true"></div>
     <span class="title-blood-badge" aria-hidden="true"><span class="title-blood-emoji">🅰️</span></span>
@@ -1144,8 +1163,8 @@
        tip field nowTier()/tier() return alongside cls/label/barGrad), so
        there's no separate legend to keep in sync. Sort still uses the same
        popover pattern, just inline below the team card (see
-       .rep-list-toolbar near #repList). Signed-in state lives in #sessionBar
-       (fixed bottom-right), not in this action row. -->
+       .rep-list-toolbar near #repList). Signed-in state lives in the page
+       footer (.session-bar), not in this action row. -->
   <div class="landing-actions-row">
     <button class="theme-btn manual-attro-btn large" id="manualAttroBtn" type="button">📝 Manual Attribution</button>
     <button class="theme-btn large" id="teamDetailsBtn" type="button" style="display:none;">🗂️ View Team Details</button>
@@ -1232,6 +1251,11 @@
     <button class="theme-btn" id="footerSipBtn" type="button">📊 Historical Performance (SIP)</button>
   </div>
 
+  <div class="session-bar" data-session-bar aria-live="polite">
+    <span class="session-label">Signed in:</span>
+    <span class="session-email"></span>
+    <button type="button" class="identity-btn" data-identity-btn>Sign out</button>
+  </div>
 </div>
 
 <div class="detail-overlay" id="clientDetailOverlay">
@@ -1376,6 +1400,11 @@
         </div>
       </div>
       <div id="shoutoutContainer"></div>
+    </div>
+    <div class="session-bar" data-session-bar aria-live="polite">
+      <span class="session-label">Signed in:</span>
+      <span class="session-email"></span>
+      <button type="button" class="identity-btn" data-identity-btn>Sign out</button>
     </div>
   </div>
 </div>
@@ -2023,6 +2052,28 @@ document.getElementById('themeToggle').addEventListener('click', () => {
   const next = isDark ? 'light' : 'dark';
   localStorage.setItem(THEME_KEY, next);
   applyTheme(next);
+});
+
+// Landing motion: Dynamic (gradients move) vs Static (colors stay put).
+const MOTION_KEY = 'pace_dashboard_motion_v1';
+function applyMotionMode(mode) {
+  const staticOn = mode === 'static';
+  document.body.classList.toggle('motion-static', staticOn);
+  const btn = document.getElementById('motionToggle');
+  if (btn) {
+    btn.textContent = staticOn ? 'Freeze' : '✨ Dynamic';
+    btn.setAttribute('aria-pressed', staticOn ? 'false' : 'true');
+    btn.title = staticOn ? 'Gradients are static — click for moving gradients' : 'Gradients are moving — click to freeze';
+  }
+}
+(function initMotionMode() {
+  const saved = localStorage.getItem(MOTION_KEY) || 'dynamic';
+  applyMotionMode(saved === 'static' ? 'static' : 'dynamic');
+})();
+document.getElementById('motionToggle').addEventListener('click', () => {
+  const next = document.body.classList.contains('motion-static') ? 'dynamic' : 'static';
+  localStorage.setItem(MOTION_KEY, next);
+  applyMotionMode(next);
 });
 
 function parseCSV(text) {
@@ -2849,27 +2900,28 @@ function computeMostImprovedTop3(period) {
 // as the glow/banner/popup above: none of them add permanent UI weight, they
 // only appear when a rep actually earns them.
 
-// Consecutive days (ending today) this rep's cumulative composite % has been
-// at/above 100% — a "hot streak," distinct from Double Goal (which requires
-// BOTH metrics individually, not the blended average). Walks the same dated
-// ledger items as computeDoubleGoalHitDate, but counts the length of the
-// current unbroken run instead of returning a date.
+// Consecutive calendar days with at least one positive attribution (sale).
+// Distinct from Goal Met / First to 100% — this rewards daily selling activity,
+// not already being at 100% pacing. Walks backward from the most recent day
+// that had a positive line item.
 function computeCurrentStreak(repDisplay) {
-  const g = loadGoals()[repDisplay] || { sessions: 0, members: 0 };
-  if (!(g.members > 0) && !(g.sessions > 0)) return 0; // no goal set at all
   const actuals = loadActuals();
   const raw = (actuals.perRep && actuals.perRep[repDisplay]) || {};
   const items = raw.items || [];
-  const dates = [...new Set(items.map(it => it.date).filter(Boolean))].sort();
-  let cumM = 0, cumS = 0, streak = 0;
-  dates.forEach(d => {
-    items.filter(it => it.date === d).forEach(it => { cumM += it.members; cumS += it.sessions; });
-    const memPct = g.members > 0 ? (cumM / g.members) * 100 : null;
-    const sesPct = g.sessions > 0 ? (cumS / g.sessions) * 100 : null;
-    const parts = [memPct, sesPct].filter(v => v !== null);
-    const composite = parts.length ? parts.reduce((s, v) => s + v, 0) / parts.length : null;
-    if (composite !== null && composite >= 100) streak += 1; else streak = 0;
+  const positiveDays = new Set();
+  items.forEach((it) => {
+    if (!it || !it.date) return;
+    if ((Number(it.members) || 0) > 0 || (Number(it.sessions) || 0) > 0) {
+      positiveDays.add(it.date);
+    }
   });
+  if (!positiveDays.size) return 0;
+  let cursor = [...positiveDays].sort().reverse()[0];
+  let streak = 0;
+  while (positiveDays.has(cursor)) {
+    streak += 1;
+    cursor = shiftDateStr(cursor, -1);
+  }
   return streak;
 }
 
@@ -3151,7 +3203,7 @@ function manualBadgesHTML(repDisplay) {
 function repEngagementBadgesHTML(repDisplay, firstTo100Champion) {
   const streakDays = computeCurrentStreak(repDisplay);
   const streakBadge = (isBadgeEnabled('streak') && streakDays >= 3)
-    ? `<span class="engagement-badge streak-badge has-tip" data-tip="${streakDays} days in a row at 100%+ pacing">🔥 ${streakDays}d streak</span>`
+    ? `<span class="engagement-badge streak-badge has-tip" data-tip="${streakDays} days in a row with a positive attribution">🔥 ${streakDays}d sales streak</span>`
     : '';
   const personalBestBadge = (isBadgeEnabled('personalBest') && computePersonalBestFlag(repDisplay))
     ? `<span class="engagement-badge personal-best-badge has-tip" data-tip="Projected to beat your best month ever, if this pace holds">🌟 Personal Best Pace</span>`
@@ -3388,7 +3440,7 @@ function renderMasterShoutoutLog() {
 // assignment list, both on Edit Monthly Goals. See BADGE_TOGGLES_CACHE /
 // MANUAL_BADGES_CACHE above.
 const BADGE_TOGGLE_META = [
-  { key: 'streak', emoji: '🔥', label: 'Streak (3+ days at 100%+ pacing)', description: "Fires automatically once a rep's blended pacing has stayed at or above 100% for 3 days running — resets the moment they dip below." },
+  { key: 'streak', emoji: '🔥', label: 'Sales streak (3+ days with a sale)', description: "Fires automatically once a rep has booked at least one positive attribution for 3 calendar days in a row — resets on the first day with no sale. Distinct from Goal Met." },
   { key: 'personalBest', emoji: '🌟', label: 'Personal Best Pace', description: "Awarded the moment a rep's current pace tops their own best day so far this month — always compared against themselves, never a teammate." },
   { key: 'consistency', emoji: '🛡️', label: 'Steady (consistency)', description: 'Recognizes a rep who has stayed at or above the consistency threshold every single tracked day this month — no dips, however small.' },
   { key: 'firstTo100', emoji: '🥇', label: 'First to 100%', description: "Goes to whoever's blended pacing crossed 100%+ earliest this month, team-wide. One winner, and it resets fresh at the start of each month." },
@@ -5745,7 +5797,8 @@ let bonusSideCollapsed = loadJSON(BONUS_SIDE_COLLAPSED_KEY, true);
 const RANK_SIDE_COLLAPSED_KEY = 'pace_dashboard_rank_side_collapsed_v1';
 let rankSideCollapsed = loadJSON(RANK_SIDE_COLLAPSED_KEY, true);
 
-function renderClientDetail() {
+function renderClientDetail(opts) {
+  const preserveScroll = !!(opts && opts.preserveScroll);
   const overlay = document.getElementById('clientDetailOverlay');
   const match = location.hash.match(/^#(?:individual-pacer|client-detail)=(.+)$/);
   if (!match) { overlay.classList.remove('open'); syncOverlayBodyScroll(); return; }
@@ -5804,7 +5857,15 @@ function renderClientDetail() {
 
   const actuals = loadActuals();
   const items = (actuals.perRep && actuals.perRep[repName] && actuals.perRep[repName].items) || [];
-  const sorted = items.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  // Days newest → oldest; within a day, newest ledger rows first (source feed is chronological).
+  const sorted = items
+    .map((it, idx) => ({ it, idx }))
+    .sort((a, b) => {
+      const dc = (b.it.date || '').localeCompare(a.it.date || '');
+      if (dc) return dc;
+      return b.idx - a.idx;
+    })
+    .map((x) => x.it);
   // A line item is a refund/cancellation if either metric came in negative — split
   // those out from positive attributions rather than mixing them in one list.
   const isRefund = (it) => it.members < 0 || it.sessions < 0;
@@ -5814,7 +5875,7 @@ function renderClientDetail() {
   document.getElementById('detailContent').style.display = items.length ? '' : 'none';
   document.getElementById('detailSummary').textContent = items.length
     ? ''
-    : 'No client-level detail yet — paste a fresh ledger export under "Update actuals from ledger export" to populate this.';
+    : 'No client-level detail yet — live Supabase actuals (or a CSV fallback) will populate this.';
 
   if (items.length) {
     const sum = (arr, key) => arr.reduce((s, it) => s + it[key], 0);
@@ -5853,11 +5914,11 @@ function renderClientDetail() {
   }
   // Historical Performance is sourced from SIP_HISTORY (separate from the ledger
   // paste above), so it renders regardless of whether client line items exist yet.
-  // Always re-collapse when opening an Individual Pacer page.
-  setHistoryCollapsed(true);
+  // Re-collapse only on real navigation — not on quiet live-data polls.
+  if (!preserveScroll) setHistoryCollapsed(true);
   initRepSip(repName);
   document.getElementById('shoutoutContainer').innerHTML = shoutoutLogHTML(repName);
-  window.scrollTo(0, 0);
+  if (!preserveScroll) window.scrollTo(0, 0);
 }
 window.addEventListener('hashchange', renderClientDetail);
 document.getElementById('detailBackBtn').addEventListener('click', () => {
@@ -6222,8 +6283,32 @@ const LIVE_ACTUALS_POLL_MS = 45000;
 let liveActualsTimer = null;
 let lastLiveActualsOk = false;
 
+function actualsDigest(actuals) {
+  if (!actuals || !actuals.perRep) return '';
+  const per = actuals.perRep;
+  return String(actuals.asOf || '') + '|' + Object.keys(per).sort().map((k) => {
+    const r = per[k] || {};
+    return k + ':' + (Number(r.members) || 0) + ':' + (Number(r.sessions) || 0) + ':' +
+      (Array.isArray(r.items) ? r.items.length : 0);
+  }).join(',');
+}
+
+/** Soft UI refresh after live data changes — no scroll jump, no animation flash. */
+function quietRefreshFromActuals() {
+  document.body.classList.add('quiet-refresh');
+  try {
+    render();
+    if (/^#(?:individual-pacer|client-detail)=/.test(location.hash || '')) {
+      renderClientDetail({ preserveScroll: true });
+    }
+  } finally {
+    requestAnimationFrame(() => document.body.classList.remove('quiet-refresh'));
+  }
+}
+
 async function fetchLiveActuals() {
   const statusEl = document.getElementById('liveActualsStatus');
+  const prevDigest = actualsDigest(ACTUALS_CACHE);
   try {
     const res = await fetch('/api/actuals/live', { cache: 'no-store' });
     const data = await res.json().catch(() => ({}));
@@ -6234,11 +6319,11 @@ async function fetchLiveActuals() {
           (data.error || ('HTTP ' + res.status));
         statusEl.style.color = '#b45309';
       }
-      return false;
+      return 'error';
     }
     if (!data.actuals || !data.actuals.perRep) {
       lastLiveActualsOk = false;
-      return false;
+      return 'error';
     }
     ACTUALS_CACHE = data.actuals;
     if (data.prelim) PRELIM_CACHE = data.prelim;
@@ -6249,7 +6334,7 @@ async function fetchLiveActuals() {
         (data.fetchedAt ? ` · synced ${new Date(data.fetchedAt).toLocaleTimeString()}` : '');
       statusEl.style.color = '#16a34a';
     }
-    return true;
+    return actualsDigest(ACTUALS_CACHE) === prevDigest ? 'unchanged' : 'changed';
   } catch (e) {
     lastLiveActualsOk = false;
     console.warn('Could not load live Supabase actuals', e);
@@ -6257,18 +6342,15 @@ async function fetchLiveActuals() {
       statusEl.textContent = 'Live Supabase feed error — showing last Blobs/CSV actuals.';
       statusEl.style.color = '#b45309';
     }
-    return false;
+    return 'error';
   }
 }
 
 function startLiveActualsPolling() {
   if (liveActualsTimer) return;
   liveActualsTimer = setInterval(async () => {
-    const ok = await fetchLiveActuals();
-    if (ok) {
-      render();
-      renderClientDetail();
-    }
+    const result = await fetchLiveActuals();
+    if (result === 'changed') quietRefreshFromActuals();
   }, LIVE_ACTUALS_POLL_MS);
 }
 
@@ -6751,9 +6833,9 @@ async function startGoogleLogin() {
 
 function updateIdentityUI(user) {
   const email = identityEmail(user);
-  const bar = document.getElementById('sessionBar');
-  const emailEl = document.getElementById('sessionEmail');
-  if (bar && emailEl) {
+  document.querySelectorAll('[data-session-bar]').forEach((bar) => {
+    const emailEl = bar.querySelector('.session-email');
+    if (!emailEl) return;
     if (email) {
       emailEl.textContent = email;
       bar.classList.add('visible');
@@ -6761,7 +6843,7 @@ function updateIdentityUI(user) {
       emailEl.textContent = '';
       bar.classList.remove('visible');
     }
-  }
+  });
   const showForm = !!user;
   const signedOutNote = document.getElementById('attributionSignedOutNote');
   const signedInArea = document.getElementById('attributionSignedInArea');
