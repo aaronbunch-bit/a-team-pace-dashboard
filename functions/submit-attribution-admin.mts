@@ -63,35 +63,30 @@ export default async (req: Request, context: Context) => {
   const { repName, members, sessions } = body || {};
   const membersNum = normalizeAttrMembers(members);
   const sessionsNum = Number(sessions) || 0;
-  const membersErr = membersValidationError(members);
-  if (membersErr) {
-    return new Response(JSON.stringify({ error: membersErr }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
   const validReps = await loadValidRepDisplays();
   if (!repName || !validReps.has(String(repName))) {
     return new Response(JSON.stringify({ error: "repName must be a current rep on the roster" }), {
       status: 400,
     });
   }
-  if (!membersNum && !sessionsNum) {
-    return new Response(
-      JSON.stringify({ error: "Missing required fields (members or sessions)" }),
-      { status: 400 }
-    );
-  }
 
   const initiatedBy = String(user.email).toLowerCase();
   const repEmail = await resolveEmailFromRepDisplay(String(repName));
 
   if (isOnBehalf) {
+    const membersErr = membersValidationError(members);
+    if (membersErr) {
+      return new Response(JSON.stringify({ error: membersErr }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     const { clientLink, contact, adjustmentReason, comments } = body || {};
-    if (!clientLink || !adjustmentReason || !comments) {
+    const contactStr = contact != null ? String(contact).trim() : "";
+    if (!clientLink || !contactStr || !membersNum || !adjustmentReason || !comments) {
       return new Response(
         JSON.stringify({
-          error: "Missing required fields (clientLink, adjustmentReason, comments)",
+          error: "Missing required fields (clientLink, contact, members, adjustmentReason, comments)",
         }),
         { status: 400 }
       );
@@ -101,7 +96,7 @@ export default async (req: Request, context: Context) => {
       repEmail,
       repName: String(repName),
       clientLink: String(clientLink).trim(),
-      contact: contact ? String(contact).trim() : "",
+      contact: contactStr,
       members: membersNum,
       sessions: sessionsNum,
       adjustmentReason: String(adjustmentReason).trim(),
@@ -125,6 +120,20 @@ export default async (req: Request, context: Context) => {
   }
 
   // Cancel → Manual Attribution conversion (legacy field names).
+  // Sessions-only cancels may still request members = 0.
+  const membersErr = membersValidationError(members, { allowZero: true });
+  if (membersErr) {
+    return new Response(JSON.stringify({ error: membersErr }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  if (!membersNum && !sessionsNum) {
+    return new Response(
+      JSON.stringify({ error: "Missing required fields (members or sessions)" }),
+      { status: 400 }
+    );
+  }
   const { clientId, saleDate, reason, comments } = body || {};
   if (!clientId || !saleDate || !reason || !comments) {
     return new Response(

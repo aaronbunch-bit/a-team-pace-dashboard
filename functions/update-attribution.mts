@@ -70,12 +70,11 @@ export default async (req: Request, context: Context) => {
       headers: { "Content-Type": "application/json" },
     });
   }
-
-  if (!(membersNum || sessionsNum)) {
-    return new Response(
-      JSON.stringify({ error: "Sessions and/or members are required" }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    );
+  if (!contact) {
+    return new Response(JSON.stringify({ error: "Phone or email is required" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
   }
   if (!adjustmentReason) {
     return new Response(JSON.stringify({ error: "Adjustment reason is required" }), {
