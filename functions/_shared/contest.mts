@@ -5,7 +5,24 @@ export type ContestMode = "race" | "wheel";
 export type ContestUnits = "sessions" | "members" | "both";
 export type ContestStake = "money" | "bragging";
 export type ContestStatus = "scheduled" | "active" | "ended";
-export type ContestPreset = "morning" | "power-hour" | "evening" | "custom";
+
+/** Full-arena visual theme (replaces old morning/power-hour/evening timing presets). */
+export type ContestTheme =
+  | "grand-prix"
+  | "neon-night"
+  | "space-race"
+  | "desert-rally"
+  | "rainbow-road"
+  | "ice-circuit"
+  | "stadium"
+  | "carnival"
+  | "pirate"
+  | "arcade"
+  | "blood-type-a"
+  | "dragon-cup"
+  | "underwater"
+  | "retro";
+
 export type ContestVehicle =
   | "car"
   | "rocket"
@@ -16,11 +33,34 @@ export type ContestVehicle =
   | "bike"
   | "boat"
   | "kart"
-  | "dragon";
-export type ContestTrackTheme = "asphalt" | "neon" | "desert" | "rainbow" | "ice" | "stadium";
+  | "dragon"
+  | "blood-a"
+  | "unicorn"
+  | "alien"
+  | "crown"
+  | "pizza"
+  | "ghost"
+  | "hotdog"
+  | "phoenix";
+
+export type ContestTrackTheme =
+  | "asphalt"
+  | "neon"
+  | "desert"
+  | "rainbow"
+  | "ice"
+  | "stadium"
+  | "space"
+  | "ocean"
+  | "lava"
+  | "pixel";
+
 export type ContestHype = "chill" | "hype" | "max";
-export type ContestAccent = "pink" | "gold" | "cyan" | "lime" | "orange" | "violet";
-export type ContestWheelSkin = "classic" | "neon" | "candy" | "midnight" | "gold";
+export type ContestAccent = "pink" | "gold" | "cyan" | "lime" | "orange" | "violet" | "red" | "blood";
+export type ContestWheelSkin = "classic" | "neon" | "candy" | "midnight" | "gold" | "blood" | "pixel";
+export type ContestEffects = "none" | "sparks" | "confetti" | "fireworks" | "max";
+export type ContestCheer = "announcer" | "hype-crew" | "radio" | "silent";
+export type ContestBoardSize = "normal" | "hero";
 
 export type ContestManualEntry = {
   id: string;
@@ -51,34 +91,40 @@ export type ContestRecord = {
   units: ContestUnits;
   stakeType: ContestStake;
   stakeAmount: number | null;
-  preset: ContestPreset;
+  /** @deprecated old timing preset — migrated into theme on read */
+  preset?: string | null;
+  /** Full-page contest arena theme */
+  theme: ContestTheme;
   startAt: string;
   endAt: string;
   status: ContestStatus;
   showBanner: boolean;
   externalUrl: string | null;
   repFilter: string[] | null;
-  /** Race vehicle emoji/style on the speedway. */
   vehicle: ContestVehicle;
-  /** Speedway backdrop theme. */
   trackTheme: ContestTrackTheme;
-  /** Motion + announcer intensity. */
   hypeLevel: ContestHype;
-  /** Accent palette for cars / chips. */
   accent: ContestAccent;
-  /** Optional finish-line target (score units). null = relative to leader. */
   raceGoal: number | null;
-  /** Custom tagline under the contest name. */
   tagline: string | null;
-  /** Show detailed lane board under the speedway. */
   showLaneBoard: boolean;
-  /** Fun announcer callouts when lead changes. */
   announcer: boolean;
-  /** Wheel color skin (wheel mode). */
   wheelSkin: ContestWheelSkin;
-  /** When true, ended contest is hidden from History for reps (coaches still see it). */
+  /** Arena mascot emoji (defaults from theme / vehicle). */
+  mascot: string | null;
+  /** Particle / celebration intensity. */
+  effects: ContestEffects;
+  /** Voice of the live callouts. */
+  cheerStyle: ContestCheer;
+  /** Confetti burst when the lead changes. */
+  confettiOnLead: boolean;
+  /** Show a live “moves” ticker under the board. */
+  showTicker: boolean;
+  /** Speedway dominates the page when hero. */
+  boardSize: ContestBoardSize;
+  /** Optional coach-written cheer that rotates in. */
+  customCheer: string | null;
   hiddenFromHistory: boolean;
-  /** Snapshot taken when contest ends — used for History leaderboards. */
   finalStandings: ContestStandingSnap[] | null;
   manualEntries: ContestManualEntry[];
   createdBy: string;
@@ -90,16 +136,59 @@ export type ContestRecord = {
 
 export const CONTEST_STORE = "contests";
 
+export const CONTEST_THEMES: ContestTheme[] = [
+  "grand-prix", "neon-night", "space-race", "desert-rally", "rainbow-road",
+  "ice-circuit", "stadium", "carnival", "pirate", "arcade",
+  "blood-type-a", "dragon-cup", "underwater", "retro",
+];
+
 const VEHICLES: ContestVehicle[] = [
   "car", "rocket", "horse", "turtle", "bolt", "runner", "bike", "boat", "kart", "dragon",
+  "blood-a", "unicorn", "alien", "crown", "pizza", "ghost", "hotdog", "phoenix",
 ];
-const TRACKS: ContestTrackTheme[] = ["asphalt", "neon", "desert", "rainbow", "ice", "stadium"];
+const TRACKS: ContestTrackTheme[] = [
+  "asphalt", "neon", "desert", "rainbow", "ice", "stadium", "space", "ocean", "lava", "pixel",
+];
 const HYPES: ContestHype[] = ["chill", "hype", "max"];
-const ACCENTS: ContestAccent[] = ["pink", "gold", "cyan", "lime", "orange", "violet"];
-const WHEEL_SKINS: ContestWheelSkin[] = ["classic", "neon", "candy", "midnight", "gold"];
+const ACCENTS: ContestAccent[] = ["pink", "gold", "cyan", "lime", "orange", "violet", "red", "blood"];
+const WHEEL_SKINS: ContestWheelSkin[] = ["classic", "neon", "candy", "midnight", "gold", "blood", "pixel"];
+const EFFECTS: ContestEffects[] = ["none", "sparks", "confetti", "fireworks", "max"];
+const CHEERS: ContestCheer[] = ["announcer", "hype-crew", "radio", "silent"];
+const BOARD_SIZES: ContestBoardSize[] = ["normal", "hero"];
+
+const THEME_DEFAULTS: Record<ContestTheme, Partial<ContestRecord>> = {
+  "grand-prix": { vehicle: "car", trackTheme: "asphalt", accent: "gold", mascot: "🏁", effects: "confetti", mode: "race" },
+  "neon-night": { vehicle: "kart", trackTheme: "neon", accent: "cyan", mascot: "🌃", effects: "sparks", mode: "race" },
+  "space-race": { vehicle: "rocket", trackTheme: "space", accent: "violet", mascot: "🚀", effects: "max", mode: "race" },
+  "desert-rally": { vehicle: "car", trackTheme: "desert", accent: "orange", mascot: "🏜️", effects: "sparks", mode: "race" },
+  "rainbow-road": { vehicle: "kart", trackTheme: "rainbow", accent: "pink", mascot: "🌈", effects: "confetti", mode: "race" },
+  "ice-circuit": { vehicle: "car", trackTheme: "ice", accent: "cyan", mascot: "❄️", effects: "sparks", mode: "race" },
+  stadium: { vehicle: "runner", trackTheme: "stadium", accent: "lime", mascot: "🏟️", effects: "fireworks", mode: "race" },
+  carnival: { vehicle: "unicorn", trackTheme: "rainbow", accent: "pink", mascot: "🎡", effects: "confetti", mode: "wheel", wheelSkin: "candy" },
+  pirate: { vehicle: "boat", trackTheme: "ocean", accent: "gold", mascot: "🏴‍☠️", effects: "sparks", mode: "race" },
+  arcade: { vehicle: "ghost", trackTheme: "pixel", accent: "violet", mascot: "👾", effects: "max", mode: "race" },
+  "blood-type-a": { vehicle: "blood-a", trackTheme: "lava", accent: "blood", mascot: "🅰️", effects: "max", mode: "race" },
+  "dragon-cup": { vehicle: "dragon", trackTheme: "lava", accent: "orange", mascot: "🐉", effects: "fireworks", mode: "race" },
+  underwater: { vehicle: "boat", trackTheme: "ocean", accent: "cyan", mascot: "🐠", effects: "sparks", mode: "race" },
+  retro: { vehicle: "car", trackTheme: "pixel", accent: "gold", mascot: "📼", effects: "confetti", mode: "race" },
+};
 
 function pickEnum<T extends string>(raw: string, allowed: readonly T[], fallback: T): T {
   return (allowed as readonly string[]).includes(raw) ? (raw as T) : fallback;
+}
+
+export function migrateLegacyTheme(rawTheme: any, legacyPreset: any): ContestTheme {
+  const t = String(rawTheme || "").trim();
+  if ((CONTEST_THEMES as string[]).includes(t)) return t as ContestTheme;
+  const p = String(legacyPreset || "").trim();
+  if (p === "morning") return "desert-rally";
+  if (p === "evening") return "neon-night";
+  if (p === "power-hour") return "grand-prix";
+  return "grand-prix";
+}
+
+export function themeDefaults(theme: ContestTheme): Partial<ContestRecord> {
+  return { ...(THEME_DEFAULTS[theme] || THEME_DEFAULTS["grand-prix"]) };
 }
 
 export function newContestId(): string {
@@ -138,6 +227,11 @@ export function normalizeFinalStandings(raw: any): ContestStandingSnap[] | null 
   return rows.slice(0, 80);
 }
 
+function sanitizeMascot(raw: any): string | null {
+  const s = String(raw || "").trim().slice(0, 8);
+  return s || null;
+}
+
 export function normalizeContestPatch(body: any, existing?: ContestRecord | null): Partial<ContestRecord> {
   const name = String(body?.name ?? existing?.name ?? "").trim().slice(0, 80);
   const kindRaw = String(body?.kind ?? existing?.kind ?? "hosted");
@@ -156,11 +250,13 @@ export function normalizeContestPatch(body: any, existing?: ContestRecord | null
   } else if (stakeType !== "money") {
     stakeAmount = null;
   }
-  const presetRaw = String(body?.preset ?? existing?.preset ?? "custom");
-  const preset: ContestPreset =
-    presetRaw === "morning" || presetRaw === "power-hour" || presetRaw === "evening"
-      ? presetRaw
-      : "custom";
+
+  const theme = migrateLegacyTheme(
+    body?.theme ?? existing?.theme,
+    body?.preset ?? existing?.preset,
+  );
+  const defaults = themeDefaults(theme);
+
   const startAt = String(body?.startAt ?? existing?.startAt ?? "").trim();
   const endAt = String(body?.endAt ?? existing?.endAt ?? "").trim();
   const showBanner =
@@ -178,12 +274,12 @@ export function normalizeContestPatch(body: any, existing?: ContestRecord | null
   }
 
   const vehicle = pickEnum(
-    String(body?.vehicle ?? existing?.vehicle ?? "car"),
+    String(body?.vehicle ?? existing?.vehicle ?? defaults.vehicle ?? "car"),
     VEHICLES,
     "car",
   );
   const trackTheme = pickEnum(
-    String(body?.trackTheme ?? existing?.trackTheme ?? "asphalt"),
+    String(body?.trackTheme ?? existing?.trackTheme ?? defaults.trackTheme ?? "asphalt"),
     TRACKS,
     "asphalt",
   );
@@ -193,14 +289,29 @@ export function normalizeContestPatch(body: any, existing?: ContestRecord | null
     "hype",
   );
   const accent = pickEnum(
-    String(body?.accent ?? existing?.accent ?? "pink"),
+    String(body?.accent ?? existing?.accent ?? defaults.accent ?? "pink"),
     ACCENTS,
     "pink",
   );
   const wheelSkin = pickEnum(
-    String(body?.wheelSkin ?? existing?.wheelSkin ?? "classic"),
+    String(body?.wheelSkin ?? existing?.wheelSkin ?? defaults.wheelSkin ?? "classic"),
     WHEEL_SKINS,
     "classic",
+  );
+  const effects = pickEnum(
+    String(body?.effects ?? existing?.effects ?? defaults.effects ?? "confetti"),
+    EFFECTS,
+    "confetti",
+  );
+  const cheerStyle = pickEnum(
+    String(body?.cheerStyle ?? existing?.cheerStyle ?? "announcer"),
+    CHEERS,
+    "announcer",
+  );
+  const boardSize = pickEnum(
+    String(body?.boardSize ?? existing?.boardSize ?? "hero"),
+    BOARD_SIZES,
+    "hero",
   );
 
   let raceGoal: number | null = existing?.raceGoal ?? null;
@@ -212,6 +323,14 @@ export function normalizeContestPatch(body: any, existing?: ContestRecord | null
   const taglineRaw = body?.tagline === undefined
     ? existing?.tagline ?? null
     : String(body.tagline || "").trim().slice(0, 120) || null;
+  const customCheerRaw = body?.customCheer === undefined
+    ? existing?.customCheer ?? null
+    : String(body.customCheer || "").trim().slice(0, 140) || null;
+
+  let mascot: string | null = existing?.mascot ?? defaults.mascot ?? null;
+  if (body?.mascot !== undefined) {
+    mascot = sanitizeMascot(body.mascot) || defaults.mascot || "🏁";
+  }
 
   const showLaneBoard =
     body?.showLaneBoard === undefined
@@ -219,6 +338,12 @@ export function normalizeContestPatch(body: any, existing?: ContestRecord | null
       : !!body.showLaneBoard;
   const announcer =
     body?.announcer === undefined ? (existing?.announcer ?? true) : !!body.announcer;
+  const confettiOnLead =
+    body?.confettiOnLead === undefined
+      ? (existing?.confettiOnLead ?? true)
+      : !!body.confettiOnLead;
+  const showTicker =
+    body?.showTicker === undefined ? (existing?.showTicker ?? true) : !!body.showTicker;
   const hiddenFromHistory =
     body?.hiddenFromHistory === undefined
       ? (existing?.hiddenFromHistory ?? false)
@@ -226,19 +351,26 @@ export function normalizeContestPatch(body: any, existing?: ContestRecord | null
 
   let finalStandings: ContestStandingSnap[] | null = existing?.finalStandings ?? null;
   if (body?.finalStandings !== undefined) {
-    // Allow setting once; coaches can overwrite via explicit freeze.
     const next = normalizeFinalStandings(body.finalStandings);
     if (next) finalStandings = next;
   }
 
+  // Mode: prefer explicit body, else theme default when creating new.
+  const resolvedMode: ContestMode =
+    body?.mode !== undefined
+      ? mode
+      : existing?.mode
+        ? (existing.mode === "wheel" ? "wheel" : "race")
+        : ((defaults.mode as ContestMode) || "race");
+
   return {
     name,
     kind,
-    mode,
+    mode: resolvedMode,
     units,
     stakeType,
     stakeAmount,
-    preset,
+    theme,
     startAt,
     endAt,
     showBanner,
@@ -253,6 +385,13 @@ export function normalizeContestPatch(body: any, existing?: ContestRecord | null
     showLaneBoard,
     announcer,
     wheelSkin,
+    mascot,
+    effects,
+    cheerStyle,
+    confettiOnLead,
+    showTicker,
+    boardSize,
+    customCheer: customCheerRaw,
     hiddenFromHistory,
     finalStandings,
   };
@@ -271,7 +410,6 @@ export function validateContestFields(c: Partial<ContestRecord>): string | null 
   return null;
 }
 
-/** Derive status from window when not explicitly ended. */
 export function deriveContestStatus(c: ContestRecord, now = new Date()): ContestStatus {
   if (c.status === "ended") return "ended";
   const t = now.getTime();
@@ -283,18 +421,28 @@ export function deriveContestStatus(c: ContestRecord, now = new Date()): Contest
 }
 
 export function publicContest(c: ContestRecord, now = new Date()): ContestRecord {
+  const theme = migrateLegacyTheme(c.theme, c.preset);
+  const defaults = themeDefaults(theme);
   return {
     ...c,
     status: deriveContestStatus(c, now),
-    vehicle: c.vehicle || "car",
-    trackTheme: c.trackTheme || "asphalt",
+    theme,
+    vehicle: c.vehicle || defaults.vehicle || "car",
+    trackTheme: c.trackTheme || defaults.trackTheme || "asphalt",
     hypeLevel: c.hypeLevel || "hype",
-    accent: c.accent || "pink",
+    accent: c.accent || defaults.accent || "pink",
     raceGoal: c.raceGoal ?? null,
     tagline: c.tagline ?? null,
     showLaneBoard: c.showLaneBoard !== false,
     announcer: c.announcer !== false,
-    wheelSkin: c.wheelSkin || "classic",
+    wheelSkin: c.wheelSkin || defaults.wheelSkin || "classic",
+    mascot: c.mascot || defaults.mascot || "🏁",
+    effects: c.effects || defaults.effects || "confetti",
+    cheerStyle: c.cheerStyle || "announcer",
+    confettiOnLead: c.confettiOnLead !== false,
+    showTicker: c.showTicker !== false,
+    boardSize: c.boardSize || "hero",
+    customCheer: c.customCheer ?? null,
     hiddenFromHistory: !!c.hiddenFromHistory,
     finalStandings: Array.isArray(c.finalStandings) ? c.finalStandings : null,
     manualEntries: Array.isArray(c.manualEntries) ? c.manualEntries : [],
