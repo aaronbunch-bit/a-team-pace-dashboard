@@ -809,7 +809,16 @@
     body[data-layout^="split"] .landing-region-title { grid-area: title; }
     body[data-layout^="split"] .landing-region-tools { grid-area: tools; }
     body[data-layout^="split"] .landing-region-status { grid-area: status; }
-    body[data-layout^="split"] .landing-region-foot { grid-area: foot; }
+    body[data-layout^="split"] .landing-region-foot {
+      grid-area: foot;
+      /* Opaque landing strip so sticky boards never visually bleed into footer. */
+      position: relative;
+      z-index: 4;
+      margin-top: 8px;
+      padding-top: 10px;
+      background: var(--bg);
+      box-shadow: 0 -28px 36px -8px var(--bg);
+    }
     body[data-layout^="split"] .landing-grid { padding-right: 0; margin: 0; display: contents; }
     body[data-layout^="split"] .landing-side-col { position: static; width: auto; }
     body[data-layout^="split"] .landing-title-row { margin-bottom: 4px; }
@@ -878,6 +887,7 @@
       top: var(--sticky-top);
       align-self: start;
       overflow: visible; /* page scroll only — never a second side scrollbar */
+      z-index: 1;
     }
     body[data-layout="split-rail"] .landing-region-reps { grid-area: reps; min-width: 0; }
   }
@@ -903,9 +913,10 @@
       top: var(--sticky-top);
       align-self: start;
       /* One scrollbar only (the page). No max-height scrollport — that created
-         the hated side scroller. JS may set position:static if the column is
-         taller than the viewport so nothing gets trapped below the fold. */
+         the hated side scroller. JS clamps sticky top so this column releases
+         cleanly above the footer instead of merging into the session bar. */
       overflow: visible;
+      z-index: 1;
     }
     body[data-layout="split-stack"] .landing-region-reps { grid-area: reps; min-width: 0; }
     body[data-layout="split-stack"].stack-boards-hidden .wrap {
@@ -4090,15 +4101,20 @@ function syncLandingGridHeight() {
   grid.style.minHeight = sideCol.offsetHeight + 'px';
 }
 /**
- * Stack/Rail boards — page scroll only (no side scrollbar).
- * Sticky beside the roster when the column fits in the viewport; if it's
- * taller than the viewport, fall back to static so the whole page scrolls
- * together instead of trapping content in a second scrollport.
+ * Stack/Rail boards — page scroll only (no side scrollbar), and never paint
+ * over the landing footer/session bar.
+ *
+ * Sticky beside the roster when the column fits in the viewport. As the
+ * footer approaches, lower sticky `top` so the column slides up and away
+ * (same “stop before the next section” idea as the Individual Pacer side
+ * panel). If the column is taller than the viewport, fall back to static
+ * so content isn’t trapped in a nested scrollport.
  */
+let landingBoardsCapRaf = 0;
 function syncLandingBoardsScrollCap() {
   const boards = document.getElementById('landingBoards');
-  const reps = document.getElementById('landingReps');
-  if (!boards || !reps) return;
+  const foot = document.getElementById('landingFoot');
+  if (!boards) return;
   const layout = document.body.dataset.layout || 'classic';
   if (layout === 'classic' || window.innerWidth < 1000) {
     boards.style.maxHeight = '';
@@ -4107,33 +4123,53 @@ function syncLandingBoardsScrollCap() {
     boards.style.top = '';
     return;
   }
+
+  const stickyRaw = getComputedStyle(document.documentElement).getPropertyValue('--sticky-top');
+  const stickyTop = parseFloat(stickyRaw) || 12;
+  const gap = 24; // air between boards bottom and footer / viewport edge
+
   // Measure natural height without a forced scrollport.
   boards.style.maxHeight = 'none';
   boards.style.overflowY = 'visible';
   boards.style.position = 'sticky';
-  boards.style.top = '';
-  const stickyRaw = getComputedStyle(document.documentElement).getPropertyValue('--sticky-top');
-  const stickyTop = parseFloat(stickyRaw) || 12;
-  const viewportRoom = Math.max(160, window.innerHeight - stickyTop - 24);
+  boards.style.top = stickyTop + 'px';
+
   const naturalH = boards.scrollHeight || boards.offsetHeight;
+  const viewportRoom = Math.max(160, window.innerHeight - stickyTop - gap);
   if (naturalH > viewportRoom + 8) {
     // Too tall to stick without an inner scroller — prefer one page scrollbar.
     boards.style.position = 'static';
     boards.style.top = 'auto';
+    return;
   }
+
+  // Footer collision clamp: keep the stuck column entirely above the foot.
+  const footTop = foot ? foot.getBoundingClientRect().top : window.innerHeight;
+  const maxTop = footTop - naturalH - gap;
+  boards.style.top = Math.min(stickyTop, maxTop) + 'px';
 }
+function scheduleLandingBoardsScrollCap() {
+  if (landingBoardsCapRaf) return;
+  landingBoardsCapRaf = requestAnimationFrame(() => {
+    landingBoardsCapRaf = 0;
+    syncLandingBoardsScrollCap();
+  });
+}
+window.addEventListener('scroll', scheduleLandingBoardsScrollCap, { passive: true });
 window.addEventListener('resize', () => {
   syncLandingGridHeight();
   syncLandingBoardsScrollCap();
   fitLandingBadges();
 });
 if (typeof ResizeObserver !== 'undefined') {
-  const ro = new ResizeObserver(() => syncLandingBoardsScrollCap());
+  const ro = new ResizeObserver(() => scheduleLandingBoardsScrollCap());
   const watchBoardsCap = () => {
     const boards = document.getElementById('landingBoards');
     const reps = document.getElementById('landingReps');
+    const foot = document.getElementById('landingFoot');
     if (boards) ro.observe(boards);
     if (reps) ro.observe(reps);
+    if (foot) ro.observe(foot);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchBoardsCap);
   else watchBoardsCap();
