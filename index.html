@@ -876,8 +876,7 @@
       top: var(--sticky-top);
       align-self: start;
       overflow-x: hidden;
-      overflow-y: auto;
-      max-height: calc(100vh - var(--sticky-top) - 24px);
+      overflow-y: hidden; /* inner scroll only if boards taller than roster (JS) */
     }
     body[data-layout="split-rail"] .landing-region-reps { grid-area: reps; min-width: 0; }
   }
@@ -902,10 +901,10 @@
       top: var(--sticky-top);
       align-self: start;
       overflow-x: hidden;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      /* JS syncLandingBoardsScrollCap() tightens this to the roster / footer. */
-      max-height: calc(100vh - var(--sticky-top) - 24px);
+      /* Like Individual Pacer side panel: stick with the main column; no second
+         scrollbar unless boards content is taller than the roster (JS sets
+         max-height to roster height and may flip overflow-y to auto). */
+      overflow-y: hidden;
     }
     body[data-layout="split-stack"] .landing-region-reps { grid-area: reps; min-width: 0; }
     body[data-layout="split-stack"].stack-boards-hidden .wrap {
@@ -4010,43 +4009,39 @@ function syncLandingGridHeight() {
   if (layout !== 'classic' || window.innerWidth <= 980) { grid.style.minHeight = ''; return; }
   grid.style.minHeight = sideCol.offsetHeight + 'px';
 }
-/** Cap sticky boards so they stop with the lowest rep / footer — never spill under. */
+/**
+ * Stack/Rail boards sticky — mirror Individual Pacer side panel behavior:
+ * stick beside the roster, and end when the last rep ends. Cap boards height
+ * to the roster so the grid row can't grow past the team list (which would
+ * let sticky spill into the footer). Prefer page scroll only; enable an inner
+ * scrollbar only when boards content is actually taller than the roster.
+ */
 function syncLandingBoardsScrollCap() {
   const boards = document.getElementById('landingBoards');
   const reps = document.getElementById('landingReps');
-  const foot = document.getElementById('landingFoot');
   if (!boards || !reps) return;
   const layout = document.body.dataset.layout || 'classic';
   if (layout === 'classic' || window.innerWidth < 1000) {
     boards.style.maxHeight = '';
+    boards.style.overflowY = '';
     return;
   }
-  const stickyRaw = getComputedStyle(document.documentElement).getPropertyValue('--sticky-top');
-  const stickyTop = parseFloat(stickyRaw) || 12;
-  const viewportCap = Math.max(160, window.innerHeight - stickyTop - 24);
-  const rosterCap = Math.max(160, reps.offsetHeight);
-  // Shrink as the footer approaches so sticky boards can't overlap session bar.
-  const boardsRect = boards.getBoundingClientRect();
-  const repsRect = reps.getBoundingClientRect();
-  const footTop = foot ? foot.getBoundingClientRect().top : repsRect.bottom;
-  const hardBottom = Math.min(repsRect.bottom, footTop) - 8;
-  const effectiveTop = Math.min(Math.max(boardsRect.top, stickyTop), hardBottom);
-  const spaceAboveFoot = Math.max(160, hardBottom - effectiveTop);
-  boards.style.maxHeight = Math.min(viewportCap, rosterCap, spaceAboveFoot) + 'px';
+  const rosterH = Math.max(1, reps.offsetHeight);
+  boards.style.maxHeight = rosterH + 'px';
+  // After the cap applies, only unlock inner scroll if content overflows it.
+  const needsInner = boards.scrollHeight > rosterH + 2;
+  boards.style.overflowY = needsInner ? 'auto' : 'hidden';
 }
 window.addEventListener('resize', () => {
   syncLandingGridHeight();
   syncLandingBoardsScrollCap();
   fitLandingBadges();
 });
-window.addEventListener('scroll', () => { syncLandingBoardsScrollCap(); }, { passive: true });
 if (typeof ResizeObserver !== 'undefined') {
   const ro = new ResizeObserver(() => syncLandingBoardsScrollCap());
   const watchBoardsCap = () => {
     const reps = document.getElementById('landingReps');
-    const boards = document.getElementById('landingBoards');
     if (reps) ro.observe(reps);
-    if (boards) ro.observe(boards);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchBoardsCap);
   else watchBoardsCap();
@@ -4467,23 +4462,26 @@ function computeMostImprovedTop3(period) {
 // as the glow/banner/popup above: none of them add permanent UI weight, they
 // only appear when a rep actually earns them.
 
-// Consecutive calendar days (current month) where the rep's composite % is at
-// or above that day's expected pace — i.e. pacing toward a 100%+ month end.
-// Distinct from Goal Met (already at 100% of goal) and from First to 100%.
+// Sales streak: consecutive working days (current month) with a positive
+// attribution. Days marked Off on Team Schedules are skipped — they neither
+// add to the count nor break the run. A scheduled/working day with no sale
+// ends the streak. Distinct from Steady (pace reliability) and status "On Pace".
 function computeCurrentStreak(repDisplay) {
-  const g = loadGoals()[repDisplay] || { sessions: 0, members: 0 };
-  if (!(g.members > 0) && !(g.sessions > 0)) return 0;
   const actuals = loadActuals();
   const asOf = actuals.asOf;
   if (!asOf) return 0;
   const monthKey = String(asOf).slice(0, 7);
   let cursor = asOf;
   let streak = 0;
-  while (String(cursor).slice(0, 7) === monthKey) {
-    const [y, m, d] = cursor.split('-').map(Number);
-    const expected = (d / daysInMonth(y, m)) * 100;
-    const pct = compositePctAsOf(repDisplay, cursor);
-    if (pct === null || pct < expected) break;
+  let guard = 0;
+  while (String(cursor).slice(0, 7) === monthKey && guard < 40) {
+    guard += 1;
+    // Off days (and "—" / "-") pause the calendar without resetting.
+    if (isRepScheduledOff(repDisplay, cursor)) {
+      cursor = shiftDateStr(cursor, -1);
+      continue;
+    }
+    if (countPositiveSalesOnDate(repDisplay, cursor) <= 0) break;
     streak += 1;
     cursor = shiftDateStr(cursor, -1);
   }
@@ -4997,7 +4995,7 @@ function hasBestPaceDay(repDisplay) {
 /** Default landing/Individual Pacer hover text for automatic badges (overridable in Badge Bank). */
 function defaultAutoBadgeHoverTip(key, ctx) {
   const tips = {
-    streak: `${(ctx && ctx.streakDays) || 0} days in a row at or above expected pace`,
+    streak: `${(ctx && ctx.streakDays) || 0} working days in a row with a sale (Off days skipped)`,
     personalBest: 'Projected to beat your best month ever, if this pace holds',
     consistency: 'On Track (80%+) or better every day this month — never once fell behind',
     firstTo100: 'First on the team to hit 100%+ pacing this month',
@@ -5017,7 +5015,7 @@ function repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampi
   const streakDays = computeCurrentStreak(repDisplay);
   const streakCtx = { streakDays };
   const streakBadge = (isBadgeEnabled('streak') && streakDays >= 3)
-    ? `<span class="engagement-badge streak-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('streak', streakCtx))}">🔥 ${streakDays}d On Pace</span>`
+    ? `<span class="engagement-badge streak-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('streak', streakCtx))}">🔥 ${streakDays}d streak</span>`
     : '';
   const personalBestBadge = (isBadgeEnabled('personalBest') && computePersonalBestFlag(repDisplay))
     ? `<span class="engagement-badge personal-best-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('personalBest'))}">🌟 Personal Best Pace</span>`
@@ -5299,7 +5297,7 @@ function renderMasterShoutoutLog() {
 // assignment list, both on Edit Monthly Goals. See BADGE_TOGGLES_CACHE /
 // MANUAL_BADGES_CACHE above.
 const BADGE_TOGGLE_META = [
-  { key: 'streak', emoji: '🔥', label: 'On Pace (3+ days)', hoverTip: 'Days in a row at or above expected pace', description: "Short badge: “🔥 Nd On Pace.” Fires once a rep has been at or above expected daily pace for 3 calendar days in a row this month. Resets the first day they fall behind expected pace." },
+  { key: 'streak', emoji: '🔥', label: 'Sales streak (3+ sale days)', hoverTip: 'Working days in a row with a sale (Off days skipped)', description: "Short badge: “🔥 Nd streak.” Counts consecutive days with a positive attribution. Days marked Off on Team Schedules are skipped (don’t break the run). Resets on the first working day with no sale. Distinct from Steady / status On Pace." },
   { key: 'personalBest', emoji: '🌟', label: 'Personal Best Pace', hoverTip: 'Projected to beat your best month ever, if this pace holds', description: "Awarded the moment a rep's current pace tops their own best month ever — always compared against themselves, never a teammate." },
   { key: 'consistency', emoji: '🛡️', label: 'Steady (consistency)', hoverTip: 'On Track (80%+) or better every day this month — never once fell behind', description: 'Recognizes a rep who has stayed at or above the consistency threshold every single tracked day this month — no dips, however small.' },
   { key: 'firstTo100', emoji: '🥇', label: 'First to 100%', hoverTip: 'First on the team to hit 100%+ pacing this month', description: "Goes to whoever's blended pacing crossed 100%+ earliest this month, team-wide. One winner, and it resets fresh at the start of each month." },
