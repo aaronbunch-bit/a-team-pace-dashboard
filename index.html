@@ -742,6 +742,187 @@
   .finish-line-stat span {
     font-size: 10.5px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em;
   }
+
+  /* —— Live Contest: promo banners + contest board —— */
+  .contest-banner-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0 0 12px;
+  }
+  .contest-banner-stack:empty { display: none; }
+  .contest-promo-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    padding: 12px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(244, 114, 182, 0.35);
+    background:
+      linear-gradient(120deg, rgba(244,114,182,0.16), rgba(99,102,241,0.18) 55%, rgba(56,189,248,0.14)),
+      var(--card-bg);
+    box-shadow: 0 8px 28px var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  .contest-promo-banner::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent);
+    background-size: 200% 100%;
+    pointer-events: none;
+    opacity: 0.55;
+  }
+  body:not(.motion-static) .contest-promo-banner::before {
+    animation: contestBannerSheen 4.5s ease-in-out infinite;
+  }
+  @keyframes contestBannerSheen {
+    0% { background-position: 100% 50%; }
+    100% { background-position: -100% 50%; }
+  }
+  .contest-promo-banner.kind-promo {
+    border-color: rgba(56,189,248,0.4);
+    background:
+      linear-gradient(120deg, rgba(56,189,248,0.14), rgba(99,102,241,0.12) 60%, rgba(244,114,182,0.1)),
+      var(--card-bg);
+  }
+  .contest-promo-main { flex: 1 1 200px; min-width: 0; position: relative; z-index: 1; }
+  .contest-promo-eyebrow {
+    font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-faint); margin: 0 0 2px;
+  }
+  .contest-promo-name {
+    margin: 0; font-size: 17px; font-weight: 800; color: var(--text);
+    letter-spacing: -0.01em; line-height: 1.2;
+  }
+  .contest-promo-meta {
+    margin-top: 4px; font-size: 12.5px; font-weight: 700; color: var(--text-muted);
+  }
+  .contest-promo-place {
+    position: relative; z-index: 1;
+    min-width: 72px; padding: 8px 12px; border-radius: 12px;
+    background: rgba(255,255,255,0.55); border: 1px solid var(--card-border);
+    text-align: center;
+  }
+  body.dark .contest-promo-place { background: rgba(0,0,0,0.25); }
+  .contest-promo-place-label {
+    display: block; font-size: 10px; font-weight: 800; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .contest-promo-place-val {
+    display: block; margin-top: 1px; font-size: 20px; font-weight: 800;
+    font-variant-numeric: tabular-nums; color: var(--text);
+  }
+  .contest-promo-actions { position: relative; z-index: 1; display: flex; gap: 8px; flex-wrap: wrap; }
+  .contest-promo-actions .theme-btn,
+  .contest-promo-actions .contest-view-btn {
+    margin: 0; font-weight: 800;
+  }
+  .contest-view-btn {
+    appearance: none; border: none; cursor: pointer;
+    padding: 9px 14px; border-radius: 999px; font-size: 13px;
+    color: #fff; background: linear-gradient(135deg, #ec4899, #6366f1);
+    box-shadow: 0 4px 14px rgba(99,102,241,0.35);
+  }
+  body:not(.motion-static) .contest-view-btn {
+    animation: contestCtaPulse 2.2s ease-in-out infinite;
+  }
+  @keyframes contestCtaPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+  }
+  .contest-board-hero {
+    border-radius: 18px; padding: 18px 18px 16px;
+    border: 1px solid var(--card-border);
+    background:
+      linear-gradient(135deg, rgba(244,114,182,0.14), rgba(99,102,241,0.16) 50%, rgba(56,189,248,0.12)),
+      var(--card-bg);
+    margin-bottom: 14px;
+  }
+  .contest-board-hero h2 { margin: 0 0 6px; font-size: 26px; letter-spacing: -0.02em; }
+  .contest-board-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .contest-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 800;
+    background: var(--metric-box-bg); border: 1px solid var(--card-border); color: var(--text-muted);
+  }
+  .contest-chip strong { color: var(--text); }
+  .contest-countdown {
+    font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text);
+  }
+  .contest-standings {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .contest-stand-row {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: 10px; align-items: center;
+    padding: 12px 14px; border-radius: 12px;
+    background: var(--card-bg); border: 1px solid var(--card-border);
+  }
+  .contest-stand-row.is-me {
+    border-color: rgba(99,102,241,0.55);
+    box-shadow: 0 0 0 1px rgba(99,102,241,0.25);
+  }
+  .contest-stand-rank {
+    font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text-muted);
+  }
+  .contest-stand-row:nth-child(1) .contest-stand-rank { color: #ca8a04; }
+  .contest-stand-row:nth-child(2) .contest-stand-rank { color: #64748b; }
+  .contest-stand-row:nth-child(3) .contest-stand-rank { color: #b45309; }
+  .contest-stand-name { font-size: 14.5px; font-weight: 800; color: var(--text); }
+  .contest-stand-sub { font-size: 11.5px; font-weight: 650; color: var(--text-faint); margin-top: 2px; }
+  .contest-stand-score {
+    font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text);
+  }
+  .contest-wheel-wrap {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    gap: 16px; align-items: start; margin-top: 8px;
+  }
+  @media (max-width: 800px) {
+    .contest-wheel-wrap { grid-template-columns: 1fr; }
+  }
+  .contest-wheel {
+    width: min(280px, 100%); aspect-ratio: 1; margin: 0 auto;
+    border-radius: 50%; border: 6px solid var(--card-border);
+    position: relative; overflow: hidden;
+    background: conic-gradient(from 0deg, #f472b6, #6366f1, #38bdf8, #f472b6);
+  }
+  body:not(.motion-static) .contest-wheel.is-spinning {
+    animation: contestWheelSpin 3s cubic-bezier(0.12, 0.75, 0.2, 1) forwards;
+  }
+  @keyframes contestWheelSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(1440deg); }
+  }
+  .contest-wheel-pointer {
+    width: 0; height: 0; margin: 0 auto 8px;
+    border-left: 10px solid transparent; border-right: 10px solid transparent;
+    border-top: 16px solid #ec4899;
+  }
+  .contest-coach-panel {
+    margin-top: 16px; padding: 14px; border-radius: 14px;
+    border: 1px dashed var(--card-border); background: var(--metric-box-bg);
+  }
+  .contest-form-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px;
+  }
+  @media (max-width: 640px) {
+    .contest-form-grid { grid-template-columns: 1fr; }
+  }
+  .contest-form-grid label {
+    display: flex; flex-direction: column; gap: 4px;
+    font-size: 11px; font-weight: 800; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .contest-form-grid input,
+  .contest-form-grid select {
+    font-size: 13px; font-weight: 600; text-transform: none; letter-spacing: normal;
+    padding: 7px 9px; border-radius: 8px; border: 1px solid var(--card-border);
+    background: var(--card-bg); color: var(--text); font-family: inherit;
+  }
+  .contest-form-grid .full { grid-column: 1 / -1; }
   .shoutout-wall-item {
     padding: 8px 0; border-top: 1px solid var(--divider);
   }
@@ -2978,6 +3159,7 @@
     <h1><span class="grad-text">A-Team</span> <span id="titleMonth">Monthly</span> Pacer</h1>
     <span class="title-blood-badge" aria-hidden="true"><span class="title-blood-emoji">🅰️</span></span>
   </div>
+  <div class="contest-banner-stack" id="contestBannerStack" aria-live="polite"></div>
   </div>
   <div class="landing-region landing-region-chrome landing-region-tools" id="landingTools">
   <!-- Centered under the title, isolated from anything else so new buttons
@@ -2999,6 +3181,7 @@
       <div class="header-dropdown-menu" id="teamMenu">
         <button class="theme-btn" id="teamDetailsBtn" type="button">🗂️ Cancels &amp; attributions</button>
         <button class="theme-btn" id="teamPersonalGoalsBtn" type="button">🎯 Personal month goals</button>
+        <button class="theme-btn" id="teamContestsBtn" type="button">🏆 Contests</button>
       </div>
     </div>
     <div class="header-dropdown" id="adminMenuWrap" style="display:none;">
@@ -3020,6 +3203,7 @@
         <button class="theme-btn" type="button" id="toolsManualAttroBtn">📝 Manual Attribution</button>
         <button class="theme-btn" type="button" id="toolsTeamDetailsBtn">🗂️ Cancels &amp; attributions</button>
         <button class="theme-btn" type="button" id="toolsTeamGoalsBtn">🎯 Personal month goals</button>
+        <button class="theme-btn" type="button" id="toolsContestsBtn">🏆 Contests</button>
         <button class="theme-btn" type="button" id="toolsTeamScheduleBtn">📅 Weekly schedules</button>
         <button class="theme-btn" type="button" id="toolsShoutoutBtn">📣 Shoutout</button>
         <button class="theme-btn" type="button" id="toolsGoalsBtn">Edit Monthly Goals</button>
@@ -3345,6 +3529,83 @@
       <button type="button" class="identity-btn" data-replay-tour>Take tour</button>
       <button type="button" class="identity-btn" data-identity-btn>Sign out</button>
     </div>
+  </div>
+</div>
+
+<div class="detail-overlay" id="contestOverlay">
+  <div class="detail-page">
+    <div class="detail-header">
+      <button class="theme-btn" id="contestBackBtn" type="button">← Dashboard</button>
+      <h2 id="contestPageTitle">Contest</h2>
+      <button class="theme-btn" id="contestNewBtn" type="button" style="display:none; margin-left:auto;">+ New contest</button>
+    </div>
+    <div id="contestBoardHost">
+      <div class="meta-note">Loading contests…</div>
+    </div>
+  </div>
+</div>
+
+<!-- Coach/admin: create or edit a contest -->
+<div class="celebration-modal-backdrop" id="contestEditBackdrop">
+  <div class="celebration-modal" style="text-align:left; max-width:520px;">
+    <div class="celebration-modal-title" style="text-align:center;" id="contestEditTitle">New contest</div>
+    <div class="contest-form-grid" style="margin-top:12px;">
+      <label class="full">Contest name
+        <input type="text" id="contestEditName" maxlength="80" placeholder="Power Hour">
+      </label>
+      <label>Timing theme
+        <select id="contestEditPreset">
+          <option value="morning">Morning</option>
+          <option value="power-hour">Power Hour</option>
+          <option value="evening">Evening</option>
+          <option value="custom">Custom</option>
+        </select>
+      </label>
+      <label>Kind
+        <select id="contestEditKind">
+          <option value="hosted">Hosted (live in Pacer)</option>
+          <option value="promo">Promo / company-wide board</option>
+        </select>
+      </label>
+      <label>Mode
+        <select id="contestEditMode">
+          <option value="race">Race</option>
+          <option value="wheel">Wheel</option>
+        </select>
+      </label>
+      <label>Units / tickets
+        <select id="contestEditUnits">
+          <option value="sessions">Sessions</option>
+          <option value="members">Members</option>
+          <option value="both">Both</option>
+        </select>
+      </label>
+      <label>Start
+        <input type="datetime-local" id="contestEditStart">
+      </label>
+      <label>End
+        <input type="datetime-local" id="contestEditEnd">
+      </label>
+      <label>Stake
+        <select id="contestEditStakeType">
+          <option value="bragging">Bragging rights</option>
+          <option value="money">Money on the line</option>
+        </select>
+      </label>
+      <label id="contestEditStakeAmountWrap">Pot ($)
+        <input type="number" id="contestEditStakeAmount" min="1" step="1" placeholder="50">
+      </label>
+      <label class="full">External link (optional — company-wide boards)
+        <input type="url" id="contestEditExternalUrl" placeholder="https://…">
+      </label>
+      <label class="full" style="flex-direction:row; align-items:center; gap:8px; text-transform:none; font-weight:700;">
+        <input type="checkbox" id="contestEditShowBanner" checked style="width:auto;">
+        Show promo banner on landing
+      </label>
+    </div>
+    <div class="meta-note" id="contestEditStatus" style="margin-top:10px;"></div>
+    <button type="button" class="celebration-modal-close" id="contestEditSave" style="margin-top:14px; width:100%;">Save contest</button>
+    <button type="button" class="celebration-modal-mute" id="contestEditCancel">Cancel</button>
   </div>
 </div>
 
@@ -5111,6 +5372,7 @@ function render() {
     fitLandingBadges();
     requestAnimationFrame(fitLandingBadges);
   });
+  if (typeof refreshContestsUi === 'function') refreshContestsUi({ quiet: true });
 }
 
 // .landing-side-col is absolutely positioned out of normal flow (see its CSS
@@ -8487,6 +8749,7 @@ setupHeaderPopover('layoutToolsBtn', 'layoutToolsMenu');
   });
   bind('toolsTeamDetailsBtn', 'team-details');
   bind('toolsTeamGoalsBtn', 'team-goals');
+  bind('toolsContestsBtn', 'contest');
   bind('toolsTeamScheduleBtn', 'team-schedule');
   bind('toolsShoutoutBtn', () => document.getElementById('shoutoutSendBtn')?.click());
   bind('toolsGoalsBtn', 'edit-goals');
@@ -8505,12 +8768,579 @@ document.getElementById('toggleAdvancedFields').addEventListener('click', () => 
     (compact ? '+' : '−') + ' Tag / Email / Cap';
 });
 
+// ---------- Live Contests (hosted race/wheel + promo banners) ----------
+let CONTEST_CACHE = [];
+let CONTEST_CAN_MANAGE = false;
+let contestViewId = '';
+let contestCountdownTimer = 0;
+let contestEditId = '';
+
+function contestCanManage() {
+  if (typeof getViewAsRepRaw === 'function' && getViewAsRepRaw()) return false;
+  return !!(CONTEST_CAN_MANAGE || (typeof canViewTeamDetails === 'function' && canViewTeamDetails()));
+}
+function contestIsoToLocalInput(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function contestLocalInputToIso(value) {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString();
+}
+function contestPresetWindow(preset) {
+  const now = new Date();
+  const start = new Date(now);
+  const end = new Date(now);
+  const y = now.getFullYear(), m = now.getMonth(), day = now.getDate();
+  if (preset === 'morning') {
+    start.setFullYear(y, m, day); start.setHours(8, 0, 0, 0);
+    end.setFullYear(y, m, day); end.setHours(11, 0, 0, 0);
+  } else if (preset === 'power-hour') {
+    start.setFullYear(y, m, day); start.setHours(13, 0, 0, 0);
+    end.setFullYear(y, m, day); end.setHours(14, 0, 0, 0);
+  } else if (preset === 'evening') {
+    start.setFullYear(y, m, day); start.setHours(16, 0, 0, 0);
+    end.setFullYear(y, m, day); end.setHours(19, 0, 0, 0);
+  } else {
+    end.setHours(end.getHours() + 1);
+  }
+  if (end.getTime() <= Date.now()) {
+    // Push to tomorrow if today's window already ended.
+    start.setDate(start.getDate() + 1);
+    end.setDate(end.getDate() + 1);
+  }
+  return { startAt: start.toISOString(), endAt: end.toISOString() };
+}
+function contestYmdInCentral(date) {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: typeof TEAM_TIME_ZONE !== 'undefined' ? TEAM_TIME_ZONE : 'America/Chicago',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(date);
+  } catch (_) {
+    return date.toISOString().slice(0, 10);
+  }
+}
+function contestItemInWindow(itemDate, startAt, endAt) {
+  const d = String(itemDate || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+  const start = contestYmdInCentral(new Date(startAt));
+  const end = contestYmdInCentral(new Date(endAt));
+  return d >= start && d <= end;
+}
+function contestUnitsScore(units, sessions, members) {
+  const s = Number(sessions) || 0;
+  const m = Number(members) || 0;
+  if (units === 'members') return m;
+  if (units === 'both') return s + m;
+  return s;
+}
+function contestUnitsLabel(units) {
+  if (units === 'members') return 'Members';
+  if (units === 'both') return 'Sessions + Members';
+  return 'Sessions';
+}
+function contestStakeLabel(c) {
+  if (c.stakeType === 'money' && c.stakeAmount) return `$${Number(c.stakeAmount).toLocaleString('en-US')} pot`;
+  return 'Bragging rights';
+}
+function contestPlaceLabel(place) {
+  if (!place || place < 1) return '—';
+  const j = place % 10, k = place % 100;
+  if (j === 1 && k !== 11) return place + 'st';
+  if (j === 2 && k !== 12) return place + 'nd';
+  if (j === 3 && k !== 13) return place + 'rd';
+  return place + 'th';
+}
+/** Standings from live actuals (hosted) + coach manual adds. Manual Attro never counts. */
+function computeContestStandings(contest) {
+  if (!contest) return [];
+  const roster = typeof getRoster === 'function' ? getRoster() : [];
+  const filter = Array.isArray(contest.repFilter) && contest.repFilter.length
+    ? new Set(contest.repFilter)
+    : null;
+  const scores = new Map();
+  const ensure = (name) => {
+    if (!scores.has(name)) scores.set(name, { repName: name, sessions: 0, members: 0, tickets: 0, manual: 0 });
+    return scores.get(name);
+  };
+  roster.forEach((r) => {
+    if (!filter || filter.has(r.display)) ensure(r.display);
+  });
+
+  if (contest.kind !== 'promo') {
+    const actuals = typeof loadActuals === 'function' ? loadActuals() : null;
+    const perRep = (actuals && actuals.perRep) || {};
+    Object.keys(perRep).forEach((repName) => {
+      if (filter && !filter.has(repName)) return;
+      const items = perRep[repName].items || [];
+      items.forEach((it) => {
+        const sessions = Number(it.sessions) || 0;
+        const members = Number(it.members) || 0;
+        if (sessions <= 0 && members <= 0) return; // sold only — no refunds
+        if (!contestItemInWindow(it.date, contest.startAt, contest.endAt)) return;
+        const row = ensure(repName);
+        row.sessions += sessions;
+        row.members += members;
+      });
+    });
+  }
+
+  (contest.manualEntries || []).forEach((entry) => {
+    if (!entry || !entry.repName) return;
+    if (filter && !filter.has(entry.repName)) return;
+    const row = ensure(entry.repName);
+    row.sessions += Number(entry.sessions) || 0;
+    row.members += Number(entry.members) || 0;
+    row.manual += 1;
+  });
+
+  const rows = Array.from(scores.values()).map((row) => {
+    const score = contestUnitsScore(contest.units, row.sessions, row.members);
+    return Object.assign(row, {
+      score,
+      tickets: Math.max(0, score),
+    });
+  }).filter((r) => r.score > 0 || (filter && filter.has(r.repName)));
+
+  rows.sort((a, b) => b.score - a.score || a.repName.localeCompare(b.repName));
+  rows.forEach((r, i) => { r.place = i + 1; });
+  return rows;
+}
+function contestMyPlace(contest, standings) {
+  const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
+  if (!me) return null;
+  const hit = (standings || []).find((r) => r.repName === me);
+  return hit ? hit.place : null;
+}
+function bannerContests() {
+  return (CONTEST_CACHE || []).filter((c) => {
+    if (!c || !c.showBanner) return false;
+    if (c.status === 'ended') return false;
+    return c.status === 'active' || c.status === 'scheduled';
+  });
+}
+function contestCountdownHTML(endAt) {
+  const end = new Date(endAt).getTime();
+  const ms = end - Date.now();
+  if (!Number.isFinite(end)) return '—';
+  if (ms <= 0) return 'Ended';
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h >= 24) {
+    const days = Math.floor(h / 24);
+    return `${days}d ${h % 24}h left`;
+  }
+  return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+function renderContestPromoBanners() {
+  const host = document.getElementById('contestBannerStack');
+  if (!host) return;
+  const list = bannerContests();
+  if (!list.length) {
+    host.innerHTML = '';
+    return;
+  }
+  host.innerHTML = list.map((c) => {
+    const standings = computeContestStandings(c);
+    const place = contestMyPlace(c, standings);
+    const placeVal = c.status === 'scheduled' ? 'Soon' : contestPlaceLabel(place);
+    const modeLabel = c.mode === 'wheel' ? 'Wheel' : 'Race';
+    const kindLabel = c.kind === 'promo' ? 'Company-wide' : 'Live contest';
+    return `
+      <div class="contest-promo-banner kind-${escapeAttr(c.kind || 'hosted')}" data-contest-banner="${escapeAttr(c.id)}">
+        <div class="contest-promo-main">
+          <p class="contest-promo-eyebrow">${escapeHtml(kindLabel)} · ${escapeHtml(modeLabel)} · ${escapeHtml(contestStakeLabel(c))}</p>
+          <h3 class="contest-promo-name">${escapeHtml(c.name || 'Contest')}</h3>
+          <div class="contest-promo-meta">${escapeHtml(contestUnitsLabel(c.units))} · <span data-contest-cd="${escapeAttr(c.id)}">${escapeHtml(contestCountdownHTML(c.endAt))}</span></div>
+        </div>
+        <div class="contest-promo-place">
+          <span class="contest-promo-place-label">Your place</span>
+          <span class="contest-promo-place-val">${escapeHtml(placeVal)}</span>
+        </div>
+        <div class="contest-promo-actions">
+          <button type="button" class="contest-view-btn" data-view-contest="${escapeAttr(c.id)}">View contest</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+function contestStandingsHTML(contest, standings) {
+  if (!standings.length) {
+    return `<div class="attr-approvals-empty"><p>No credits in this window yet${contest.kind === 'promo' ? ' — coaches can add entries below' : ''}.</p></div>`;
+  }
+  const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
+  const unit = contest.mode === 'wheel' ? 'tickets' : 'pts';
+  return `<div class="contest-standings">${standings.map((r) => `
+    <div class="contest-stand-row${r.repName === me ? ' is-me' : ''}">
+      <div class="contest-stand-rank">${r.place}</div>
+      <div>
+        <div class="contest-stand-name">${escapeHtml(r.repName)}</div>
+        <div class="contest-stand-sub">${fmt(r.sessions, 1)} sess · ${fmt(r.members, 1)} mem${r.manual ? ` · ${r.manual} manual` : ''}</div>
+      </div>
+      <div class="contest-stand-score">${fmt(r.score, 1)} <span style="font-size:11px;color:var(--text-faint);">${unit}</span></div>
+    </div>`).join('')}</div>`;
+}
+function contestBoardHTML(contest) {
+  if (!contest) {
+    return `<div class="attr-approvals-empty"><p>No contest selected.</p>
+      ${contestCanManage() ? '<button type="button" class="theme-btn" id="contestEmptyCreate">+ Create a contest</button>' : ''}
+    </div>`;
+  }
+  const standings = computeContestStandings(contest);
+  const myPlace = contestMyPlace(contest, standings);
+  const manage = contestCanManage();
+  const wheelBlock = contest.mode === 'wheel' ? `
+    <div class="contest-wheel-wrap">
+      <div>
+        <div class="contest-wheel-pointer" aria-hidden="true"></div>
+        <div class="contest-wheel" id="contestWheel" title="Ticket wheel"></div>
+        ${manage && contest.status === 'active' ? '<button type="button" class="theme-btn" id="contestSpinBtn" style="display:block;margin:12px auto 0;">Spin the wheel</button>' : ''}
+        <div class="meta-note" id="contestSpinResult" style="text-align:center;margin-top:8px;"></div>
+      </div>
+      <div>${contestStandingsHTML(contest, standings)}</div>
+    </div>` : contestStandingsHTML(contest, standings);
+
+  const coachPanel = manage ? `
+    <div class="contest-coach-panel">
+      <div class="m-label" style="margin-bottom:8px;">Coach controls</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+        <button type="button" class="theme-btn" data-contest-edit="${escapeAttr(contest.id)}">Edit contest</button>
+        ${contest.status !== 'ended' ? `<button type="button" class="theme-btn" data-contest-end="${escapeAttr(contest.id)}">End contest</button>` : ''}
+        ${contest.externalUrl ? `<a class="theme-btn" href="${escapeAttr(contest.externalUrl)}" target="_blank" rel="noopener">Open external board</a>` : ''}
+      </div>
+      <div class="m-label" style="margin-bottom:6px;">Manual add (not Manual Attro — coach adjustment)</div>
+      <div class="contest-form-grid">
+        <label>Rep
+          <select id="contestManualRep"></select>
+        </label>
+        <label>Sessions
+          <input type="number" id="contestManualSessions" step="any" value="0">
+        </label>
+        <label>Members
+          <input type="number" id="contestManualMembers" step="0.5" value="0">
+        </label>
+        <label class="full">Note (required)
+          <input type="text" id="contestManualNote" maxlength="280" placeholder="Why this credit is being added">
+        </label>
+      </div>
+      <button type="button" class="theme-btn" id="contestManualAddBtn" style="margin-top:10px;">Add to board</button>
+      <div class="meta-note" id="contestManualStatus" style="margin-top:6px;"></div>
+    </div>` : '';
+
+  return `
+    <div class="contest-board-hero">
+      <p class="contest-promo-eyebrow">${contest.kind === 'promo' ? 'Promo / company-wide' : 'Hosted contest'} · ${contest.mode === 'wheel' ? 'Wheel' : 'Race'}</p>
+      <h2>${escapeHtml(contest.name)}</h2>
+      <div class="contest-countdown" data-contest-cd="${escapeAttr(contest.id)}">${escapeHtml(contestCountdownHTML(contest.endAt))}</div>
+      <div class="contest-board-chips">
+        <span class="contest-chip"><strong>${escapeHtml(contestUnitsLabel(contest.units))}</strong></span>
+        <span class="contest-chip"><strong>${escapeHtml(contestStakeLabel(contest))}</strong></span>
+        <span class="contest-chip">Your place <strong>${escapeHtml(contest.status === 'scheduled' ? 'Soon' : contestPlaceLabel(myPlace))}</strong></span>
+        <span class="contest-chip">Status <strong>${escapeHtml(contest.status)}</strong></span>
+      </div>
+    </div>
+    ${wheelBlock}
+    ${coachPanel}`;
+}
+function populateContestManualRepSelect() {
+  const sel = document.getElementById('contestManualRep');
+  if (!sel) return;
+  const roster = typeof getRoster === 'function' ? getRoster() : [];
+  sel.innerHTML = roster.map((r) => `<option value="${escapeAttr(r.display)}">${escapeHtml(r.display)}</option>`).join('');
+}
+function renderContestBoard() {
+  const host = document.getElementById('contestBoardHost');
+  const title = document.getElementById('contestPageTitle');
+  const newBtn = document.getElementById('contestNewBtn');
+  if (newBtn) newBtn.style.display = contestCanManage() ? '' : 'none';
+  if (!host) return;
+  let contest = CONTEST_CACHE.find((c) => c.id === contestViewId);
+  if (!contest) {
+    contest = CONTEST_CACHE.find((c) => c.status === 'active')
+      || CONTEST_CACHE.find((c) => c.status === 'scheduled')
+      || CONTEST_CACHE[0];
+    if (contest) contestViewId = contest.id;
+  }
+  if (title) title.textContent = contest ? contest.name : 'Contests';
+  host.innerHTML = contestBoardHTML(contest);
+  populateContestManualRepSelect();
+  const emptyCreate = document.getElementById('contestEmptyCreate');
+  if (emptyCreate) emptyCreate.addEventListener('click', () => openContestEditModal(null));
+}
+function tickContestCountdowns() {
+  document.querySelectorAll('[data-contest-cd]').forEach((el) => {
+    const id = el.getAttribute('data-contest-cd');
+    const c = CONTEST_CACHE.find((x) => x.id === id);
+    if (c) el.textContent = contestCountdownHTML(c.endAt);
+  });
+}
+async function refreshContestsUi(opts) {
+  const quiet = !!(opts && opts.quiet);
+  try {
+    const user = window.netlifyIdentity && netlifyIdentity.currentUser();
+    if (!user) {
+      CONTEST_CACHE = [];
+      CONTEST_CAN_MANAGE = false;
+      renderContestPromoBanners();
+      if (document.getElementById('contestOverlay')?.classList.contains('open')) renderContestBoard();
+      return;
+    }
+    const data = await authedFetch('/api/contests/list');
+    CONTEST_CACHE = Array.isArray(data.contests) ? data.contests : [];
+    CONTEST_CAN_MANAGE = !!data.canManage;
+    renderContestPromoBanners();
+    if (document.getElementById('contestOverlay')?.classList.contains('open')) renderContestBoard();
+    if (!contestCountdownTimer) {
+      contestCountdownTimer = window.setInterval(tickContestCountdowns, 1000);
+    }
+  } catch (err) {
+    if (!quiet) console.warn('Contests', err);
+    renderContestPromoBanners();
+  }
+}
+function openContestOverlay(id) {
+  if (id) contestViewId = id;
+  if (location.hash !== '#contest' && !String(location.hash || '').startsWith('#contest=')) {
+    location.hash = id ? 'contest=' + encodeURIComponent(id) : 'contest';
+    return;
+  }
+  const overlay = document.getElementById('contestOverlay');
+  overlay?.classList.add('open');
+  window.scrollTo(0, 0);
+  syncOverlayBodyScroll();
+  renderContestBoard();
+  refreshContestsUi();
+}
+function closeContestOverlay() {
+  document.getElementById('contestOverlay')?.classList.remove('open');
+  if (String(location.hash || '').startsWith('#contest')) {
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+  syncOverlayBodyScroll();
+}
+function renderContestHash() {
+  const h = location.hash || '';
+  const m = h.match(/^#contest(?:=(.+))?$/);
+  if (m) {
+    openContestOverlay(m[1] ? decodeURIComponent(m[1]) : '');
+  } else {
+    document.getElementById('contestOverlay')?.classList.remove('open');
+    syncOverlayBodyScroll();
+  }
+}
+function syncContestStakeFields() {
+  const type = document.getElementById('contestEditStakeType')?.value;
+  const wrap = document.getElementById('contestEditStakeAmountWrap');
+  if (wrap) wrap.style.display = type === 'money' ? '' : 'none';
+}
+function openContestEditModal(id) {
+  contestEditId = id || '';
+  const existing = CONTEST_CACHE.find((c) => c.id === contestEditId);
+  const title = document.getElementById('contestEditTitle');
+  if (title) title.textContent = existing ? 'Edit contest' : 'New contest';
+  const preset = existing?.preset || 'power-hour';
+  const win = existing
+    ? { startAt: existing.startAt, endAt: existing.endAt }
+    : contestPresetWindow(preset);
+  document.getElementById('contestEditName').value = existing?.name || (preset === 'power-hour' ? 'Power Hour' : preset === 'morning' ? 'Morning Mayhem' : preset === 'evening' ? 'Evening Surge' : '');
+  document.getElementById('contestEditPreset').value = preset;
+  document.getElementById('contestEditKind').value = existing?.kind || 'hosted';
+  document.getElementById('contestEditMode').value = existing?.mode || 'race';
+  document.getElementById('contestEditUnits').value = existing?.units || 'sessions';
+  document.getElementById('contestEditStart').value = contestIsoToLocalInput(win.startAt);
+  document.getElementById('contestEditEnd').value = contestIsoToLocalInput(win.endAt);
+  document.getElementById('contestEditStakeType').value = existing?.stakeType || 'bragging';
+  document.getElementById('contestEditStakeAmount').value = existing?.stakeAmount || '';
+  document.getElementById('contestEditExternalUrl').value = existing?.externalUrl || '';
+  document.getElementById('contestEditShowBanner').checked = existing ? existing.showBanner !== false : true;
+  const status = document.getElementById('contestEditStatus');
+  if (status) { status.textContent = ''; status.style.color = ''; }
+  syncContestStakeFields();
+  document.getElementById('contestEditBackdrop')?.classList.add('open');
+}
+function closeContestEditModal() {
+  contestEditId = '';
+  document.getElementById('contestEditBackdrop')?.classList.remove('open');
+}
+document.getElementById('contestEditPreset')?.addEventListener('change', () => {
+  if (contestEditId) return; // don't clobber edits on existing contests
+  const preset = document.getElementById('contestEditPreset').value;
+  const win = contestPresetWindow(preset);
+  document.getElementById('contestEditStart').value = contestIsoToLocalInput(win.startAt);
+  document.getElementById('contestEditEnd').value = contestIsoToLocalInput(win.endAt);
+  const nameEl = document.getElementById('contestEditName');
+  if (nameEl && !String(nameEl.value || '').trim()) {
+    nameEl.value = preset === 'power-hour' ? 'Power Hour' : preset === 'morning' ? 'Morning Mayhem' : preset === 'evening' ? 'Evening Surge' : '';
+  }
+});
+document.getElementById('contestEditStakeType')?.addEventListener('change', syncContestStakeFields);
+document.getElementById('contestEditCancel')?.addEventListener('click', closeContestEditModal);
+document.getElementById('contestEditBackdrop')?.addEventListener('click', (e) => {
+  if (e.target.id === 'contestEditBackdrop') closeContestEditModal();
+});
+document.getElementById('contestEditSave')?.addEventListener('click', async () => {
+  const status = document.getElementById('contestEditStatus');
+  const payload = {
+    id: contestEditId || undefined,
+    name: document.getElementById('contestEditName').value,
+    preset: document.getElementById('contestEditPreset').value,
+    kind: document.getElementById('contestEditKind').value,
+    mode: document.getElementById('contestEditMode').value,
+    units: document.getElementById('contestEditUnits').value,
+    startAt: contestLocalInputToIso(document.getElementById('contestEditStart').value),
+    endAt: contestLocalInputToIso(document.getElementById('contestEditEnd').value),
+    stakeType: document.getElementById('contestEditStakeType').value,
+    stakeAmount: document.getElementById('contestEditStakeAmount').value,
+    externalUrl: document.getElementById('contestEditExternalUrl').value,
+    showBanner: document.getElementById('contestEditShowBanner').checked,
+  };
+  const btn = document.getElementById('contestEditSave');
+  if (btn) btn.disabled = true;
+  try {
+    const { contest } = await authedFetch('/api/contests/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    closeContestEditModal();
+    await refreshContestsUi();
+    if (contest?.id) {
+      contestViewId = contest.id;
+      openContestOverlay(contest.id);
+    }
+  } catch (err) {
+    if (status) {
+      status.textContent = err.message || 'Could not save contest';
+      status.style.color = '#dc2626';
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+});
+
+document.getElementById('contestBackBtn')?.addEventListener('click', () => {
+  history.replaceState(null, '', location.pathname + location.search);
+  document.getElementById('contestOverlay')?.classList.remove('open');
+  syncOverlayBodyScroll();
+  window.scrollTo(0, 0);
+});
+document.getElementById('contestNewBtn')?.addEventListener('click', () => openContestEditModal(null));
+document.getElementById('teamContestsBtn')?.addEventListener('click', () => {
+  location.hash = 'contest';
+});
+document.getElementById('contestBannerStack')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-view-contest]');
+  if (!btn) return;
+  e.preventDefault();
+  const id = btn.getAttribute('data-view-contest');
+  location.hash = 'contest=' + encodeURIComponent(id);
+});
+document.getElementById('contestBoardHost')?.addEventListener('click', async (e) => {
+  const edit = e.target.closest('[data-contest-edit]');
+  if (edit) {
+    openContestEditModal(edit.getAttribute('data-contest-edit'));
+    return;
+  }
+  const endBtn = e.target.closest('[data-contest-end]');
+  if (endBtn) {
+    const id = endBtn.getAttribute('data-contest-end');
+    if (!id || !confirm('End this contest now? Standings will freeze.')) return;
+    try {
+      await authedFetch('/api/contests/end', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      await refreshContestsUi();
+      renderContestBoard();
+    } catch (err) {
+      alert(err.message || 'Could not end contest');
+    }
+    return;
+  }
+  if (e.target.id === 'contestManualAddBtn') {
+    const status = document.getElementById('contestManualStatus');
+    const payload = {
+      contestId: contestViewId,
+      repName: document.getElementById('contestManualRep')?.value,
+      sessions: document.getElementById('contestManualSessions')?.value,
+      members: document.getElementById('contestManualMembers')?.value,
+      note: document.getElementById('contestManualNote')?.value,
+    };
+    e.target.disabled = true;
+    try {
+      await authedFetch('/api/contests/manual-entry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (status) { status.textContent = 'Added.'; status.style.color = ''; }
+      document.getElementById('contestManualNote').value = '';
+      await refreshContestsUi();
+      renderContestBoard();
+    } catch (err) {
+      if (status) {
+        status.textContent = err.message || 'Could not add';
+        status.style.color = '#dc2626';
+      }
+    } finally {
+      e.target.disabled = false;
+    }
+    return;
+  }
+  if (e.target.id === 'contestSpinBtn') {
+    const contest = CONTEST_CACHE.find((c) => c.id === contestViewId);
+    const standings = computeContestStandings(contest).filter((r) => r.tickets > 0);
+    const result = document.getElementById('contestSpinResult');
+    const wheel = document.getElementById('contestWheel');
+    if (!standings.length) {
+      if (result) result.textContent = 'No tickets yet — need credits in the window first.';
+      return;
+    }
+    const pool = [];
+    standings.forEach((r) => {
+      for (let i = 0; i < Math.max(1, Math.round(r.tickets)); i++) pool.push(r.repName);
+    });
+    const winner = pool[Math.floor(Math.random() * pool.length)];
+    if (wheel) {
+      wheel.classList.remove('is-spinning');
+      void wheel.offsetWidth;
+      wheel.classList.add('is-spinning');
+    }
+    if (result) result.textContent = 'Spinning…';
+    setTimeout(() => {
+      if (result) result.textContent = `🎉 ${winner} hits the wheel!`;
+      if (typeof showPaceToast === 'function') showPaceToast('Wheel winner!', winner);
+    }, document.body.classList.contains('motion-static') ? 200 : 3000);
+  }
+});
+window.addEventListener('hashchange', renderContestHash);
+function bootContestsUi() {
+  renderContestHash();
+  refreshContestsUi({ quiet: true });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootContestsUi);
+else bootContestsUi();
+// Identity login also refreshes contests once available.
+if (window.netlifyIdentity) {
+  netlifyIdentity.on('login', () => refreshContestsUi({ quiet: true }));
+  netlifyIdentity.on('logout', () => {
+    CONTEST_CACHE = [];
+    renderContestPromoBanners();
+  });
+}
+
 // ---------- Admin-only footer pages: Edit Goals / Historical SIP ----------
 // Gated by canViewAdminTools() (Aaron + admin-list). #shoutout-history reuses
 // the Edit Monthly Goals overlay but auto-expands the All Shoutouts section.
 // Every full-page overlay is `.detail-overlay`: lock body + html scroll while any is open.
 function syncOverlayBodyScroll() {
-  const anyOpen = ['clientDetailOverlay', 'manualAttroOverlay', 'goalsOverlay', 'adminSettingsOverlay', 'sipOverlay', 'teamDetailsOverlay']
+  const anyOpen = ['clientDetailOverlay', 'manualAttroOverlay', 'contestOverlay', 'goalsOverlay', 'adminSettingsOverlay', 'sipOverlay', 'teamDetailsOverlay']
     .some(id => {
       const el = document.getElementById(id);
       return el && el.classList.contains('open');
@@ -12813,14 +13643,14 @@ function dismissTourBlockingPopups() {
     'celebrationModalBackdrop', 'shoutoutCelebrationBackdrop',
     'personalGoalGateBackdrop', 'lwomPaceBackdrop', 'rampCheckBackdrop',
     'shoutoutSendBackdrop', 'attrRejectBackdrop', 'attrEditBackdrop',
-    'attrDetailBackdrop', 'cancelConvertBackdrop',
+    'attrDetailBackdrop', 'contestEditBackdrop', 'cancelConvertBackdrop',
   ].forEach((id) => document.getElementById(id)?.classList.remove('open'));
   document.querySelectorAll('.header-dropdown-menu.open').forEach((m) => m.classList.remove('open'));
 }
 function closeAllTourOverlays() {
   dismissTourBlockingPopups();
   [
-    'clientDetailOverlay', 'manualAttroOverlay', 'goalsOverlay',
+    'clientDetailOverlay', 'manualAttroOverlay', 'contestOverlay', 'goalsOverlay',
     'adminSettingsOverlay', 'sipOverlay', 'teamDetailsOverlay',
   ].forEach((id) => document.getElementById(id)?.classList.remove('open'));
   document.getElementById('attrRejectBackdrop')?.classList.remove('open');
