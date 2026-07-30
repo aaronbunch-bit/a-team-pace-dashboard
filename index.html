@@ -10728,6 +10728,14 @@ async function handleAttrReviewClick(e) {
 }
 document.getElementById('attrPendingList')?.addEventListener('click', handleAttrReviewClick);
 document.getElementById('attrActionedList')?.addEventListener('click', handleAttrReviewClick);
+document.getElementById('attributionSignedInArea')?.addEventListener('click', (e) => {
+  const info = e.target.closest('.attr-info-btn');
+  if (!info) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const tip = info.getAttribute('data-tip') || info.getAttribute('title') || '';
+  if (tip) alert(tip);
+});
 
 document.getElementById('attrRejectConfirm')?.addEventListener('click', async () => {
   const status = document.getElementById('attrRejectStatus');
