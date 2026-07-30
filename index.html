@@ -1517,6 +1517,14 @@
   .status-pill.st-rejected { background: linear-gradient(90deg,#f87171,#dc2626); }
   .approve-btn, .reject-btn { padding: 5px 12px; font-size: 11.5px; margin-top: 0; }
   .reject-btn { background: var(--metric-box-bg); color: #dc2626; }
+  .attr-link-cell {
+    display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .attr-edit-link-btn {
+    margin: 0; padding: 3px 8px; font-size: 10.5px; font-weight: 700;
+    background: var(--metric-box-bg); color: var(--text-muted); border: 1px solid var(--card-border);
+  }
+  .attr-edit-link-btn:hover { color: var(--text); border-color: var(--text-faint); }
 
   .client-detail-btn {
     display: block; width: 100%; margin-top: 16px;
@@ -2597,6 +2605,9 @@
         <label style="display:block; margin-top:10px;">Comments <span style="color:#dc2626;">(required)</span>
           <textarea id="attrComments" style="height:70px;" placeholder="Explain what happened — required for every request."></textarea>
         </label>
+        <div class="meta-note" id="attrBucaEditHint" style="display:none; margin-top:8px;">
+          BUCA / Class Wallet tip: you can update the client page link later from <b>My requests</b> once you have the final URL.
+        </div>
         <button id="submitAttribution">Submit request</button>
         <div class="meta-note" id="attrSubmitStatus"></div>
       </div>
@@ -2614,7 +2625,7 @@
             <tbody id="myAttributionsBody"></tbody>
           </table>
         </div>
-        <div class="meta-note">Reps see only their own requests here; admins see every rep's — filter by month to look back on any past period.</div>
+        <div class="meta-note">Reps see only their own requests here; admins see every rep's — filter by month to look back on any past period. <b>BUCA / Class Wallet</b> requests keep an Edit control on the client page so you can drop in the final URL after submit.</div>
       </div>
       <div class="card" id="adminApprovalsCard" style="display:none;">
         <h2>Pending approvals (all reps)</h2>
@@ -8866,7 +8877,10 @@ async function refreshTeamAttributions() {
   status.textContent = '';
   try {
     const { canViewTeam, isAdmin, records } = await authedFetch('/api/attributions/list');
-    const teamVisible = canViewTeam !== undefined ? canViewTeam : isAdmin;
+    lastAttrRecords = records;
+    lastAttrIsAdmin = !!isAdmin;
+    lastAttrCanViewTeam = canViewTeam !== undefined ? !!canViewTeam : !!isAdmin;
+    const teamVisible = lastAttrCanViewTeam;
     if (!teamVisible) status.textContent = 'Showing only your own requests — admin or Sales Coach access is required to see the whole team\'s.';
     tbody.innerHTML = records.length ? records.map(r => `
       <tr>
@@ -8901,7 +8915,10 @@ async function refreshDetailAttributions(repName) {
   countEl.textContent = '';
   statusEl.textContent = '';
   try {
-    const { records } = await authedFetch('/api/attributions/list');
+    const { isAdmin, canViewTeam, records } = await authedFetch('/api/attributions/list');
+    lastAttrRecords = records;
+    lastAttrIsAdmin = !!isAdmin;
+    lastAttrCanViewTeam = canViewTeam !== undefined ? !!canViewTeam : !!isAdmin;
     const liveMonth = String((loadActuals().asOf || '')).slice(0, 7);
     const mine = records.filter(r => r.repName === repName && r.status === 'pending' && attrMonthKey(r) === liveMonth);
     countEl.textContent = mine.length ? mine.length + ' pending' : '';
@@ -9133,6 +9150,17 @@ function attrStatusPill(status) {
   return `<span class="status-pill small ${cls}">${label}</span>`;
 }
 
+function isBucaAttrReason(r) {
+  return /buca/i.test(String((r && (r.adjustmentReason || r.reason)) || ''));
+}
+function canEditAttrClientLink(r) {
+  if (!r || !isBucaAttrReason(r) || r.status === 'rejected') return false;
+  const email = (currentUserEmail() || '').toLowerCase();
+  if (!email) return false;
+  if (lastAttrIsAdmin) return true;
+  return String(r.repEmail || '').toLowerCase() === email;
+}
+
 // Cached from the last successful /api/attributions/list fetch, so the month
 // filter can re-render instantly without a re-fetch. canViewTeam drives whether
 // we got everyone's records (and show the Rep column); isAdmin (full admins)
@@ -9142,9 +9170,11 @@ let lastAttrCanViewTeam = false;
 let lastAttrIsAdmin = false;
 
 function attrLinkCell(r) {
-  return r.clientLink
-    ? `<a href="${r.clientLink}" target="_blank" rel="noopener">View page</a>`
+  const link = r.clientLink
+    ? `<a href="${escapeAttr(r.clientLink)}" target="_blank" rel="noopener">View page</a>`
     : (r.clientId || '—'); // clientId is a fallback for any older pre-redesign records
+  if (!canEditAttrClientLink(r)) return link;
+  return `<span class="attr-link-cell">${link}<button type="button" class="theme-btn attr-edit-link-btn" data-edit-attr-link="${escapeAttr(r.id)}" title="Update client page link">Edit</button></span>`;
 }
 // Buckets by submission month (same convention as approved-totals — see the
 // comment in submit-attribution.mts on why saleDate now equals submission date).
@@ -9241,6 +9271,60 @@ async function refreshMyAttributions() {
 }
 
 document.getElementById('attrMonthFilter').addEventListener('change', renderMyAttributionsTable);
+
+document.getElementById('attrReasonSelect')?.addEventListener('change', () => {
+  const hint = document.getElementById('attrBucaEditHint');
+  if (!hint) return;
+  const reason = document.getElementById('attrReasonSelect').value || '';
+  hint.style.display = /buca/i.test(reason) ? '' : 'none';
+});
+
+async function saveAttrClientLinkEdit(id) {
+  const cached = lastAttrRecords.find((r) => r.id === id);
+  const current = (cached && cached.clientLink) || '';
+  const next = window.prompt('Update the client page link for this BUCA / Class Wallet request:', current);
+  if (next == null) return;
+  const clientLink = String(next).trim();
+  if (!clientLink) {
+    alert('Client page link is required.');
+    return;
+  }
+  try {
+    const { record } = await authedFetch('/api/attributions/update-client-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, clientLink }),
+    });
+    if (cached && record) {
+      cached.clientLink = record.clientLink;
+      cached.clientLinkUpdatedAt = record.clientLinkUpdatedAt;
+      cached.clientLinkUpdatedBy = record.clientLinkUpdatedBy;
+    }
+    if (document.getElementById('manualAttroOverlay')?.classList.contains('open')) {
+      await refreshMyAttributions();
+    } else {
+      renderMyAttributionsTable();
+    }
+    if (document.getElementById('teamDetailsOverlay')?.classList.contains('open')) {
+      await refreshTeamAttributions();
+    }
+    if (document.getElementById('clientDetailOverlay')?.classList.contains('open')) {
+      const rep = currentBonusRep || activityFilterRep;
+      if (rep) await refreshDetailAttributions(rep);
+    }
+  } catch (err) {
+    alert(err.message || 'Could not update client page link');
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-edit-attr-link]');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const id = btn.getAttribute('data-edit-attr-link');
+  if (id) saveAttrClientLinkEdit(id);
+});
 
 document.getElementById('pendingApprovalsBody').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-review]');
