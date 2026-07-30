@@ -1391,6 +1391,28 @@
   .contest-history-podium strong { color: var(--text); }
   .contest-history-actions { display: flex; flex-wrap: wrap; gap: 6px; grid-column: 1 / -1; }
   .contest-history-actions .theme-btn { font-size: 12px; padding: 6px 10px; }
+  .contest-header-actions {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  }
+  .contest-header-actions .theme-btn { margin-top: 0; }
+  button.theme-btn.contest-new-primary {
+    background: linear-gradient(105deg, #0d9488 0%, #0891b2 55%, #2563eb 100%);
+    color: #fff; border: none;
+    box-shadow: 0 3px 12px rgba(8, 145, 178, 0.35);
+  }
+  button.theme-btn.contest-danger-btn {
+    color: #b91c1c; border-color: rgba(185, 28, 28, 0.35);
+  }
+  button.theme-btn.contest-danger-btn:hover {
+    background: rgba(254, 226, 226, 0.85); opacity: 1;
+  }
+  .contest-hist-badge.test-badge {
+    background: rgba(14, 116, 144, 0.14); color: #0e7490;
+  }
+  .contest-history-card.is-test {
+    border-color: rgba(14, 116, 144, 0.28);
+  }
+  .contest-sticky-bar { cursor: pointer; }
   .contest-hist-badge {
     display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 999px;
     font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em;
@@ -2967,6 +2989,163 @@
   }
   .section-body { display: none; }
   .section-body.open { display: block; }
+  /* —— Team ops / Admin tools page atmospheres —— */
+  #teamDetailsOverlay {
+    --ops-accent: #0f766e;
+    --ops-accent-2: #ea580c;
+    background:
+      radial-gradient(ellipse 70% 40% at 0% 0%, rgba(15, 118, 110, 0.16), transparent 55%),
+      radial-gradient(ellipse 55% 35% at 100% 8%, rgba(234, 88, 12, 0.10), transparent 50%),
+      linear-gradient(180deg, rgba(255,255,255,0.4), transparent 200px),
+      var(--bg);
+  }
+  body.dark #teamDetailsOverlay {
+    background:
+      radial-gradient(ellipse 70% 40% at 0% 0%, rgba(45, 212, 191, 0.12), transparent 55%),
+      radial-gradient(ellipse 55% 35% at 100% 8%, rgba(251, 146, 60, 0.10), transparent 50%),
+      var(--bg);
+  }
+  #goalsOverlay {
+    --ops-accent: #0369a1;
+    background:
+      radial-gradient(ellipse 80% 42% at 50% -10%, rgba(3, 105, 161, 0.16), transparent 55%),
+      radial-gradient(ellipse 40% 30% at 100% 40%, rgba(16, 185, 129, 0.08), transparent 50%),
+      var(--bg);
+  }
+  body.dark #goalsOverlay {
+    background:
+      radial-gradient(ellipse 80% 42% at 50% -10%, rgba(56, 189, 248, 0.14), transparent 55%),
+      radial-gradient(ellipse 40% 30% at 100% 40%, rgba(52, 211, 153, 0.08), transparent 50%),
+      var(--bg);
+  }
+  #adminSettingsOverlay {
+    --ops-accent: #b45309;
+    background:
+      radial-gradient(ellipse 65% 38% at 10% 0%, rgba(180, 83, 9, 0.14), transparent 55%),
+      radial-gradient(ellipse 50% 32% at 100% 20%, rgba(15, 118, 110, 0.10), transparent 50%),
+      var(--bg);
+  }
+  body.dark #adminSettingsOverlay {
+    background:
+      radial-gradient(ellipse 65% 38% at 10% 0%, rgba(251, 191, 36, 0.10), transparent 55%),
+      radial-gradient(ellipse 50% 32% at 100% 20%, rgba(45, 212, 191, 0.08), transparent 50%),
+      var(--bg);
+  }
+  #sipOverlay {
+    --ops-accent: #1d4ed8;
+    background:
+      radial-gradient(ellipse 75% 40% at 80% 0%, rgba(29, 78, 216, 0.14), transparent 55%),
+      radial-gradient(ellipse 45% 30% at 0% 30%, rgba(8, 145, 178, 0.10), transparent 50%),
+      var(--bg);
+  }
+  body.dark #sipOverlay {
+    background:
+      radial-gradient(ellipse 75% 40% at 80% 0%, rgba(96, 165, 250, 0.12), transparent 55%),
+      radial-gradient(ellipse 45% 30% at 0% 30%, rgba(34, 211, 238, 0.08), transparent 50%),
+      var(--bg);
+  }
+  .ops-page-intro {
+    display: grid; gap: 6px; margin: 0 0 18px;
+    padding: 16px 18px; border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(255,255,255,0.35));
+    border: 1px solid var(--card-border);
+    animation: opsIntroIn 0.45s ease both;
+  }
+  body.dark .ops-page-intro {
+    background: linear-gradient(135deg, rgba(30,27,48,0.85), rgba(26,23,41,0.55));
+  }
+  .ops-page-intro p {
+    margin: 0; font-size: 13.5px; font-weight: 600; color: var(--text-muted); line-height: 1.45;
+  }
+  .ops-page-intro .ops-intro-mark {
+    font-size: 11px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ops-accent, var(--text-faint));
+  }
+  @keyframes opsIntroIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+  #teamDetailsOverlay .workspace-tabs {
+    display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; margin: 0 0 18px;
+    border-radius: 16px; background: rgba(255,255,255,0.55);
+    border: 1px solid var(--card-border); box-shadow: none;
+  }
+  body.dark #teamDetailsOverlay .workspace-tabs {
+    background: rgba(15, 23, 42, 0.45);
+  }
+  #teamDetailsOverlay .workspace-tab {
+    flex: 1 1 140px; border-radius: 12px; border: 0; background: transparent;
+    padding: 12px 10px; text-align: left; box-shadow: none;
+    display: flex; flex-direction: column; gap: 2px; min-width: 0;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  }
+  #teamDetailsOverlay .workspace-tab strong {
+    font-size: 12.5px; font-weight: 800; color: inherit;
+  }
+  #teamDetailsOverlay .workspace-tab small {
+    font-size: 10.5px; font-weight: 600; color: var(--text-faint);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #teamDetailsOverlay .workspace-tab:hover {
+    background: rgba(15, 118, 110, 0.08); color: var(--text); opacity: 1;
+  }
+  #teamDetailsOverlay .workspace-tab.active {
+    background: linear-gradient(135deg, rgba(15, 118, 110, 0.16), rgba(234, 88, 12, 0.10));
+    color: var(--text); box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.28);
+    transform: translateY(-1px);
+  }
+  #teamDetailsOverlay .workspace-panel.active {
+    animation: opsPanelIn 0.35s ease both;
+  }
+  @keyframes opsPanelIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+  .ops-panel-shell {
+    border-radius: 18px; padding: 18px 18px 16px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.78), rgba(255,255,255,0.5));
+    border: 1px solid var(--card-border);
+  }
+  body.dark .ops-panel-shell {
+    background: linear-gradient(180deg, rgba(30,27,48,0.9), rgba(26,23,41,0.7));
+  }
+  .ops-panel-shell > h2 {
+    margin: 0 0 6px; font-size: 17px; font-weight: 900; letter-spacing: -0.02em;
+  }
+  .ops-panel-shell > .meta-note:first-of-type { margin-top: 0; }
+  #teamDetailsOverlay .workspace-panel > .card,
+  #goalsOverlay .detail-page > .card,
+  #adminSettingsOverlay .card,
+  #sipOverlay .detail-page > .card {
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.82), rgba(255,255,255,0.55));
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
+  }
+  body.dark #teamDetailsOverlay .workspace-panel > .card,
+  body.dark #goalsOverlay .detail-page > .card,
+  body.dark #adminSettingsOverlay .card,
+  body.dark #sipOverlay .detail-page > .card {
+    background: linear-gradient(180deg, rgba(30,27,48,0.92), rgba(26,23,41,0.72));
+  }
+  #teamDetailsOverlay .detail-header,
+  #goalsOverlay .detail-header,
+  #adminSettingsOverlay .detail-header,
+  #sipOverlay .detail-header {
+    border-color: transparent;
+    background: linear-gradient(120deg, rgba(255,255,255,0.78), rgba(255,255,255,0.4));
+    animation: opsIntroIn 0.4s ease both;
+  }
+  body.dark #teamDetailsOverlay .detail-header,
+  body.dark #goalsOverlay .detail-header,
+  body.dark #adminSettingsOverlay .detail-header,
+  body.dark #sipOverlay .detail-header {
+    background: linear-gradient(120deg, rgba(30,27,48,0.92), rgba(26,23,41,0.65));
+  }
+  #teamDetailsOverlay .page-kicker { color: var(--ops-accent); }
+  #goalsOverlay .page-kicker,
+  #adminSettingsOverlay .page-kicker,
+  #sipOverlay .page-kicker { color: var(--ops-accent); }
+
   /* Access / badges / tools: open sections by default with clearer hierarchy. */
   #adminSettingsOverlay .admin-settings-intro {
     margin: 0 0 16px; font-size: 13px; font-weight: 600; color: var(--text-muted); line-height: 1.45;
@@ -2979,6 +3158,14 @@
   }
   #adminSettingsOverlay .admin-settings-block {
     margin: 0;
+    padding: 14px 14px 12px;
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.42));
+    border: 1px solid var(--card-border);
+    animation: opsPanelIn 0.4s ease both;
+  }
+  body.dark #adminSettingsOverlay .admin-settings-block {
+    background: linear-gradient(180deg, rgba(30,27,48,0.88), rgba(26,23,41,0.65));
   }
   #adminSettingsOverlay .admin-settings-block > .section-toggle {
     margin: 0 0 8px; font-size: 14px; font-weight: 800; color: var(--text);
@@ -2989,6 +3176,9 @@
   }
   #adminSettingsOverlay .admin-settings-stack > .admin-settings-block > .section-toggle {
     margin: 0 0 8px;
+  }
+  #adminSettingsOverlay .admin-settings-block .card {
+    background: transparent; border: 0; box-shadow: none; padding: 0; margin: 0;
   }
   textarea { width: 100%; height: 130px; font-family: ui-monospace, monospace; font-size: 11.5px; padding: 8px; border: 1px solid var(--card-border); border-radius: 10px; background: var(--metric-box-bg); color: var(--text); }
   button {
@@ -4240,7 +4430,10 @@
         <span class="page-kicker">Live arena</span>
         <h2 id="contestPageTitle">🏆 Contest Arena</h2>
       </div>
-      <button class="theme-btn" id="contestNewBtn" type="button" style="display:none; margin-left:auto;">✨ New contest</button>
+      <div class="contest-header-actions" id="contestHeaderActions" style="display:none; margin-left:auto;">
+        <button class="theme-btn" id="contestTestBtn" type="button">🧪 Test contest</button>
+        <button class="theme-btn contest-new-primary" id="contestNewBtn" type="button">✨ New contest</button>
+      </div>
     </div>
     <div class="contest-tabs" role="tablist" aria-label="Contest views">
       <button type="button" class="contest-tab is-active" id="contestTabLive" data-contest-tab="live" role="tab" aria-selected="true">Live race</button>
@@ -4285,6 +4478,9 @@
       </label>
       <label>Duration
         <select id="contestEditDuration">
+          <option value="2m">2 minutes (test)</option>
+          <option value="5m">5 minutes (test)</option>
+          <option value="15m">15 minutes</option>
           <option value="30m">30 minutes</option>
           <option value="1h" selected>1 hour</option>
           <option value="2h">2 hours</option>
@@ -4472,6 +4668,10 @@
       <label class="full" style="flex-direction:row; align-items:center; gap:8px; text-transform:none; font-weight:700;">
         <input type="checkbox" id="contestEditShowBanner" checked style="width:auto;">
         Show promo banner on landing
+      </label>
+      <label class="full" style="flex-direction:row; align-items:center; gap:8px; text-transform:none; font-weight:700;">
+        <input type="checkbox" id="contestEditIsTest" style="width:auto;">
+        Test contest (short dry-run — won’t end a live race)
       </label>
       <label class="full" style="flex-direction:row; align-items:center; gap:8px; text-transform:none; font-weight:700;">
         <input type="checkbox" id="contestEditHideHistory" style="width:auto;">
@@ -4734,15 +4934,18 @@
         <h2>Team workspace</h2>
       </div>
     </div>
-    <div class="meta-note" id="teamWorkspaceIntro" style="margin:-4px 0 12px;">Coach view for day-to-day team ops. Admin goal/SIP setup lives under <strong>Admin</strong> on the landing page.</div>
+    <div class="ops-page-intro" id="teamWorkspaceIntro">
+      <span class="ops-intro-mark">Floor control</span>
+      <p>Day-to-day coaching tools — cancels, personal goals, schedules, and attributions. Roster goals &amp; SIP live under <strong>Admin</strong>.</p>
+    </div>
     <div class="workspace-tabs" id="teamWorkspaceTabs">
-      <button type="button" class="workspace-tab active" data-team-tab="cancels">Cancels</button>
-      <button type="button" class="workspace-tab" data-team-tab="goals">Personal month goals</button>
-      <button type="button" class="workspace-tab" data-team-tab="schedule">Schedules</button>
-      <button type="button" class="workspace-tab" data-team-tab="attr">Attributions</button>
+      <button type="button" class="workspace-tab active" data-team-tab="cancels"><strong>Cancels</strong><small>Team-wide ledger</small></button>
+      <button type="button" class="workspace-tab" data-team-tab="goals"><strong>Goals</strong><small>Personal month</small></button>
+      <button type="button" class="workspace-tab" data-team-tab="schedule"><strong>Schedules</strong><small>Weekly shifts</small></button>
+      <button type="button" class="workspace-tab" data-team-tab="attr"><strong>Attributions</strong><small>Requests log</small></button>
     </div>
     <div class="workspace-panel active" id="teamPanelCancels" data-team-panel="cancels">
-      <div class="card">
+      <div class="card ops-panel-shell">
         <h2>Cancels — team-wide</h2>
         <div class="sip-table-wrap">
           <table class="sip-table">
@@ -4755,7 +4958,7 @@
       </div>
     </div>
     <div class="workspace-panel" id="teamPanelGoals" data-team-panel="goals">
-      <div class="card" id="teamPersonalGoalsCard">
+      <div class="card ops-panel-shell" id="teamPersonalGoalsCard">
         <h2>🎯 Personal month goals — team</h2>
         <div class="sip-table-wrap">
           <table class="sip-table">
@@ -4767,7 +4970,7 @@
       </div>
     </div>
     <div class="workspace-panel" id="teamPanelSchedule" data-team-panel="schedule">
-      <div class="card">
+      <div class="card ops-panel-shell">
         <h2>📅 Weekly team schedule</h2>
         <div class="meta-note" style="margin-top:0;">Typical weekly shifts (not a date-specific calendar). Mark days off as <b>Off</b> — Rebound won’t fire the day after an Off. Capacity counts anyone not Off.</div>
         <div class="meta-note" id="teamScheduleReadOnlyNote" style="display:none;margin-top:0;">View only — ask a coach or admin if a shift needs updating.</div>
@@ -4779,7 +4982,7 @@
       </div>
     </div>
     <div class="workspace-panel" id="teamPanelAttr" data-team-panel="attr">
-      <div class="card">
+      <div class="card ops-panel-shell">
         <h2>Attributions — team-wide (positive &amp; negative adjustments)</h2>
         <div class="sip-table-wrap">
           <table class="sip-table">
@@ -4839,11 +5042,15 @@
     <div class="detail-header">
       <button class="theme-btn page-back-btn" id="goalsBackBtn" type="button">← Dashboard</button>
       <div style="min-width:0;flex:1 1 auto;">
-        <span class="page-kicker">Admin</span>
+        <span class="page-kicker">Admin tools</span>
         <h2>Edit Monthly Goals</h2>
       </div>
     </div>
-    <div class="card">
+    <div class="ops-page-intro">
+      <span class="ops-intro-mark">Roster &amp; targets</span>
+      <p>Set sessions, members, and OTE for the month. Access lists and badges live next door under Access, badges &amp; tools.</p>
+    </div>
+    <div class="card ops-panel-shell">
       <h2>Add a person</h2>
       <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
         <label style="flex:1; min-width:180px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
@@ -4854,7 +5061,7 @@
       </div>
       <div class="meta-note" id="addPersonStatus"></div>
     </div>
-    <div class="card goal-grid-compact" id="goalsFormWrap">
+    <div class="card ops-panel-shell goal-grid-compact" id="goalsFormWrap">
       <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Individual Pacer access)</div><div>Cap bonus @ 200%</div></div>
       <div id="goalsForm"></div>
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px;">
@@ -4879,11 +5086,14 @@
     <div class="detail-header">
       <button class="theme-btn page-back-btn" id="adminSettingsBackBtn" type="button">← Dashboard</button>
       <div style="min-width:0;flex:1 1 auto;">
-        <span class="page-kicker">Admin</span>
+        <span class="page-kicker">Admin tools</span>
         <h2>Access, badges &amp; tools</h2>
       </div>
     </div>
-    <p class="admin-settings-intro">Manage who can open Individual Pacers, badges, and shoutouts. Main sections stay open so nothing is buried.</p>
+    <div class="ops-page-intro admin-settings-intro">
+      <span class="ops-intro-mark">Control room</span>
+      <p>Who gets admin or coach access, the badge bank, and the master shoutout log — sections stay open so nothing is buried.</p>
+    </div>
 
     <div class="admin-settings-grid">
       <div class="admin-settings-block">
@@ -4991,12 +5201,16 @@
     <div class="detail-header">
       <button class="theme-btn page-back-btn" id="sipBackBtn" type="button">← Dashboard</button>
       <div style="min-width:0;flex:1 1 auto;">
-        <span class="page-kicker">Admin</span>
+        <span class="page-kicker">Admin tools</span>
         <h2>Historical Performance (SIP)</h2>
       </div>
     </div>
+    <div class="ops-page-intro">
+      <span class="ops-intro-mark">Month archive</span>
+      <p>Close out finalized SIP months, then slice one month or a blended range for the team story.</p>
+    </div>
     <div id="monthStorySummaryContainer"></div>
-    <div class="card">
+    <div class="card ops-panel-shell">
       <h2>Close out the month</h2>
       <div class="meta-note" style="margin-top:0;">When SIP is finalized, export that month's tab from Google Sheets as CSV (File → Download → Comma Separated Values, current sheet), then paste the raw contents below. It'll be parsed with the same column layout as the SIP workbook (Name / Audience / Manager / Goal Tag leading columns, then "Net Monthly Hours" and "Net Members Sold" sections each with Actual/Goal sub-columns) and folded permanently into Historical Performance below.</div>
       <div style="display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; margin-top:12px;">
@@ -9688,28 +9902,22 @@ function contestLocalInputToIso(value) {
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? '' : d.toISOString();
 }
-function contestPresetWindow(preset) {
+function contestDurationWindow(duration) {
   const now = new Date();
   const start = new Date(now);
   const end = new Date(now);
-  const y = now.getFullYear(), m = now.getMonth(), day = now.getDate();
-  if (preset === 'morning') {
-    start.setFullYear(y, m, day); start.setHours(8, 0, 0, 0);
-    end.setFullYear(y, m, day); end.setHours(11, 0, 0, 0);
-  } else if (preset === 'power-hour') {
-    start.setFullYear(y, m, day); start.setHours(13, 0, 0, 0);
-    end.setFullYear(y, m, day); end.setHours(14, 0, 0, 0);
-  } else if (preset === 'evening') {
-    start.setFullYear(y, m, day); start.setHours(16, 0, 0, 0);
-    end.setFullYear(y, m, day); end.setHours(19, 0, 0, 0);
-  } else {
-    end.setHours(end.getHours() + 1);
-  }
-  if (end.getTime() <= Date.now()) {
-    start.setDate(start.getDate() + 1);
-    end.setDate(end.getDate() + 1);
-  }
+  const map = { '2m': 2, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '2h': 120, '4h': 240 };
+  const mins = map[duration] || 60;
+  end.setMinutes(end.getMinutes() + mins);
   return { startAt: start.toISOString(), endAt: end.toISOString() };
+}
+/** Infer a duration select value from an existing start/end window. */
+function contestInferDuration(startAt, endAt) {
+  const ms = Date.parse(endAt) - Date.parse(startAt);
+  if (!Number.isFinite(ms) || ms <= 0) return 'custom';
+  const mins = Math.round(ms / 60000);
+  const map = { 2: '2m', 5: '5m', 15: '15m', 30: '30m', 60: '1h', 120: '2h', 240: '4h' };
+  return map[mins] || 'custom';
 }
 function contestYmdInCentral(date) {
   try {
@@ -9969,11 +10177,11 @@ function contestStickyBarHTML(c) {
     leader ? `Lead: ${leader.repName}` : 'Track’s open',
   ].filter(Boolean).join(' · ');
   return `
-    <div class="contest-sticky-bar ${contestThemeClass(c)}" data-contest-banner="${escapeAttr(c.id)}">
+    <div class="contest-sticky-bar ${contestThemeClass(c)}" data-contest-banner="${escapeAttr(c.id)}" data-view-contest="${escapeAttr(c.id)}" role="button" tabindex="0">
       <span class="contest-sticky-live">${escapeHtml(liveLabel)}</span>
       <span class="contest-sticky-mascot" aria-hidden="true">${escapeHtml(mascot)}</span>
       <div class="contest-sticky-copy">
-        <h3 class="contest-sticky-name">${escapeHtml(c.name || 'Contest')}</h3>
+        <h3 class="contest-sticky-name">${escapeHtml(c.name || 'Contest')}${c.isTest ? ' · Test' : ''}</h3>
         <span class="contest-sticky-meta">${escapeHtml(metaBits)}</span>
       </div>
       <span class="contest-sticky-place">You <b>${escapeHtml(placeVal)}</b></span>
@@ -10185,7 +10393,7 @@ function contestHistoryHTML() {
     return `<div class="contest-empty-fun">
       <span class="emoji" aria-hidden="true">📜</span>
       <p style="margin:0 0 8px;font-weight:900;font-size:18px;">No contest history yet</p>
-      <p class="meta-note" style="margin:0;">Ended races show up here with their final leaderboard.</p>
+      <p class="meta-note" style="margin:0;">Ended races show up here with their final leaderboard. Coaches can delete old ones anytime.</p>
     </div>`;
   }
   return `
@@ -10195,19 +10403,21 @@ function contestHistoryHTML() {
       const top3 = standings.slice(0, 3);
       const myPlace = contestMyPlace(c, standings);
       const hidden = !!c.hiddenFromHistory;
+      const isTest = !!c.isTest;
       const podium = top3.length
         ? top3.map((r, i) => `${i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} <strong>${escapeHtml(r.repName)}</strong> · ${fmt(r.score, 1)}`).join('<br>')
         : '<span>No scores</span>';
       return `
-        <div class="contest-history-card${hidden ? ' is-hidden' : ''}" data-history-open="${escapeAttr(c.id)}" role="button" tabindex="0">
+        <div class="contest-history-card${hidden ? ' is-hidden' : ''}${isTest ? ' is-test' : ''}" data-history-open="${escapeAttr(c.id)}" role="button" tabindex="0">
           <div>
-            <h3 class="contest-history-name">${escapeHtml(contestThemeIcon(c))} ${escapeHtml(c.name || 'Contest')}${hidden ? '<span class="contest-hist-badge hidden-badge">Hidden</span>' : ''}</h3>
+            <h3 class="contest-history-name">${escapeHtml(contestThemeIcon(c))} ${escapeHtml(c.name || 'Contest')}${isTest ? '<span class="contest-hist-badge test-badge">Test</span>' : ''}${hidden ? '<span class="contest-hist-badge hidden-badge">Hidden</span>' : ''}</h3>
             <div class="contest-history-meta">${escapeHtml(contestFormatWhen(c.startAt))} → ${escapeHtml(contestFormatWhen(c.endAt))} · ${escapeHtml(c.mode === 'wheel' ? 'Wheel' : 'Race')} · ${escapeHtml(contestUnitsLabel(c.units))} · ${escapeHtml(contestStakeLabel(c))}${myPlace ? ` · You: ${escapeHtml(contestPlaceLabel(myPlace))}` : ''}</div>
           </div>
           <div class="contest-history-podium">${podium}</div>
           ${manage ? `<div class="contest-history-actions">
             <button type="button" class="theme-btn" data-history-open="${escapeAttr(c.id)}">View leaderboard</button>
             <button type="button" class="theme-btn" data-contest-hide="${escapeAttr(c.id)}" data-hide="${hidden ? '0' : '1'}">${hidden ? 'Unhide from history' : 'Hide from history'}</button>
+            <button type="button" class="theme-btn contest-danger-btn" data-contest-delete="${escapeAttr(c.id)}">Delete</button>
           </div>` : ''}
         </div>`;
     }).join('')}</div>`;
@@ -10218,8 +10428,11 @@ function contestBoardHTML(contest) {
     return `<div class="contest-empty-fun">
       <span class="emoji" aria-hidden="true">🏆</span>
       <p style="margin:0 0 8px;font-weight:900;font-size:18px;">No contest on the board</p>
-      <p class="meta-note" style="margin:0 0 14px;">Fire up a Power Hour, Morning Mayhem, or Evening Surge.</p>
-      ${contestCanManage() ? '<button type="button" class="contest-view-btn" id="contestEmptyCreate">✨ Create a contest</button>' : ''}
+      <p class="meta-note" style="margin:0 0 14px;">Launch a themed race — or dry-run with a 2-minute test contest first.</p>
+      ${contestCanManage() ? `<div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;">
+        <button type="button" class="contest-view-btn" id="contestEmptyCreate">✨ Create a contest</button>
+        <button type="button" class="theme-btn" id="contestEmptyTest">🧪 Test contest</button>
+      </div>` : ''}
     </div>`;
   }
   const standings = computeContestStandings(contest);
@@ -10241,11 +10454,12 @@ function contestBoardHTML(contest) {
 
   const coachPanel = manage ? `
     <div class="contest-coach-panel">
-      <div class="m-label" style="margin-bottom:8px;">🎛️ Coach booth</div>
+      <div class="m-label" style="margin-bottom:8px;">🎛️ Coach booth${contest.isTest ? ' · <span class="contest-hist-badge test-badge">Test</span>' : ''}</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
         <button type="button" class="theme-btn" data-contest-edit="${escapeAttr(contest.id)}">Edit contest</button>
         ${contest.status !== 'ended' ? `<button type="button" class="theme-btn" data-contest-end="${escapeAttr(contest.id)}">End contest</button>` : ''}
         ${contest.status === 'ended' ? `<button type="button" class="theme-btn" data-contest-hide="${escapeAttr(contest.id)}" data-hide="${contest.hiddenFromHistory ? '0' : '1'}">${contest.hiddenFromHistory ? 'Unhide from history' : 'Hide from history'}</button>` : ''}
+        <button type="button" class="theme-btn contest-danger-btn" data-contest-delete="${escapeAttr(contest.id)}">Delete</button>
         ${contest.externalUrl ? `<a class="theme-btn" href="${escapeAttr(contest.externalUrl)}" target="_blank" rel="noopener">Open external board</a>` : ''}
       </div>
       <div class="m-label" style="margin-bottom:6px;">Manual add (not Manual Attro)</div>
@@ -10284,8 +10498,8 @@ function contestBoardHTML(contest) {
           <div class="contest-hero-icon" aria-hidden="true">${contestThemeIcon(contest)}</div>
           <div class="contest-hero-copy">
             ${livePill}
-            <p class="contest-promo-eyebrow" style="margin-top:8px;">${contest.kind === 'promo' ? 'Promo / company-wide' : 'Hosted'} · ${contest.mode === 'wheel' ? 'Wheel' : 'Race'} · ${escapeHtml(contestVehicleEmoji(contest.vehicle || 'car'))}</p>
-            <h2>${escapeHtml(contest.name)}</h2>
+            <p class="contest-promo-eyebrow" style="margin-top:8px;">${contest.isTest ? '🧪 Test · ' : ''}${contest.kind === 'promo' ? 'Promo / company-wide' : 'Hosted'} · ${contest.mode === 'wheel' ? 'Wheel' : 'Race'} · ${escapeHtml(contestVehicleEmoji(contest.vehicle || 'car'))}</p>
+            <h2>${escapeHtml(contest.name)}${contest.isTest ? ' <span class="contest-hist-badge test-badge">Test</span>' : ''}</h2>
             <div class="contest-promo-meta" style="margin-top:6px;">${escapeHtml(contestThemeTagline(contest))}</div>
           </div>
         </div>
@@ -10325,13 +10539,15 @@ function animateContestCars(host) {
 function renderContestBoard() {
   const host = document.getElementById('contestBoardHost');
   const title = document.getElementById('contestPageTitle');
-  const newBtn = document.getElementById('contestNewBtn');
+  const actions = document.getElementById('contestHeaderActions');
   const overlay = document.getElementById('contestOverlay');
-  if (newBtn) newBtn.style.display = contestCanManage() && contestArenaTab === 'live' ? '' : 'none';
+  if (actions) actions.style.display = contestCanManage() && contestArenaTab === 'live' ? 'flex' : 'none';
   if (!host) return;
   let contest = CONTEST_CACHE.find((c) => c.id === contestViewId);
   if (!contest && contestArenaTab === 'live') {
-    contest = CONTEST_CACHE.find((c) => c.status === 'active')
+    contest = CONTEST_CACHE.find((c) => c.status === 'active' && !c.isTest)
+      || CONTEST_CACHE.find((c) => c.status === 'active')
+      || CONTEST_CACHE.find((c) => c.status === 'scheduled' && !c.isTest)
       || CONTEST_CACHE.find((c) => c.status === 'scheduled')
       || CONTEST_CACHE.find((c) => c.status !== 'ended')
       || null;
@@ -10352,6 +10568,8 @@ function renderContestBoard() {
   }
   const emptyCreate = document.getElementById('contestEmptyCreate');
   if (emptyCreate) emptyCreate.addEventListener('click', () => openContestEditModal(null));
+  const emptyTest = document.getElementById('contestEmptyTest');
+  if (emptyTest) emptyTest.addEventListener('click', () => openContestEditModal(null, { test: true, duration: '2m', theme: 'blood-type-a' }));
 }
 function tickContestCountdowns() {
   document.querySelectorAll('[data-contest-cd]').forEach((el) => {
@@ -10460,6 +10678,8 @@ function closeContestOverlay() {
   }
   syncOverlayBodyScroll();
   stopContestLiveLoop();
+  syncContestStickyOffset();
+  requestAnimationFrame(syncContestStickyOffset);
 }
 function renderContestHash() {
   const h = location.hash || '';
@@ -10487,47 +10707,92 @@ function syncContestEditModeFields() {
 function syncContestEditEmoji() {
   const emoji = document.querySelector('#contestEditBackdrop .celebration-modal-emoji');
   if (!emoji) return;
+  const mascot = document.getElementById('contestEditMascot')?.value;
+  if (mascot) { emoji.textContent = mascot; return; }
   const mode = document.getElementById('contestEditMode')?.value || 'race';
   if (mode === 'wheel') { emoji.textContent = '🎡'; return; }
   const vehicle = document.getElementById('contestEditVehicle')?.value || 'car';
   emoji.textContent = contestVehicleEmoji(vehicle);
 }
-function openContestEditModal(id) {
+function applyContestThemeDefaults(theme, { force } = {}) {
+  const meta = contestThemeMeta(theme);
+  const setVal = (id, v) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!force && contestEditId) return;
+    el.value = v;
+  };
+  setVal('contestEditMode', meta.mode || 'race');
+  setVal('contestEditVehicle', meta.vehicle || 'car');
+  setVal('contestEditTrack', meta.track || 'asphalt');
+  setVal('contestEditAccent', meta.accent || 'pink');
+  setVal('contestEditMascot', meta.mascot || '🏁');
+  setVal('contestEditEffects', meta.effects || 'confetti');
+  if (meta.wheelSkin) setVal('contestEditWheelSkin', meta.wheelSkin);
+  const taglineEl = document.getElementById('contestEditTagline');
+  if (taglineEl && (!contestEditId || force) && !String(taglineEl.value || '').trim()) {
+    taglineEl.value = meta.tagline || '';
+  }
+  const nameEl = document.getElementById('contestEditName');
+  if (nameEl && !contestEditId && !String(nameEl.value || '').trim()) {
+    nameEl.value = meta.name || '';
+  }
+  syncContestEditModeFields();
+  syncContestEditEmoji();
+}
+function openContestEditModal(id, opts) {
+  const options = opts || {};
   contestEditId = id || '';
   const existing = CONTEST_CACHE.find((c) => c.id === contestEditId);
   const title = document.getElementById('contestEditTitle');
-  if (title) title.textContent = existing ? 'Edit contest' : 'New contest';
-  const preset = existing?.preset || 'power-hour';
+  const isTestDefault = !!options.test || !!(existing && existing.isTest);
+  if (title) {
+    title.textContent = existing
+      ? (existing.isTest ? 'Edit test contest' : 'Edit contest')
+      : (isTestDefault ? 'Test contest' : 'New contest');
+  }
+  const theme = existing ? contestResolveTheme(existing) : (options.theme || 'grand-prix');
+  const duration = existing
+    ? contestInferDuration(existing.startAt, existing.endAt)
+    : (options.duration || (isTestDefault ? '2m' : '1h'));
   const win = existing
     ? { startAt: existing.startAt, endAt: existing.endAt }
-    : contestPresetWindow(preset);
-  document.getElementById('contestEditName').value = existing?.name || (preset === 'power-hour' ? 'Power Hour' : preset === 'morning' ? 'Morning Mayhem' : preset === 'evening' ? 'Evening Surge' : '');
-  const taglineEl = document.getElementById('contestEditTagline');
-  if (taglineEl) taglineEl.value = existing?.tagline || '';
-  document.getElementById('contestEditPreset').value = preset;
-  document.getElementById('contestEditKind').value = existing?.kind || 'hosted';
-  document.getElementById('contestEditMode').value = existing?.mode || 'race';
-  document.getElementById('contestEditUnits').value = existing?.units || 'sessions';
-  document.getElementById('contestEditStart').value = contestIsoToLocalInput(win.startAt);
-  document.getElementById('contestEditEnd').value = contestIsoToLocalInput(win.endAt);
-  document.getElementById('contestEditStakeType').value = existing?.stakeType || 'bragging';
-  document.getElementById('contestEditStakeAmount').value = existing?.stakeAmount || '';
-  document.getElementById('contestEditExternalUrl').value = existing?.externalUrl || '';
-  document.getElementById('contestEditShowBanner').checked = existing ? existing.showBanner !== false : true;
-  const hideEl = document.getElementById('contestEditHideHistory');
-  if (hideEl) hideEl.checked = !!(existing && existing.hiddenFromHistory);
-  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
-  setVal('contestEditVehicle', existing?.vehicle || 'car');
-  setVal('contestEditTrack', existing?.trackTheme || 'asphalt');
-  setVal('contestEditHype', existing?.hypeLevel || 'hype');
-  setVal('contestEditAccent', existing?.accent || 'pink');
+    : contestDurationWindow(duration);
+  const setVal = (eid, v) => { const el = document.getElementById(eid); if (el) el.value = v == null ? '' : v; };
+  const setChk = (eid, v) => { const el = document.getElementById(eid); if (el) el.checked = !!v; };
+  setVal('contestEditName', existing?.name || (isTestDefault ? 'Test Contest' : (contestThemeMeta(theme).name || '')));
+  setVal('contestEditTagline', existing?.tagline || (isTestDefault ? 'Dry run — delete when done.' : ''));
+  setVal('contestEditTheme', theme);
+  setVal('contestEditDuration', duration);
+  setVal('contestEditKind', existing?.kind || 'hosted');
+  setVal('contestEditMode', existing?.mode || contestThemeMeta(theme).mode || 'race');
+  setVal('contestEditUnits', existing?.units || 'sessions');
+  setVal('contestEditStart', contestIsoToLocalInput(win.startAt));
+  setVal('contestEditEnd', contestIsoToLocalInput(win.endAt));
+  setVal('contestEditStakeType', existing?.stakeType || 'bragging');
+  setVal('contestEditStakeAmount', existing?.stakeAmount || '');
+  setVal('contestEditExternalUrl', existing?.externalUrl || '');
+  setChk('contestEditShowBanner', existing ? existing.showBanner !== false : !isTestDefault);
+  setChk('contestEditIsTest', isTestDefault);
+  setChk('contestEditHideHistory', !!(existing && existing.hiddenFromHistory));
+  const meta = contestThemeMeta(theme);
+  setVal('contestEditVehicle', existing?.vehicle || meta.vehicle || 'car');
+  setVal('contestEditTrack', existing?.trackTheme || meta.track || 'asphalt');
+  setVal('contestEditHype', existing?.hypeLevel || (isTestDefault ? 'max' : 'hype'));
+  setVal('contestEditAccent', existing?.accent || meta.accent || 'pink');
+  setVal('contestEditMascot', existing?.mascot || meta.mascot || '🏁');
+  setVal('contestEditEffects', existing?.effects || meta.effects || 'confetti');
+  setVal('contestEditCheer', existing?.cheerStyle || 'announcer');
+  setVal('contestEditBoardSize', existing?.boardSize || 'hero');
+  setVal('contestEditCustomCheer', existing?.customCheer || '');
   setVal('contestEditRaceGoal', existing?.raceGoal || '');
-  setVal('contestEditWheelSkin', existing?.wheelSkin || 'classic');
+  setVal('contestEditWheelSkin', existing?.wheelSkin || meta.wheelSkin || 'classic');
+  setChk('contestEditConfettiLead', existing ? existing.confettiOnLead !== false : true);
+  setChk('contestEditShowTicker', existing ? existing.showTicker !== false : true);
   setChk('contestEditShowLaneBoard', existing ? existing.showLaneBoard !== false : true);
   setChk('contestEditAnnouncer', existing ? existing.announcer !== false : true);
   const status = document.getElementById('contestEditStatus');
-  if (status) { status.textContent = ''; status.style.color = ''; }
+  if (status) { status.textContent = isTestDefault && !existing ? 'Starts now for a short dry-run. Safe — won’t end a live race.' : ''; status.style.color = ''; }
   syncContestStakeFields();
   syncContestEditModeFields();
   syncContestEditEmoji();
@@ -10537,17 +10802,19 @@ function closeContestEditModal() {
   contestEditId = '';
   document.getElementById('contestEditBackdrop')?.classList.remove('open');
 }
-document.getElementById('contestEditPreset')?.addEventListener('change', () => {
-  syncContestEditEmoji();
+document.getElementById('contestEditDuration')?.addEventListener('change', () => {
   if (contestEditId) return;
-  const preset = document.getElementById('contestEditPreset').value;
-  const win = contestPresetWindow(preset);
+  const duration = document.getElementById('contestEditDuration')?.value || '1h';
+  if (duration === 'custom') return;
+  const win = contestDurationWindow(duration);
   document.getElementById('contestEditStart').value = contestIsoToLocalInput(win.startAt);
   document.getElementById('contestEditEnd').value = contestIsoToLocalInput(win.endAt);
-  const nameEl = document.getElementById('contestEditName');
-  if (nameEl && !String(nameEl.value || '').trim()) {
-    nameEl.value = preset === 'power-hour' ? 'Power Hour' : preset === 'morning' ? 'Morning Mayhem' : preset === 'evening' ? 'Evening Surge' : '';
-  }
+  const isTestEl = document.getElementById('contestEditIsTest');
+  if (isTestEl && (duration === '2m' || duration === '5m')) isTestEl.checked = true;
+});
+document.getElementById('contestEditTheme')?.addEventListener('change', () => {
+  const theme = document.getElementById('contestEditTheme')?.value || 'grand-prix';
+  applyContestThemeDefaults(theme, { force: !contestEditId });
 });
 document.getElementById('contestEditStakeType')?.addEventListener('change', syncContestStakeFields);
 document.getElementById('contestEditMode')?.addEventListener('change', () => {
@@ -10565,7 +10832,7 @@ document.getElementById('contestEditSave')?.addEventListener('click', async () =
     id: contestEditId || undefined,
     name: document.getElementById('contestEditName').value,
     tagline: document.getElementById('contestEditTagline')?.value || '',
-    preset: document.getElementById('contestEditPreset').value,
+    theme: document.getElementById('contestEditTheme')?.value || 'grand-prix',
     kind: document.getElementById('contestEditKind').value,
     mode: document.getElementById('contestEditMode').value,
     units: document.getElementById('contestEditUnits').value,
@@ -10575,11 +10842,19 @@ document.getElementById('contestEditSave')?.addEventListener('click', async () =
     stakeAmount: document.getElementById('contestEditStakeAmount').value,
     externalUrl: document.getElementById('contestEditExternalUrl').value,
     showBanner: document.getElementById('contestEditShowBanner').checked,
+    isTest: !!document.getElementById('contestEditIsTest')?.checked,
     hiddenFromHistory: !!document.getElementById('contestEditHideHistory')?.checked,
     vehicle: document.getElementById('contestEditVehicle')?.value || 'car',
     trackTheme: document.getElementById('contestEditTrack')?.value || 'asphalt',
     hypeLevel: document.getElementById('contestEditHype')?.value || 'hype',
     accent: document.getElementById('contestEditAccent')?.value || 'pink',
+    mascot: document.getElementById('contestEditMascot')?.value || '🏁',
+    effects: document.getElementById('contestEditEffects')?.value || 'confetti',
+    cheerStyle: document.getElementById('contestEditCheer')?.value || 'announcer',
+    boardSize: document.getElementById('contestEditBoardSize')?.value || 'hero',
+    customCheer: document.getElementById('contestEditCustomCheer')?.value || '',
+    confettiOnLead: !!document.getElementById('contestEditConfettiLead')?.checked,
+    showTicker: !!document.getElementById('contestEditShowTicker')?.checked,
     raceGoal: document.getElementById('contestEditRaceGoal')?.value || '',
     showLaneBoard: !!document.getElementById('contestEditShowLaneBoard')?.checked,
     announcer: !!document.getElementById('contestEditAnnouncer')?.checked,
@@ -10615,25 +10890,27 @@ document.querySelectorAll('[data-contest-tab]').forEach((tab) => {
 });
 
 document.getElementById('contestBackBtn')?.addEventListener('click', () => {
-  history.replaceState(null, '', location.pathname + location.search);
-  document.getElementById('contestOverlay')?.classList.remove('open');
-  syncOverlayBodyScroll();
-  stopContestLiveLoop();
+  closeContestOverlay();
   window.scrollTo(0, 0);
 });
 document.getElementById('contestNewBtn')?.addEventListener('click', () => openContestEditModal(null));
+document.getElementById('contestTestBtn')?.addEventListener('click', () => {
+  openContestEditModal(null, { test: true, duration: '2m', theme: 'blood-type-a' });
+});
 document.getElementById('teamContestsBtn')?.addEventListener('click', () => {
   contestArenaTab = 'live';
   location.hash = 'contest';
 });
-document.getElementById('contestBannerStack')?.addEventListener('click', (e) => {
+function openContestFromBannerClick(e) {
   const btn = e.target.closest('[data-view-contest]');
   if (!btn) return;
   e.preventDefault();
   const id = btn.getAttribute('data-view-contest');
   contestArenaTab = 'live';
   location.hash = 'contest=' + encodeURIComponent(id);
-});
+}
+document.getElementById('contestStickyHost')?.addEventListener('click', openContestFromBannerClick);
+document.getElementById('contestBannerStack')?.addEventListener('click', openContestFromBannerClick);
 
 async function toggleContestHistoryHidden(id, hide) {
   await authedFetch('/api/contests/save', {
@@ -10644,8 +10921,36 @@ async function toggleContestHistoryHidden(id, hide) {
   await refreshContestsUi();
   renderContestBoard();
 }
+async function deleteContestById(id) {
+  const contest = CONTEST_CACHE.find((c) => c.id === id);
+  const label = contest?.name || 'this contest';
+  const kind = contest?.isTest ? 'test contest' : 'contest';
+  if (!confirm(`Permanently delete ${kind} “${label}”? This cannot be undone.`)) return false;
+  await authedFetch('/api/contests/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+  CONTEST_CACHE = (CONTEST_CACHE || []).filter((c) => c.id !== id);
+  if (contestViewId === id) contestViewId = '';
+  await refreshContestsUi();
+  renderContestBoard();
+  return true;
+}
 
 document.getElementById('contestBoardHost')?.addEventListener('click', async (e) => {
+  const delBtn = e.target.closest('[data-contest-delete]');
+  if (delBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const id = delBtn.getAttribute('data-contest-delete');
+    try {
+      await deleteContestById(id);
+    } catch (err) {
+      alert(err.message || 'Could not delete contest');
+    }
+    return;
+  }
   const hideBtn = e.target.closest('[data-contest-hide]');
   if (hideBtn) {
     e.preventDefault();
@@ -10855,17 +11160,31 @@ document.getElementById('footerSipBtn').addEventListener('click', () => { locati
 document.getElementById('viewShoutoutHistoryLink').addEventListener('click', () => {
   document.getElementById('shoutoutSendBackdrop').classList.remove('open');
 });
+function closeHashToDashboard() {
+  history.replaceState(null, '', location.pathname + location.search);
+  document.getElementById('goalsOverlay')?.classList.remove('open');
+  document.getElementById('adminSettingsOverlay')?.classList.remove('open');
+  document.getElementById('sipOverlay')?.classList.remove('open');
+  document.getElementById('clientDetailOverlay')?.classList.remove('open');
+  document.getElementById('teamDetailsOverlay')?.classList.remove('open');
+  document.getElementById('contestOverlay')?.classList.remove('open');
+  document.getElementById('manualAttroOverlay')?.classList.remove('open');
+  if (typeof stopContestLiveLoop === 'function') stopContestLiveLoop();
+  syncOverlayBodyScroll();
+  if (typeof syncContestStickyOffset === 'function') syncContestStickyOffset();
+  window.scrollTo(0, 0);
+}
 document.getElementById('goalsBackBtn').addEventListener('click', () => {
-  if (location.hash) history.back(); else { document.getElementById('goalsOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
+  closeHashToDashboard();
+  renderGoalsOverlay();
 });
 document.getElementById('adminSettingsBackBtn')?.addEventListener('click', () => {
-  if (location.hash) history.back(); else {
-    document.getElementById('adminSettingsOverlay')?.classList.remove('open');
-    syncOverlayBodyScroll();
-  }
+  closeHashToDashboard();
+  renderGoalsOverlay();
 });
 document.getElementById('sipBackBtn').addEventListener('click', () => {
-  if (location.hash) history.back(); else { document.getElementById('sipOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
+  closeHashToDashboard();
+  renderSipOverlay();
 });
 
 // ---------- Close Out Month: import a finalized SIP month from pasted CSV ----------
@@ -11870,7 +12189,8 @@ function renderClientDetail(opts) {
 }
 window.addEventListener('hashchange', renderClientDetail);
 document.getElementById('detailBackBtn').addEventListener('click', () => {
-  if (location.hash) history.back(); else { document.getElementById('clientDetailOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
+  closeHashToDashboard();
+  if (typeof renderClientDetail === 'function') renderClientDetail();
 });
 
 // Side-panel section heads — delegated so sticky-tab overlays / re-renders
@@ -14577,8 +14897,8 @@ function syncTeamWorkspaceChrome() {
   const intro = document.getElementById('teamWorkspaceIntro');
   if (intro) {
     intro.innerHTML = team
-      ? 'Coach view for day-to-day team ops. Admin goal/SIP setup lives under <strong>Admin</strong> on the landing page.'
-      : 'Team schedules are visible to everyone. Only coaches and admins can edit shifts.';
+      ? '<span class="ops-intro-mark">Floor control</span><p>Day-to-day coaching tools — cancels, personal goals, schedules, and attributions. Roster goals &amp; SIP live under <strong>Admin</strong>.</p>'
+      : '<span class="ops-intro-mark">Schedules</span><p>Team schedules are visible to everyone. Only coaches and admins can edit shifts.</p>';
   }
 }
 
