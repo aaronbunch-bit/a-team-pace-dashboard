@@ -5,19 +5,20 @@ import { randomInt } from "crypto";
 export type ContestKind = "hosted" | "promo";
 /**
  * Gameplay format — each mode has a distinct arena mechanic + visual.
- * Legacy aliases (target/crown/ladder) migrate on read.
+ * Legacy aliases (target/crown/ladder/bounty) migrate on read.
  */
-export type ContestMode = "race" | "wheel" | "hotseat" | "bounty" | "vault";
+export type ContestMode = "race" | "wheel" | "hotseat" | "deal" | "vault";
 export type ContestUnits = "sessions" | "members" | "both";
 export type ContestStake = "money" | "bragging";
 export type ContestStatus = "scheduled" | "active" | "ended";
 
-export const CONTEST_MODES: ContestMode[] = ["race", "wheel", "hotseat", "bounty", "vault"];
+export const CONTEST_MODES: ContestMode[] = ["race", "wheel", "hotseat", "deal", "vault"];
 
 /** Map legacy mode strings from older clients / stored records. */
 export function migrateContestMode(raw: any): ContestMode {
   const m = String(raw || "").trim();
-  if (m === "target") return "bounty";
+  // Bounty Board retired in favor of Deal or No Deal case picks.
+  if (m === "target" || m === "bounty") return "deal";
   if (m === "crown") return "hotseat";
   if (m === "ladder") return "vault";
   if ((CONTEST_MODES as string[]).includes(m)) return m as ContestMode;
@@ -45,6 +46,30 @@ export type ContestWheelSpin = {
   spunAt: string;
   spunBy: string;
 };
+
+/** One briefcase in a Deal or No Deal bank (value hidden until assigned). */
+export type ContestDealCase = {
+  id: string;
+  value: number;
+};
+
+/** A case awarded for a sale (time order) or coach/admin pick. */
+export type ContestDealPick = {
+  id: string;
+  caseId: string;
+  value: number;
+  repName: string;
+  /** Stable sale id, or `manual:<id>` for coach assigns. */
+  saleKey: string;
+  source: "sale" | "manual";
+  at: string;
+  by: string | null;
+};
+
+/** Classic-style case ladder — highest opened case wins the prize pot. */
+export const DEFAULT_DEAL_CASE_VALUES: number[] = [
+  1, 5, 10, 25, 50, 75, 100, 200, 300, 400, 500, 750, 1000, 2500, 5000, 10000,
+];
 
 /** Full-arena visual theme (replaces old morning/power-hour/evening timing presets). */
 export type ContestTheme =
@@ -169,6 +194,10 @@ export type ContestRecord = {
   hiddenFromHistory: boolean;
   /** Official wheel spin result (integrity: frozen segments + winner). */
   wheelSpin: ContestWheelSpin | null;
+  /** Shuffled Deal or No Deal case bank (created once for deal mode). */
+  dealCases: ContestDealCase[] | null;
+  /** Assigned cases — sale order + coach/admin picks. */
+  dealPicks: ContestDealPick[] | null;
   finalStandings: ContestStandingSnap[] | null;
   manualEntries: ContestManualEntry[];
   createdBy: string;
@@ -200,6 +229,10 @@ const EFFECTS: ContestEffects[] = ["none", "sparks", "confetti", "fireworks", "m
 const CHEERS: ContestCheer[] = ["announcer", "hype-crew", "radio", "silent"];
 const BOARD_SIZES: ContestBoardSize[] = ["normal", "hero"];
 
+/**
+ * Theme packs drive all cosmetics. Limited packs are what the create UI offers;
+ * older theme ids still resolve here for stored contests.
+ */
 const THEME_DEFAULTS: Record<ContestTheme, Partial<ContestRecord>> = {
   "grand-prix": { vehicle: "car", trackTheme: "asphalt", accent: "gold", mascot: "🏁", effects: "confetti", mode: "race" },
   "neon-night": { vehicle: "kart", trackTheme: "neon", accent: "cyan", mascot: "🌃", effects: "sparks", mode: "race" },
@@ -216,6 +249,18 @@ const THEME_DEFAULTS: Record<ContestTheme, Partial<ContestRecord>> = {
   underwater: { vehicle: "boat", trackTheme: "ocean", accent: "cyan", mascot: "🐠", effects: "sparks", mode: "race" },
   retro: { vehicle: "car", trackTheme: "pixel", accent: "gold", mascot: "📼", effects: "confetti", mode: "race" },
 };
+
+/** Theme packs shown in the create/edit UI (cosmetics come from the pack). */
+export const CONTEST_THEME_PACKS: ContestTheme[] = [
+  "grand-prix",
+  "arcade",
+  "neon-night",
+  "carnival",
+  "blood-type-a",
+  "dragon-cup",
+  "space-race",
+  "stadium",
+];
 
 function pickEnum<T extends string>(raw: string, allowed: readonly T[], fallback: T): T {
   return (allowed as readonly string[]).includes(raw) ? (raw as T) : fallback;
@@ -316,13 +361,15 @@ export function normalizeContestPatch(body: any, existing?: ContestRecord | null
     }
   }
 
+  // Theme pack owns cosmetics — granular vehicle/track/etc. are no longer
+  // independent edit controls. Fall back to existing only if theme has no default.
   const vehicle = pickEnum(
-    String(body?.vehicle ?? existing?.vehicle ?? defaults.vehicle ?? "car"),
+    String(defaults.vehicle ?? existing?.vehicle ?? "car"),
     VEHICLES,
     "car",
   );
   const trackTheme = pickEnum(
-    String(body?.trackTheme ?? existing?.trackTheme ?? defaults.trackTheme ?? "asphalt"),
+    String(defaults.trackTheme ?? existing?.trackTheme ?? "asphalt"),
     TRACKS,
     "asphalt",
   );
@@ -332,17 +379,17 @@ export function normalizeContestPatch(body: any, existing?: ContestRecord | null
     "hype",
   );
   const accent = pickEnum(
-    String(body?.accent ?? existing?.accent ?? defaults.accent ?? "pink"),
+    String(defaults.accent ?? existing?.accent ?? "pink"),
     ACCENTS,
     "pink",
   );
   const wheelSkin = pickEnum(
-    String(body?.wheelSkin ?? existing?.wheelSkin ?? defaults.wheelSkin ?? "classic"),
+    String(defaults.wheelSkin ?? existing?.wheelSkin ?? "classic"),
     WHEEL_SKINS,
     "classic",
   );
   const effects = pickEnum(
-    String(body?.effects ?? existing?.effects ?? defaults.effects ?? "confetti"),
+    String(defaults.effects ?? existing?.effects ?? "confetti"),
     EFFECTS,
     "confetti",
   );
@@ -370,10 +417,7 @@ export function normalizeContestPatch(body: any, existing?: ContestRecord | null
     ? existing?.customCheer ?? null
     : String(body.customCheer || "").trim().slice(0, 140) || null;
 
-  let mascot: string | null = existing?.mascot ?? defaults.mascot ?? null;
-  if (body?.mascot !== undefined) {
-    mascot = sanitizeMascot(body.mascot) || defaults.mascot || "🏁";
-  }
+  const mascot = sanitizeMascot(defaults.mascot) || sanitizeMascot(existing?.mascot) || "🏁";
 
   const showLaneBoard =
     body?.showLaneBoard === undefined
@@ -453,10 +497,140 @@ export function validateContestFields(c: Partial<ContestRecord>): string | null 
   if (c.stakeType === "money" && !(c.stakeAmount && c.stakeAmount > 0)) {
     return "Enter a dollar amount for the pot, or switch to bragging rights";
   }
-  if (c.mode === "bounty" && !(c.raceGoal && c.raceGoal > 0)) {
-    return "Bounty Board needs a top bounty goal (e.g. 5 sessions)";
-  }
   return null;
+}
+
+export function newDealCaseId(): string {
+  return "d_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+export function newDealPickId(): string {
+  return "p_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+/** Fisher–Yates shuffle with crypto randomness. */
+export function shuffleDealValues(values: number[] = DEFAULT_DEAL_CASE_VALUES): ContestDealCase[] {
+  const arr = values.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = randomInt(0, i + 1);
+    const tmp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = tmp;
+  }
+  return arr.map((value, i) => ({
+    id: `case_${i + 1}_${value}`,
+    value,
+  }));
+}
+
+export function normalizeDealCases(raw: any): ContestDealCase[] | null {
+  if (!Array.isArray(raw) || !raw.length) return null;
+  const cases = raw
+    .map((c: any, i: number) => {
+      const value = Number(c?.value);
+      if (!Number.isFinite(value) || value < 0) return null;
+      const id = String(c?.id || `case_${i + 1}`).trim().slice(0, 40);
+      return { id, value: Math.round(value * 100) / 100 } as ContestDealCase;
+    })
+    .filter(Boolean) as ContestDealCase[];
+  return cases.length ? cases : null;
+}
+
+export function normalizeDealPicks(raw: any): ContestDealPick[] {
+  if (!Array.isArray(raw) || !raw.length) return [];
+  return raw
+    .map((p: any) => {
+      const repName = String(p?.repName || "").trim().slice(0, 80);
+      const caseId = String(p?.caseId || "").trim().slice(0, 40);
+      const value = Number(p?.value);
+      const saleKey = String(p?.saleKey || "").trim().slice(0, 160);
+      if (!repName || !caseId || !saleKey || !Number.isFinite(value)) return null;
+      const source = p?.source === "manual" ? "manual" : "sale";
+      return {
+        id: String(p?.id || newDealPickId()).trim().slice(0, 40),
+        caseId,
+        value: Math.round(value * 100) / 100,
+        repName,
+        saleKey,
+        source,
+        at: String(p?.at || new Date().toISOString()),
+        by: p?.by ? String(p.by).trim().toLowerCase().slice(0, 120) : null,
+      } as ContestDealPick;
+    })
+    .filter(Boolean) as ContestDealPick[];
+}
+
+export type DealSaleInput = {
+  saleKey: string;
+  repName: string;
+  at: string;
+};
+
+/**
+ * Assign the next unopened cases to new sales in time order.
+ * Existing picks (by saleKey) are preserved; case ids already used stay taken.
+ */
+export function mergeDealPicksFromSales(
+  cases: ContestDealCase[],
+  existingPicks: ContestDealPick[],
+  sales: DealSaleInput[],
+): ContestDealPick[] {
+  const picks = normalizeDealPicks(existingPicks);
+  const usedSaleKeys = new Set(picks.map((p) => p.saleKey));
+  const usedCaseIds = new Set(picks.map((p) => p.caseId));
+  const freeCases = cases.filter((c) => !usedCaseIds.has(c.id));
+  const orderedSales = sales
+    .map((s) => ({
+      saleKey: String(s.saleKey || "").trim().slice(0, 160),
+      repName: String(s.repName || "").trim().slice(0, 80),
+      at: String(s.at || "").trim() || new Date().toISOString(),
+    }))
+    .filter((s) => s.saleKey && s.repName && !usedSaleKeys.has(s.saleKey))
+    .sort((a, b) => a.at.localeCompare(b.at) || a.saleKey.localeCompare(b.saleKey));
+
+  let freeIdx = 0;
+  for (const sale of orderedSales) {
+    if (freeIdx >= freeCases.length) break;
+    const nextCase = freeCases[freeIdx++];
+    picks.push({
+      id: newDealPickId(),
+      caseId: nextCase.id,
+      value: nextCase.value,
+      repName: sale.repName,
+      saleKey: sale.saleKey,
+      source: "sale",
+      at: sale.at,
+      by: null,
+    });
+  }
+  return picks;
+}
+
+/** Coach/admin assigns the next free case to a teammate. */
+export function assignManualDealPick(
+  cases: ContestDealCase[],
+  existingPicks: ContestDealPick[],
+  repName: string,
+  by: string,
+  nowIso = new Date().toISOString(),
+): { picks: ContestDealPick[]; pick: ContestDealPick | null; error?: string } {
+  const name = String(repName || "").trim().slice(0, 80);
+  if (!name) return { picks: existingPicks, pick: null, error: "Pick a teammate" };
+  const picks = normalizeDealPicks(existingPicks);
+  const usedCaseIds = new Set(picks.map((p) => p.caseId));
+  const nextCase = cases.find((c) => !usedCaseIds.has(c.id));
+  if (!nextCase) return { picks, pick: null, error: "No cases left in the bank" };
+  const pick: ContestDealPick = {
+    id: newDealPickId(),
+    caseId: nextCase.id,
+    value: nextCase.value,
+    repName: name,
+    saleKey: `manual:${nowIso}:${name}`,
+    source: "manual",
+    at: nowIso,
+    by: String(by || "").trim().toLowerCase().slice(0, 120) || null,
+  };
+  return { picks: picks.concat([pick]), pick };
 }
 
 const WHEEL_COLORS = [
@@ -615,6 +789,8 @@ export function publicContest(c: ContestRecord, now = new Date()): ContestRecord
     isTest: !!c.isTest,
     hiddenFromHistory: !!c.hiddenFromHistory,
     wheelSpin: normalizeWheelSpin(c.wheelSpin),
+    dealCases: normalizeDealCases(c.dealCases),
+    dealPicks: normalizeDealPicks(c.dealPicks),
     finalStandings: Array.isArray(c.finalStandings) ? c.finalStandings : null,
     manualEntries: Array.isArray(c.manualEntries) ? c.manualEntries : [],
   };
