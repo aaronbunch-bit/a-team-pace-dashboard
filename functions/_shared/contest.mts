@@ -1,10 +1,37 @@
 /** Shared contest helpers for Netlify Functions. */
 
+import { randomInt } from "crypto";
+
 export type ContestKind = "hosted" | "promo";
-export type ContestMode = "race" | "wheel";
+/** Gameplay format — each mode has its own arena board. */
+export type ContestMode = "race" | "wheel" | "target" | "crown" | "ladder";
 export type ContestUnits = "sessions" | "members" | "both";
 export type ContestStake = "money" | "bragging";
 export type ContestStatus = "scheduled" | "active" | "ended";
+
+export const CONTEST_MODES: ContestMode[] = ["race", "wheel", "target", "crown", "ladder"];
+
+/** One wedge on an official wheel spin (frozen at spin time). */
+export type ContestWheelSegment = {
+  repName: string;
+  tickets: number;
+  startDeg: number;
+  endDeg: number;
+  color: string;
+};
+
+/** Official wheel outcome — same for every viewer after spin. */
+export type ContestWheelSpin = {
+  winner: string;
+  winnerIndex: number;
+  /** Absolute CSS rotation so the pointer lands on the winner wedge. */
+  landedDeg: number;
+  /** Mid-angle of the winning wedge (0–360, clockwise from top). */
+  winnerMidDeg: number;
+  segments: ContestWheelSegment[];
+  spunAt: string;
+  spunBy: string;
+};
 
 /** Full-arena visual theme (replaces old morning/power-hour/evening timing presets). */
 export type ContestTheme =
@@ -127,6 +154,8 @@ export type ContestRecord = {
   /** Short dry-run contest — does not end other live contests when saved. */
   isTest: boolean;
   hiddenFromHistory: boolean;
+  /** Official wheel spin result (integrity: frozen segments + winner). */
+  wheelSpin: ContestWheelSpin | null;
   finalStandings: ContestStandingSnap[] | null;
   manualEntries: ContestManualEntry[];
   createdBy: string;
@@ -238,8 +267,11 @@ export function normalizeContestPatch(body: any, existing?: ContestRecord | null
   const name = String(body?.name ?? existing?.name ?? "").trim().slice(0, 80);
   const kindRaw = String(body?.kind ?? existing?.kind ?? "hosted");
   const kind: ContestKind = kindRaw === "promo" ? "promo" : "hosted";
-  const modeRaw = String(body?.mode ?? existing?.mode ?? "race");
-  const mode: ContestMode = modeRaw === "wheel" ? "wheel" : "race";
+  const mode = pickEnum(
+    String(body?.mode ?? existing?.mode ?? "race"),
+    CONTEST_MODES,
+    "race",
+  );
   const unitsRaw = String(body?.units ?? existing?.units ?? "sessions");
   const units: ContestUnits =
     unitsRaw === "members" ? "members" : unitsRaw === "both" ? "both" : "sessions";
@@ -363,9 +395,9 @@ export function normalizeContestPatch(body: any, existing?: ContestRecord | null
   const resolvedMode: ContestMode =
     body?.mode !== undefined
       ? mode
-      : existing?.mode
-        ? (existing.mode === "wheel" ? "wheel" : "race")
-        : ((defaults.mode as ContestMode) || "race");
+      : existing?.mode && (CONTEST_MODES as string[]).includes(existing.mode)
+        ? existing.mode
+        : pickEnum(String(defaults.mode || "race"), CONTEST_MODES, "race");
 
   return {
     name,
@@ -412,7 +444,129 @@ export function validateContestFields(c: Partial<ContestRecord>): string | null 
   if (c.stakeType === "money" && !(c.stakeAmount && c.stakeAmount > 0)) {
     return "Enter a dollar amount for the pot, or switch to bragging rights";
   }
+  if (c.mode === "target" && !(c.raceGoal && c.raceGoal > 0)) {
+    return "Target Hunt needs a finish-line goal (e.g. 5 sessions)";
+  }
   return null;
+}
+
+const WHEEL_COLORS = [
+  "#f472b6", "#a855f7", "#38bdf8", "#fbbf24", "#34d399",
+  "#fb7185", "#818cf8", "#22d3ee", "#f59e0b", "#4ade80",
+  "#e879f9", "#60a5fa", "#f97316", "#2dd4bf", "#ef4444",
+];
+
+/** Normalize ticket entries from the client for an official spin. */
+export function normalizeWheelEntries(raw: any): { repName: string; tickets: number }[] {
+  if (!Array.isArray(raw)) return [];
+  const map = new Map<string, number>();
+  for (const row of raw) {
+    const repName = String(row?.repName || "").trim().slice(0, 80);
+    if (!repName) continue;
+    const t = Number(row?.tickets);
+    const tickets = Number.isFinite(t) && t > 0 ? Math.round(t * 100) / 100 : 0;
+    if (tickets <= 0) continue;
+    map.set(repName, (map.get(repName) || 0) + tickets);
+  }
+  return Array.from(map.entries())
+    .map(([repName, tickets]) => ({ repName, tickets }))
+    .sort((a, b) => b.tickets - a.tickets || a.repName.localeCompare(b.repName))
+    .slice(0, 40);
+}
+
+/**
+ * Build proportional wedges + pick a winner with crypto randomness.
+ * Pointer sits at the top (0°). Wheel rotates clockwise by landedDeg so the
+ * winning wedge's midpoint ends under the pointer.
+ */
+export function createOfficialWheelSpin(
+  entries: { repName: string; tickets: number }[],
+  spunBy: string,
+  nowIso = new Date().toISOString(),
+): ContestWheelSpin | null {
+  const cleaned = normalizeWheelEntries(entries);
+  if (!cleaned.length) return null;
+
+  const total = cleaned.reduce((s, e) => s + e.tickets, 0);
+  if (!(total > 0)) return null;
+
+  const segments: ContestWheelSegment[] = [];
+  let cursor = 0;
+  cleaned.forEach((e, i) => {
+    const sweep = (e.tickets / total) * 360;
+    const startDeg = cursor;
+    const endDeg = i === cleaned.length - 1 ? 360 : cursor + sweep;
+    segments.push({
+      repName: e.repName,
+      tickets: e.tickets,
+      startDeg,
+      endDeg,
+      color: WHEEL_COLORS[i % WHEEL_COLORS.length],
+    });
+    cursor = endDeg;
+  });
+
+  // Weighted pick by ticket mass (integer millitickets for crypto.randomInt).
+  const weights = cleaned.map((e) => Math.max(1, Math.round(e.tickets * 1000)));
+  const weightTotal = weights.reduce((s, w) => s + w, 0);
+  const pick = randomInt(0, weightTotal);
+  let acc = 0;
+  let winnerIndex = 0;
+  for (let i = 0; i < weights.length; i++) {
+    acc += weights[i];
+    if (pick < acc) { winnerIndex = i; break; }
+  }
+
+  const winnerSeg = segments[winnerIndex];
+  const winnerMidDeg = (winnerSeg.startDeg + winnerSeg.endDeg) / 2;
+  // Extra full turns for drama, then align midpoint under the top pointer.
+  const turns = 5;
+  const landedDeg = turns * 360 + ((360 - winnerMidDeg) % 360);
+
+  return {
+    winner: winnerSeg.repName,
+    winnerIndex,
+    landedDeg,
+    winnerMidDeg,
+    segments,
+    spunAt: nowIso,
+    spunBy: String(spunBy || "").trim().toLowerCase().slice(0, 120),
+  };
+}
+
+export function normalizeWheelSpin(raw: any): ContestWheelSpin | null {
+  if (!raw || typeof raw !== "object") return null;
+  const winner = String(raw.winner || "").trim().slice(0, 80);
+  if (!winner) return null;
+  const segments = Array.isArray(raw.segments)
+    ? raw.segments.map((s: any, i: number) => {
+      const repName = String(s?.repName || "").trim().slice(0, 80);
+      if (!repName) return null;
+      const startDeg = Number(s?.startDeg);
+      const endDeg = Number(s?.endDeg);
+      const tickets = Number(s?.tickets);
+      return {
+        repName,
+        tickets: Number.isFinite(tickets) ? tickets : 0,
+        startDeg: Number.isFinite(startDeg) ? startDeg : 0,
+        endDeg: Number.isFinite(endDeg) ? endDeg : 0,
+        color: String(s?.color || WHEEL_COLORS[i % WHEEL_COLORS.length]).slice(0, 32),
+      } as ContestWheelSegment;
+    }).filter(Boolean) as ContestWheelSegment[]
+    : [];
+  if (!segments.length) return null;
+  const landedDeg = Number(raw.landedDeg);
+  const winnerMidDeg = Number(raw.winnerMidDeg);
+  const winnerIndex = Number(raw.winnerIndex);
+  return {
+    winner,
+    winnerIndex: Number.isFinite(winnerIndex) ? winnerIndex : 0,
+    landedDeg: Number.isFinite(landedDeg) ? landedDeg : 0,
+    winnerMidDeg: Number.isFinite(winnerMidDeg) ? winnerMidDeg : 0,
+    segments,
+    spunAt: String(raw.spunAt || new Date().toISOString()),
+    spunBy: String(raw.spunBy || "").trim().toLowerCase().slice(0, 120),
+  };
 }
 
 export function deriveContestStatus(c: ContestRecord, now = new Date()): ContestStatus {
@@ -450,6 +604,7 @@ export function publicContest(c: ContestRecord, now = new Date()): ContestRecord
     customCheer: c.customCheer ?? null,
     isTest: !!c.isTest,
     hiddenFromHistory: !!c.hiddenFromHistory,
+    wheelSpin: normalizeWheelSpin(c.wheelSpin),
     finalStandings: Array.isArray(c.finalStandings) ? c.finalStandings : null,
     manualEntries: Array.isArray(c.manualEntries) ? c.manualEntries : [],
   };
