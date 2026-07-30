@@ -877,10 +877,7 @@
       position: sticky;
       top: var(--sticky-top);
       align-self: start;
-      overflow-x: hidden;
-      overflow-y: auto;
-      /* Mirror Individual Pacer side panel; JS tightens as roster/footer approach. */
-      max-height: calc(100vh - var(--sticky-top) - 96px);
+      overflow: visible; /* page scroll only — never a second side scrollbar */
     }
     body[data-layout="split-rail"] .landing-region-reps { grid-area: reps; min-width: 0; }
   }
@@ -904,14 +901,13 @@
       position: sticky;
       top: var(--sticky-top);
       align-self: start;
-      overflow-x: hidden;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      /* Same idea as #metricsSidePanel: stick beside the main column, scroll
-         inside if needed, and leave room above the signed-in footer. JS
-         syncLandingBoardsScrollCap() shrinks this as the roster bottom
-         approaches so sticky boards never phase through the footer. */
-      max-height: calc(100vh - var(--sticky-top) - 96px);
+      /* One scrollbar only (the page). No max-height scrollport — that created
+         the hated side scroller. JS may set position:static if the column is
+         taller than the viewport so nothing gets trapped below the fold. */
+      overflow: visible;
+    }
+    body[data-layout="split-stack"] .wrap {
+      overflow-x: clip; /* kill accidental horizontal page scroll */
     }
     body[data-layout="split-stack"] .landing-region-reps { grid-area: reps; min-width: 0; }
     body[data-layout="split-stack"].stack-boards-hidden .wrap {
@@ -4096,10 +4092,10 @@ function syncLandingGridHeight() {
   grid.style.minHeight = sideCol.offsetHeight + 'px';
 }
 /**
- * Stack/Rail boards sticky — mirror Individual Pacer `#metricsSidePanel`:
- * stick under --sticky-top with a viewport max-height + inner scroll, and
- * shrink the cap as the roster bottom approaches so the panel releases with
- * the last rep instead of phasing through the signed-in footer.
+ * Stack/Rail boards — page scroll only (no side scrollbar).
+ * Sticky beside the roster when the column fits in the viewport; if it's
+ * taller than the viewport, fall back to static so the whole page scrolls
+ * together instead of trapping content in a second scrollport.
  */
 function syncLandingBoardsScrollCap() {
   const boards = document.getElementById('landingBoards');
@@ -4109,31 +4105,37 @@ function syncLandingBoardsScrollCap() {
   if (layout === 'classic' || window.innerWidth < 1000) {
     boards.style.maxHeight = '';
     boards.style.overflowY = '';
+    boards.style.position = '';
+    boards.style.top = '';
     return;
   }
+  // Measure natural height without a forced scrollport.
+  boards.style.maxHeight = 'none';
+  boards.style.overflowY = 'visible';
+  boards.style.position = 'sticky';
+  boards.style.top = '';
   const stickyRaw = getComputedStyle(document.documentElement).getPropertyValue('--sticky-top');
   const stickyTop = parseFloat(stickyRaw) || 12;
-  const footerPad = 96; // room for session bar / foot breathing room (matches CSS)
-  const viewportCap = Math.max(140, window.innerHeight - stickyTop - footerPad);
-  const repsBottom = reps.getBoundingClientRect().bottom;
-  // While stuck, panel top ≈ stickyTop. Available height ends at roster bottom.
-  const releaseCap = Math.max(140, repsBottom - stickyTop - 8);
-  boards.style.maxHeight = Math.min(viewportCap, releaseCap) + 'px';
-  boards.style.overflowY = 'auto';
+  const viewportRoom = Math.max(160, window.innerHeight - stickyTop - 24);
+  const naturalH = boards.scrollHeight || boards.offsetHeight;
+  if (naturalH > viewportRoom + 8) {
+    // Too tall to stick without an inner scroller — prefer one page scrollbar.
+    boards.style.position = 'static';
+    boards.style.top = 'auto';
+  }
 }
 window.addEventListener('resize', () => {
   syncLandingGridHeight();
   syncLandingBoardsScrollCap();
   fitLandingBadges();
 });
-window.addEventListener('scroll', () => { syncLandingBoardsScrollCap(); }, { passive: true });
 if (typeof ResizeObserver !== 'undefined') {
   const ro = new ResizeObserver(() => syncLandingBoardsScrollCap());
   const watchBoardsCap = () => {
-    const reps = document.getElementById('landingReps');
     const boards = document.getElementById('landingBoards');
-    if (reps) ro.observe(reps);
+    const reps = document.getElementById('landingReps');
     if (boards) ro.observe(boards);
+    if (reps) ro.observe(reps);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchBoardsCap);
   else watchBoardsCap();
