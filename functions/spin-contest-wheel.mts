@@ -55,8 +55,9 @@ export default async (req: Request, context: Context) => {
     });
   }
 
-  if (record.mode !== "wheel") {
-    return new Response(JSON.stringify({ error: "Only wheel contests can be spun" }), {
+  const mode = String(record.mode || "");
+  if (mode !== "wheel") {
+    return new Response(JSON.stringify({ error: "Only Prize Wheel contests can be spun" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });

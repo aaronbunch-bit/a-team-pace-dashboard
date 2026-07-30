@@ -3,13 +3,26 @@
 import { randomInt } from "crypto";
 
 export type ContestKind = "hosted" | "promo";
-/** Gameplay format — each mode has its own arena board. */
-export type ContestMode = "race" | "wheel" | "target" | "crown" | "ladder";
+/**
+ * Gameplay format — each mode has a distinct arena mechanic + visual.
+ * Legacy aliases (target/crown/ladder) migrate on read.
+ */
+export type ContestMode = "race" | "wheel" | "hotseat" | "bounty" | "vault";
 export type ContestUnits = "sessions" | "members" | "both";
 export type ContestStake = "money" | "bragging";
 export type ContestStatus = "scheduled" | "active" | "ended";
 
-export const CONTEST_MODES: ContestMode[] = ["race", "wheel", "target", "crown", "ladder"];
+export const CONTEST_MODES: ContestMode[] = ["race", "wheel", "hotseat", "bounty", "vault"];
+
+/** Map legacy mode strings from older clients / stored records. */
+export function migrateContestMode(raw: any): ContestMode {
+  const m = String(raw || "").trim();
+  if (m === "target") return "bounty";
+  if (m === "crown") return "hotseat";
+  if (m === "ladder") return "vault";
+  if ((CONTEST_MODES as string[]).includes(m)) return m as ContestMode;
+  return "race";
+}
 
 /** One wedge on an official wheel spin (frozen at spin time). */
 export type ContestWheelSegment = {
@@ -267,11 +280,7 @@ export function normalizeContestPatch(body: any, existing?: ContestRecord | null
   const name = String(body?.name ?? existing?.name ?? "").trim().slice(0, 80);
   const kindRaw = String(body?.kind ?? existing?.kind ?? "hosted");
   const kind: ContestKind = kindRaw === "promo" ? "promo" : "hosted";
-  const mode = pickEnum(
-    String(body?.mode ?? existing?.mode ?? "race"),
-    CONTEST_MODES,
-    "race",
-  );
+  const mode = migrateContestMode(body?.mode ?? existing?.mode ?? "race");
   const unitsRaw = String(body?.units ?? existing?.units ?? "sessions");
   const units: ContestUnits =
     unitsRaw === "members" ? "members" : unitsRaw === "both" ? "both" : "sessions";
@@ -395,9 +404,9 @@ export function normalizeContestPatch(body: any, existing?: ContestRecord | null
   const resolvedMode: ContestMode =
     body?.mode !== undefined
       ? mode
-      : existing?.mode && (CONTEST_MODES as string[]).includes(existing.mode)
-        ? existing.mode
-        : pickEnum(String(defaults.mode || "race"), CONTEST_MODES, "race");
+      : existing?.mode
+        ? migrateContestMode(existing.mode)
+        : migrateContestMode(defaults.mode || "race");
 
   return {
     name,
@@ -444,8 +453,8 @@ export function validateContestFields(c: Partial<ContestRecord>): string | null 
   if (c.stakeType === "money" && !(c.stakeAmount && c.stakeAmount > 0)) {
     return "Enter a dollar amount for the pot, or switch to bragging rights";
   }
-  if (c.mode === "target" && !(c.raceGoal && c.raceGoal > 0)) {
-    return "Target Hunt needs a finish-line goal (e.g. 5 sessions)";
+  if (c.mode === "bounty" && !(c.raceGoal && c.raceGoal > 0)) {
+    return "Bounty Board needs a top bounty goal (e.g. 5 sessions)";
   }
   return null;
 }
@@ -585,6 +594,7 @@ export function publicContest(c: ContestRecord, now = new Date()): ContestRecord
   return {
     ...c,
     status: deriveContestStatus(c, now),
+    mode: migrateContestMode(c.mode),
     theme,
     vehicle: c.vehicle || defaults.vehicle || "car",
     trackTheme: c.trackTheme || defaults.trackTheme || "asphalt",

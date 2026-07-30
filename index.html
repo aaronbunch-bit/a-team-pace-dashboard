@@ -1442,8 +1442,8 @@
     border: 8px solid #fff; position: relative; overflow: hidden;
     background: conic-gradient(from 0deg, #f472b6, #a855f7, #38bdf8, #fbbf24, #f472b6);
     box-shadow: 0 0 0 4px rgba(236,72,153,0.25), 0 16px 40px rgba(99,102,241,0.28);
-    transform: rotate(var(--wheel-rot, 0deg));
-    transition: none;
+    transform: rotate(0deg);
+    will-change: transform;
   }
   .contest-wheel-hub {
     position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;
@@ -1462,13 +1462,14 @@
     white-space: nowrap; max-width: 72px; overflow: hidden; text-overflow: ellipsis;
   }
   body:not(.motion-static) .contest-wheel.is-spinning {
-    transition: transform 3.4s cubic-bezier(0.12, 0.75, 0.12, 1);
+    transition: transform 3.6s cubic-bezier(0.08, 0.82, 0.08, 1);
   }
   .contest-wheel-winner-card {
     margin: 12px auto 0; max-width: 320px; padding: 12px 14px; border-radius: 14px;
     background: linear-gradient(135deg, rgba(236,72,153,0.14), rgba(139,92,246,0.12));
     border: 1px solid rgba(236,72,153,0.28); text-align: center;
   }
+  .contest-wheel-winner-card.is-pending { opacity: 0.35; filter: blur(0.5px); }
   .contest-wheel-winner-card strong { display: block; font-size: 18px; font-weight: 900; }
   .contest-wheel-winner-card .meta-note { margin: 4px 0 0; }
   #contestSpinBtn {
@@ -1482,53 +1483,117 @@
     margin-top: 10px; font-size: 15px; font-weight: 900; color: var(--text);
     min-height: 1.2em; text-align: center;
   }
-  .contest-target-board, .contest-crown-board, .contest-ladder-board { display: grid; gap: 10px; }
-  .contest-target-row, .contest-crown-card, .contest-ladder-rung {
-    display: grid; grid-template-columns: auto 1fr auto; gap: 10px 12px; align-items: center;
-    padding: 12px 14px; border-radius: 14px; border: 1px solid var(--card-border);
-    background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.4));
+  /* —— Distinct arena boards —— */
+  .contest-hotseat-stage {
+    display: grid; gap: 14px;
+    padding: 18px; border-radius: 22px;
+    background:
+      radial-gradient(ellipse 70% 55% at 50% 0%, rgba(250,204,21,0.28), transparent 60%),
+      linear-gradient(180deg, rgba(15,23,42,0.06), transparent);
+    border: 1px solid var(--card-border);
   }
-  body.dark .contest-target-row,
-  body.dark .contest-crown-card,
-  body.dark .contest-ladder-rung {
-    background: linear-gradient(180deg, rgba(30,27,48,0.9), rgba(26,23,41,0.65));
+  .contest-hotseat-throne {
+    text-align: center; padding: 22px 16px 18px; border-radius: 18px;
+    background: linear-gradient(160deg, rgba(250,204,21,0.22), rgba(255,255,255,0.55));
+    border: 1px solid rgba(234,179,8,0.4);
+    box-shadow: 0 16px 40px rgba(234,179,8,0.12);
   }
-  .contest-target-row.is-me, .contest-crown-card.is-me, .contest-ladder-rung.is-me {
-    box-shadow: inset 0 0 0 1px rgba(14,165,233,0.35);
+  body.dark .contest-hotseat-throne {
+    background: linear-gradient(160deg, rgba(250,204,21,0.16), rgba(30,27,48,0.85));
   }
-  .contest-target-bar {
-    grid-column: 1 / -1; height: 10px; border-radius: 999px; background: rgba(148,163,184,0.25);
-    overflow: hidden;
+  .contest-hotseat-throne .seat-emoji { font-size: 42px; line-height: 1; }
+  .contest-hotseat-throne h3 { margin: 8px 0 4px; font-size: 26px; font-weight: 900; letter-spacing: -0.03em; }
+  .contest-hotseat-gap {
+    margin-top: 10px; font-size: 12.5px; font-weight: 700; color: var(--text-muted);
   }
-  .contest-target-bar > i {
-    display: block; height: 100%; border-radius: inherit;
-    background: linear-gradient(90deg, #0d9488, #0891b2); width: 0;
-    transition: width 0.6s ease;
+  .contest-hotseat-challengers {
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
   }
-  .contest-crown-card.is-leader {
-    border-color: rgba(234,179,8,0.45);
-    background: linear-gradient(135deg, rgba(250,204,21,0.18), rgba(255,255,255,0.5));
+  .contest-hotseat-chip {
+    padding: 8px 12px; border-radius: 999px; font-size: 12px; font-weight: 800;
+    background: var(--metric-box-bg); border: 1px solid var(--card-border);
   }
-  .contest-crown-emoji { font-size: 28px; }
-  .contest-ladder-rung .ladder-slot {
-    width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center;
-    font-weight: 900; background: var(--metric-box-bg); border: 1px solid var(--card-border);
+  .contest-hotseat-chip.is-me { border-color: rgba(14,165,233,0.45); }
+
+  .contest-bounty-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;
   }
+  .contest-bounty-tile {
+    position: relative; padding: 14px 12px; border-radius: 16px; min-height: 110px;
+    border: 1px dashed rgba(148,163,184,0.55);
+    background: linear-gradient(160deg, rgba(255,255,255,0.7), rgba(248,250,252,0.4));
+    display: flex; flex-direction: column; gap: 6px; justify-content: space-between;
+  }
+  body.dark .contest-bounty-tile {
+    background: linear-gradient(160deg, rgba(30,27,48,0.9), rgba(26,23,41,0.65));
+  }
+  .contest-bounty-tile.is-claimed {
+    border-style: solid; border-color: rgba(13,148,136,0.45);
+    background: linear-gradient(160deg, rgba(13,148,136,0.16), rgba(255,255,255,0.5));
+  }
+  .contest-bounty-tile .bounty-val { font-size: 22px; font-weight: 900; letter-spacing: -0.03em; }
+  .contest-bounty-tile .bounty-claim { font-size: 11.5px; font-weight: 800; color: #0f766e; }
+  .contest-bounty-tile .bounty-open { font-size: 11.5px; font-weight: 700; color: var(--text-faint); }
+
+  .contest-vault-wrap {
+    display: grid; gap: 16px; justify-items: center;
+    padding: 18px; border-radius: 22px; border: 1px solid var(--card-border);
+    background:
+      radial-gradient(circle at 50% 30%, rgba(8,145,178,0.18), transparent 55%),
+      linear-gradient(180deg, rgba(255,255,255,0.55), transparent);
+  }
+  .contest-vault-ring {
+    --vault-pct: 0;
+    width: min(220px, 70vw); aspect-ratio: 1; border-radius: 50%;
+    display: grid; place-items: center;
+    background:
+      conic-gradient(from -90deg, #0d9488 calc(var(--vault-pct) * 1%), rgba(148,163,184,0.22) 0);
+    box-shadow: 0 12px 32px rgba(8,145,178,0.18);
+  }
+  .contest-vault-core {
+    width: 72%; aspect-ratio: 1; border-radius: 50%;
+    display: grid; place-items: center; text-align: center; gap: 2px;
+    background: var(--bg); border: 1px solid var(--card-border);
+  }
+  .contest-vault-core strong { font-size: 28px; font-weight: 900; letter-spacing: -0.03em; }
+  .contest-vault-core span { font-size: 11px; font-weight: 800; color: var(--text-faint); text-transform: uppercase; }
+  .contest-vault-crew { width: 100%; display: grid; gap: 8px; }
+  .contest-vault-row {
+    display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;
+    padding: 10px 12px; border-radius: 12px; border: 1px solid var(--card-border);
+    background: rgba(255,255,255,0.5);
+  }
+  body.dark .contest-vault-row { background: rgba(30,27,48,0.7); }
+  .contest-vault-share {
+    height: 6px; border-radius: 999px; background: rgba(148,163,184,0.25); margin-top: 5px; overflow: hidden;
+  }
+  .contest-vault-share > i {
+    display: block; height: 100%; background: linear-gradient(90deg, #0d9488, #0891b2); border-radius: inherit;
+  }
+
   .contest-mode-picker {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 8px;
   }
   .contest-mode-card {
-    text-align: left; margin-top: 0 !important; padding: 10px 11px; border-radius: 12px;
+    text-align: left; margin-top: 0 !important; padding: 0; border-radius: 14px;
     border: 1px solid var(--card-border); background: var(--metric-box-bg); color: var(--text);
-    cursor: pointer; display: flex; flex-direction: column; gap: 3px;
+    cursor: pointer; display: flex; flex-direction: column; overflow: hidden;
     box-shadow: none !important; opacity: 1 !important;
   }
+  .contest-mode-viz {
+    height: 54px; display: grid; place-items: center; font-size: 22px;
+    background: linear-gradient(135deg, rgba(15,23,42,0.04), rgba(8,145,178,0.10));
+    border-bottom: 1px solid var(--card-border);
+  }
+  .contest-mode-card .mode-copy { padding: 9px 11px 10px; display: flex; flex-direction: column; gap: 3px; }
   .contest-mode-card strong { font-size: 12.5px; font-weight: 900; }
   .contest-mode-card small { font-size: 10.5px; font-weight: 600; color: var(--text-faint); line-height: 1.35; }
   .contest-mode-card.is-active {
-    border-color: rgba(8,145,178,0.45);
-    background: linear-gradient(135deg, rgba(13,148,136,0.12), rgba(8,145,178,0.10));
-    box-shadow: inset 0 0 0 1px rgba(8,145,178,0.2) !important;
+    border-color: rgba(8,145,178,0.5);
+    box-shadow: inset 0 0 0 1px rgba(8,145,178,0.22) !important;
+  }
+  .contest-mode-card.is-active .contest-mode-viz {
+    background: linear-gradient(135deg, rgba(13,148,136,0.18), rgba(8,145,178,0.16));
   }
   .contest-field-hint {
     display: block; margin-top: 3px; font-size: 10.5px; font-weight: 600; line-height: 1.35;
@@ -1539,6 +1604,40 @@
     background: rgba(8,145,178,0.08); border: 1px solid rgba(8,145,178,0.18);
     font-size: 12px; font-weight: 600; color: var(--text-muted); line-height: 1.4;
   }
+  .contest-edit-preview {
+    margin-top: 8px; padding: 12px; border-radius: 14px; border: 1px dashed rgba(8,145,178,0.35);
+    background: rgba(8,145,178,0.05); min-height: 72px;
+  }
+  .contest-edit-preview .preview-title {
+    font-size: 10.5px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--text-faint); margin-bottom: 8px;
+  }
+  .contest-edit-preview .preview-stage {
+    display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;
+    min-height: 48px; font-size: 13px; font-weight: 800; color: var(--text);
+  }
+  .preview-pill {
+    padding: 6px 10px; border-radius: 999px; background: var(--card-bg); border: 1px solid var(--card-border);
+    font-size: 11px; font-weight: 800;
+  }
+  .ops-subtabs {
+    display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; margin: 0 0 16px;
+    border-radius: 14px; background: rgba(255,255,255,0.55); border: 1px solid var(--card-border);
+  }
+  body.dark .ops-subtabs { background: rgba(15,23,42,0.45); }
+  .ops-subtab {
+    flex: 1 1 120px; margin-top: 0 !important; border: 0; border-radius: 10px;
+    padding: 10px 12px; background: transparent; color: var(--text-muted);
+    font-size: 12.5px; font-weight: 800; cursor: pointer; text-align: left;
+    box-shadow: none !important; opacity: 1 !important;
+  }
+  .ops-subtab small { display: block; font-size: 10.5px; font-weight: 600; color: var(--text-faint); margin-top: 2px; }
+  .ops-subtab.active {
+    background: linear-gradient(135deg, rgba(15,118,110,0.14), rgba(234,88,12,0.08));
+    color: var(--text);
+  }
+  .ops-subpanel { display: none; animation: opsPanelIn 0.3s ease both; }
+  .ops-subpanel.active { display: block; }
 
   .contest-coach-panel {
     margin-top: 4px; padding: 16px; border-radius: 18px;
@@ -4656,27 +4755,46 @@
         <input type="hidden" id="contestEditMode" value="race">
         <div class="contest-mode-picker" id="contestEditModePicker" role="listbox" aria-label="Contest type">
           <button type="button" class="contest-mode-card is-active" data-mode="race" role="option" aria-selected="true">
-            <strong>🏁 Race</strong>
-            <small>Speedway — cars race by score. Best for Power Hours.</small>
+            <div class="contest-mode-viz" aria-hidden="true">🏎️····🏁</div>
+            <div class="mode-copy">
+              <strong>Speedway</strong>
+              <small>Cars race the track by score. Classic Power Hour energy.</small>
+            </div>
           </button>
           <button type="button" class="contest-mode-card" data-mode="wheel" role="option" aria-selected="false">
-            <strong>🎡 Wheel</strong>
-            <small>Earn tickets, then spin. Official winner is locked for everyone.</small>
+            <div class="contest-mode-viz" aria-hidden="true">🎡</div>
+            <div class="mode-copy">
+              <strong>Prize Wheel</strong>
+              <small>Earn tickets, then land an official spin everyone can trust.</small>
+            </div>
           </button>
-          <button type="button" class="contest-mode-card" data-mode="target" role="option" aria-selected="false">
-            <strong>🎯 Target Hunt</strong>
-            <small>First to hit the finish-line goal wins. Progress bars for all.</small>
+          <button type="button" class="contest-mode-card" data-mode="hotseat" role="option" aria-selected="false">
+            <div class="contest-mode-viz" aria-hidden="true">🔥👑</div>
+            <div class="mode-copy">
+              <strong>Hot Seat</strong>
+              <small>#1 sits in the spotlight. Steal the lead to take the seat.</small>
+            </div>
           </button>
-          <button type="button" class="contest-mode-card" data-mode="crown" role="option" aria-selected="false">
-            <strong>👑 King of the Hill</strong>
-            <small>Whoever is #1 holds the crown. Steal the lead to take it.</small>
+          <button type="button" class="contest-mode-card" data-mode="bounty" role="option" aria-selected="false">
+            <div class="contest-mode-viz" aria-hidden="true">🎯📦📦</div>
+            <div class="mode-copy">
+              <strong>Bounty Board</strong>
+              <small>Milestone tiles to claim. First to each bounty owns it.</small>
+            </div>
           </button>
-          <button type="button" class="contest-mode-card" data-mode="ladder" role="option" aria-selected="false">
-            <strong>🪜 Ladder</strong>
-            <small>Climb the ranks — place-first board for ladder battles.</small>
+          <button type="button" class="contest-mode-card" data-mode="vault" role="option" aria-selected="false">
+            <div class="contest-mode-viz" aria-hidden="true">💰◯</div>
+            <div class="mode-copy">
+              <strong>Vault Heist</strong>
+              <small>Fill the vault together — see who contributed the most.</small>
+            </div>
           </button>
         </div>
-        <div class="contest-mode-guide" id="contestEditModeGuide">Speedway board: higher score moves farther down the track.</div>
+        <div class="contest-mode-guide" id="contestEditModeGuide">Cars race by score on a live speedway.</div>
+        <div class="contest-edit-preview" id="contestEditPreview" aria-live="polite">
+          <div class="preview-title">Arena preview</div>
+          <div class="preview-stage" id="contestEditPreviewStage"></div>
+        </div>
       </label>
       <label>Units / tickets
         <select id="contestEditUnits">
@@ -4706,10 +4824,10 @@
       </label>
 
       <div class="contest-form-section full" id="contestEditRaceOpts">
-        <div class="contest-form-section-title">✨ Arena customizations</div>
-        <div class="meta-note" style="margin:0 0 8px;">These change how the board looks and feels — they don’t change scoring rules (except finish-line goal on Target Hunt / Race).</div>
+        <div class="contest-form-section-title">✨ Customizations for this type</div>
+        <div class="meta-note" style="margin:0 0 8px;" id="contestEditCustomIntro">Only options that apply to the selected contest type are shown.</div>
         <div class="contest-form-grid">
-          <label>Vehicle / runner
+          <label data-for-modes="race">Vehicle / runner
             <select id="contestEditVehicle">
               <option value="car">🏎️ Race car</option>
               <option value="kart">🛵 Kart</option>
@@ -4730,9 +4848,9 @@
               <option value="pizza">🍕 Pizza</option>
               <option value="hotdog">🌭 Hotdog</option>
             </select>
-            <span class="contest-field-hint">Icon that moves on the race track for each rep.</span>
+            <span class="contest-field-hint">What races down the speedway for each rep.</span>
           </label>
-          <label>Track / world
+          <label data-for-modes="race">Track / world
             <select id="contestEditTrack">
               <option value="asphalt">Asphalt speedway</option>
               <option value="neon">Neon night</option>
@@ -4745,17 +4863,17 @@
               <option value="lava">Lava run</option>
               <option value="pixel">Pixel world</option>
             </select>
-            <span class="contest-field-hint">Background look of the speedway / arena.</span>
+            <span class="contest-field-hint">Speedway backdrop / world skin.</span>
           </label>
-          <label>Hype level
+          <label data-for-modes="race,hotseat,bounty,vault">Hype level
             <select id="contestEditHype">
               <option value="chill">Chill</option>
               <option value="hype">Hype</option>
               <option value="max">Max chaos</option>
             </select>
-            <span class="contest-field-hint">How loud animations and energy feel.</span>
+            <span class="contest-field-hint">How intense motion and energy feel.</span>
           </label>
-          <label>Accent color
+          <label data-for-modes="race,hotseat,bounty,vault,wheel">Accent color
             <select id="contestEditAccent">
               <option value="pink">Hot pink</option>
               <option value="gold">Gold</option>
@@ -4766,9 +4884,9 @@
               <option value="red">Racing red</option>
               <option value="blood">Blood Type A</option>
             </select>
-            <span class="contest-field-hint">Highlight color for chips, leader, and CTAs.</span>
+            <span class="contest-field-hint">Highlight color for the arena chrome.</span>
           </label>
-          <label>Mascot
+          <label data-for-modes="race,hotseat,vault">Mascot
             <select id="contestEditMascot">
               <option value="🏁">🏁 Flag</option>
               <option value="🅰️">🅰️ Blood Type A</option>
@@ -4782,10 +4900,12 @@
               <option value="❄️">❄️ Ice</option>
               <option value="🌈">🌈 Rainbow</option>
               <option value="🏆">🏆 Trophy</option>
+              <option value="🔥">🔥 Fire</option>
+              <option value="💰">💰 Vault</option>
             </select>
-            <span class="contest-field-hint">Big emoji in the hero and sticky ticker.</span>
+            <span class="contest-field-hint">Hero emoji on the board + sticky ticker.</span>
           </label>
-          <label>Effects
+          <label data-for-modes="race,hotseat,bounty">Effects
             <select id="contestEditEffects">
               <option value="none">None</option>
               <option value="sparks">Sparks</option>
@@ -4793,55 +4913,49 @@
               <option value="fireworks">Fireworks</option>
               <option value="max">Max party</option>
             </select>
-            <span class="contest-field-hint">Celebration particles intensity on the board.</span>
+            <span class="contest-field-hint">Celebration particles when big moments hit.</span>
           </label>
-          <label>Cheer style
+          <label data-for-modes="race,hotseat">Cheer style
             <select id="contestEditCheer">
               <option value="announcer">Announcer</option>
               <option value="hype-crew">Hype crew</option>
               <option value="radio">Race radio</option>
               <option value="silent">Silent</option>
             </select>
-            <span class="contest-field-hint">Tone of lead-change callouts (if announcer is on).</span>
+            <span class="contest-field-hint">Voice of lead-change callouts.</span>
           </label>
-          <label>Board size
+          <label data-for-modes="race">Board size
             <select id="contestEditBoardSize">
               <option value="hero">Hero (board focus)</option>
               <option value="normal">Normal</option>
             </select>
-            <span class="contest-field-hint">Hero makes the track / board dominate the page.</span>
+            <span class="contest-field-hint">Hero makes the speedway dominate the page.</span>
           </label>
-          <label class="full">Custom cheer <span style="font-weight:600;text-transform:none;letter-spacing:0;">(optional)</span>
+          <label class="full" data-for-modes="race,hotseat,vault">Custom cheer <span style="font-weight:600;text-transform:none;letter-spacing:0;">(optional)</span>
             <input type="text" id="contestEditCustomCheer" maxlength="140" placeholder="LDOM is HERE — take the lead!">
-            <span class="contest-field-hint">Optional line that rotates into the announcer feed.</span>
+            <span class="contest-field-hint">Optional line in the callout feed.</span>
           </label>
-          <label class="full" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;font-weight:700;">
+          <label class="full" data-for-modes="race,hotseat" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;font-weight:700;">
             <input type="checkbox" id="contestEditConfettiLead" checked style="width:auto;">
             Confetti when the lead changes
           </label>
-          <label class="full" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;font-weight:700;">
+          <label class="full" data-for-modes="race,hotseat" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;font-weight:700;">
             <input type="checkbox" id="contestEditShowTicker" checked style="width:auto;">
             Show live moves ticker
           </label>
-          <label id="contestEditRaceGoalLabel">Finish-line goal <span style="font-weight:600;text-transform:none;letter-spacing:0;" id="contestEditRaceGoalOptional">(optional)</span>
+          <label data-for-modes="race,bounty,vault" id="contestEditRaceGoalLabel">Goal / top bounty <span style="font-weight:600;text-transform:none;letter-spacing:0;" id="contestEditRaceGoalOptional">(optional)</span>
             <input type="number" id="contestEditRaceGoal" min="0" step="any" placeholder="e.g. 5">
-            <span class="contest-field-hint" id="contestEditRaceGoalHint">Race: track length vs this goal (or vs leader). Target Hunt: required — first to this number wins.</span>
+            <span class="contest-field-hint" id="contestEditRaceGoalHint">Speedway track length, Bounty top prize, or Vault fill target.</span>
           </label>
-          <label class="full" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;font-weight:700;">
+          <label class="full" data-for-modes="race" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;font-weight:700;">
             <input type="checkbox" id="contestEditShowLaneBoard" checked style="width:auto;">
             Show detail board under the track
           </label>
-          <label class="full" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;font-weight:700;">
+          <label class="full" data-for-modes="race,hotseat" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;font-weight:700;">
             <input type="checkbox" id="contestEditAnnouncer" checked style="width:auto;">
             Announcer callouts when the lead changes
           </label>
-        </div>
-      </div>
-
-      <div class="contest-form-section full" id="contestEditWheelOpts" style="display:none;">
-        <div class="contest-form-section-title">🎡 Wheel customizations</div>
-        <div class="contest-form-grid">
-          <label>Wheel skin
+          <label data-for-modes="wheel">Wheel skin
             <select id="contestEditWheelSkin">
               <option value="classic">Classic</option>
               <option value="neon">Neon</option>
@@ -4851,10 +4965,10 @@
               <option value="blood">Blood Type A</option>
               <option value="pixel">Pixel</option>
             </select>
-            <span class="contest-field-hint">Color palette for the wheel wedges (labels still show each rep).</span>
+            <span class="contest-field-hint">Wedge color palette. Names still label each slice.</span>
           </label>
         </div>
-        <div class="meta-note" style="margin-top:8px;">Tickets come from Units above. Spin is saved on the server — every teammate sees the same landed winner.</div>
+        <div class="meta-note" id="contestEditModeExtraNote" style="margin-top:8px;"></div>
       </div>
 
       <label class="full" style="flex-direction:row; align-items:center; gap:8px; text-transform:none; font-weight:700;">
@@ -5228,32 +5342,37 @@
     </div>
     <div class="ops-page-intro">
       <span class="ops-intro-mark">Roster &amp; targets</span>
-      <p>Set sessions, members, and OTE for the month. Access lists and badges live next door under Access, badges &amp; tools.</p>
+      <p>Set sessions, members, and OTE for the month. Access lists and badges live under Access, badges &amp; tools.</p>
     </div>
-    <div class="card ops-panel-shell">
-      <h2>Add a person</h2>
-      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
-        <label style="flex:1; min-width:180px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-          Full name
-          <input type="text" id="newPersonName" placeholder="e.g. Jordan Smith">
-        </label>
-        <button id="addPersonBtn" type="button">+ Add Person</button>
+    <div class="ops-subtabs" id="goalsSubtabs" role="tablist">
+      <button type="button" class="ops-subtab active" data-goals-tab="roster" role="tab" aria-selected="true">Active roster<small>Goals grid</small></button>
+      <button type="button" class="ops-subtab" data-goals-tab="removed" role="tab" aria-selected="false">Removed<small>Restore people</small></button>
+    </div>
+    <div class="ops-subpanel active" data-goals-panel="roster">
+      <div class="card ops-panel-shell">
+        <h2>Add a person</h2>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+          <label style="flex:1; min-width:180px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+            Full name
+            <input type="text" id="newPersonName" placeholder="e.g. Jordan Smith">
+          </label>
+          <button id="addPersonBtn" type="button">+ Add Person</button>
+        </div>
+        <div class="meta-note" id="addPersonStatus"></div>
       </div>
-      <div class="meta-note" id="addPersonStatus"></div>
-    </div>
-    <div class="card ops-panel-shell goal-grid-compact" id="goalsFormWrap">
-      <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Individual Pacer access)</div><div>Cap bonus @ 200%</div></div>
-      <div id="goalsForm"></div>
-      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px;">
-        <button id="saveGoals">Save goals</button>
-        <span class="field-toggle-tag" id="toggleAdvancedFields">+ Tag / Email / Cap</span>
+      <div class="card ops-panel-shell goal-grid-compact" id="goalsFormWrap">
+        <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Individual Pacer access)</div><div>Cap bonus @ 200%</div></div>
+        <div id="goalsForm"></div>
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px;">
+          <button id="saveGoals">Save goals</button>
+          <span class="field-toggle-tag" id="toggleAdvancedFields">+ Tag / Email / Cap</span>
+        </div>
+        <div class="meta-note">Sessions &amp; Members update monthly. Tag / Email / Cap are set-once. ✕ removes someone (restorable in Removed).</div>
       </div>
-      <div class="meta-note">Update at the start of each month. Sessions and Members goals stay visible by default; click <b>+ Tag / Email / Cap</b> for set-once fields. Monthly OTE feeds Bonus Payout. Email is that rep’s @varsitytutors.com sign-in for their own Individual Pacer. Use ✕ to remove someone (restorable below). Access lists, badges, and shoutout history are under <b>Admin → Access, badges &amp; tools</b>.</div>
     </div>
-
-    <div class="section-toggle" id="toggleRemoved">▸ Removed people</div>
-    <div class="section-body" id="removedBody">
-      <div class="card">
+    <div class="ops-subpanel" data-goals-panel="removed" id="removedBody">
+      <div class="card ops-panel-shell">
+        <h2>Removed people</h2>
         <div id="removedRosterList"></div>
         <div class="meta-note" id="removedRosterEmpty">No one is currently removed from the roster.</div>
       </div>
@@ -5272,14 +5391,19 @@
     </div>
     <div class="ops-page-intro admin-settings-intro">
       <span class="ops-intro-mark">Control room</span>
-      <p>Who gets admin or coach access, the badge bank, and the master shoutout log — sections stay open so nothing is buried.</p>
+      <p>Access roles, the badge bank, and the master shoutout log — one tab at a time.</p>
+    </div>
+    <div class="ops-subtabs" id="adminSubtabs" role="tablist">
+      <button type="button" class="ops-subtab active" data-admin-tab="access" role="tab" aria-selected="true">Access<small>Admins &amp; coaches</small></button>
+      <button type="button" class="ops-subtab" data-admin-tab="badges" role="tab" aria-selected="false">Badges<small>Bank &amp; assign</small></button>
+      <button type="button" class="ops-subtab" data-admin-tab="shoutouts" role="tab" aria-selected="false">Shoutouts<small>Master log</small></button>
     </div>
 
-    <div class="admin-settings-grid">
-      <div class="admin-settings-block">
-        <div class="section-toggle" id="toggleAdmin">▾ Admin access</div>
-        <div class="section-body open" id="adminBody">
-          <div class="card">
+    <div class="ops-subpanel active" data-admin-panel="access">
+      <div class="admin-settings-grid">
+        <div class="admin-settings-block" id="adminBody">
+          <div class="card ops-panel-shell">
+            <h2>Admin access</h2>
             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
               <label style="flex:1; min-width:180px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
                 Email
@@ -5289,15 +5413,12 @@
             </div>
             <div class="meta-note" id="addAdminStatus"></div>
             <div id="adminList" style="margin-top:10px;"></div>
-            <div class="meta-note">Full write access (roster, goals, badges, approvals). Aaron is permanent and can't be removed here.</div>
+            <div class="meta-note">Full write access. Aaron is permanent.</div>
           </div>
         </div>
-      </div>
-
-      <div class="admin-settings-block">
-        <div class="section-toggle" id="toggleLimitedAdmin">▾ Sales Coach access</div>
-        <div class="section-body open" id="limitedAdminBody">
-          <div class="card">
+        <div class="admin-settings-block" id="limitedAdminBody">
+          <div class="card ops-panel-shell">
+            <h2>Sales Coach access</h2>
             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
               <label style="flex:1; min-width:180px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
                 Email
@@ -5307,71 +5428,63 @@
             </div>
             <div class="meta-note" id="addLimitedAdminStatus"></div>
             <div id="limitedAdminList" style="margin-top:10px;"></div>
-            <div class="meta-note">Read every Individual Pacer + Team Details; no Bonus Payout / $ SIP on others' pages. Can submit Manual Attribution on behalf of a rep.</div>
+            <div class="meta-note">Read Individual Pacers + Team ops; no Bonus Payout on others.</div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="admin-settings-stack">
-      <div class="admin-settings-block">
-        <div class="section-toggle" id="toggleBadgeControls">▾ Badge Controls</div>
-        <div class="section-body open" id="badgeControlsBody">
-          <div class="card">
-            <div class="m-label" style="margin-bottom:8px;">Badge Bank — every badge, on/off + delete</div>
-            <div id="badgeBankList" style="display:flex; flex-direction:column; gap:10px;"></div>
-            <div class="meta-note">Hover a badge name to preview the tip. <b>Edit hover tip</b> changes the text shown when someone hovers that badge on the landing page (and Individual Pacer). Turning one off hides it everywhere but keeps it listed to re-enable. Delete removes it from this list.</div>
-          </div>
-          <div class="card" style="margin-top:12px;">
-            <div class="m-label" style="margin-bottom:8px;">Create your own badge</div>
-            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
-              <label style="flex:0 0 70px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-                Emoji
-                <input type="text" id="customBadgeEmoji" maxlength="4" placeholder="🏅" style="text-align:center;">
-              </label>
-              <label style="flex:1; min-width:140px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-                Name
-                <input type="text" id="customBadgeName" placeholder="e.g. Comeback Kid" maxlength="30">
-              </label>
-              <label style="flex:2; min-width:200px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-                Description
-                <input type="text" id="customBadgeDescription" placeholder="What earns this badge?" maxlength="140">
-              </label>
-              <button id="createCustomBadgeBtn" type="button">+ Create Badge</button>
-            </div>
-            <div class="meta-note" id="customBadgeStatus"></div>
-          </div>
-          <div class="card" style="margin-top:12px;">
-            <div class="m-label" style="margin-bottom:8px;">Assign a badge</div>
-            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
-              <label style="flex:1; min-width:160px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-                Teammate
-                <select id="badgeAssignRepSelect" class="sip-select"></select>
-              </label>
-              <label style="flex:1; min-width:160px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-                Badge
-                <select id="badgeAssignTypeSelect" class="sip-select"></select>
-              </label>
-              <button id="badgeAssignBtn" type="button">+ Assign</button>
-            </div>
-            <div class="meta-note" id="badgeAssignTypeDescription" style="margin-top:0;"></div>
-            <div class="meta-note" id="badgeAssignStatus"></div>
-            <div id="manualBadgeAssignedList" style="margin-top:10px;"></div>
-          </div>
-        </div>
+    <div class="ops-subpanel" data-admin-panel="badges" id="badgeControlsBody">
+      <div class="card ops-panel-shell">
+        <h2>Badge bank</h2>
+        <div id="badgeBankList" style="display:flex; flex-direction:column; gap:10px;"></div>
+        <div class="meta-note">Toggle visibility, edit hover tips, or delete. Off hides a badge everywhere but keeps it restorable.</div>
       </div>
-
-      <div class="admin-settings-block">
-        <div class="section-toggle" id="toggleShoutoutLog">▾ All Shoutouts</div>
-        <div class="section-body open" id="shoutoutLogBody">
-          <div class="card">
-            <div id="masterShoutoutList"></div>
-            <div class="meta-note" id="masterShoutoutEmpty" style="display:none;">No shoutouts yet.</div>
-            <div class="meta-note">Master log across every rep, newest first.</div>
-          </div>
+      <div class="card ops-panel-shell" style="margin-top:12px;">
+        <h2>Create a badge</h2>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+          <label style="flex:0 0 70px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+            Emoji
+            <input type="text" id="customBadgeEmoji" maxlength="4" placeholder="🏅" style="text-align:center;">
+          </label>
+          <label style="flex:1; min-width:140px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+            Name
+            <input type="text" id="customBadgeName" placeholder="e.g. Comeback Kid" maxlength="30">
+          </label>
+          <label style="flex:2; min-width:200px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+            Description
+            <input type="text" id="customBadgeDescription" placeholder="What earns this badge?" maxlength="140">
+          </label>
+          <button id="createCustomBadgeBtn" type="button">+ Create Badge</button>
         </div>
+        <div class="meta-note" id="customBadgeStatus"></div>
       </div>
+      <div class="card ops-panel-shell" style="margin-top:12px;">
+        <h2>Assign a badge</h2>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+          <label style="flex:1; min-width:160px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+            Teammate
+            <select id="badgeAssignRepSelect" class="sip-select"></select>
+          </label>
+          <label style="flex:1; min-width:160px; display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+            Badge
+            <select id="badgeAssignTypeSelect" class="sip-select"></select>
+          </label>
+          <button id="badgeAssignBtn" type="button">+ Assign</button>
+        </div>
+        <div class="meta-note" id="badgeAssignTypeDescription" style="margin-top:0;"></div>
+        <div class="meta-note" id="badgeAssignStatus"></div>
+        <div id="manualBadgeAssignedList" style="margin-top:10px;"></div>
+      </div>
+    </div>
 
+    <div class="ops-subpanel" data-admin-panel="shoutouts" id="shoutoutLogBody">
+      <div class="card ops-panel-shell">
+        <h2>All shoutouts</h2>
+        <div id="masterShoutoutList"></div>
+        <div class="meta-note" id="masterShoutoutEmpty" style="display:none;">No shoutouts yet.</div>
+        <div class="meta-note">Master log across every rep, newest first.</div>
+      </div>
     </div>
   </div>
 </div>
@@ -5387,52 +5500,63 @@
     </div>
     <div class="ops-page-intro">
       <span class="ops-intro-mark">Month archive</span>
-      <p>Close out finalized SIP months, then slice one month or a blended range for the team story.</p>
+      <p>Close out a month, browse one month, or blend a range — pick a tab.</p>
+    </div>
+    <div class="ops-subtabs" id="sipSubtabs" role="tablist">
+      <button type="button" class="ops-subtab active" data-sip-tab="closeout" role="tab" aria-selected="true">Close out<small>Import CSV</small></button>
+      <button type="button" class="ops-subtab" data-sip-tab="browse" role="tab" aria-selected="false">Browse<small>One month</small></button>
+      <button type="button" class="ops-subtab" data-sip-tab="trends" role="tab" aria-selected="false">Trends<small>Range + chart</small></button>
     </div>
     <div id="monthStorySummaryContainer"></div>
-    <div class="card ops-panel-shell">
-      <h2 class="sip-section-title">Close out the month</h2>
-      <div class="meta-note" style="margin-top:0;">Export the finalized SIP month from Google Sheets as CSV, paste it below, preview, then commit into Historical Performance.</div>
-      <div style="display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; margin-top:12px;">
-        <label style="display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-          Month
-          <input type="month" id="closeOutMonthInput">
-        </label>
+    <div class="ops-subpanel active" data-sip-panel="closeout">
+      <div class="card ops-panel-shell">
+        <h2 class="sip-section-title">Close out the month</h2>
+        <div class="meta-note" style="margin-top:0;">Export the finalized SIP month from Google Sheets as CSV, paste it below, preview, then commit.</div>
+        <div style="display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; margin-top:12px;">
+          <label style="display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+            Month
+            <input type="month" id="closeOutMonthInput">
+          </label>
+        </div>
+        <textarea id="closeOutCsvInput" placeholder="Paste the exported CSV for the finalized month here..." style="margin-top:12px;"></textarea>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
+          <button id="closeOutParseBtn" type="button">Parse &amp; preview</button>
+          <button id="closeOutCommitBtn" type="button" disabled>Add to Historical Performance</button>
+        </div>
+        <div class="meta-note" id="closeOutStatus"></div>
+        <div id="closeOutPreview" style="margin-top:14px;"></div>
       </div>
-      <textarea id="closeOutCsvInput" placeholder="Paste the exported CSV for the finalized month here..." style="margin-top:12px;"></textarea>
-      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
-        <button id="closeOutParseBtn" type="button">Parse &amp; preview</button>
-        <button id="closeOutCommitBtn" type="button" disabled>Add to Historical Performance</button>
-      </div>
-      <div class="meta-note" id="closeOutStatus"></div>
-      <div id="closeOutPreview" style="margin-top:14px;"></div>
     </div>
-    <div class="card ops-panel-shell rep-sip-col-month">
-      <h2 class="sip-section-title">🗓️ Select a month</h2>
-      <div class="meta-note" style="margin-top:0;">One month, exactly as it landed on the SIP file.</div>
-      <select class="sip-select" id="sipMonthSelect"></select>
-      <div id="sipMonthSummary" style="margin-top:14px;"></div>
-    </div>
-    <div class="card ops-panel-shell rep-sip-col-range">
-      <h2 class="sip-section-title">📈 Date range average</h2>
-      <div class="meta-note" style="margin-top:0;">Several months blended into one average.</div>
-      <div class="preset-btn-row">
-        <button type="button" class="preset-btn" data-preset="3">3 Mo</button>
-        <button type="button" class="preset-btn" data-preset="6">6 Mo</button>
-        <button type="button" class="preset-btn" data-preset="12">12 Mo</button>
-        <button type="button" class="preset-btn" data-preset="ytd">YTD</button>
-        <button type="button" class="preset-btn" data-preset="all">All Time</button>
+    <div class="ops-subpanel" data-sip-panel="browse">
+      <div class="card ops-panel-shell rep-sip-col-month">
+        <h2 class="sip-section-title">🗓️ Select a month</h2>
+        <div class="meta-note" style="margin-top:0;">One month, exactly as it landed on the SIP file.</div>
+        <select class="sip-select" id="sipMonthSelect"></select>
+        <div id="sipMonthSummary" style="margin-top:14px;"></div>
       </div>
-      <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:12.5px; color:var(--text-muted);">
-        <label>From <select class="sip-select" id="sipFromSelect"></select></label>
-        <label>To <select class="sip-select" id="sipToSelect"></select></label>
-      </div>
-      <div id="sipRangeSummary" style="margin-top:14px;"></div>
     </div>
-    <div class="card">
-      <h2>Month-over-month team attainment</h2>
-      <div style="height:280px;"><canvas id="sipChart"></canvas></div>
-      <div class="meta-note">Chart reflects the date range selected above. Dashed purple/gold lines mark 110% (Level 2) and 120% (Level 3) promotion thresholds; the dotted red line marks the selected range's average. All figures are raw sessions + members totals, not an average of monthly averages. Nov 2024 and the current Live month are excluded — Nov 2024's tab is a stale duplicate of Live in the source sheet.</div>
+    <div class="ops-subpanel" data-sip-panel="trends">
+      <div class="card ops-panel-shell rep-sip-col-range">
+        <h2 class="sip-section-title">📈 Date range average</h2>
+        <div class="meta-note" style="margin-top:0;">Several months blended into one average.</div>
+        <div class="preset-btn-row">
+          <button type="button" class="preset-btn" data-preset="3">3 Mo</button>
+          <button type="button" class="preset-btn" data-preset="6">6 Mo</button>
+          <button type="button" class="preset-btn" data-preset="12">12 Mo</button>
+          <button type="button" class="preset-btn" data-preset="ytd">YTD</button>
+          <button type="button" class="preset-btn" data-preset="all">All Time</button>
+        </div>
+        <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:12.5px; color:var(--text-muted);">
+          <label>From <select class="sip-select" id="sipFromSelect"></select></label>
+          <label>To <select class="sip-select" id="sipToSelect"></select></label>
+        </div>
+        <div id="sipRangeSummary" style="margin-top:14px;"></div>
+      </div>
+      <div class="card ops-panel-shell" style="margin-top:12px;">
+        <h2 class="sip-section-title">Month-over-month team attainment</h2>
+        <div style="height:280px;"><canvas id="sipChart"></canvas></div>
+        <div class="meta-note">Dashed lines mark 110% / 120% thresholds. Dotted red is the range average. Nov 2024 and Live month excluded.</div>
+      </div>
     </div>
   </div>
 </div>
@@ -6656,7 +6780,8 @@ function render() {
     fitLandingBadges();
     requestAnimationFrame(fitLandingBadges);
   });
-  if (typeof refreshContestsUi === 'function') refreshContestsUi({ quiet: true });
+  // Banners only — full contest list poll runs on its own soft timer / arena open.
+  if (typeof renderContestPromoBanners === 'function') renderContestPromoBanners();
 }
 
 // .landing-side-col is absolutely positioned out of normal flow (see its CSS
@@ -10039,11 +10164,35 @@ setupHeaderPopover('layoutToolsBtn', 'layoutToolsMenu');
   bind('toolsGoalsBtn', 'edit-goals');
   bind('toolsSipBtn', 'historical-sip');
 })();
-setupToggle('toggleRemoved', 'removedBody', 'Removed people');
-setupToggle('toggleAdmin', 'adminBody', 'Admin access', true);
-setupToggle('toggleLimitedAdmin', 'limitedAdminBody', 'Sales Coach access', true);
-setupToggle('toggleBadgeControls', 'badgeControlsBody', 'Badge Controls', true);
-setupToggle('toggleShoutoutLog', 'shoutoutLogBody', 'All Shoutouts', true);
+// Admin / Goals / SIP use ops-subtabs instead of accordion toggles.
+function setOpsSubtab(rootSel, tabAttr, panelAttr, tab) {
+  const root = document.querySelector(rootSel);
+  if (!root) return;
+  root.querySelectorAll(`[${tabAttr}]`).forEach((btn) => {
+    const on = btn.getAttribute(tabAttr) === tab;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  const page = root.closest('.detail-page') || root.parentElement;
+  (page || document).querySelectorAll(`[${panelAttr}]`).forEach((panel) => {
+    panel.classList.toggle('active', panel.getAttribute(panelAttr) === tab);
+  });
+}
+document.getElementById('goalsSubtabs')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-goals-tab]');
+  if (!btn) return;
+  setOpsSubtab('#goalsSubtabs', 'data-goals-tab', 'data-goals-panel', btn.getAttribute('data-goals-tab'));
+});
+document.getElementById('adminSubtabs')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-admin-tab]');
+  if (!btn) return;
+  setOpsSubtab('#adminSubtabs', 'data-admin-tab', 'data-admin-panel', btn.getAttribute('data-admin-tab'));
+});
+document.getElementById('sipSubtabs')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-sip-tab]');
+  if (!btn) return;
+  setOpsSubtab('#sipSubtabs', 'data-sip-tab', 'data-sip-panel', btn.getAttribute('data-sip-tab'));
+});
 
 document.getElementById('toggleAdvancedFields').addEventListener('click', () => {
   const wrap = document.getElementById('goalsFormWrap');
@@ -10064,7 +10213,12 @@ let contestCarPos = {};
 let contestLastLeader = '';
 let contestAnnouncerLine = '';
 let contestLiveTimer = 0;
-const CONTEST_LIVE_POLL_MS = 8000;
+let contestSoftPollTimer = 0;
+let contestLastListFetchMs = 0;
+let contestStandingsCache = new Map(); // key -> { at, rows }
+let contestFreezeAttempted = new Set();
+const CONTEST_LIVE_POLL_MS = 20000;
+const CONTEST_SOFT_POLL_MS = 60000;
 const CONTEST_CAR_COLORS = ['#ec4899','#38bdf8','#a3e635','#fbbf24','#a78bfa','#fb923c','#22d3ee','#f472b6','#34d399','#818cf8'];
 
 function contestCanManage() {
@@ -10231,6 +10385,13 @@ function computeContestStandings(contest) {
       place: Number(r.place) || (i + 1),
     }));
   }
+  const actuals = typeof loadActuals === 'function' ? loadActuals() : null;
+  const actualsStamp = actuals ? String(actuals.updatedAt || actuals.fetchedAt || actuals.asOf || '') : '';
+  const manualLen = Array.isArray(contest.manualEntries) ? contest.manualEntries.length : 0;
+  const cacheKey = [contest.id, contest.units, contest.startAt, contest.endAt, contest.kind, manualLen, actualsStamp].join('|');
+  const cached = contestStandingsCache.get(cacheKey);
+  if (cached && (Date.now() - cached.at) < 8000) return cached.rows;
+
   const roster = typeof getRoster === 'function' ? getRoster() : [];
   const filter = Array.isArray(contest.repFilter) && contest.repFilter.length
     ? new Set(contest.repFilter)
@@ -10245,8 +10406,9 @@ function computeContestStandings(contest) {
   });
 
   if (contest.kind !== 'promo') {
-    const actuals = typeof loadActuals === 'function' ? loadActuals() : null;
     const perRep = (actuals && actuals.perRep) || {};
+    const start = contestYmdInCentral(new Date(contest.startAt));
+    const end = contestYmdInCentral(new Date(contest.endAt));
     Object.keys(perRep).forEach((repName) => {
       if (filter && !filter.has(repName)) return;
       const items = perRep[repName].items || [];
@@ -10254,7 +10416,8 @@ function computeContestStandings(contest) {
         const sessions = Number(it.sessions) || 0;
         const members = Number(it.members) || 0;
         if (sessions <= 0 && members <= 0) return;
-        if (!contestItemInWindow(it.date, contest.startAt, contest.endAt)) return;
+        const d = String(it.date || '').slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || d < start || d > end) return;
         const row = ensure(repName);
         row.sessions += sessions;
         row.members += members;
@@ -10281,6 +10444,11 @@ function computeContestStandings(contest) {
 
   rows.sort((a, b) => b.score - a.score || a.repName.localeCompare(b.repName));
   rows.forEach((r, i) => { r.place = i + 1; });
+  contestStandingsCache.set(cacheKey, { at: Date.now(), rows });
+  if (contestStandingsCache.size > 40) {
+    const first = contestStandingsCache.keys().next().value;
+    contestStandingsCache.delete(first);
+  }
   return rows;
 }
 function contestMyPlace(contest, standings) {
@@ -10533,26 +10701,52 @@ function contestSpeedwayHTML(contest, standings) {
     </div>
     ${contest.showLaneBoard !== false ? contestLaneBoardHTML(contest, standings) : ''}`;
 }
-function contestModeLabel(mode) {
+function contestMigrateMode(mode) {
   const m = String(mode || 'race');
-  if (m === 'wheel') return 'Wheel';
-  if (m === 'target') return 'Target Hunt';
-  if (m === 'crown') return 'King of the Hill';
-  if (m === 'ladder') return 'Ladder';
-  return 'Race';
+  if (m === 'target') return 'bounty';
+  if (m === 'crown') return 'hotseat';
+  if (m === 'ladder') return 'vault';
+  if (['race', 'wheel', 'hotseat', 'bounty', 'vault'].includes(m)) return m;
+  return 'race';
+}
+function contestModeLabel(mode) {
+  const m = contestMigrateMode(mode);
+  if (m === 'wheel') return 'Prize Wheel';
+  if (m === 'hotseat') return 'Hot Seat';
+  if (m === 'bounty') return 'Bounty Board';
+  if (m === 'vault') return 'Vault Heist';
+  return 'Speedway';
 }
 function contestModeGuide(mode) {
-  const m = String(mode || 'race');
+  const m = contestMigrateMode(mode);
   if (m === 'wheel') return 'Earn tickets from Units, then spin. The official landing is saved — everyone sees the same winner.';
-  if (m === 'target') return 'Set a finish-line goal. Progress bars show who’s closest; first to the goal wins the hunt.';
-  if (m === 'crown') return 'The current #1 wears the crown. Steal the lead and the crown moves with you.';
-  if (m === 'ladder') return 'A place-first ladder board — climb rungs by outscoring the person above you.';
-  return 'Speedway board: higher score moves farther down the track.';
+  if (m === 'hotseat') return 'One throne. Whoever leads sits in the Hot Seat; steal the lead and take the spotlight.';
+  if (m === 'bounty') return 'Milestone tiles unlock as scores climb. First to each bounty claims that tile forever (for this contest).';
+  if (m === 'vault') return 'Team fills the vault toward a goal/pot. See each person’s share of the heist.';
+  return 'Cars race by score on a live speedway — best for classic Power Hours.';
 }
-function contestTicketBoardHTML(contest, standings) {
+function contestModePreviewHTML(mode) {
+  const m = contestMigrateMode(mode);
+  if (m === 'wheel') {
+    return `<span class="preview-pill">🎡 Named wedges</span><span class="preview-pill">Official lock</span><span class="preview-pill">Tickets → spin</span>`;
+  }
+  if (m === 'hotseat') {
+    return `<span class="preview-pill">🔥 Spotlight #1</span><span class="preview-pill">Gap to #2</span><span class="preview-pill">Challenger chips</span>`;
+  }
+  if (m === 'bounty') {
+    return `<span class="preview-pill">🎯 Tile grid</span><span class="preview-pill">First-claim</span><span class="preview-pill">Milestone prizes</span>`;
+  }
+  if (m === 'vault') {
+    return `<span class="preview-pill">💰 Vault ring</span><span class="preview-pill">Team fill</span><span class="preview-pill">Share bars</span>`;
+  }
+  return `<span class="preview-pill">🏎️ Speedway</span><span class="preview-pill">Live cars</span><span class="preview-pill">Lane board</span>`;
+}
+function contestTicketBoardHTML(contest, standings, opts) {
   const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
+  const title = (opts && opts.title) || '🎟️ Ticket board';
+  const unit = (opts && opts.unit) || 'tickets';
   return `
-    <div class="contest-section-title"><span>🎟️ Ticket board</span><span>${standings.length} in</span></div>
+    <div class="contest-section-title"><span>${title}</span><span>${standings.length} in</span></div>
     <div class="contest-race-lanes">${standings.map((r) => {
       const placeCls = r.place <= 3 ? ` place-${r.place}` : '';
       const medal = r.place === 1 ? '🥇' : r.place === 2 ? '🥈' : r.place === 3 ? '🥉' : String(r.place);
@@ -10563,68 +10757,105 @@ function contestTicketBoardHTML(contest, standings) {
           <div class="contest-race-name">${escapeHtml(r.repName)}${r.repName === me ? ' · you' : ''}</div>
           <div class="contest-race-sub">${fmt(r.sessions, 1)} sess · ${fmt(r.members, 1)} mem${r.manual ? ` · ${r.manual} manual` : ''}</div>
         </div>
-        <div class="contest-race-score">${fmt(r.score, 1)}<span>tickets</span></div>
+        <div class="contest-race-score">${fmt(r.score, 1)}<span>${escapeHtml(unit)}</span></div>
       </div>`;
     }).join('')}</div>`;
 }
-function contestTargetBoardHTML(contest, standings) {
-  const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
-  const goal = Number(contest.raceGoal) > 0 ? Number(contest.raceGoal) : Math.max(1, ...standings.map((r) => r.score), 1);
-  return `
-    <div class="contest-section-title"><span>🎯 Target Hunt</span><span>Goal ${fmt(goal, 1)} ${escapeHtml(contestUnitsLabel(contest.units))}</span></div>
-    <div class="contest-target-board">${standings.map((r) => {
-      const pct = Math.max(0, Math.min(100, (r.score / goal) * 100));
-      const hit = r.score >= goal;
-      return `
-      <div class="contest-target-row${r.repName === me ? ' is-me' : ''}">
-        <div class="contest-race-rank">${hit ? '🏁' : r.place}</div>
-        <div>
-          <div class="contest-race-name">${escapeHtml(r.repName)}${r.repName === me ? ' · you' : ''}${hit ? ' · goal hit!' : ''}</div>
-          <div class="contest-race-sub">${fmt(r.sessions, 1)} sess · ${fmt(r.members, 1)} mem</div>
-        </div>
-        <div class="contest-race-score">${fmt(r.score, 1)}<span>/ ${fmt(goal, 1)}</span></div>
-        <div class="contest-target-bar"><i style="width:${pct}%"></i></div>
-      </div>`;
-    }).join('')}</div>`;
-}
-function contestCrownBoardHTML(contest, standings) {
+function contestHotseatBoardHTML(contest, standings) {
   const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
   const leader = standings[0];
+  const second = standings[1];
+  const gap = leader && second ? Math.max(0, leader.score - second.score) : null;
+  const mascot = contest.mascot || '🔥';
+  const challengers = standings.slice(1, 8).map((r) => `
+    <span class="contest-hotseat-chip${r.repName === me ? ' is-me' : ''}">
+      #${r.place} ${escapeHtml(r.repName.split(' ')[0])} · ${fmt(r.score, 1)}
+    </span>`).join('');
   return `
-    <div class="contest-section-title"><span>👑 King of the Hill</span><span>${leader ? escapeHtml(leader.repName) + ' reigns' : 'Open throne'}</span></div>
-    <div class="contest-crown-board">${standings.map((r, i) => `
-      <div class="contest-crown-card${i === 0 ? ' is-leader' : ''}${r.repName === me ? ' is-me' : ''}">
-        <div class="contest-crown-emoji" aria-hidden="true">${i === 0 ? '👑' : (i === 1 ? '🥈' : i === 2 ? '🥉' : '·')}</div>
-        <div>
-          <div class="contest-race-name">${escapeHtml(r.repName)}${r.repName === me ? ' · you' : ''}${i === 0 ? ' · crown' : ''}</div>
-          <div class="contest-race-sub">${fmt(r.sessions, 1)} sess · ${fmt(r.members, 1)} mem${r.manual ? ` · ${r.manual} manual` : ''}</div>
-        </div>
-        <div class="contest-race-score">${fmt(r.score, 1)}<span>${escapeHtml(contestUnitsLabel(contest.units))}</span></div>
-      </div>`).join('')}</div>`;
+    <div class="contest-section-title"><span>🔥 Hot Seat</span><span>${leader ? 'Throne taken' : 'Open seat'}</span></div>
+    <div class="contest-hotseat-stage">
+      <div class="contest-hotseat-throne">
+        <div class="seat-emoji" aria-hidden="true">${escapeHtml(mascot)}</div>
+        <div class="meta-note" style="margin:0;font-weight:900;letter-spacing:0.06em;text-transform:uppercase;">In the hot seat</div>
+        <h3>${leader ? escapeHtml(leader.repName) : 'Waiting…'}</h3>
+        <div class="contest-race-score" style="justify-content:center;">${leader ? fmt(leader.score, 1) : '—'}<span>${escapeHtml(contestUnitsLabel(contest.units))}</span></div>
+        <div class="contest-hotseat-gap">${
+          gap == null
+            ? 'Be the first to claim the seat.'
+            : gap === 0
+              ? 'Tied at the top — seat is shaky.'
+              : `Leading by ${fmt(gap, 1)} · steal the lead to take the seat`
+        }</div>
+      </div>
+      <div>
+        <div class="contest-section-title" style="margin-bottom:8px;"><span>Challengers</span></div>
+        <div class="contest-hotseat-challengers">${challengers || '<span class="meta-note">No challengers yet.</span>'}</div>
+      </div>
+    </div>`;
 }
-function contestLadderBoardHTML(contest, standings) {
-  const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
+function contestBountyBoardHTML(contest, standings) {
+  const goal = Number(contest.raceGoal) > 0 ? Number(contest.raceGoal) : Math.max(4, ...standings.map((r) => r.score), 4);
+  const steps = [0.25, 0.5, 0.75, 1].map((p) => Math.round((goal * p) * 100) / 100);
+  const tiles = steps.map((need, i) => {
+    const labels = ['First spark', 'Halfway heat', 'Almost there', 'Top bounty'];
+    const claimant = standings.find((r) => r.score >= need) || null;
+    return `
+      <div class="contest-bounty-tile${claimant ? ' is-claimed' : ''}">
+        <div>
+          <div class="meta-note" style="margin:0;">${labels[i]}</div>
+          <div class="bounty-val">${fmt(need, 1)}</div>
+        </div>
+        ${claimant
+          ? `<div class="bounty-claim">Claimed by ${escapeHtml(claimant.repName.split(' ')[0])}</div>`
+          : `<div class="bounty-open">Unclaimed · first to ${fmt(need, 1)}</div>`}
+      </div>`;
+  }).join('');
   return `
-    <div class="contest-section-title"><span>🪜 Ladder</span><span>${standings.length} rungs</span></div>
-    <div class="contest-ladder-board">${standings.map((r) => `
-      <div class="contest-ladder-rung${r.repName === me ? ' is-me' : ''}">
-        <div class="ladder-slot" aria-label="Place ${r.place}">${r.place}</div>
+    <div class="contest-section-title"><span>🎯 Bounty Board</span><span>Top ${fmt(goal, 1)} ${escapeHtml(contestUnitsLabel(contest.units))}</span></div>
+    <div class="contest-bounty-grid">${tiles}</div>
+    <div class="contest-section-title" style="margin-top:14px;"><span>Live chase</span></div>
+    ${contestTicketBoardHTML(contest, standings, { title: '🏃 Live chase', unit: contestUnitsLabel(contest.units) })}`;
+}
+function contestVaultBoardHTML(contest, standings) {
+  const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
+  const total = standings.reduce((s, r) => s + (Number(r.score) || 0), 0);
+  const goal = Number(contest.raceGoal) > 0
+    ? Number(contest.raceGoal)
+    : (contest.stakeType === 'money' && contest.stakeAmount ? Number(contest.stakeAmount) : Math.max(total, 1));
+  const pct = Math.max(0, Math.min(100, (total / goal) * 100));
+  const rows = standings.map((r) => {
+    const share = total > 0 ? (r.score / total) * 100 : 0;
+    return `
+      <div class="contest-vault-row${r.repName === me ? ' is-me' : ''}">
         <div>
           <div class="contest-race-name">${escapeHtml(r.repName)}${r.repName === me ? ' · you' : ''}</div>
-          <div class="contest-race-sub">${fmt(r.sessions, 1)} sess · ${fmt(r.members, 1)} mem</div>
+          <div class="contest-vault-share"><i style="width:${share}%"></i></div>
         </div>
-        <div class="contest-race-score">${fmt(r.score, 1)}<span>${escapeHtml(contestUnitsLabel(contest.units))}</span></div>
-      </div>`).join('')}</div>`;
+        <div class="contest-race-score">${fmt(r.score, 1)}<span>${fmt(share, 0)}%</span></div>
+      </div>`;
+  }).join('');
+  return `
+    <div class="contest-section-title"><span>💰 Vault Heist</span><span>${fmt(total, 1)} / ${fmt(goal, 1)}</span></div>
+    <div class="contest-vault-wrap">
+      <div class="contest-vault-ring" style="--vault-pct:${pct}">
+        <div class="contest-vault-core">
+          <strong>${fmt(pct, 0)}%</strong>
+          <span>vault filled</span>
+        </div>
+      </div>
+      <div class="meta-note" style="margin:0;text-align:center;">${contest.stakeType === 'money' && contest.stakeAmount ? `$${fmt(contest.stakeAmount, 0)} on the line · ` : ''}Team total ${fmt(total, 1)} ${escapeHtml(contestUnitsLabel(contest.units))}</div>
+      <div class="contest-vault-crew">${rows || '<div class="meta-note">No contributions yet — crack the vault.</div>'}</div>
+    </div>`;
 }
 function contestStandingsHTML(contest, standings) {
   if (!standings.length) {
     return `<div class="contest-empty-fun"><span class="emoji" aria-hidden="true">🏁</span><p style="margin:0 0 6px;font-weight:900;font-size:16px;">Board’s clear — be first!</p><p class="meta-note" style="margin:0;">No credits in this window yet${contest.kind === 'promo' ? ' — coaches can add entries below' : ''}.</p></div>`;
   }
-  const mode = contest.mode || 'race';
+  const mode = contestMigrateMode(contest.mode);
   if (mode === 'race') return contestSpeedwayHTML(contest, standings);
-  if (mode === 'target') return contestTargetBoardHTML(contest, standings);
-  if (mode === 'crown') return contestCrownBoardHTML(contest, standings);
-  if (mode === 'ladder') return contestLadderBoardHTML(contest, standings);
+  if (mode === 'hotseat') return contestHotseatBoardHTML(contest, standings);
+  if (mode === 'bounty') return contestBountyBoardHTML(contest, standings);
+  if (mode === 'vault') return contestVaultBoardHTML(contest, standings);
   if (mode === 'wheel') return contestTicketBoardHTML(contest, standings);
   return contestSpeedwayHTML(contest, standings);
 }
@@ -10672,7 +10903,7 @@ function contestWheelStageHTML(contest, standings) {
     return `<div class="contest-wheel-label" style="--a:${mid}deg"><span>${escapeHtml(first)}</span></div>`;
   }).join('');
   const winnerCard = spin
-    ? `<div class="contest-wheel-winner-card">
+    ? `<div class="contest-wheel-winner-card" id="contestWheelWinnerCard">
         <strong>🎉 ${escapeHtml(spin.winner)}</strong>
         <div class="meta-note">Official spin · locked for everyone · ${escapeHtml(contestFormatWhen(spin.spunAt))}</div>
       </div>`
@@ -10683,9 +10914,9 @@ function contestWheelStageHTML(contest, standings) {
   return `
     <div class="contest-wheel-wrap">
       <div class="contest-wheel-stage">
-        <div class="contest-section-title" style="justify-content:center;"><span>🎡 Spin zone</span><span>${spin ? 'Locked' : 'Ready'}</span></div>
+        <div class="contest-section-title" style="justify-content:center;"><span>🎡 Prize Wheel</span><span>${spin ? 'Locked' : 'Ready'}</span></div>
         <div class="contest-wheel-pointer" aria-hidden="true"></div>
-        <div class="contest-wheel" id="contestWheel" title="Ticket wheel" style="background:${contestWheelConic(segments, contest.wheelSkin || 'classic')}; --wheel-rot:${rot}deg;">
+        <div class="contest-wheel" id="contestWheel" title="Prize wheel" style="background:${contestWheelConic(segments, contest.wheelSkin || 'classic')}; transform: rotate(${rot}deg);">
           ${labels}
           <div class="contest-wheel-hub" aria-hidden="true">🎡</div>
         </div>
@@ -10749,7 +10980,8 @@ function contestBoardHTML(contest) {
   const myPlace = contestMyPlace(contest, standings);
   const manage = contestCanManage();
   const theme = contestThemeClass(contest);
-  const boardBlock = contest.mode === 'wheel'
+  const mode = contestMigrateMode(contest.mode);
+  const boardBlock = mode === 'wheel'
     ? contestWheelStageHTML(contest, standings)
     : contestStandingsHTML(contest, standings);
 
@@ -10815,7 +11047,7 @@ function contestBoardHTML(contest) {
         <span class="contest-chip hot"><strong>${escapeHtml(contestStakeLabel(contest))}</strong></span>
         <span class="contest-chip">Your place <strong>${escapeHtml(contest.status === 'scheduled' ? 'Soon' : contestPlaceLabel(myPlace))}</strong></span>
         ${contest.raceGoal ? `<span class="contest-chip">Goal <strong>${fmt(contest.raceGoal, 1)}</strong></span>` : ''}
-        ${contest.mode === 'wheel' && contest.wheelSpin ? `<span class="contest-chip">Winner <strong>${escapeHtml(contest.wheelSpin.winner)}</strong></span>` : ''}
+        ${mode === 'wheel' && contest.wheelSpin ? `<span class="contest-chip">Winner <strong>${escapeHtml(contest.wheelSpin.winner)}</strong></span>` : ''}
       </div>
       ${frozenNote}
     </div>
@@ -10883,10 +11115,12 @@ function tickContestCountdowns() {
 }
 async function maybeFreezeEndedContests() {
   const ended = (CONTEST_CACHE || []).filter((c) =>
-    c && c.status === 'ended' && !(Array.isArray(c.finalStandings) && c.finalStandings.length)
+    c && c.status === 'ended'
+      && !(Array.isArray(c.finalStandings) && c.finalStandings.length)
+      && !contestFreezeAttempted.has(c.id)
   );
-  for (const c of ended) {
-    // Recompute without snapshot path by temporarily clearing finalStandings
+  for (const c of ended.slice(0, 3)) {
+    contestFreezeAttempted.add(c.id);
     const live = (() => {
       const copy = Object.assign({}, c, { finalStandings: null, status: 'active' });
       return computeContestStandings(copy);
@@ -10907,6 +11141,8 @@ async function maybeFreezeEndedContests() {
 }
 async function refreshContestsUi(opts) {
   const quiet = !!(opts && opts.quiet);
+  const skipFreeze = !!(opts && opts.skipFreeze) || quiet;
+  const force = !!(opts && opts.force);
   try {
     const user = window.netlifyIdentity && netlifyIdentity.currentUser();
     if (!user) {
@@ -10916,10 +11152,17 @@ async function refreshContestsUi(opts) {
       if (document.getElementById('contestOverlay')?.classList.contains('open')) renderContestBoard();
       return;
     }
+    // Soft debounce — landing re-renders shouldn't hammer /api/contests/list.
+    if (!force && quiet && contestLastListFetchMs && (Date.now() - contestLastListFetchMs) < 25000) {
+      renderContestPromoBanners();
+      return;
+    }
     const data = await authedFetch('/api/contests/list');
+    contestLastListFetchMs = Date.now();
     CONTEST_CACHE = Array.isArray(data.contests) ? data.contests : [];
     CONTEST_CAN_MANAGE = !!data.canManage;
-    await maybeFreezeEndedContests();
+    contestStandingsCache.clear();
+    if (!skipFreeze) await maybeFreezeEndedContests();
     renderContestPromoBanners();
     if (document.getElementById('contestOverlay')?.classList.contains('open')) renderContestBoard();
     if (!contestCountdownTimer) {
@@ -10936,8 +11179,12 @@ function startContestLiveLoop() {
     const open = document.getElementById('contestOverlay')?.classList.contains('open');
     if (!open || contestArenaTab !== 'live') return;
     try {
-      if (typeof fetchLiveActuals === 'function') await fetchLiveActuals();
-      await refreshContestsUi({ quiet: true });
+      // Reuse landing actuals when fresh; only re-list contests quietly.
+      await refreshContestsUi({ quiet: true, skipFreeze: true, force: true });
+      if (document.getElementById('contestOverlay')?.classList.contains('open')) {
+        contestStandingsCache.clear();
+        renderContestBoard();
+      }
     } catch (_) { /* ignore */ }
   }, CONTEST_LIVE_POLL_MS);
 }
@@ -10946,6 +11193,13 @@ function stopContestLiveLoop() {
     clearInterval(contestLiveTimer);
     contestLiveTimer = 0;
   }
+}
+function startContestSoftPoll() {
+  if (contestSoftPollTimer) return;
+  contestSoftPollTimer = window.setInterval(() => {
+    if (document.getElementById('contestOverlay')?.classList.contains('open')) return;
+    refreshContestsUi({ quiet: true, skipFreeze: true });
+  }, CONTEST_SOFT_POLL_MS);
 }
 function openContestOverlay(id) {
   if (id) {
@@ -10970,8 +11224,11 @@ function openContestOverlay(id) {
     el.classList.toggle('is-active', on);
     el.setAttribute('aria-selected', on ? 'true' : 'false');
   });
+  // Paint from cache immediately, then refresh in background.
   renderContestBoard();
-  refreshContestsUi();
+  refreshContestsUi({ force: true, skipFreeze: true }).then(() => {
+    maybeFreezeEndedContests();
+  });
   startContestLiveLoop();
 }
 function closeContestOverlay() {
@@ -11001,7 +11258,7 @@ function syncContestStakeFields() {
   if (wrap) wrap.style.display = type === 'money' ? '' : 'none';
 }
 function setContestEditMode(mode, { syncGuide } = { syncGuide: true }) {
-  const m = ['race', 'wheel', 'target', 'crown', 'ladder'].includes(mode) ? mode : 'race';
+  const m = contestMigrateMode(mode);
   const hidden = document.getElementById('contestEditMode');
   if (hidden) hidden.value = m;
   document.querySelectorAll('#contestEditModePicker .contest-mode-card').forEach((btn) => {
@@ -11012,34 +11269,46 @@ function setContestEditMode(mode, { syncGuide } = { syncGuide: true }) {
   if (syncGuide) {
     const guide = document.getElementById('contestEditModeGuide');
     if (guide) guide.textContent = contestModeGuide(m);
+    const preview = document.getElementById('contestEditPreviewStage');
+    if (preview) preview.innerHTML = contestModePreviewHTML(m);
   }
   syncContestEditModeFields();
   syncContestEditEmoji();
 }
 function syncContestEditModeFields() {
-  const mode = document.getElementById('contestEditMode')?.value || 'race';
+  const mode = contestMigrateMode(document.getElementById('contestEditMode')?.value || 'race');
   const race = document.getElementById('contestEditRaceOpts');
-  const wheel = document.getElementById('contestEditWheelOpts');
+  if (race) race.style.display = '';
+  document.querySelectorAll('#contestEditRaceOpts [data-for-modes]').forEach((el) => {
+    const modes = String(el.getAttribute('data-for-modes') || '').split(',').map((s) => s.trim());
+    el.style.display = modes.includes(mode) ? '' : 'none';
+  });
   const goalOpt = document.getElementById('contestEditRaceGoalOptional');
   const goalHint = document.getElementById('contestEditRaceGoalHint');
-  // Arena vibes apply to every non-wheel format; wheel has its own skin panel.
-  if (race) race.style.display = mode === 'wheel' ? 'none' : '';
-  if (wheel) wheel.style.display = mode === 'wheel' ? '' : 'none';
-  if (goalOpt) goalOpt.textContent = mode === 'target' ? '(required)' : '(optional)';
+  const extra = document.getElementById('contestEditModeExtraNote');
+  if (goalOpt) goalOpt.textContent = mode === 'bounty' ? '(required)' : (mode === 'vault' ? '(recommended)' : '(optional)');
   if (goalHint) {
-    goalHint.textContent = mode === 'target'
-      ? 'Required for Target Hunt — first rep to reach this number wins.'
-      : 'Race: track length vs this goal (or vs leader). Optional for other formats.';
+    if (mode === 'bounty') goalHint.textContent = 'Required — top bounty. Tiles auto-split into 25/50/75/100%.';
+    else if (mode === 'vault') goalHint.textContent = 'Vault fill target. Defaults to pot $ or live team total if blank.';
+    else if (mode === 'race') goalHint.textContent = 'Optional finish line — track length vs this goal (or vs leader).';
+    else goalHint.textContent = 'Optional goal number for this format.';
+  }
+  if (extra) {
+    if (mode === 'wheel') extra.textContent = 'Tickets come from Units. Spin is saved on the server — every teammate sees the same landed winner.';
+    else if (mode === 'hotseat') extra.textContent = 'Hot Seat is all about #1 — steal the lead and the spotlight moves with you.';
+    else if (mode === 'bounty') extra.textContent = 'Bounties are claimed by the first rep to reach each milestone — great for staggered prizes.';
+    else if (mode === 'vault') extra.textContent = 'Vault Heist shines with a money stake or a clear team fill goal.';
+    else extra.textContent = 'Speedway customizations change the cars, track, and callouts — not the scoring rules.';
   }
 }
 function syncContestEditEmoji() {
   const emoji = document.querySelector('#contestEditBackdrop .celebration-modal-emoji');
   if (!emoji) return;
-  const mode = document.getElementById('contestEditMode')?.value || 'race';
+  const mode = contestMigrateMode(document.getElementById('contestEditMode')?.value || 'race');
   if (mode === 'wheel') { emoji.textContent = '🎡'; return; }
-  if (mode === 'target') { emoji.textContent = '🎯'; return; }
-  if (mode === 'crown') { emoji.textContent = '👑'; return; }
-  if (mode === 'ladder') { emoji.textContent = '🪜'; return; }
+  if (mode === 'hotseat') { emoji.textContent = '🔥'; return; }
+  if (mode === 'bounty') { emoji.textContent = '🎯'; return; }
+  if (mode === 'vault') { emoji.textContent = '💰'; return; }
   const mascot = document.getElementById('contestEditMascot')?.value;
   if (mascot) { emoji.textContent = mascot; return; }
   const vehicle = document.getElementById('contestEditVehicle')?.value || 'car';
@@ -11367,11 +11636,15 @@ document.getElementById('contestBoardHost')?.addEventListener('click', async (e)
     }
     return;
   }
-  if (e.target.id === 'contestSpinBtn') {
+  const spinBtn = e.target.closest('#contestSpinBtn');
+  if (spinBtn) {
     const contest = CONTEST_CACHE.find((c) => c.id === contestViewId);
     const result = document.getElementById('contestSpinResult');
-    const btn = e.target;
     if (!contest) return;
+    if (contestMigrateMode(contest.mode) !== 'wheel') {
+      if (result) result.textContent = 'Switch this contest to Prize Wheel to spin.';
+      return;
+    }
     const standings = computeContestStandings(contest).filter((r) => r.tickets > 0);
     if (!standings.length) {
       if (result) result.textContent = 'No tickets yet — need credits in the window first.';
@@ -11380,7 +11653,7 @@ document.getElementById('contestBoardHost')?.addEventListener('click', async (e)
     const force = !!contest.wheelSpin;
     if (force && !confirm('Re-spin and overwrite the official winner? Everyone will see the new result.')) return;
     const entries = standings.map((r) => ({ repName: r.repName, tickets: r.tickets }));
-    btn.disabled = true;
+    spinBtn.disabled = true;
     if (result) result.textContent = 'Locking official spin…';
     try {
       const data = await authedFetch('/api/contests/spin', {
@@ -11392,43 +11665,65 @@ document.getElementById('contestBoardHost')?.addEventListener('click', async (e)
       const spin = data.wheelSpin || next.wheelSpin;
       if (!spin) throw new Error('Spin did not return a winner');
       const idx = CONTEST_CACHE.findIndex((c) => c.id === next.id);
-      if (idx >= 0) CONTEST_CACHE[idx] = next;
-      else CONTEST_CACHE.push(next);
+      if (idx >= 0) CONTEST_CACHE[idx] = Object.assign({}, next, { wheelSpin: spin });
+      else CONTEST_CACHE.push(Object.assign({}, next, { wheelSpin: spin }));
 
-      // Rebuild board with frozen wedges, but start rotation at 0 then animate.
-      const pending = Object.assign({}, next, {
-        wheelSpin: Object.assign({}, spin, { landedDeg: 0, _animateTo: spin.landedDeg }),
-      });
-      const host = document.getElementById('contestBoardHost');
-      if (host) host.innerHTML = contestBoardHTML(pending);
-      populateContestManualRepSelect();
+      // Paint frozen wedges at 0°, then animate transform to landedDeg (no full re-render mid-spin).
       const wheelEl = document.getElementById('contestWheel');
       const resultEl = document.getElementById('contestSpinResult');
-      if (resultEl) resultEl.textContent = 'Spinning…';
+      const winnerCard = document.getElementById('contestWheelWinnerCard');
       if (wheelEl) {
-        wheelEl.style.setProperty('--wheel-rot', '0deg');
-        wheelEl.classList.remove('is-spinning');
-        void wheelEl.offsetWidth;
-        requestAnimationFrame(() => {
-          wheelEl.classList.add('is-spinning');
-          wheelEl.style.setProperty('--wheel-rot', (Number(spin.landedDeg) || 0) + 'deg');
+        const bg = contestWheelConic(spin.segments, contest.wheelSkin || 'classic');
+        wheelEl.style.background = bg;
+        // Rebuild labels for frozen segments
+        const hub = wheelEl.querySelector('.contest-wheel-hub');
+        wheelEl.querySelectorAll('.contest-wheel-label').forEach((n) => n.remove());
+        spin.segments.forEach((s) => {
+          const mid = (Number(s.startDeg) + Number(s.endDeg)) / 2;
+          const first = String(s.repName || '').split(/\s+/)[0] || s.repName;
+          const lab = document.createElement('div');
+          lab.className = 'contest-wheel-label';
+          lab.style.setProperty('--a', mid + 'deg');
+          lab.innerHTML = `<span>${escapeHtml(first)}</span>`;
+          wheelEl.insertBefore(lab, hub || null);
         });
-      }
-      const wait = document.body.classList.contains('motion-static') ? 200 : 3400;
-      setTimeout(() => {
-        if (typeof showPaceToast === 'function') showPaceToast('Official wheel winner!', spin.winner);
+        wheelEl.classList.remove('is-spinning');
+        wheelEl.style.transition = 'none';
+        wheelEl.style.transform = 'rotate(0deg)';
+        void wheelEl.offsetWidth;
+        if (resultEl) resultEl.textContent = 'Spinning…';
+        if (winnerCard) winnerCard.classList.add('is-pending');
+        const staticMotion = document.body.classList.contains('motion-static');
+        const landed = Number(spin.landedDeg) || 0;
+        requestAnimationFrame(() => {
+          if (!staticMotion) {
+            wheelEl.classList.add('is-spinning');
+            wheelEl.style.transition = '';
+          }
+          requestAnimationFrame(() => {
+            wheelEl.style.transform = 'rotate(' + landed + 'deg)';
+          });
+        });
+        const wait = staticMotion ? 180 : 3700;
+        setTimeout(() => {
+          if (typeof showPaceToast === 'function') showPaceToast('Official wheel winner!', spin.winner);
+          renderContestBoard();
+        }, wait);
+      } else {
         renderContestBoard();
-      }, wait);
+      }
     } catch (err) {
       if (result) result.textContent = err.message || 'Could not spin';
-      btn.disabled = false;
+      spinBtn.disabled = false;
     }
+    return;
   }
 });
 window.addEventListener('hashchange', renderContestHash);
 function bootContestsUi() {
   renderContestHash();
-  refreshContestsUi({ quiet: true });
+  refreshContestsUi({ quiet: true, force: true });
+  startContestSoftPoll();
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootContestsUi);
 else bootContestsUi();
@@ -11485,15 +11780,11 @@ function renderGoalsOverlay() {
     overlay.classList.remove('open');
     if (settings) settings.classList.add('open');
     if (location.hash === '#shoutout-history') {
-      document.getElementById('shoutoutSendBackdrop').classList.remove('open');
-      const body = document.getElementById('shoutoutLogBody');
-      const toggle = document.getElementById('toggleShoutoutLog');
-      if (body && !body.classList.contains('open')) {
-        body.classList.add('open');
-        if (toggle) toggle.textContent = '▾ All Shoutouts';
-      }
-      requestAnimationFrame(() => body && body.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      document.getElementById('shoutoutSendBackdrop')?.classList.remove('open');
+      setOpsSubtab('#adminSubtabs', 'data-admin-tab', 'data-admin-panel', 'shoutouts');
+      requestAnimationFrame(() => document.getElementById('shoutoutLogBody')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     } else {
+      setOpsSubtab('#adminSubtabs', 'data-admin-tab', 'data-admin-panel', 'access');
       window.scrollTo(0, 0);
     }
   } else {
