@@ -161,6 +161,19 @@
     color: #fff; border: none; box-shadow: 0 2px 10px rgba(139,92,246,0.4);
   }
   .manual-attro-btn:hover { opacity: 0.92; }
+  /* Primary CTA by Shoutout — most prominent control for opening your own pacer. */
+  .my-pacer-btn {
+    background: linear-gradient(105deg, #0ea5e9 0%, #6366f1 55%, #a855f7 100%);
+    background-size: 200% 100%; animation: shimmerMove 3.2s linear infinite;
+    color: #fff; border: none;
+    box-shadow: 0 3px 14px rgba(14, 165, 233, 0.38);
+    padding: 12px 26px; font-size: 15px; font-weight: 800;
+    letter-spacing: 0.01em;
+  }
+  .my-pacer-btn:hover { opacity: 0.94; }
+  .landing-actions-cluster {
+    display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
   /* Popover trigger — was shared by Sort and a "Key" legend button; Key is
      gone (status pills explain themselves via hover tooltips now, see
      nowTier()/tier()'s tip field), so only Sort uses this pattern today.
@@ -292,10 +305,9 @@
   .pace-need-side-content.collapsed { display: none; }
   .live-metrics-side-content { margin-top: 8px; }
   .live-metrics-side-content.collapsed { display: none; }
-  .pace-need-panel-head { display: none; } /* toggle lives in the section head */
-  /* Still Needed: title + chevron on row 1; target toggle full-width under when open. */
+  .pace-need-panel-head { display: none; }
   .metrics-side-section-head {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
   }
   .metrics-side-section-head .metrics-side-title {
@@ -306,31 +318,37 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .metrics-side-section-head .pace-need-target-toggle {
-    margin: 0;
-    flex: 1 1 100%;
-    order: 3;
-  }
-  /* Toggle only when Still Needed is expanded. */
-  .metrics-side-section-head.is-collapsed .pace-need-target-toggle { display: none; }
   .metrics-side-section-head .side-chevron { flex: none; margin-left: auto; }
+  /* Still Needed target toggle — lives in the expanded body (not the cramped head). */
+  .pace-need-target-bar {
+    display: flex; flex-direction: column; gap: 6px;
+    margin: 0 0 10px; padding: 10px 10px 9px;
+    border-radius: 12px;
+    background:
+      linear-gradient(135deg, rgba(14,165,233,0.10), rgba(99,102,241,0.12) 60%, rgba(244,114,182,0.08)),
+      var(--metric-box-bg);
+    border: 1px solid var(--pill-border);
+  }
+  .pace-need-target-label {
+    font-size: 10px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--text-faint);
+  }
   .pace-need-target-toggle {
-    display: inline-flex; gap: 3px; padding: 3px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px;
     border: 1px solid var(--divider);
     border-radius: 10px;
-    background: var(--metric-box-bg);
-    align-self: stretch;
+    background: var(--card-bg);
   }
   .pace-need-target-toggle button {
-    flex: 1; border: 0; background: transparent; color: var(--text-muted);
-    font-size: 11px; font-weight: 800; padding: 6px 10px; cursor: pointer;
+    border: 0; background: transparent; color: var(--text-muted);
+    font-size: 12px; font-weight: 800; padding: 8px 10px; cursor: pointer;
     line-height: 1.2; margin-top: 0; border-radius: 8px;
   }
-  .pace-need-target-toggle button:hover { color: var(--text); }
+  .pace-need-target-toggle button:hover { color: var(--text); background: var(--metric-box-bg); }
   .pace-need-target-toggle button.active {
-    background: linear-gradient(90deg, #38bdf8, #6366f1 70%);
+    background: linear-gradient(105deg, #0ea5e9, #6366f1 70%);
     color: #fff;
-    box-shadow: 0 1px 4px rgba(99, 102, 241, 0.28);
+    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.28);
   }
   .pace-need-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
@@ -646,7 +664,7 @@
     box-shadow: 0 2px 10px var(--shadow);
   }
   .landing-side-col {
-    display: flex; flex-direction: column; gap: 16px;
+    display: flex; flex-direction: column; gap: 10px;
   }
   .landing-side-col > .finish-line-card,
   .landing-side-col > .leaderboard-panel,
@@ -885,7 +903,8 @@
       align-self: start;
       overflow-x: hidden;
       overflow-y: auto;
-      /* Cap so sticky boards stop with the roster instead of spilling into the footer. */
+      overscroll-behavior: contain;
+      /* JS syncLandingBoardsScrollCap() tightens this to the roster / footer. */
       max-height: calc(100vh - var(--sticky-top) - 24px);
     }
     body[data-layout="split-stack"] .landing-region-reps { grid-area: reps; min-width: 0; }
@@ -977,7 +996,10 @@
   .workspace-panel > .card + .card { margin-top: 12px; }
   .pacer-section-label {
     font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
-    color: var(--text-faint); margin: 18px 0 8px;
+    color: var(--text-faint); margin: 16px 0 8px;
+    padding-left: 10px;
+    border-left: 3px solid transparent;
+    border-image: linear-gradient(180deg, #0ea5e9, #6366f1) 1;
   }
   .pacer-insight-strip {
     display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
@@ -1497,10 +1519,33 @@
   .detail-overlay.open { display: block; }
   #clientDetailOverlay {
     background:
-      radial-gradient(ellipse 90% 45% at 50% -8%, rgba(99,102,241,0.14), transparent 55%),
-      radial-gradient(ellipse 45% 35% at 100% 18%, rgba(56,189,248,0.10), transparent 52%),
-      radial-gradient(ellipse 40% 30% at 0% 40%, rgba(244,114,182,0.08), transparent 50%),
+      radial-gradient(ellipse 90% 45% at 50% -8%, rgba(99,102,241,0.18), transparent 55%),
+      radial-gradient(ellipse 45% 35% at 100% 18%, rgba(14,165,233,0.12), transparent 52%),
+      radial-gradient(ellipse 40% 30% at 0% 40%, rgba(244,114,182,0.10), transparent 50%),
+      linear-gradient(180deg, rgba(255,255,255,0.35), transparent 220px),
       var(--bg);
+  }
+  body.dark #clientDetailOverlay {
+    background:
+      radial-gradient(ellipse 90% 45% at 50% -8%, rgba(99,102,241,0.22), transparent 55%),
+      radial-gradient(ellipse 45% 35% at 100% 18%, rgba(14,165,233,0.14), transparent 52%),
+      radial-gradient(ellipse 40% 30% at 0% 40%, rgba(244,114,182,0.12), transparent 50%),
+      var(--bg);
+  }
+  #clientDetailOverlay .detail-main-col {
+    animation: pacerMainIn 0.45s ease both;
+  }
+  @keyframes pacerMainIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+  #clientDetailOverlay .detail-page-grid > #metricsStyleToggleWrap,
+  #clientDetailOverlay .detail-page-grid > .metrics-side-panel {
+    animation: pacerSideIn 0.5s ease 0.05s both;
+  }
+  @keyframes pacerSideIn {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: none; }
   }
   .detail-page { max-width: 1080px; margin: 0 auto; padding: 26px 20px 48px; }
   /* Client Detail gets extra width since it's the one page with a real sidebar
@@ -1564,15 +1609,22 @@
 
   .detail-net-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
   @media (max-width: 760px) { .detail-net-grid { grid-template-columns: 1fr; } }
-  .detail-net-box { background: var(--metric-box-bg); border-radius: 14px; padding: 14px 16px; border: 1px solid var(--card-border); text-align: center; }
+  .detail-net-box {
+    background:
+      linear-gradient(165deg, rgba(14,165,233,0.08), transparent 55%),
+      var(--metric-box-bg);
+    border-radius: 14px; padding: 14px 16px; border: 1px solid var(--card-border); text-align: center;
+    box-shadow: 0 2px 10px var(--shadow);
+  }
   .detail-net-box .m-label { display: block; font-size: 11.5px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
   .detail-net-val { display: block; font-size: 28px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
   .detail-net-sub { display: block; font-size: 10.5px; color: var(--text-faint); margin-top: 4px; }
   .detail-panel {
     background:
-      linear-gradient(180deg, rgba(56,189,248,0.05), transparent 42%),
+      linear-gradient(180deg, rgba(14,165,233,0.07), transparent 42%),
       var(--card-bg);
-    border: 1px solid var(--card-border); border-radius: 14px; padding: 14px 16px; box-shadow: 0 1px 3px var(--shadow);
+    border: 1px solid var(--card-border); border-radius: 14px; padding: 14px 16px;
+    box-shadow: 0 3px 14px var(--shadow);
   }
   .detail-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
   .detail-panel-title { font-size: 13px; font-weight: 800; }
@@ -1662,10 +1714,10 @@
   .metrics-side-panel {
     position: sticky; top: 100px; z-index: 40;
     background:
-      linear-gradient(165deg, rgba(244,114,182,0.08), rgba(99,102,241,0.09) 45%, transparent 78%),
+      linear-gradient(165deg, rgba(14,165,233,0.10), rgba(99,102,241,0.10) 45%, rgba(244,114,182,0.06) 78%),
       var(--card-bg);
     border: 1px solid var(--card-border); border-radius: 16px;
-    padding: 14px 16px; box-shadow: 0 4px 20px var(--shadow);
+    padding: 12px 14px; box-shadow: 0 6px 24px var(--shadow);
     max-height: calc(100vh - 130px); overflow-y: auto;
   }
   .metrics-side-title { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); margin-bottom: 10px; }
@@ -1676,7 +1728,7 @@
   .metrics-side-section-head {
     display: flex; justify-content: flex-start; align-items: center;
     flex-wrap: nowrap; gap: 8px;
-    cursor: pointer; margin-top: 14px; padding-top: 12px;
+    cursor: pointer; margin-top: 10px; padding-top: 9px;
     border-top: 1px solid var(--divider); user-select: none;
   }
   .side-chevron { font-size: 10.5px; color: var(--text-faint); transition: transform 0.2s; }
@@ -2090,9 +2142,11 @@
         <button class="theme-btn" id="footerSipBtn" type="button">Historical SIP</button>
       </div>
     </div>
-    <button class="theme-btn large" id="openMyPacerBtn" type="button" style="display:none;">🏃 Open My Individual Pacer</button>
     <button class="theme-btn large" id="teamScheduleBtn" type="button" style="display:none;">📅 Weekly schedules</button>
-    <button class="theme-btn large" id="shoutoutSendBtn" type="button">📣 Shoutout</button>
+    <span class="landing-actions-cluster" id="myPacerShoutoutCluster">
+      <button class="theme-btn large my-pacer-btn" id="openMyPacerBtn" type="button" style="display:none;">🏃 Open My Individual Pacer</button>
+      <button class="theme-btn large" id="shoutoutSendBtn" type="button">📣 Shoutout</button>
+    </span>
     <div class="header-dropdown" id="layoutToolsWrap" style="display:none;">
       <button class="theme-btn large" id="layoutToolsBtn" type="button">🧰 Tools ▾</button>
       <div class="header-dropdown-menu" id="layoutToolsMenu">
@@ -2325,13 +2379,18 @@
           <div id="bonusSideContent" class="bonus-side"></div>
           <div class="metrics-side-section-head" id="paceNeedSideToggle">
             <span class="metrics-side-title" style="margin-bottom:0;">📈 Still Needed</span>
-            <div class="pace-need-target-toggle" id="paceNeedTargetToggleHead" role="group" aria-label="Pace target">
-              <button type="button" data-pace-need-target="100">to 100%</button>
-              <button type="button" data-pace-need-target="80">to 80%</button>
-            </div>
             <span class="side-chevron" id="paceNeedSideChevron">▾</span>
           </div>
-          <div id="paceNeedSideContent" class="pace-need-side-content"></div>
+          <div id="paceNeedSideContent" class="pace-need-side-content">
+            <div class="pace-need-target-bar">
+              <span class="pace-need-target-label">Show gap to</span>
+              <div class="pace-need-target-toggle" id="paceNeedTargetToggleHead" role="group" aria-label="Pace target">
+                <button type="button" data-pace-need-target="100">100%</button>
+                <button type="button" data-pace-need-target="80">80%</button>
+              </div>
+            </div>
+            <div id="paceNeedSideBody"></div>
+          </div>
           <div class="metrics-side-section-head" id="rankSideToggle">
             <span class="metrics-side-title" style="margin-bottom:0;">🏆 Team Standings</span>
             <span class="side-chevron" id="rankSideChevron">▾</span>
@@ -2628,7 +2687,7 @@
       <button class="theme-btn" id="adminSettingsBackBtn" type="button">← Back to dashboard</button>
       <h2>Access, badges &amp; tools</h2>
     </div>
-    <p class="admin-settings-intro">Manage who can open Individual Pacers, badges, shoutouts, and a couple of testing helpers. Main sections stay open so nothing is buried.</p>
+    <p class="admin-settings-intro">Manage who can open Individual Pacers, badges, and shoutouts. Main sections stay open so nothing is buried.</p>
 
     <div class="admin-settings-grid">
       <div class="admin-settings-block">
@@ -2675,7 +2734,7 @@
           <div class="card">
             <div class="m-label" style="margin-bottom:8px;">Badge Bank — every badge, on/off + delete</div>
             <div id="badgeBankList" style="display:flex; flex-direction:column; gap:10px;"></div>
-            <div class="meta-note">Hover a badge emoji to preview its tip. Edit tip to change hover text site-wide. Turning one off hides it everywhere but keeps it listed to re-enable. Delete removes it from this list.</div>
+            <div class="meta-note">Hover a badge name to preview the tip. <b>Edit hover tip</b> changes the text shown when someone hovers that badge on the landing page (and Individual Pacer). Turning one off hides it everywhere but keeps it listed to re-enable. Delete removes it from this list.</div>
           </div>
           <div class="card" style="margin-top:12px;">
             <div class="m-label" style="margin-bottom:8px;">Create your own badge</div>
@@ -3951,10 +4010,11 @@ function syncLandingGridHeight() {
   if (layout !== 'classic' || window.innerWidth <= 980) { grid.style.minHeight = ''; return; }
   grid.style.minHeight = sideCol.offsetHeight + 'px';
 }
-/** Cap sticky boards column so it ends with the roster (lowest rep), not into the footer. */
+/** Cap sticky boards so they stop with the lowest rep / footer — never spill under. */
 function syncLandingBoardsScrollCap() {
   const boards = document.getElementById('landingBoards');
   const reps = document.getElementById('landingReps');
+  const foot = document.getElementById('landingFoot');
   if (!boards || !reps) return;
   const layout = document.body.dataset.layout || 'classic';
   if (layout === 'classic' || window.innerWidth < 1000) {
@@ -3965,13 +4025,32 @@ function syncLandingBoardsScrollCap() {
   const stickyTop = parseFloat(stickyRaw) || 12;
   const viewportCap = Math.max(160, window.innerHeight - stickyTop - 24);
   const rosterCap = Math.max(160, reps.offsetHeight);
-  boards.style.maxHeight = Math.min(viewportCap, rosterCap) + 'px';
+  // Shrink as the footer approaches so sticky boards can't overlap session bar.
+  const boardsRect = boards.getBoundingClientRect();
+  const repsRect = reps.getBoundingClientRect();
+  const footTop = foot ? foot.getBoundingClientRect().top : repsRect.bottom;
+  const hardBottom = Math.min(repsRect.bottom, footTop) - 8;
+  const effectiveTop = Math.min(Math.max(boardsRect.top, stickyTop), hardBottom);
+  const spaceAboveFoot = Math.max(160, hardBottom - effectiveTop);
+  boards.style.maxHeight = Math.min(viewportCap, rosterCap, spaceAboveFoot) + 'px';
 }
 window.addEventListener('resize', () => {
   syncLandingGridHeight();
   syncLandingBoardsScrollCap();
   fitLandingBadges();
 });
+window.addEventListener('scroll', () => { syncLandingBoardsScrollCap(); }, { passive: true });
+if (typeof ResizeObserver !== 'undefined') {
+  const ro = new ResizeObserver(() => syncLandingBoardsScrollCap());
+  const watchBoardsCap = () => {
+    const reps = document.getElementById('landingReps');
+    const boards = document.getElementById('landingBoards');
+    if (reps) ro.observe(reps);
+    if (boards) ro.observe(boards);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchBoardsCap);
+  else watchBoardsCap();
+}
 
 // --- Sidebar leaderboards (Highest Pacers / Most Members Sold / Most Sessions
 // Sold) -----------------------------------------------------------------
@@ -4477,7 +4556,6 @@ function syncPaceNeedTargetToggleHead() {
   });
 }
 function detailPaceNeedHTML(repDisplay) {
-  syncPaceNeedTargetToggleHead();
   const need = paceNeedByMetric(repDisplay, paceNeedTargetPct);
   if (!need) {
     return `<div class="meta-note" style="margin-top:0;">No goals set yet — still-needed counts show once Members / Sessions goals are in place.</div>`;
@@ -4916,34 +4994,54 @@ function hasBestPaceDay(repDisplay) {
   return todayJump !== null && bestJump > 0.05 && todayJump >= bestJump - 0.0001;
 }
 
+/** Default landing/Individual Pacer hover text for automatic badges (overridable in Badge Bank). */
+function defaultAutoBadgeHoverTip(key, ctx) {
+  const tips = {
+    streak: `${(ctx && ctx.streakDays) || 0} days in a row at or above expected pace`,
+    personalBest: 'Projected to beat your best month ever, if this pace holds',
+    consistency: 'On Track (80%+) or better every day this month — never once fell behind',
+    firstTo100: 'First on the team to hit 100%+ pacing this month',
+    earlyBird: 'First positive attribution on the team today',
+    hatTrick: '3+ positive attributions today — resets tomorrow',
+    rebound: 'Sale today after a zero-sale day yesterday (skipped if yesterday was Off on the team schedule)',
+    nightOwl: 'Last positive sale on the team yesterday — one winner',
+    bestPaceDay: 'Biggest single-day pacing jump so far this month (after day 7)',
+  };
+  return tips[key] || '';
+}
+function autoBadgeHoverTip(key, ctx) {
+  return badgeTipFor(key, defaultAutoBadgeHoverTip(key, ctx));
+}
+
 function repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampion, nightOwlChampion) {
   const streakDays = computeCurrentStreak(repDisplay);
+  const streakCtx = { streakDays };
   const streakBadge = (isBadgeEnabled('streak') && streakDays >= 3)
-    ? `<span class="engagement-badge streak-badge has-tip" data-tip="${streakDays} days in a row at or above expected pace">🔥 ${streakDays}d On Pace</span>`
+    ? `<span class="engagement-badge streak-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('streak', streakCtx))}">🔥 ${streakDays}d On Pace</span>`
     : '';
   const personalBestBadge = (isBadgeEnabled('personalBest') && computePersonalBestFlag(repDisplay))
-    ? `<span class="engagement-badge personal-best-badge has-tip" data-tip="Projected to beat your best month ever, if this pace holds">🌟 Personal Best Pace</span>`
+    ? `<span class="engagement-badge personal-best-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('personalBest'))}">🌟 Personal Best Pace</span>`
     : '';
   const consistencyBadge = (isBadgeEnabled('consistency') && computeConsistencyFlag(repDisplay))
-    ? `<span class="engagement-badge consistency-badge has-tip" data-tip="On Track (80%+) or better every day this month — never once fell behind">🛡️ Steady</span>`
+    ? `<span class="engagement-badge consistency-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('consistency'))}">🛡️ Steady</span>`
     : '';
   const firstTo100Badge = (isBadgeEnabled('firstTo100') && repDisplay === firstTo100Champion)
-    ? `<span class="engagement-badge first-to-100-badge has-tip" data-tip="First on the team to hit 100%+ pacing this month">🥇 First to 100%</span>`
+    ? `<span class="engagement-badge first-to-100-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('firstTo100'))}">🥇 First to 100%</span>`
     : '';
   const earlyBirdBadge = (isBadgeEnabled('earlyBird') && repDisplay === earlyBirdChampion)
-    ? `<span class="engagement-badge early-bird-badge has-tip" data-tip="First positive attribution on the team today">🐦 Early Bird</span>`
+    ? `<span class="engagement-badge early-bird-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('earlyBird'))}">🐦 Early Bird</span>`
     : '';
   const hatTrickBadge = (isBadgeEnabled('hatTrick') && hasHatTrickToday(repDisplay))
-    ? `<span class="engagement-badge hat-trick-badge has-tip" data-tip="3+ positive attributions today — resets tomorrow">🎩 Hat Trick</span>`
+    ? `<span class="engagement-badge hat-trick-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('hatTrick'))}">🎩 Hat Trick</span>`
     : '';
   const reboundBadge = (isBadgeEnabled('rebound') && hasReboundToday(repDisplay))
-    ? `<span class="engagement-badge rebound-badge has-tip" data-tip="Sale today after a zero-sale day yesterday (skipped if yesterday was Off on the team schedule)">🏀 Rebound</span>`
+    ? `<span class="engagement-badge rebound-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('rebound'))}">🏀 Rebound</span>`
     : '';
   const nightOwlBadge = (isBadgeEnabled('nightOwl') && repDisplay === nightOwlChampion)
-    ? `<span class="engagement-badge night-owl-badge has-tip" data-tip="Last positive sale on the team yesterday — one winner">🦉 Night Owl</span>`
+    ? `<span class="engagement-badge night-owl-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('nightOwl'))}">🦉 Night Owl</span>`
     : '';
   const bestPaceDayBadge = (isBadgeEnabled('bestPaceDay') && hasBestPaceDay(repDisplay))
-    ? `<span class="engagement-badge best-pace-day-badge has-tip" data-tip="Biggest single-day pacing jump so far this month (after day 7)">⚡ Best Pace Day</span>`
+    ? `<span class="engagement-badge best-pace-day-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('bestPaceDay'))}">⚡ Best Pace Day</span>`
     : '';
   return `${streakBadge}${personalBestBadge}${consistencyBadge}${firstTo100Badge}${earlyBirdBadge}${hatTrickBadge}${reboundBadge}${nightOwlBadge}${bestPaceDayBadge}${manualBadgesHTML(repDisplay)}`;
 }
@@ -5201,15 +5299,15 @@ function renderMasterShoutoutLog() {
 // assignment list, both on Edit Monthly Goals. See BADGE_TOGGLES_CACHE /
 // MANUAL_BADGES_CACHE above.
 const BADGE_TOGGLE_META = [
-  { key: 'streak', emoji: '🔥', label: 'On Pace (3+ days)', description: "Short badge: “🔥 Nd On Pace.” Fires once a rep has been at or above expected daily pace for 3 calendar days in a row this month. Resets the first day they fall behind expected pace." },
-  { key: 'personalBest', emoji: '🌟', label: 'Personal Best Pace', description: "Awarded the moment a rep's current pace tops their own best month ever — always compared against themselves, never a teammate." },
-  { key: 'consistency', emoji: '🛡️', label: 'Steady (consistency)', description: 'Recognizes a rep who has stayed at or above the consistency threshold every single tracked day this month — no dips, however small.' },
-  { key: 'firstTo100', emoji: '🥇', label: 'First to 100%', description: "Goes to whoever's blended pacing crossed 100%+ earliest this month, team-wide. One winner, and it resets fresh at the start of each month." },
-  { key: 'earlyBird', emoji: '🐦', label: 'Early Bird', description: "Goes to whoever logged the team's first positive attribution of the current day. One winner per day; refreshes each morning." },
-  { key: 'hatTrick', emoji: '🎩', label: 'Hat Trick (3+ sales today)', description: 'Daily badge for anyone with 3+ positive attribution line items today. Resets every morning.' },
-  { key: 'rebound', emoji: '🏀', label: 'Rebound', description: 'Sale today after a zero-sale day yesterday — skipped when yesterday is marked Off on Team Schedules.' },
-  { key: 'nightOwl', emoji: '🦉', label: 'Night Owl', description: 'One winner: whoever logged the team’s last positive sale on the prior calendar day (by ledger time).' },
-  { key: 'bestPaceDay', emoji: '⚡', label: 'Best Pace Day', description: "Today is this rep's biggest single-day composite jump so far this month. Does not apply in the first 7 days of the month." },
+  { key: 'streak', emoji: '🔥', label: 'On Pace (3+ days)', hoverTip: 'Days in a row at or above expected pace', description: "Short badge: “🔥 Nd On Pace.” Fires once a rep has been at or above expected daily pace for 3 calendar days in a row this month. Resets the first day they fall behind expected pace." },
+  { key: 'personalBest', emoji: '🌟', label: 'Personal Best Pace', hoverTip: 'Projected to beat your best month ever, if this pace holds', description: "Awarded the moment a rep's current pace tops their own best month ever — always compared against themselves, never a teammate." },
+  { key: 'consistency', emoji: '🛡️', label: 'Steady (consistency)', hoverTip: 'On Track (80%+) or better every day this month — never once fell behind', description: 'Recognizes a rep who has stayed at or above the consistency threshold every single tracked day this month — no dips, however small.' },
+  { key: 'firstTo100', emoji: '🥇', label: 'First to 100%', hoverTip: 'First on the team to hit 100%+ pacing this month', description: "Goes to whoever's blended pacing crossed 100%+ earliest this month, team-wide. One winner, and it resets fresh at the start of each month." },
+  { key: 'earlyBird', emoji: '🐦', label: 'Early Bird', hoverTip: 'First positive attribution on the team today', description: "Goes to whoever logged the team's first positive attribution of the current day. One winner per day; refreshes each morning." },
+  { key: 'hatTrick', emoji: '🎩', label: 'Hat Trick (3+ sales today)', hoverTip: '3+ positive attributions today — resets tomorrow', description: 'Daily badge for anyone with 3+ positive attribution line items today. Resets every morning.' },
+  { key: 'rebound', emoji: '🏀', label: 'Rebound', hoverTip: 'Sale today after a zero-sale day yesterday (skipped if yesterday was Off on the team schedule)', description: 'Sale today after a zero-sale day yesterday — skipped when yesterday is marked Off on Team Schedules.' },
+  { key: 'nightOwl', emoji: '🦉', label: 'Night Owl', hoverTip: 'Last positive sale on the team yesterday — one winner', description: 'One winner: whoever logged the team’s last positive sale on the prior calendar day (by ledger time).' },
+  { key: 'bestPaceDay', emoji: '⚡', label: 'Best Pace Day', hoverTip: 'Biggest single-day pacing jump so far this month (after day 7)', description: "Today is this rep's biggest single-day composite jump so far this month. Does not apply in the first 7 days of the month." },
 ];
 // Single unified "Badge Bank" — every badge the dashboard knows about, one
 // place: the 4 automatic ones (computed from pacing, can't be assigned to
@@ -5233,24 +5331,28 @@ function renderBadgeBank() {
   if (!el) return;
   const toggles = loadBadgeToggles();
   el.innerHTML = badgeBankEntries().map(b => {
-    const tip = badgeTipFor(b.key, b.description || '');
+    // Hover tip shown on landing / Individual Pacer — editable here.
+    const tipFallback = b.hoverTip || b.description || '';
+    const tip = badgeTipFor(b.key, tipFallback);
+    const howItWorks = b.description && b.description !== tip ? b.description : '';
     return `
     <div class="shoutout-item" style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap;">
       <label style="display:flex; align-items:flex-start; gap:8px; flex:1; min-width:220px; cursor:pointer;">
         <input type="checkbox" data-badge-toggle="${b.key}" style="margin-top:3px;" ${toggles[b.key] !== false ? 'checked' : ''}>
         <span>
           <span class="has-tip" data-tip="${escapeAttr(tip)}" style="font-size:13px; font-weight:700; color:var(--text); cursor:help;">${b.emoji} ${b.label}</span>
-          <span class="meta-note" style="display:block; margin-top:2px;">${tip || 'No tip yet — add one below.'}</span>
+          <span class="meta-note" style="display:block; margin-top:2px;"><b>Hover tip:</b> ${tip ? escapeAttr(tip) : 'No tip yet — add one below.'}</span>
+          ${howItWorks ? `<span class="meta-note" style="display:block; margin-top:2px;">${escapeAttr(howItWorks)}</span>` : ''}
           <span class="meta-note" style="display:block; margin-top:2px; font-style:italic;">${b.kindLabel}</span>
         </span>
       </label>
       <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
-        <button type="button" class="theme-btn" data-edit-badge-tip="${b.key}" style="margin-top:0;">Edit tip</button>
+        <button type="button" class="theme-btn" data-edit-badge-tip="${b.key}" style="margin-top:0;">Edit hover tip</button>
         <button type="button" class="shoutout-remove-btn" data-delete-badge="${b.key}" data-badge-kind="${b.kind}" title="Delete this badge">✕</button>
       </div>
       <div class="badge-tip-edit" data-tip-edit-for="${b.key}" hidden style="flex:1 1 100%; display:none; gap:8px; align-items:center; flex-wrap:wrap;">
-        <input type="text" data-tip-input="${b.key}" value="${escapeAttr(tip)}" maxlength="280" placeholder="Hover tip text" style="flex:1; min-width:200px;">
-        <button type="button" class="theme-btn" data-save-badge-tip="${b.key}" style="margin-top:0;">Save tip</button>
+        <input type="text" data-tip-input="${b.key}" value="${escapeAttr(tip)}" maxlength="280" placeholder="Text shown when hovering the badge on the landing page" style="flex:1; min-width:200px;">
+        <button type="button" class="theme-btn" data-save-badge-tip="${b.key}" style="margin-top:0;">Save hover tip</button>
       </div>
     </div>`;
   }).join('');
@@ -5757,7 +5859,13 @@ document.getElementById('paceNeedTargetToggleHead')?.addEventListener('click', (
   const match = location.hash.match(/^#(?:individual-pacer|client-detail)=(.+)$/);
   if (!match) return;
   const repName = decodeURIComponent(match[1]);
-  document.getElementById('paceNeedSideContent').innerHTML = detailPaceNeedHTML(repName);
+  const needBody = document.getElementById('paceNeedSideBody');
+  if (needBody) needBody.innerHTML = detailPaceNeedHTML(repName);
+  else {
+    const needEl = document.getElementById('paceNeedSideContent');
+    if (needEl) needEl.innerHTML = detailPaceNeedHTML(repName);
+  }
+  syncPaceNeedTargetToggleHead();
 });
 
 document.getElementById('shoutoutCelebrationBackdrop').addEventListener('click', (e) => {
@@ -7478,8 +7586,13 @@ function syncMetricsSidePanel(repName) {
     document.getElementById('paceNeedSideToggle')?.classList.toggle('is-collapsed', paceNeedSideCollapsed);
     document.getElementById('paceNeedSideChevron')?.classList.toggle('collapsed', paceNeedSideCollapsed);
     document.getElementById('paceNeedSideContent')?.classList.toggle('collapsed', paceNeedSideCollapsed);
-    const needEl = document.getElementById('paceNeedSideContent');
-    if (needEl) needEl.innerHTML = detailPaceNeedHTML(repName);
+    const needBody = document.getElementById('paceNeedSideBody');
+    if (needBody) needBody.innerHTML = detailPaceNeedHTML(repName);
+    else {
+      const needEl = document.getElementById('paceNeedSideContent');
+      if (needEl) needEl.innerHTML = detailPaceNeedHTML(repName);
+    }
+    syncPaceNeedTargetToggleHead();
     currentBonusRep = repName;
     document.getElementById('bonusSideChevron')?.classList.toggle('collapsed', bonusSideCollapsed);
     document.getElementById('bonusSideContent')?.classList.toggle('collapsed', bonusSideCollapsed);
