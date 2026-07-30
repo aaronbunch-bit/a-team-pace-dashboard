@@ -1,8 +1,12 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
+import { requireSignedIn } from "./_shared/identity.mts";
 
-/** Public read — needed to gate Rebound and show shifts on Individual Pacer. */
-export default async (_req: Request, _context: Context) => {
+/** Identity-gated (@varsitytutors.com) — schedules gate Rebound and show shifts. */
+export default async (req: Request, context: Context) => {
+  const auth = await requireSignedIn(req, context);
+  if (auth.response) return auth.response;
+
   const store = getStore("team-schedules");
   const data = (await store.get("current", { type: "json" })) || {
     reps: {},

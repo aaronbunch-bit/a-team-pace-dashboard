@@ -1,5 +1,6 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
+import { requireSignedIn } from "./_shared/identity.mts";
 import { runSupabaseSql, supabaseConfig } from "./_shared/supabase.mts";
 import { FALLBACK_ROSTER_EMAILS } from "./_shared/roster.mts";
 import { TEAM_TIME_ZONE, clampAsOfToTeamToday, teamTodayYmd } from "./_shared/time.mts";
@@ -158,6 +159,9 @@ export default async (req: Request, context: Context) => {
   if (req.method !== "GET") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
   }
+
+  const auth = await requireSignedIn(req, context);
+  if (auth.response) return auth.response;
 
   if (!supabaseConfig()) {
     return new Response(
