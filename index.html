@@ -3492,7 +3492,9 @@ function applyMotionMode(mode) {
   if (btn) {
     btn.textContent = staticOn ? 'Freeze' : '✨ Dynamic';
     btn.setAttribute('aria-pressed', staticOn ? 'false' : 'true');
-    btn.title = staticOn ? 'Gradients are static — click for moving gradients' : 'Gradients are moving — click to freeze';
+    btn.title = staticOn
+      ? 'All gradient motion is frozen — click for moving gradients'
+      : 'Gradients are moving — click to freeze (including Open My Individual Pacer)';
   }
 }
 (function initMotionMode() {
