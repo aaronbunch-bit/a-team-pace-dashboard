@@ -4,7 +4,11 @@ import { getIdentityUser } from "./_shared/identity.mts";
 import { resolveAccess } from "./_shared/access.mts";
 import { loadValidRepDisplays, resolveEmailFromRepDisplay } from "./_shared/roster.mts";
 import { teamTodayYmd } from "./_shared/time.mts";
-import { membersValidationError, normalizeAttrMembers } from "./_shared/attribution.mts";
+import {
+  findAttrDuplicates,
+  membersValidationError,
+  normalizeAttrMembers,
+} from "./_shared/attribution.mts";
 
 // Two elevated submit paths share this endpoint:
 //   1) source: "cancel-conversion" — full admins only (Team Details cancel move)
@@ -91,6 +95,28 @@ export default async (req: Request, context: Context) => {
         { status: 400 }
       );
     }
+    const store = getStore("manual-attributions");
+    const forceDuplicate = !!(body?.forceDuplicate || body?.confirmDuplicate);
+    if (!forceDuplicate) {
+      const { blobs } = await store.list();
+      const existing = (
+        await Promise.all(blobs.map((b) => store.get(b.key, { type: "json" })))
+      ).filter(Boolean);
+      const matches = findAttrDuplicates(existing as any[], {
+        clientLink,
+        contact: contactStr,
+      });
+      if (matches.length) {
+        return new Response(
+          JSON.stringify({
+            error: "A request for this client has already been submitted",
+            duplicate: true,
+            matches: matches.slice(0, 5),
+          }),
+          { status: 409, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
     const record = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       repEmail,
@@ -111,7 +137,6 @@ export default async (req: Request, context: Context) => {
       initiatedBy,
       source: "on-behalf",
     };
-    const store = getStore("manual-attributions");
     await store.setJSON(record.id, record);
     return new Response(JSON.stringify({ ok: true, record }), {
       status: 200,
