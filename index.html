@@ -743,186 +743,383 @@
     font-size: 10.5px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em;
   }
 
-  /* —— Live Contest: promo banners + contest board —— */
+  /* —— Live Contest: fun, theme-driven race / wheel —— */
   .contest-banner-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin: 0 0 12px;
+    display: flex; flex-direction: column; gap: 10px; margin: 10px 0 4px;
   }
   .contest-banner-stack:empty { display: none; }
   .contest-promo-banner {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px 16px;
-    padding: 12px 16px;
-    border-radius: 16px;
-    border: 1px solid rgba(244, 114, 182, 0.35);
-    background:
-      linear-gradient(120deg, rgba(244,114,182,0.16), rgba(99,102,241,0.18) 55%, rgba(56,189,248,0.14)),
-      var(--card-bg);
-    box-shadow: 0 8px 28px var(--shadow);
-    position: relative;
-    overflow: hidden;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px;
+    padding: 14px 16px; border-radius: 18px; position: relative; overflow: hidden;
+    border: 1px solid transparent;
+    background: var(--contest-banner-bg, linear-gradient(120deg, #fdf2f8, #eef2ff 50%, #ecfeff));
+    box-shadow: 0 10px 32px rgba(99,102,241,0.16);
   }
   .contest-promo-banner::before {
-    content: '';
-    position: absolute; inset: 0;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent);
-    background-size: 200% 100%;
+    content: ''; position: absolute; inset: -40% -20%;
+    background: radial-gradient(circle at 20% 40%, rgba(255,255,255,0.55), transparent 42%),
+      radial-gradient(circle at 80% 20%, rgba(244,114,182,0.35), transparent 40%);
     pointer-events: none;
-    opacity: 0.55;
   }
   body:not(.motion-static) .contest-promo-banner::before {
-    animation: contestBannerSheen 4.5s ease-in-out infinite;
+    animation: contestBannerDrift 7s ease-in-out infinite alternate;
   }
-  @keyframes contestBannerSheen {
-    0% { background-position: 100% 50%; }
-    100% { background-position: -100% 50%; }
+  @keyframes contestBannerDrift {
+    from { transform: translate3d(-2%, 0, 0) scale(1); }
+    to { transform: translate3d(3%, -2%, 0) scale(1.05); }
   }
-  .contest-promo-banner.kind-promo {
-    border-color: rgba(56,189,248,0.4);
-    background:
-      linear-gradient(120deg, rgba(56,189,248,0.14), rgba(99,102,241,0.12) 60%, rgba(244,114,182,0.1)),
-      var(--card-bg);
-  }
+  .contest-promo-banner.theme-morning { --contest-banner-bg: linear-gradient(120deg, #fff7ed, #fef3c7 45%, #ffedd5); border-color: rgba(251,146,60,0.35); }
+  .contest-promo-banner.theme-power-hour { --contest-banner-bg: linear-gradient(120deg, #fdf2f8, #ede9fe 40%, #e0f2fe); border-color: rgba(236,72,153,0.4); }
+  .contest-promo-banner.theme-evening { --contest-banner-bg: linear-gradient(120deg, #1e1b4b, #312e81 50%, #4c1d95); border-color: rgba(167,139,250,0.45); color: #f8fafc; }
+  .contest-promo-banner.theme-evening .contest-promo-name,
+  .contest-promo-banner.theme-evening .contest-promo-place-val { color: #fff; }
+  .contest-promo-banner.theme-evening .contest-promo-eyebrow,
+  .contest-promo-banner.theme-evening .contest-promo-meta,
+  .contest-promo-banner.theme-evening .contest-promo-place-label { color: rgba(255,255,255,0.72); }
+  .contest-promo-banner.theme-evening .contest-promo-place { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); }
   .contest-promo-main { flex: 1 1 200px; min-width: 0; position: relative; z-index: 1; }
   .contest-promo-eyebrow {
-    font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em;
-    text-transform: uppercase; color: var(--text-faint); margin: 0 0 2px;
+    font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--text-faint); margin: 0 0 3px;
   }
   .contest-promo-name {
-    margin: 0; font-size: 17px; font-weight: 800; color: var(--text);
-    letter-spacing: -0.01em; line-height: 1.2;
+    margin: 0; font-size: 20px; font-weight: 900; color: var(--text);
+    letter-spacing: -0.02em; line-height: 1.15;
   }
-  .contest-promo-meta {
-    margin-top: 4px; font-size: 12.5px; font-weight: 700; color: var(--text-muted);
-  }
+  .contest-promo-meta { margin-top: 5px; font-size: 12.5px; font-weight: 750; color: var(--text-muted); }
   .contest-promo-place {
-    position: relative; z-index: 1;
-    min-width: 72px; padding: 8px 12px; border-radius: 12px;
-    background: rgba(255,255,255,0.55); border: 1px solid var(--card-border);
-    text-align: center;
+    position: relative; z-index: 1; min-width: 78px; padding: 10px 12px; border-radius: 14px;
+    background: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.8); text-align: center;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.06);
   }
-  body.dark .contest-promo-place { background: rgba(0,0,0,0.25); }
+  body.dark .contest-promo-place { background: rgba(0,0,0,0.28); border-color: rgba(255,255,255,0.1); }
   .contest-promo-place-label {
     display: block; font-size: 10px; font-weight: 800; color: var(--text-faint);
     text-transform: uppercase; letter-spacing: 0.04em;
   }
   .contest-promo-place-val {
-    display: block; margin-top: 1px; font-size: 20px; font-weight: 800;
+    display: block; margin-top: 1px; font-size: 22px; font-weight: 900;
     font-variant-numeric: tabular-nums; color: var(--text);
   }
   .contest-promo-actions { position: relative; z-index: 1; display: flex; gap: 8px; flex-wrap: wrap; }
-  .contest-promo-actions .theme-btn,
-  .contest-promo-actions .contest-view-btn {
-    margin: 0; font-weight: 800;
-  }
   .contest-view-btn {
     appearance: none; border: none; cursor: pointer;
-    padding: 9px 14px; border-radius: 999px; font-size: 13px;
-    color: #fff; background: linear-gradient(135deg, #ec4899, #6366f1);
-    box-shadow: 0 4px 14px rgba(99,102,241,0.35);
+    padding: 11px 16px; border-radius: 999px; font-size: 13.5px; font-weight: 900;
+    color: #fff; background: linear-gradient(135deg, #ec4899, #8b5cf6 55%, #06b6d4);
+    box-shadow: 0 8px 22px rgba(236,72,153,0.35);
   }
-  body:not(.motion-static) .contest-view-btn {
-    animation: contestCtaPulse 2.2s ease-in-out infinite;
-  }
+  body:not(.motion-static) .contest-view-btn { animation: contestCtaPulse 2s ease-in-out infinite; }
   @keyframes contestCtaPulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.04); }
+    0%, 100% { transform: scale(1); box-shadow: 0 8px 22px rgba(236,72,153,0.35); }
+    50% { transform: scale(1.05); box-shadow: 0 10px 28px rgba(99,102,241,0.4); }
   }
-  .contest-board-hero {
-    border-radius: 18px; padding: 18px 18px 16px;
-    border: 1px solid var(--card-border);
+
+  #contestOverlay {
     background:
-      linear-gradient(135deg, rgba(244,114,182,0.14), rgba(99,102,241,0.16) 50%, rgba(56,189,248,0.12)),
-      var(--card-bg);
-    margin-bottom: 14px;
+      radial-gradient(ellipse 80% 50% at 10% -10%, var(--contest-glow-a, rgba(236,72,153,0.22)), transparent 55%),
+      radial-gradient(ellipse 70% 45% at 95% 0%, var(--contest-glow-b, rgba(56,189,248,0.2)), transparent 50%),
+      radial-gradient(ellipse 60% 40% at 50% 100%, var(--contest-glow-c, rgba(139,92,246,0.16)), transparent 55%),
+      var(--bg);
   }
-  .contest-board-hero h2 { margin: 0 0 6px; font-size: 26px; letter-spacing: -0.02em; }
-  .contest-board-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  #contestOverlay.theme-morning {
+    --contest-glow-a: rgba(251,146,60,0.28);
+    --contest-glow-b: rgba(250,204,21,0.22);
+    --contest-glow-c: rgba(251,113,133,0.18);
+  }
+  #contestOverlay.theme-power-hour {
+    --contest-glow-a: rgba(236,72,153,0.3);
+    --contest-glow-b: rgba(56,189,248,0.26);
+    --contest-glow-c: rgba(139,92,246,0.24);
+  }
+  #contestOverlay.theme-evening {
+    --contest-glow-a: rgba(99,102,241,0.35);
+    --contest-glow-b: rgba(167,139,250,0.28);
+    --contest-glow-c: rgba(244,114,182,0.18);
+  }
+  #contestOverlay .detail-page { max-width: 980px; }
+  #contestOverlay .detail-header { margin-bottom: 8px; }
+
+  .contest-arena { display: flex; flex-direction: column; gap: 16px; }
+  .contest-board-hero {
+    position: relative; overflow: hidden;
+    border-radius: 22px; padding: 22px 22px 18px;
+    border: 1px solid rgba(255,255,255,0.35);
+    background: var(--contest-hero-bg, linear-gradient(135deg, #fdf2f8, #ede9fe 45%, #e0f2fe));
+    box-shadow: 0 18px 50px rgba(99,102,241,0.18);
+  }
+  .contest-board-hero::after {
+    content: ''; position: absolute; width: 220px; height: 220px; right: -40px; top: -60px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.55), transparent 70%);
+    pointer-events: none;
+  }
+  body:not(.motion-static) .contest-board-hero::after {
+    animation: contestHeroOrb 5s ease-in-out infinite alternate;
+  }
+  @keyframes contestHeroOrb {
+    from { transform: translate(0, 0) scale(1); opacity: 0.7; }
+    to { transform: translate(-18px, 12px) scale(1.12); opacity: 1; }
+  }
+  .contest-board-hero.theme-morning { --contest-hero-bg: linear-gradient(135deg, #fff7ed, #fde68a 40%, #fdba74); }
+  .contest-board-hero.theme-power-hour { --contest-hero-bg: linear-gradient(135deg, #fce7f3, #ddd6fe 40%, #bae6fd); }
+  .contest-board-hero.theme-evening {
+    --contest-hero-bg: linear-gradient(135deg, #312e81, #4c1d95 50%, #831843);
+    color: #f8fafc;
+  }
+  .contest-board-hero.theme-evening .contest-promo-eyebrow,
+  .contest-board-hero.theme-evening .contest-chip { color: rgba(255,255,255,0.75); }
+  .contest-board-hero.theme-evening h2,
+  .contest-board-hero.theme-evening .contest-countdown { color: #fff; }
+  .contest-board-hero.theme-evening .contest-chip {
+    background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.18);
+  }
+  .contest-board-hero.theme-evening .contest-chip strong { color: #fff; }
+  .contest-hero-top {
+    display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
+    gap: 12px 18px; position: relative; z-index: 1;
+  }
+  .contest-hero-icon {
+    width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center;
+    font-size: 28px; background: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.7);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08); flex: none;
+  }
+  body:not(.motion-static) .contest-hero-icon { animation: contestIconBob 2.4s ease-in-out infinite; }
+  @keyframes contestIconBob {
+    0%, 100% { transform: translateY(0) rotate(-2deg); }
+    50% { transform: translateY(-5px) rotate(3deg); }
+  }
+  .contest-hero-copy { flex: 1 1 200px; min-width: 0; }
+  .contest-live-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 900;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    background: rgba(220,38,38,0.12); color: #b91c1c; border: 1px solid rgba(220,38,38,0.2);
+  }
+  .contest-live-pill::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%; background: #ef4444;
+  }
+  body:not(.motion-static) .contest-live-pill::before {
+    animation: contestLiveDot 1s ease-in-out infinite;
+  }
+  @keyframes contestLiveDot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.75); }
+  }
+  .contest-board-hero h2 {
+    margin: 8px 0 0; font-size: clamp(28px, 5vw, 40px); font-weight: 900;
+    letter-spacing: -0.03em; line-height: 1.05;
+  }
+  .contest-countdown-block { text-align: right; position: relative; z-index: 1; }
+  .contest-countdown-label {
+    font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-faint); margin-bottom: 2px;
+  }
+  .contest-board-hero.theme-evening .contest-countdown-label { color: rgba(255,255,255,0.65); }
+  .contest-countdown {
+    font-size: clamp(28px, 5vw, 42px); font-weight: 900; font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em; line-height: 1;
+    text-shadow: 0 2px 0 rgba(255,255,255,0.25);
+  }
+  .contest-board-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; position: relative; z-index: 1; }
   .contest-chip {
     display: inline-flex; align-items: center; gap: 5px;
-    padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 800;
-    background: var(--metric-box-bg); border: 1px solid var(--card-border); color: var(--text-muted);
+    padding: 6px 11px; border-radius: 999px; font-size: 12px; font-weight: 800;
+    background: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.7); color: var(--text-muted);
   }
   .contest-chip strong { color: var(--text); }
-  .contest-countdown {
-    font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text);
+  .contest-chip.hot {
+    color: #9d174d;
+    background: linear-gradient(90deg, rgba(251,113,133,0.25), rgba(244,114,182,0.2));
+    border-color: rgba(244,114,182,0.35);
   }
-  .contest-standings {
-    display: flex; flex-direction: column; gap: 8px;
+
+  .contest-section-title {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin: 0 0 10px; font-size: 13px; font-weight: 900; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--text-muted);
   }
-  .contest-stand-row {
+  .contest-standings, .contest-race-lanes {
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .contest-race-lane {
     display: grid;
-    grid-template-columns: 40px minmax(0, 1fr) auto;
+    grid-template-columns: 44px minmax(0, 1fr) 72px;
     gap: 10px; align-items: center;
-    padding: 12px 14px; border-radius: 12px;
-    background: var(--card-bg); border: 1px solid var(--card-border);
+    padding: 12px 12px 12px 10px; border-radius: 16px;
+    background: rgba(255,255,255,0.72); border: 1px solid var(--card-border);
+    box-shadow: 0 6px 18px rgba(15,23,42,0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
-  .contest-stand-row.is-me {
-    border-color: rgba(99,102,241,0.55);
-    box-shadow: 0 0 0 1px rgba(99,102,241,0.25);
+  body.dark .contest-race-lane { background: rgba(15,23,42,0.55); }
+  .contest-race-lane.is-me {
+    border-color: rgba(236,72,153,0.55);
+    box-shadow: 0 0 0 2px rgba(236,72,153,0.18), 0 10px 28px rgba(99,102,241,0.15);
   }
-  .contest-stand-rank {
-    font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text-muted);
+  body:not(.motion-static) .contest-race-lane.is-me { animation: contestMeGlow 2.4s ease-in-out infinite; }
+  @keyframes contestMeGlow {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(236,72,153,0.18), 0 10px 28px rgba(99,102,241,0.12); }
+    50% { box-shadow: 0 0 0 3px rgba(56,189,248,0.28), 0 12px 32px rgba(236,72,153,0.18); }
   }
-  .contest-stand-row:nth-child(1) .contest-stand-rank { color: #ca8a04; }
-  .contest-stand-row:nth-child(2) .contest-stand-rank { color: #64748b; }
-  .contest-stand-row:nth-child(3) .contest-stand-rank { color: #b45309; }
-  .contest-stand-name { font-size: 14.5px; font-weight: 800; color: var(--text); }
-  .contest-stand-sub { font-size: 11.5px; font-weight: 650; color: var(--text-faint); margin-top: 2px; }
-  .contest-stand-score {
-    font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text);
+  .contest-race-lane.place-1 {
+    background: linear-gradient(90deg, rgba(250,204,21,0.22), rgba(255,255,255,0.85) 45%);
+    border-color: rgba(234,179,8,0.45);
   }
+  .contest-race-lane.place-2 {
+    background: linear-gradient(90deg, rgba(148,163,184,0.22), rgba(255,255,255,0.85) 45%);
+  }
+  .contest-race-lane.place-3 {
+    background: linear-gradient(90deg, rgba(251,146,60,0.2), rgba(255,255,255,0.85) 45%);
+  }
+  .contest-race-rank {
+    width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+    font-size: 16px; font-weight: 900; color: var(--text-muted);
+    background: var(--metric-box-bg); border: 1px solid var(--card-border);
+  }
+  .contest-race-lane.place-1 .contest-race-rank { background: #fef3c7; color: #b45309; border-color: #fcd34d; }
+  .contest-race-lane.place-2 .contest-race-rank { background: #f1f5f9; color: #475569; }
+  .contest-race-lane.place-3 .contest-race-rank { background: #ffedd5; color: #c2410c; }
+  .contest-race-name { font-size: 14.5px; font-weight: 900; color: var(--text); }
+  .contest-race-sub { font-size: 11.5px; font-weight: 700; color: var(--text-faint); margin-top: 2px; }
+  .contest-race-track {
+    position: relative; height: 16px; margin-top: 8px; border-radius: 999px;
+    background: repeating-linear-gradient(90deg, rgba(148,163,184,0.22) 0 10px, rgba 10px 18px),
+      rgba(148,163,184,0.15);
+    overflow: hidden;
+  }
+  .contest-race-fill {
+    position: absolute; left: 0; top: 0; bottom: 0; min-width: 18px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #f472b6, #8b5cf6 55%, #22d3ee);
+    box-shadow: 0 0 12px rgba(139,92,246,0.45);
+  }
+  body:not(.motion-static) .contest-race-fill {
+    transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .contest-race-runner {
+    position: absolute; right: -2px; top: 50%; transform: translateY(-50%);
+    font-size: 14px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));
+  }
+  body:not(.motion-static) .contest-race-lane.place-1 .contest-race-runner {
+    animation: contestRunnerBounce 0.7s ease-in-out infinite;
+  }
+  @keyframes contestRunnerBounce {
+    0%, 100% { transform: translateY(-50%) translateX(0); }
+    50% { transform: translateY(-62%) translateX(1px); }
+  }
+  .contest-race-score {
+    text-align: right; font-size: 20px; font-weight: 900;
+    font-variant-numeric: tabular-nums; color: var(--text); line-height: 1.1;
+  }
+  .contest-race-score span {
+    display: block; font-size: 10px; font-weight: 800; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+
   .contest-wheel-wrap {
-    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
-    gap: 16px; align-items: start; margin-top: 8px;
+    display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 18px; align-items: start;
   }
-  @media (max-width: 800px) {
-    .contest-wheel-wrap { grid-template-columns: 1fr; }
+  @media (max-width: 800px) { .contest-wheel-wrap { grid-template-columns: 1fr; } }
+  .contest-wheel-stage {
+    padding: 18px 14px; border-radius: 22px; text-align: center;
+    background: linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,255,255,0.35));
+    border: 1px solid var(--card-border);
+    box-shadow: 0 14px 36px rgba(15,23,42,0.08);
+  }
+  .contest-wheel-pointer {
+    width: 0; height: 0; margin: 0 auto 6px;
+    border-left: 12px solid transparent; border-right: 12px solid transparent;
+    border-top: 18px solid #ec4899;
+    filter: drop-shadow(0 3px 4px rgba(236,72,153,0.4));
   }
   .contest-wheel {
-    width: min(280px, 100%); aspect-ratio: 1; margin: 0 auto;
-    border-radius: 50%; border: 6px solid var(--card-border);
-    position: relative; overflow: hidden;
-    background: conic-gradient(from 0deg, #f472b6, #6366f1, #38bdf8, #f472b6);
+    width: min(270px, 100%); aspect-ratio: 1; margin: 0 auto; border-radius: 50%;
+    border: 8px solid #fff; position: relative; overflow: hidden;
+    background: conic-gradient(from 0deg, #f472b6, #a855f7, #38bdf8, #fbbf24, #f472b6);
+    box-shadow: 0 0 0 4px rgba(236,72,153,0.25), 0 16px 40px rgba(99,102,241,0.28);
+  }
+  .contest-wheel::after {
+    content: '🎡'; position: absolute; inset: 0; display: grid; place-items: center;
+    font-size: 42px; background: radial-gradient(circle, rgba(255,255,255,0.92) 0 28%, transparent 29%);
   }
   body:not(.motion-static) .contest-wheel.is-spinning {
-    animation: contestWheelSpin 3s cubic-bezier(0.12, 0.75, 0.2, 1) forwards;
+    animation: contestWheelSpin 3.2s cubic-bezier(0.12, 0.75, 0.15, 1) forwards;
   }
   @keyframes contestWheelSpin {
     from { transform: rotate(0deg); }
-    to { transform: rotate(1440deg); }
+    to { transform: rotate(1580deg); }
   }
-  .contest-wheel-pointer {
-    width: 0; height: 0; margin: 0 auto 8px;
-    border-left: 10px solid transparent; border-right: 10px solid transparent;
-    border-top: 16px solid #ec4899;
+  #contestSpinBtn {
+    margin: 14px auto 0; display: inline-flex !important;
+    padding: 10px 18px; border: none; border-radius: 999px; cursor: pointer;
+    font-weight: 900; color: #fff;
+    background: linear-gradient(135deg, #ec4899, #8b5cf6);
+    box-shadow: 0 8px 22px rgba(236,72,153,0.35);
   }
+  #contestSpinResult {
+    margin-top: 10px; font-size: 15px; font-weight: 900; color: var(--text);
+    min-height: 1.2em;
+  }
+
   .contest-coach-panel {
-    margin-top: 16px; padding: 14px; border-radius: 14px;
-    border: 1px dashed var(--card-border); background: var(--metric-box-bg);
+    margin-top: 4px; padding: 16px; border-radius: 18px;
+    border: 1px solid var(--card-border);
+    background: linear-gradient(180deg, rgba(255,255,255,0.65), var(--metric-box-bg));
   }
+  .contest-coach-panel .m-label { letter-spacing: 0.04em; }
+
   .contest-form-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px;
+    width: 100%; max-width: 100%; box-sizing: border-box;
   }
-  @media (max-width: 640px) {
-    .contest-form-grid { grid-template-columns: 1fr; }
-  }
+  @media (max-width: 640px) { .contest-form-grid { grid-template-columns: 1fr; } }
   .contest-form-grid label {
-    display: flex; flex-direction: column; gap: 4px;
+    display: flex; flex-direction: column; gap: 5px; min-width: 0;
     font-size: 11px; font-weight: 800; color: var(--text-faint);
     text-transform: uppercase; letter-spacing: 0.03em;
   }
   .contest-form-grid input,
   .contest-form-grid select {
-    font-size: 13px; font-weight: 600; text-transform: none; letter-spacing: normal;
-    padding: 7px 9px; border-radius: 8px; border: 1px solid var(--card-border);
+    width: 100%; max-width: 100%; box-sizing: border-box;
+    font-size: 13px; font-weight: 650; text-transform: none; letter-spacing: normal;
+    padding: 9px 10px; border-radius: 10px; border: 1px solid var(--card-border);
     background: var(--card-bg); color: var(--text); font-family: inherit;
   }
   .contest-form-grid .full { grid-column: 1 / -1; }
+  #contestEditBackdrop .celebration-modal {
+    width: min(520px, calc(100vw - 28px));
+    max-width: min(520px, calc(100vw - 28px));
+    box-sizing: border-box;
+    overflow: hidden;
+    background:
+      linear-gradient(180deg, rgba(253,242,248,0.95), rgba(255,255,255,0.98) 28%),
+      var(--card-bg);
+    border: 1px solid rgba(236,72,153,0.28);
+    box-shadow: 0 24px 60px rgba(99,102,241,0.28);
+  }
+  #contestEditBackdrop .celebration-modal-title {
+    font-size: 22px; font-weight: 900; letter-spacing: -0.02em;
+  }
+  #contestEditBackdrop .celebration-modal-close {
+    background: linear-gradient(135deg, #ec4899, #8b5cf6 55%, #06b6d4) !important;
+    border: none; font-weight: 900;
+  }
+  .contest-empty-fun {
+    text-align: center; padding: 48px 20px; border-radius: 22px;
+    border: 1px dashed rgba(236,72,153,0.35);
+    background: linear-gradient(135deg, rgba(253,242,248,0.9), rgba(224,242,254,0.7));
+  }
+  .contest-empty-fun .emoji { font-size: 42px; display: block; margin-bottom: 8px; }
+  body.motion-static .contest-promo-banner::before,
+  body.motion-static .contest-board-hero::after,
+  body.motion-static .contest-hero-icon,
+  body.motion-static .contest-view-btn,
+  body.motion-static .contest-live-pill::before,
+  body.motion-static .contest-race-lane.is-me,
+  body.motion-static .contest-race-lane.place-1 .contest-race-runner,
+  body.motion-static .contest-wheel.is-spinning {
+    animation: none !important;
+  }
   .shoutout-wall-item {
     padding: 8px 0; border-top: 1px solid var(--divider);
   }
@@ -3536,10 +3733,10 @@
   <div class="detail-page">
     <div class="detail-header">
       <button class="theme-btn" id="contestBackBtn" type="button">← Dashboard</button>
-      <h2 id="contestPageTitle">Contest</h2>
-      <button class="theme-btn" id="contestNewBtn" type="button" style="display:none; margin-left:auto;">+ New contest</button>
+      <h2 id="contestPageTitle">🏆 Contest Arena</h2>
+      <button class="theme-btn" id="contestNewBtn" type="button" style="display:none; margin-left:auto;">✨ New contest</button>
     </div>
-    <div id="contestBoardHost">
+    <div id="contestBoardHost" class="contest-arena">
       <div class="meta-note">Loading contests…</div>
     </div>
   </div>
@@ -3547,8 +3744,10 @@
 
 <!-- Coach/admin: create or edit a contest -->
 <div class="celebration-modal-backdrop" id="contestEditBackdrop">
-  <div class="celebration-modal" style="text-align:left; max-width:520px;">
+  <div class="celebration-modal" style="text-align:left;">
+    <div class="celebration-modal-emoji" aria-hidden="true">⚡</div>
     <div class="celebration-modal-title" style="text-align:center;" id="contestEditTitle">New contest</div>
+    <div class="meta-note" style="text-align:center; margin:0 0 8px;">Make it loud. Make it timed. Make it fun.</div>
     <div class="contest-form-grid" style="margin-top:12px;">
       <label class="full">Contest name
         <input type="text" id="contestEditName" maxlength="80" placeholder="Power Hour">
@@ -8847,6 +9046,25 @@ function contestStakeLabel(c) {
   if (c.stakeType === 'money' && c.stakeAmount) return `$${Number(c.stakeAmount).toLocaleString('en-US')} pot`;
   return 'Bragging rights';
 }
+function contestThemeClass(contest) {
+  const p = String((contest && contest.preset) || 'custom');
+  if (p === 'morning' || p === 'power-hour' || p === 'evening') return 'theme-' + p;
+  return 'theme-power-hour';
+}
+function contestThemeIcon(contest) {
+  const p = String((contest && contest.preset) || 'custom');
+  if (p === 'morning') return '☀️';
+  if (p === 'evening') return '🌙';
+  if (p === 'power-hour') return '⚡';
+  return contest && contest.mode === 'wheel' ? '🎡' : '🏁';
+}
+function contestThemeTagline(contest) {
+  const p = String((contest && contest.preset) || 'custom');
+  if (p === 'morning') return 'Rise & grind — early credits count double in vibes';
+  if (p === 'evening') return 'Late desk energy — close strong';
+  if (p === 'power-hour') return 'One hour. Full send. No chill.';
+  return contest && contest.mode === 'wheel' ? 'Earn tickets. Spin for glory.' : 'Hit the track. Take the lead.';
+}
 function contestPlaceLabel(place) {
   if (!place || place < 1) return '—';
   const j = place % 10, k = place % 100;
@@ -8951,11 +9169,11 @@ function renderContestPromoBanners() {
     const place = contestMyPlace(c, standings);
     const placeVal = c.status === 'scheduled' ? 'Soon' : contestPlaceLabel(place);
     const modeLabel = c.mode === 'wheel' ? 'Wheel' : 'Race';
-    const kindLabel = c.kind === 'promo' ? 'Company-wide' : 'Live contest';
+    const kindLabel = c.kind === 'promo' ? 'Company-wide' : 'Live now';
     return `
-      <div class="contest-promo-banner kind-${escapeAttr(c.kind || 'hosted')}" data-contest-banner="${escapeAttr(c.id)}">
+      <div class="contest-promo-banner ${contestThemeClass(c)}" data-contest-banner="${escapeAttr(c.id)}">
         <div class="contest-promo-main">
-          <p class="contest-promo-eyebrow">${escapeHtml(kindLabel)} · ${escapeHtml(modeLabel)} · ${escapeHtml(contestStakeLabel(c))}</p>
+          <p class="contest-promo-eyebrow">${escapeHtml(contestThemeIcon(c))} ${escapeHtml(kindLabel)} · ${escapeHtml(modeLabel)} · ${escapeHtml(contestStakeLabel(c))}</p>
           <h3 class="contest-promo-name">${escapeHtml(c.name || 'Contest')}</h3>
           <div class="contest-promo-meta">${escapeHtml(contestUnitsLabel(c.units))} · <span data-contest-cd="${escapeAttr(c.id)}">${escapeHtml(contestCountdownHTML(c.endAt))}</span></div>
         </div>
@@ -8964,56 +9182,75 @@ function renderContestPromoBanners() {
           <span class="contest-promo-place-val">${escapeHtml(placeVal)}</span>
         </div>
         <div class="contest-promo-actions">
-          <button type="button" class="contest-view-btn" data-view-contest="${escapeAttr(c.id)}">View contest</button>
+          <button type="button" class="contest-view-btn" data-view-contest="${escapeAttr(c.id)}">View contest →</button>
         </div>
       </div>`;
   }).join('');
 }
 function contestStandingsHTML(contest, standings) {
   if (!standings.length) {
-    return `<div class="attr-approvals-empty"><p>No credits in this window yet${contest.kind === 'promo' ? ' — coaches can add entries below' : ''}.</p></div>`;
+    return `<div class="contest-empty-fun"><span class="emoji" aria-hidden="true">🏁</span><p style="margin:0 0 6px;font-weight:900;font-size:16px;">Track’s clear — be first!</p><p class="meta-note" style="margin:0;">No credits in this window yet${contest.kind === 'promo' ? ' — coaches can add entries below' : ''}.</p></div>`;
   }
   const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
   const unit = contest.mode === 'wheel' ? 'tickets' : 'pts';
-  return `<div class="contest-standings">${standings.map((r) => `
-    <div class="contest-stand-row${r.repName === me ? ' is-me' : ''}">
-      <div class="contest-stand-rank">${r.place}</div>
-      <div>
-        <div class="contest-stand-name">${escapeHtml(r.repName)}</div>
-        <div class="contest-stand-sub">${fmt(r.sessions, 1)} sess · ${fmt(r.members, 1)} mem${r.manual ? ` · ${r.manual} manual` : ''}</div>
-      </div>
-      <div class="contest-stand-score">${fmt(r.score, 1)} <span style="font-size:11px;color:var(--text-faint);">${unit}</span></div>
-    </div>`).join('')}</div>`;
+  const maxScore = Math.max(...standings.map((r) => Number(r.score) || 0), 0.0001);
+  const runner = contest.mode === 'wheel' ? '🎟️' : '🚀';
+  return `
+    <div class="contest-section-title"><span>${contest.mode === 'wheel' ? '🎟️ Ticket board' : '🏁 Live race'}</span><span>${standings.length} racing</span></div>
+    <div class="contest-race-lanes">${standings.map((r) => {
+      const pct = Math.max(8, Math.round((Number(r.score) / maxScore) * 100));
+      const placeCls = r.place <= 3 ? ` place-${r.place}` : '';
+      const medal = r.place === 1 ? '🥇' : r.place === 2 ? '🥈' : r.place === 3 ? '🥉' : String(r.place);
+      return `
+      <div class="contest-race-lane${r.repName === me ? ' is-me' : ''}${placeCls}">
+        <div class="contest-race-rank" aria-label="Place ${r.place}">${medal}</div>
+        <div>
+          <div class="contest-race-name">${escapeHtml(r.repName)}${r.repName === me ? ' · you' : ''}</div>
+          <div class="contest-race-sub">${fmt(r.sessions, 1)} sess · ${fmt(r.members, 1)} mem${r.manual ? ` · ${r.manual} manual` : ''}</div>
+          <div class="contest-race-track" aria-hidden="true">
+            <div class="contest-race-fill" style="width:${pct}%;">
+              <span class="contest-race-runner">${runner}</span>
+            </div>
+          </div>
+        </div>
+        <div class="contest-race-score">${fmt(r.score, 1)}<span>${unit}</span></div>
+      </div>`;
+    }).join('')}</div>`;
 }
 function contestBoardHTML(contest) {
   if (!contest) {
-    return `<div class="attr-approvals-empty"><p>No contest selected.</p>
-      ${contestCanManage() ? '<button type="button" class="theme-btn" id="contestEmptyCreate">+ Create a contest</button>' : ''}
+    return `<div class="contest-empty-fun">
+      <span class="emoji" aria-hidden="true">🏆</span>
+      <p style="margin:0 0 8px;font-weight:900;font-size:18px;">No contest on the board</p>
+      <p class="meta-note" style="margin:0 0 14px;">Fire up a Power Hour, Morning Mayhem, or Evening Surge.</p>
+      ${contestCanManage() ? '<button type="button" class="contest-view-btn" id="contestEmptyCreate">✨ Create a contest</button>' : ''}
     </div>`;
   }
   const standings = computeContestStandings(contest);
   const myPlace = contestMyPlace(contest, standings);
   const manage = contestCanManage();
+  const theme = contestThemeClass(contest);
   const wheelBlock = contest.mode === 'wheel' ? `
     <div class="contest-wheel-wrap">
-      <div>
+      <div class="contest-wheel-stage">
+        <div class="contest-section-title" style="justify-content:center;"><span>🎡 Spin zone</span></div>
         <div class="contest-wheel-pointer" aria-hidden="true"></div>
         <div class="contest-wheel" id="contestWheel" title="Ticket wheel"></div>
-        ${manage && contest.status === 'active' ? '<button type="button" class="theme-btn" id="contestSpinBtn" style="display:block;margin:12px auto 0;">Spin the wheel</button>' : ''}
-        <div class="meta-note" id="contestSpinResult" style="text-align:center;margin-top:8px;"></div>
+        ${manage && contest.status === 'active' ? '<button type="button" id="contestSpinBtn">🎰 Spin the wheel</button>' : ''}
+        <div id="contestSpinResult"></div>
       </div>
       <div>${contestStandingsHTML(contest, standings)}</div>
     </div>` : contestStandingsHTML(contest, standings);
 
   const coachPanel = manage ? `
     <div class="contest-coach-panel">
-      <div class="m-label" style="margin-bottom:8px;">Coach controls</div>
+      <div class="m-label" style="margin-bottom:8px;">🎛️ Coach booth</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
         <button type="button" class="theme-btn" data-contest-edit="${escapeAttr(contest.id)}">Edit contest</button>
         ${contest.status !== 'ended' ? `<button type="button" class="theme-btn" data-contest-end="${escapeAttr(contest.id)}">End contest</button>` : ''}
         ${contest.externalUrl ? `<a class="theme-btn" href="${escapeAttr(contest.externalUrl)}" target="_blank" rel="noopener">Open external board</a>` : ''}
       </div>
-      <div class="m-label" style="margin-bottom:6px;">Manual add (not Manual Attro — coach adjustment)</div>
+      <div class="m-label" style="margin-bottom:6px;">Manual add (not Manual Attro)</div>
       <div class="contest-form-grid">
         <label>Rep
           <select id="contestManualRep"></select>
@@ -9032,16 +9269,31 @@ function contestBoardHTML(contest) {
       <div class="meta-note" id="contestManualStatus" style="margin-top:6px;"></div>
     </div>` : '';
 
+  const livePill = contest.status === 'active'
+    ? '<span class="contest-live-pill">Live</span>'
+    : `<span class="contest-chip"><strong>${escapeHtml(contest.status)}</strong></span>`;
+
   return `
-    <div class="contest-board-hero">
-      <p class="contest-promo-eyebrow">${contest.kind === 'promo' ? 'Promo / company-wide' : 'Hosted contest'} · ${contest.mode === 'wheel' ? 'Wheel' : 'Race'}</p>
-      <h2>${escapeHtml(contest.name)}</h2>
-      <div class="contest-countdown" data-contest-cd="${escapeAttr(contest.id)}">${escapeHtml(contestCountdownHTML(contest.endAt))}</div>
+    <div class="contest-board-hero ${theme}">
+      <div class="contest-hero-top">
+        <div style="display:flex;gap:12px;align-items:flex-start;min-width:0;flex:1 1 240px;">
+          <div class="contest-hero-icon" aria-hidden="true">${contestThemeIcon(contest)}</div>
+          <div class="contest-hero-copy">
+            ${livePill}
+            <p class="contest-promo-eyebrow" style="margin-top:8px;">${contest.kind === 'promo' ? 'Promo / company-wide' : 'Hosted'} · ${contest.mode === 'wheel' ? 'Wheel' : 'Race'}</p>
+            <h2>${escapeHtml(contest.name)}</h2>
+            <div class="contest-promo-meta" style="margin-top:6px;">${escapeHtml(contestThemeTagline(contest))}</div>
+          </div>
+        </div>
+        <div class="contest-countdown-block">
+          <div class="contest-countdown-label">Time left</div>
+          <div class="contest-countdown" data-contest-cd="${escapeAttr(contest.id)}">${escapeHtml(contestCountdownHTML(contest.endAt))}</div>
+        </div>
+      </div>
       <div class="contest-board-chips">
-        <span class="contest-chip"><strong>${escapeHtml(contestUnitsLabel(contest.units))}</strong></span>
-        <span class="contest-chip"><strong>${escapeHtml(contestStakeLabel(contest))}</strong></span>
+        <span class="contest-chip hot"><strong>${escapeHtml(contestUnitsLabel(contest.units))}</strong></span>
+        <span class="contest-chip hot"><strong>${escapeHtml(contestStakeLabel(contest))}</strong></span>
         <span class="contest-chip">Your place <strong>${escapeHtml(contest.status === 'scheduled' ? 'Soon' : contestPlaceLabel(myPlace))}</strong></span>
-        <span class="contest-chip">Status <strong>${escapeHtml(contest.status)}</strong></span>
       </div>
     </div>
     ${wheelBlock}
@@ -9057,6 +9309,7 @@ function renderContestBoard() {
   const host = document.getElementById('contestBoardHost');
   const title = document.getElementById('contestPageTitle');
   const newBtn = document.getElementById('contestNewBtn');
+  const overlay = document.getElementById('contestOverlay');
   if (newBtn) newBtn.style.display = contestCanManage() ? '' : 'none';
   if (!host) return;
   let contest = CONTEST_CACHE.find((c) => c.id === contestViewId);
@@ -9066,9 +9319,21 @@ function renderContestBoard() {
       || CONTEST_CACHE[0];
     if (contest) contestViewId = contest.id;
   }
-  if (title) title.textContent = contest ? contest.name : 'Contests';
+  if (title) title.textContent = contest ? `${contestThemeIcon(contest)} ${contest.name}` : '🏆 Contest Arena';
+  if (overlay) {
+    overlay.classList.remove('theme-morning', 'theme-power-hour', 'theme-evening');
+    if (contest) overlay.classList.add(contestThemeClass(contest));
+  }
   host.innerHTML = contestBoardHTML(contest);
   populateContestManualRepSelect();
+  // Kick race-bar width transitions after paint.
+  requestAnimationFrame(() => {
+    host.querySelectorAll('.contest-race-fill').forEach((el) => {
+      const w = el.style.width;
+      el.style.width = '0%';
+      requestAnimationFrame(() => { el.style.width = w; });
+    });
+  });
   const emptyCreate = document.getElementById('contestEmptyCreate');
   if (emptyCreate) emptyCreate.addEventListener('click', () => openContestEditModal(null));
 }
@@ -9138,6 +9403,12 @@ function syncContestStakeFields() {
   const wrap = document.getElementById('contestEditStakeAmountWrap');
   if (wrap) wrap.style.display = type === 'money' ? '' : 'none';
 }
+function syncContestEditEmoji() {
+  const emoji = document.querySelector('#contestEditBackdrop .celebration-modal-emoji');
+  if (!emoji) return;
+  const preset = document.getElementById('contestEditPreset')?.value || 'power-hour';
+  emoji.textContent = preset === 'morning' ? '☀️' : preset === 'evening' ? '🌙' : preset === 'power-hour' ? '⚡' : '🏆';
+}
 function openContestEditModal(id) {
   contestEditId = id || '';
   const existing = CONTEST_CACHE.find((c) => c.id === contestEditId);
@@ -9149,6 +9420,7 @@ function openContestEditModal(id) {
     : contestPresetWindow(preset);
   document.getElementById('contestEditName').value = existing?.name || (preset === 'power-hour' ? 'Power Hour' : preset === 'morning' ? 'Morning Mayhem' : preset === 'evening' ? 'Evening Surge' : '');
   document.getElementById('contestEditPreset').value = preset;
+  syncContestEditEmoji();
   document.getElementById('contestEditKind').value = existing?.kind || 'hosted';
   document.getElementById('contestEditMode').value = existing?.mode || 'race';
   document.getElementById('contestEditUnits').value = existing?.units || 'sessions';
@@ -9168,6 +9440,7 @@ function closeContestEditModal() {
   document.getElementById('contestEditBackdrop')?.classList.remove('open');
 }
 document.getElementById('contestEditPreset')?.addEventListener('change', () => {
+  syncContestEditEmoji();
   if (contestEditId) return; // don't clobber edits on existing contests
   const preset = document.getElementById('contestEditPreset').value;
   const win = contestPresetWindow(preset);
