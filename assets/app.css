@@ -1769,35 +1769,9 @@
     animation: none !important;
   }
   body.motion-static .contest-car { transition: none !important; }
-  .recognition-wall-item {
-    padding: 8px 0; border-top: 1px solid var(--divider);
-  }
-  .recognition-wall-item:first-child { border-top: 0; padding-top: 0; }
-  .recognition-wall-meta {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-    font-size: 10.5px; font-weight: 700; color: var(--text-faint);
-    text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 3px;
-  }
-  .recognition-wall-type {
-    display: inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: 0.04em;
-    padding: 1px 6px; border-radius: 4px; text-transform: uppercase;
-  }
-  .recognition-wall-type.is-shoutout {
-    color: #9d174d; background: rgba(244, 114, 182, 0.18);
-  }
-  .recognition-wall-type.is-badge {
-    color: #a16207; background: rgba(250, 204, 21, 0.22);
-  }
   .recognition-wall-text {
     font-size: 12.5px; line-height: 1.4; color: var(--text); font-weight: 600;
   }
-  .recognition-wall-empty {
-    text-align: center; padding: 6px 4px 2px;
-  }
-  .recognition-wall-empty p {
-    margin: 0 0 10px; font-size: 12.5px; line-height: 1.45; color: var(--text-muted); font-weight: 600;
-  }
-  .recognition-wall-empty .theme-btn { width: 100%; justify-content: center; }
   .daily-quote-card {
     background:
       linear-gradient(135deg, rgba(244,114,182,0.12), rgba(99,102,241,0.14) 55%, rgba(56,189,248,0.12)),
@@ -4281,93 +4255,200 @@
   border: none !important; color: #fff !important;
 }
 
-/* —— Recognition Wall: lively one-person spotlight —— */
+/* —— Recognition Wall: soft ground + smooth side-nav rotator —— */
 #recognitionWallCard {
   overflow: hidden;
 }
 .recognition-wall-stage {
   position: relative;
-  min-height: 168px;
 }
-.recognition-wall-spotlight {
+.recognition-wall-ground {
   position: relative;
+  height: 176px;
+  border-radius: 16px;
+  border: 1px solid var(--card-border);
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    linear-gradient(135deg, rgba(244, 114, 182, 0.12), rgba(99, 102, 241, 0.10) 55%, rgba(56, 189, 248, 0.10)),
+    var(--card-bg);
+}
+body.dark .recognition-wall-ground {
+  background:
+    linear-gradient(135deg, rgba(244, 114, 182, 0.14), rgba(99, 102, 241, 0.12) 55%, rgba(56, 189, 248, 0.10)),
+    var(--card-bg);
+}
+.recognition-wall-aurora {
+  position: absolute;
+  inset: -35% -15%;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 22% 40%, rgba(244, 114, 182, 0.18), transparent 42%),
+    radial-gradient(circle at 78% 28%, rgba(250, 204, 21, 0.14), transparent 40%),
+    radial-gradient(circle at 50% 92%, rgba(56, 189, 248, 0.12), transparent 48%);
+  animation: recognitionAuroraDrift 12s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+.recognition-wall-spark {
+  position: absolute;
+  z-index: 1;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(251, 191, 36, 0.7);
+  pointer-events: none;
+  opacity: 0.45;
+  animation: recognitionSparkFloat 4.8s ease-in-out infinite;
+}
+.recognition-wall-spark.s1 { top: 16%; left: 12%; }
+.recognition-wall-spark.s2 { top: 26%; right: 14%; left: auto; background: rgba(244, 114, 182, 0.65); animation-delay: 1s; animation-duration: 5.6s; }
+.recognition-wall-spark.s3 { bottom: 18%; left: 18%; top: auto; background: rgba(56, 189, 248, 0.55); animation-delay: 1.8s; animation-duration: 6s; }
+.recognition-wall-nav {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 3;
+  width: 28%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.recognition-wall-nav.is-prev { left: 0; }
+.recognition-wall-nav.is-next { right: 0; }
+.recognition-wall-nav::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid rgba(15, 23, 42, 0.22);
+  border-bottom: 2px solid rgba(15, 23, 42, 0.22);
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.recognition-wall-nav.is-prev::after {
+  left: 12px;
+  transform: translateY(-50%) rotate(135deg);
+}
+.recognition-wall-nav.is-next::after {
+  right: 12px;
+  transform: translateY(-50%) rotate(-45deg);
+}
+.recognition-wall-nav:hover::after,
+.recognition-wall-nav:focus-visible::after {
+  opacity: 1;
+}
+.recognition-wall-nav.is-prev:hover::after {
+  transform: translateY(-50%) translateX(-2px) rotate(135deg);
+}
+.recognition-wall-nav.is-next:hover::after {
+  transform: translateY(-50%) translateX(2px) rotate(-45deg);
+}
+body.dark .recognition-wall-nav::after {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+.recognition-wall-slide-host {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+.recognition-wall-card {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: 6px;
-  min-height: 168px;
-  padding: 18px 16px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(244, 114, 182, 0.22);
-  overflow: hidden;
-  background:
-    radial-gradient(120% 80% at 50% 0%, rgba(250, 204, 21, 0.22), transparent 55%),
-    linear-gradient(160deg, rgba(244, 114, 182, 0.14), rgba(255, 255, 255, 0.55) 45%, rgba(56, 189, 248, 0.10));
-  isolation: isolate;
+  gap: 5px;
+  padding: 16px 40px 14px;
+  box-sizing: border-box;
+  will-change: transform, opacity;
 }
-.recognition-wall-spotlight.is-badge {
-  border-color: rgba(250, 204, 21, 0.35);
-  background:
-    radial-gradient(120% 80% at 50% 0%, rgba(250, 204, 21, 0.30), transparent 55%),
-    linear-gradient(160deg, rgba(251, 191, 36, 0.18), rgba(255, 255, 255, 0.55) 45%, rgba(244, 114, 182, 0.10));
+.recognition-wall-card.is-enter-next {
+  opacity: 0;
+  transform: translateX(18px);
 }
-.recognition-wall-aurora {
-  position: absolute;
-  inset: -40% -20%;
-  z-index: 0;
-  background:
-    radial-gradient(circle at 20% 40%, rgba(244, 114, 182, 0.35), transparent 42%),
-    radial-gradient(circle at 80% 30%, rgba(250, 204, 21, 0.32), transparent 40%),
-    radial-gradient(circle at 50% 90%, rgba(56, 189, 248, 0.22), transparent 45%);
-  animation: recognitionAuroraDrift 7s ease-in-out infinite alternate;
+.recognition-wall-card.is-enter-prev {
+  opacity: 0;
+  transform: translateX(-18px);
+}
+.recognition-wall-card.is-enter-next.is-in,
+.recognition-wall-card.is-enter-prev.is-in {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 0.42s cubic-bezier(0.22, 1, 0.36, 1), transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.recognition-wall-card.is-leave-next {
+  opacity: 0;
+  transform: translateX(-16px);
+  transition: opacity 0.36s ease, transform 0.36s ease;
   pointer-events: none;
 }
-.recognition-wall-spotlight > *:not(.recognition-wall-aurora):not(.recognition-wall-spark):not(.recognition-wall-progress) {
-  position: relative;
-  z-index: 1;
-}
-.recognition-wall-spark {
-  position: absolute;
-  z-index: 1;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #fbbf24;
-  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.15);
+.recognition-wall-card.is-leave-prev {
+  opacity: 0;
+  transform: translateX(16px);
+  transition: opacity 0.36s ease, transform 0.36s ease;
   pointer-events: none;
-  animation: recognitionSparkFloat 3.2s ease-in-out infinite;
 }
-.recognition-wall-spark.s1 { top: 18%; left: 14%; animation-delay: 0s; }
-.recognition-wall-spark.s2 { top: 28%; right: 16%; left: auto; background: #f472b6; animation-delay: 0.7s; animation-duration: 3.8s; }
-.recognition-wall-spark.s3 { bottom: 22%; left: 22%; top: auto; background: #38bdf8; animation-delay: 1.2s; animation-duration: 4.1s; }
 .recognition-wall-emoji {
-  font-size: 34px;
+  font-size: 32px;
   line-height: 1;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.08));
-  animation: recognitionEmojiBob 2.4s ease-in-out infinite;
+  animation: recognitionEmojiBob 3.2s ease-in-out infinite;
   transform-origin: 50% 80%;
 }
 .recognition-wall-name {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 900;
   letter-spacing: -0.03em;
   color: var(--text);
   line-height: 1.15;
   max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.recognition-wall-spotlight .recognition-wall-text {
+.recognition-wall-text,
+button.recognition-wall-text {
+  appearance: none;
+  -webkit-appearance: none;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
   font-size: 13px;
   line-height: 1.35;
   font-weight: 750;
   color: var(--text);
-  max-width: 22ch;
+  text-align: center;
+  cursor: pointer;
+  min-height: calc(1.35em * 2);
+  max-height: calc(1.35em * 2);
+}
+button.recognition-wall-text:hover,
+button.recognition-wall-text:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 .recognition-wall-from {
   font-size: 11px;
   font-weight: 700;
   color: var(--text-muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .recognition-wall-dots {
   display: flex;
@@ -4385,75 +4466,36 @@
 }
 .recognition-wall-dot.is-active {
   background: #db2777;
-  transform: scale(1.35);
+  transform: scale(1.3);
 }
-.recognition-wall-spotlight.is-badge .recognition-wall-dot.is-active {
+.recognition-wall-card.is-badge .recognition-wall-dot.is-active {
   background: #ca8a04;
 }
-.recognition-wall-progress {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 8px;
-  z-index: 1;
-  height: 3px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.08);
-  overflow: hidden;
-}
-.recognition-wall-progress > span {
-  display: block;
-  height: 100%;
-  width: 100%;
-  transform-origin: left center;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #f472b6, #fbbf24);
-  animation: recognitionProgressFill 5.5s linear forwards;
-}
-.recognition-wall-spotlight.is-badge .recognition-wall-progress > span {
-  background: linear-gradient(90deg, #fbbf24, #f59e0b);
-}
-.recognition-wall-spotlight.is-entering {
-  animation: recognitionSpotlightIn 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-}
-@keyframes recognitionSpotlightIn {
-  from { opacity: 0; transform: translateY(10px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
+body.dark .recognition-wall-dot { background: rgba(255, 255, 255, 0.18); }
 @keyframes recognitionEmojiBob {
-  0%, 100% { transform: translateY(0) rotate(-4deg); }
-  50% { transform: translateY(-7px) rotate(4deg); }
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-5px) rotate(3deg); }
 }
 @keyframes recognitionAuroraDrift {
-  from { transform: translate3d(-4%, -2%, 0) rotate(0deg) scale(1); }
-  to { transform: translate3d(5%, 3%, 0) rotate(8deg) scale(1.08); }
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to { transform: translate3d(3%, 2%, 0) scale(1.04); }
 }
 @keyframes recognitionSparkFloat {
-  0%, 100% { transform: translateY(0) scale(0.85); opacity: 0.35; }
-  50% { transform: translateY(-10px) scale(1.15); opacity: 0.95; }
+  0%, 100% { transform: translateY(0); opacity: 0.25; }
+  50% { transform: translateY(-8px); opacity: 0.7; }
 }
-@keyframes recognitionProgressFill {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
-}
-body.motion-static .recognition-wall-spotlight.is-entering,
 body.motion-static .recognition-wall-aurora,
 body.motion-static .recognition-wall-emoji,
 body.motion-static .recognition-wall-spark,
-body.motion-static .recognition-wall-progress > span {
+body.motion-static .recognition-wall-card.is-enter-next,
+body.motion-static .recognition-wall-card.is-enter-prev,
+body.motion-static .recognition-wall-card.is-leave-next,
+body.motion-static .recognition-wall-card.is-leave-prev {
   animation: none !important;
+  transition: none !important;
   transform: none !important;
+  opacity: 1 !important;
 }
-body.motion-static .recognition-wall-progress > span {
-  transform: scaleX(1) !important;
-}
-body.dark .recognition-wall-spotlight {
-  background:
-    radial-gradient(120% 80% at 50% 0%, rgba(250, 204, 21, 0.16), transparent 55%),
-    linear-gradient(160deg, rgba(244, 114, 182, 0.16), rgba(30, 27, 48, 0.88) 50%, rgba(56, 189, 248, 0.10));
-}
-body.dark .recognition-wall-dot { background: rgba(255, 255, 255, 0.18); }
-body.dark .recognition-wall-progress { background: rgba(255, 255, 255, 0.12); }
 .recognition-wall-cta {
   margin-top: 10px;
 }
@@ -4464,10 +4506,18 @@ body.dark .recognition-wall-progress { background: rgba(255, 255, 255, 0.12); }
 }
 .recognition-wall-empty {
   text-align: center;
-  padding: 10px 6px 4px;
+  padding: 18px 10px;
+  border-radius: 16px;
+  border: 1px solid var(--card-border);
+  background:
+    linear-gradient(135deg, rgba(244, 114, 182, 0.10), rgba(99, 102, 241, 0.08) 55%, rgba(56, 189, 248, 0.08)),
+    var(--card-bg);
+}
+.recognition-wall-empty .recognition-wall-emoji {
+  margin-bottom: 4px;
 }
 .recognition-wall-empty p {
-  margin: 0 0 4px;
+  margin: 0;
   font-size: 12.5px;
   line-height: 1.4;
   color: var(--text-muted);
