@@ -9,6 +9,7 @@ export default async (req: Request, context: Context) => {
   if (auth.response) return auth.response;
 
   const access = await resolveAccess(auth.user?.email);
+  const canManage = !!(access && (access.isFullAdmin || access.isCoach));
   const store = getStore(CONTEST_STORE);
   const { blobs } = await store.list();
   const records = (
@@ -18,12 +19,18 @@ export default async (req: Request, context: Context) => {
   const now = new Date();
   const contests = records
     .map((c) => publicContest(c, now))
+    // Reps never see contests hidden from History; coaches/admins do (to unhide).
+    .filter((c) => {
+      if (!c.hiddenFromHistory) return true;
+      if (c.status !== "ended") return true; // hide flag only applies to history
+      return canManage;
+    })
     .sort((a, b) => String(b.startAt || "").localeCompare(String(a.startAt || "")));
 
   return new Response(
     JSON.stringify({
       contests,
-      canManage: !!(access && (access.isFullAdmin || access.isCoach)),
+      canManage,
     }),
     {
       status: 200,
