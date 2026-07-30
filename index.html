@@ -414,6 +414,86 @@
     margin: 0 0 12px;
   }
   #doubleGoalBanner:empty { display: none; }
+
+  /* --- UX prototype: personal strip, next action, activity filters, view-as topbar --- */
+  .my-pace-strip {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+    margin: 10px 0 4px; padding: 14px 16px; border-radius: 16px;
+    background:
+      linear-gradient(135deg, rgba(99,102,241,0.10), rgba(56,189,248,0.08)),
+      var(--card-bg);
+    border: 1px solid var(--card-border);
+    box-shadow: 0 2px 12px var(--shadow);
+  }
+  .my-pace-strip[hidden] { display: none !important; }
+  .my-pace-strip-main { min-width: 0; flex: 1; }
+  .my-pace-strip-kicker {
+    font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--text-faint); margin-bottom: 4px;
+  }
+  .my-pace-strip-title {
+    font-size: 16px; font-weight: 800; color: var(--text); line-height: 1.25;
+  }
+  .my-pace-strip-meta {
+    margin-top: 4px; font-size: 12.5px; font-weight: 600; color: var(--text-muted);
+  }
+  .my-pace-strip-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .my-pace-strip-actions .theme-btn { margin-top: 0; }
+  .my-pace-strip-pct {
+    font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums;
+    min-width: 64px; text-align: right;
+  }
+
+  .pacer-next-action {
+    margin: 0 0 12px; padding: 12px 14px; border-radius: 14px;
+    background: var(--metric-box-bg); border: 1px solid var(--card-border);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .pacer-next-action[hidden] { display: none !important; }
+  .pacer-next-action-copy { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.35; }
+  .pacer-next-action-copy span { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+  .pacer-next-action .theme-btn { margin-top: 0; }
+
+  .activity-toolbar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin: 0 0 12px;
+  }
+  .activity-filter-input {
+    flex: 1; min-width: 160px; margin: 0; padding: 8px 12px; border-radius: 10px;
+    border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text);
+    font-size: 13px; font-weight: 600;
+  }
+  .activity-filter-tabs {
+    display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px;
+    background: var(--metric-box-bg); border: 1px solid var(--card-border);
+  }
+  .activity-filter-btn {
+    margin-top: 0; border: 0; background: transparent; color: var(--text-muted);
+    border-radius: 999px; padding: 5px 10px; font-size: 11.5px; font-weight: 700; cursor: pointer;
+  }
+  .activity-filter-btn.active {
+    background: var(--card-bg); color: var(--text); box-shadow: 0 1px 3px var(--shadow);
+  }
+  .activity-attro-btn { margin-top: 0; }
+
+  .view-as-topbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin: 0 0 12px; padding: 10px 14px; border-radius: 12px;
+    background: rgba(124,58,237,0.10); border: 1px solid rgba(124,58,237,0.28);
+  }
+  .view-as-topbar[hidden] { display: none !important; }
+  .view-as-topbar-label { font-size: 13px; font-weight: 750; color: #6d28d9; }
+  .view-as-topbar .identity-btn {
+    margin: 0; font-weight: 750; color: #6d28d9; text-decoration: none;
+    background: rgba(124,58,237,0.12); border-radius: 999px; padding: 5px 12px;
+  }
+  body.ux-preview-mode .login-gate { display: none !important; }
+  body.ux-preview-mode { overflow: auto; }
+  .ux-preview-badge {
+    position: fixed; top: 10px; left: 10px; z-index: 9999;
+    background: #111827; color: #fff; font-size: 11px; font-weight: 750;
+    padding: 6px 10px; border-radius: 999px; opacity: 0.88;
+  }
   .pacer-layout-tab {
     flex: 1;
     min-width: 0;
@@ -2038,6 +2118,7 @@
 
   <div class="landing-region landing-region-status" id="landingStatus">
   <div class="pill-row" id="banner"></div>
+  <div class="my-pace-strip" id="myPaceStrip" hidden></div>
   </div>
 
   <!-- Two-column grid ends at the bottom of the team card — the leaderboard
@@ -2142,6 +2223,10 @@
 <div class="detail-overlay" id="clientDetailOverlay">
   <div class="detail-mini-header" id="detailMiniHeader"></div>
   <div class="detail-page">
+    <div class="view-as-topbar" id="viewAsTopbar" hidden>
+      <span class="view-as-topbar-label" id="viewAsTopbarLabel"></span>
+      <button type="button" class="identity-btn" id="viewAsTopbarRevert">Revert to admin</button>
+    </div>
     <div class="detail-header">
       <div class="header-aura" aria-hidden="true"></div>
       <button class="theme-btn" id="detailBackBtn" type="button">← Back to dashboard</button>
@@ -2150,6 +2235,7 @@
       <div class="detail-header-pace" id="detailHeaderPace"></div>
     </div>
     <div id="doubleGoalBanner"></div>
+    <div class="pacer-next-action" id="pacerNextAction" hidden></div>
     <div class="pacer-layout-tabs" id="pacerLayoutTabs" role="tablist" aria-label="Individual Pacer sections">
       <div class="pacer-tab-track">
         <button type="button" class="pacer-layout-tab active" role="tab" aria-selected="true" data-pacer-tab="current">Current</button>
@@ -2171,9 +2257,18 @@
         <div class="detail-net-grid" id="detailNetActuals"></div>
         <div id="detailContent">
           <div class="pacer-section-label">Activity</div>
+          <div class="activity-toolbar">
+            <input type="search" id="activityFilterInput" class="activity-filter-input" placeholder="Filter by client ID…" autocomplete="off">
+            <div class="activity-filter-tabs" id="activityFilterTabs" role="group" aria-label="Activity filter">
+              <button type="button" class="activity-filter-btn active" data-activity-filter="all">All</button>
+              <button type="button" class="activity-filter-btn" data-activity-filter="sold">Sold</button>
+              <button type="button" class="activity-filter-btn" data-activity-filter="refunds">Refunds</button>
+            </div>
+            <button type="button" class="theme-btn activity-attro-btn" id="activityManualAttroBtn">📝 Missing a sale?</button>
+          </div>
           <div class="detail-stats" id="detailStats"></div>
           <div class="detail-grid-2">
-            <div class="detail-panel">
+            <div class="detail-panel" id="detailAttrPanel">
               <div class="detail-panel-head">
                 <span class="detail-panel-title">✅ Attributions</span>
                 <span class="detail-panel-count" id="detailAttrCount"></span>
@@ -2185,7 +2280,7 @@
                 </table>
               </div>
             </div>
-            <div class="detail-panel detail-panel-refund">
+            <div class="detail-panel detail-panel-refund" id="detailRefundPanel">
               <div class="detail-panel-head">
                 <span class="detail-panel-title">↩️ Refunds</span>
                 <span class="detail-panel-count" id="detailRefundCount"></span>
@@ -2918,6 +3013,17 @@ async function saveRoster(newRoster) {
 }
 // Permanent primary admin. Listed admins (ADMIN_LIST_CACHE) get the same access.
 const ADMIN_EMAIL = 'aaron.bunch@varsitytutors.com';
+
+// Local UX preview (?ux-preview=1) — unlocks the dashboard with baked-in data
+// so design changes can be screenshotted without Identity.
+const UX_PREVIEW_REP = 'Becky Ruffer';
+function isUxPreviewMode() {
+  try {
+    return new URLSearchParams(location.search || '').get('ux-preview') === '1';
+  } catch (_) {
+    return false;
+  }
+}
 // Additional admins beyond ADMIN_EMAIL (Aaron), managed from the Admin access
 // card on Edit Monthly Goals. ADMIN_EMAIL itself is never stored here — it's
 // the one permanent admin and can't be removed through this UI. Backed by
@@ -3835,6 +3941,7 @@ function render() {
   renderImprovedBoards();
   renderGoalsForm(goals);
   renderCultureSide(repRows, teamComposite, expectedPct, actuals.asOf, monthName, d, dim);
+  renderMyPaceStrip(expectedPct, d, dim);
   syncLandingGridHeight();
   forceStackTeamExpanded();
   requestAnimationFrame(() => {
@@ -7235,6 +7342,112 @@ function detailEmptyRowHTML(msg) {
   return `<tr><td colspan="4" style="text-align:center; color:var(--text-faint); padding:20px 0;">${msg}</td></tr>`;
 }
 
+let activityFilterMode = 'all'; // all | sold | refunds
+let activityFilterQuery = '';
+let activityFilterRep = '';
+let smartSidePanelAppliedFor = '';
+
+function renderMyPaceStrip(expectedPct, day, dim) {
+  const strip = document.getElementById('myPaceStrip');
+  if (!strip) return;
+  const me = ownRepDisplayName();
+  if (!me) {
+    strip.hidden = true;
+    strip.innerHTML = '';
+    return;
+  }
+  const pacing = computeRepPacing(me);
+  const need = paceNeedByMetric(me, 100);
+  const daysLeft = Math.max((dim || 0) - (day || 0), 0);
+  const pctLabel = pacing.goalIsZero || pacing.current == null ? '—' : fmt(pacing.current, 1) + '%';
+  let next = 'Open your Individual Pacer for the full breakdown.';
+  if (need && (!need.members.done || !need.sessions.done)) {
+    const parts = [];
+    if (!need.members.done) parts.push(need.members.need + ' more member' + (need.members.need === 1 ? '' : 's'));
+    if (!need.sessions.done) parts.push(need.sessions.need + ' more session' + (need.sessions.need === 1 ? '' : 's'));
+    next = 'Still needed to 100%: ' + parts.join(' · ') + '.';
+  } else if (need) {
+    next = 'Both metrics are at 100%+ — finish strong and protect the close.';
+  }
+  strip.hidden = false;
+  strip.innerHTML = `
+    <div class="my-pace-strip-main">
+      <div class="my-pace-strip-kicker">Your pace</div>
+      <div class="my-pace-strip-title">${me}</div>
+      <div class="my-pace-strip-meta">${daysLeft} day${daysLeft === 1 ? '' : 's'} left · expected ${fmt(expectedPct, 0)}% today · ${next}</div>
+    </div>
+    <div class="my-pace-strip-pct">${pctLabel}</div>
+    <div class="my-pace-strip-actions">
+      <button type="button" class="theme-btn large" id="myPaceOpenBtn">Open my Individual Pacer</button>
+    </div>`;
+  document.getElementById('myPaceOpenBtn')?.addEventListener('click', () => {
+    location.hash = 'individual-pacer=' + encodeURIComponent(me);
+  });
+}
+
+function renderPacerNextAction(repName) {
+  const el = document.getElementById('pacerNextAction');
+  if (!el) return;
+  const need = paceNeedByMetric(repName, 100);
+  const pacing = computeRepPacing(repName);
+  if (!need || pacing.goalIsZero) {
+    el.hidden = true;
+    el.innerHTML = '';
+    return;
+  }
+  const behind = !need.members.done || !need.sessions.done;
+  if (behind) {
+    const parts = [];
+    if (!need.members.done) parts.push(need.members.need + ' member' + (need.members.need === 1 ? '' : 's'));
+    if (!need.sessions.done) parts.push(need.sessions.need + ' session' + (need.sessions.need === 1 ? '' : 's'));
+    el.hidden = false;
+    el.innerHTML = `
+      <div class="pacer-next-action-copy">
+        Next up: close the gap to 100%
+        <span>${parts.join(' and ')} still needed.</span>
+      </div>
+      <button type="button" class="theme-btn" id="pacerNextActionNeedBtn">Show Still Needed</button>`;
+    document.getElementById('pacerNextActionNeedBtn')?.addEventListener('click', () => {
+      paceNeedSideCollapsed = false;
+      saveJSON(PACE_NEED_SIDE_COLLAPSED_KEY, false);
+      syncMetricsSidePanel(repName);
+      document.getElementById('paceNeedSideToggle')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  } else {
+    el.hidden = false;
+    el.innerHTML = `
+      <div class="pacer-next-action-copy">
+        You’re at 100% on Members and Sessions
+        <span>Check Bonus Payout and keep the finish clean.</span>
+      </div>
+      <button type="button" class="theme-btn" id="pacerNextActionBonusBtn">Show Bonus</button>`;
+    document.getElementById('pacerNextActionBonusBtn')?.addEventListener('click', () => {
+      bonusSideCollapsed = false;
+      saveJSON(BONUS_SIDE_COLLAPSED_KEY, false);
+      syncMetricsSidePanel(repName);
+      document.getElementById('bonusSideToggle')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }
+}
+
+function applySmartSidePanelDefaults(repName) {
+  // Only auto-open the relevant section once per rep/session open — don't fight manual toggles.
+  if (smartSidePanelAppliedFor === repName) return;
+  smartSidePanelAppliedFor = repName;
+  const need = paceNeedByMetric(repName, 100);
+  if (!need) return;
+  const stillChasing = !need.members.done || !need.sessions.done;
+  if (stillChasing) {
+    paceNeedSideCollapsed = false;
+    bonusSideCollapsed = true;
+    rankSideCollapsed = true;
+  } else {
+    bonusSideCollapsed = false;
+    paceNeedSideCollapsed = true;
+    rankSideCollapsed = true;
+  }
+}
+
 /** Fill Activity stats + attribution/refund tables for an Individual Pacer. */
 function fillDetailActivity(repName) {
   const detailContent = document.getElementById('detailContent');
@@ -7245,6 +7458,7 @@ function fillDetailActivity(repName) {
   if (!detailContent || !statsEl || !attrBody || !refundBody) return;
 
   detailContent.style.removeProperty('display');
+  activityFilterRep = repName;
   const actuals = loadActuals();
   const items = (actuals.perRep && actuals.perRep[repName] && actuals.perRep[repName].items) || [];
   const sorted = items
@@ -7256,8 +7470,16 @@ function fillDetailActivity(repName) {
     })
     .map((x) => x.it);
   const isRefund = (it) => (Number(it.members) || 0) < 0 || (Number(it.sessions) || 0) < 0;
-  const attributions = sorted.filter(it => !isRefund(it));
-  const refunds = sorted.filter(isRefund);
+  const q = String(activityFilterQuery || '').trim().toLowerCase();
+  const matchesQuery = (it) => {
+    if (!q) return true;
+    const id = String((it && (it.clientId || it.client_id)) || '').toLowerCase();
+    return id.includes(q);
+  };
+  let attributions = sorted.filter(it => !isRefund(it) && matchesQuery(it));
+  let refunds = sorted.filter(it => isRefund(it) && matchesQuery(it));
+  if (activityFilterMode === 'sold') refunds = [];
+  if (activityFilterMode === 'refunds') attributions = [];
   const sum = (arr, key) => arr.reduce((s, it) => s + (Number(it[key]) || 0), 0);
 
   if (summaryEl) {
@@ -7275,8 +7497,17 @@ function fillDetailActivity(repName) {
   const refundCount = document.getElementById('detailRefundCount');
   if (attrCount) attrCount.textContent = attributions.length + ' line item' + (attributions.length === 1 ? '' : 's');
   if (refundCount) refundCount.textContent = refunds.length + ' line item' + (refunds.length === 1 ? '' : 's');
-  attrBody.innerHTML = attributions.length ? attributions.map(detailRowHTML).join('') : detailEmptyRowHTML('No attributions');
-  refundBody.innerHTML = refunds.length ? refunds.map(detailRowHTML).join('') : detailEmptyRowHTML('No refunds 🎉');
+  attrBody.innerHTML = attributions.length ? attributions.map(detailRowHTML).join('') : detailEmptyRowHTML(q ? 'No matching attributions' : 'No attributions');
+  refundBody.innerHTML = refunds.length ? refunds.map(detailRowHTML).join('') : detailEmptyRowHTML(q ? 'No matching refunds' : 'No refunds 🎉');
+  const attrPanel = document.getElementById('detailAttrPanel');
+  const refundPanel = document.getElementById('detailRefundPanel');
+  if (attrPanel) attrPanel.style.display = activityFilterMode === 'refunds' ? 'none' : '';
+  if (refundPanel) refundPanel.style.display = activityFilterMode === 'sold' ? 'none' : '';
+  document.querySelectorAll('#activityFilterTabs .activity-filter-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.getAttribute('data-activity-filter') === activityFilterMode);
+  });
+  const filterInput = document.getElementById('activityFilterInput');
+  if (filterInput && filterInput.value !== activityFilterQuery) filterInput.value = activityFilterQuery;
   refreshDetailAttributions(repName);
 }
 
@@ -7934,9 +8165,17 @@ function renderClientDetail(opts) {
   }
 
   // Activity ledgers (inside Current / .pacer-tab-pace) — fill early and always.
+  if (!preserveScroll) {
+    activityFilterMode = 'all';
+    activityFilterQuery = '';
+    smartSidePanelAppliedFor = '';
+  }
+  applySmartSidePanelDefaults(repName);
   fillDetailActivity(repName);
+  renderPacerNextAction(repName);
   try { syncLastMonthPacerTab(repName); } catch (e) { console.warn('Last Month tab sync failed:', e); }
   syncMetricsSidePanel(repName);
+  syncViewAsTopbar();
   // Confidentiality gate for the chart's $ view — hide the option entirely for
   // a viewer who shouldn't see payout, and if they were somehow left on
   // "earnings" mode (e.g. Aaron flips the preview role while already on this
@@ -8882,6 +9121,7 @@ function personalGoalSideHTML(repDisplay) {
   </div>`;
 }
 function needsPersonalGoalGate(repDisplay) {
+  if (isUxPreviewMode()) return false;
   return ownRepDisplayName() === repDisplay && !getPersonalGoal(repDisplay);
 }
 function openPersonalGoalGate(repDisplay) {
@@ -9059,10 +9299,12 @@ document.getElementById('detailSprintLink')?.addEventListener('click', () => ope
 // ADMIN_LIST_CACHE (admin-list Blobs). Sales Coaches live in COACH_LIST_CACHE
 // (coach-list Blobs) — elevated read only, never writes / $ payouts.
 function currentUserEmail() {
+  if (isUxPreviewMode()) return 'ux.preview@varsitytutors.com';
   const user = window.netlifyIdentity && netlifyIdentity.currentUser();
   return user && user.email ? String(user.email).toLowerCase() : null;
 }
 function isRealAdmin() {
+  if (isUxPreviewMode()) return true;
   const email = currentUserEmail();
   return !!email && isAdminEmail(email);
 }
@@ -9078,6 +9320,7 @@ function canViewTeamDetails() {
   return isAdminEmail(email) || isLimitedAdminEmail(email);
 }
 function canViewClientDetail(repDisplay) {
+  if (isUxPreviewMode()) return true;
   const email = currentUserEmail();
   if (!email) return false;
   // View as: use that person's access (own pacer, or coach/admin-level if their
@@ -9174,9 +9417,23 @@ function realOwnRepDisplayName() {
   return null;
 }
 function ownRepDisplayName() {
+  if (isUxPreviewMode()) return UX_PREVIEW_REP;
   const viewAs = getViewAsRepRaw();
   if (viewAs) return viewAs;
   return realOwnRepDisplayName();
+}
+function syncViewAsTopbar() {
+  const bar = document.getElementById('viewAsTopbar');
+  const label = document.getElementById('viewAsTopbarLabel');
+  if (!bar) return;
+  const viewAs = getViewAsRepRaw();
+  if (viewAs && isRealAdmin()) {
+    bar.hidden = false;
+    if (label) label.textContent = 'Viewing as ' + viewAs + ' — you have their access until you revert.';
+  } else {
+    bar.hidden = true;
+    if (label) label.textContent = '';
+  }
 }
 function syncViewAsChrome() {
   // Real admins always keep View as / Revert in the footer, even while impersonating.
@@ -9203,6 +9460,7 @@ function syncViewAsChrome() {
       pill.classList.remove('show');
     }
   });
+  syncViewAsTopbar();
 }
 
 function syncAttrRepSelect() {
@@ -9324,6 +9582,7 @@ function setGoogleButtonState({ disabled, label }) {
 }
 
 function lockAppToLoginGate() {
+  if (isUxPreviewMode()) return;
   document.body.classList.remove('app-ready');
 }
 
@@ -9519,6 +9778,7 @@ showLoginGateSetup(false);
 setGoogleButtonState({ disabled: false, label: 'Continue with Google' });
 
 (async function bootAuth() {
+  if (isUxPreviewMode()) return;
   const diag = await diagnoseIdentityBackend();
   applyIdentityBackendDiagnosis(diag);
 
@@ -9569,12 +9829,54 @@ async function boot() {
   APPROVED_TOTALS = approved;
   await fetchLiveActuals();
   await Promise.all([fetchPersonalGoals(), fetchTeamSchedules()]);
+  // UX preview: ensure the demo rep has a personal goal so the gate never blocks.
+  if (isUxPreviewMode() && !getPersonalGoal(UX_PREVIEW_REP)) {
+    PERSONAL_GOALS_CACHE[UX_PREVIEW_REP] = {
+      kind: 'compositePct', target: 115, setAt: new Date().toISOString(), setBy: 'ux-preview',
+    };
+  }
   render();
   initSip();
   renderClientDetail();
   renderTeamDetailsOverlay();
-  startLiveActualsPolling();
+  if (!isUxPreviewMode()) startLiveActualsPolling();
 }
+
+// Activity filters + contextual Manual Attribution (Individual Pacer).
+document.getElementById('activityFilterTabs')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-activity-filter]');
+  if (!btn) return;
+  activityFilterMode = btn.getAttribute('data-activity-filter') || 'all';
+  if (activityFilterRep) fillDetailActivity(activityFilterRep);
+});
+document.getElementById('activityFilterInput')?.addEventListener('input', (e) => {
+  activityFilterQuery = e.target.value || '';
+  if (activityFilterRep) fillDetailActivity(activityFilterRep);
+});
+document.getElementById('activityManualAttroBtn')?.addEventListener('click', () => {
+  location.hash = 'manual-attribution';
+});
+document.getElementById('viewAsTopbarRevert')?.addEventListener('click', () => setViewAsRep(''));
+
+// Local UX preview bootstrap — unlock without Identity for screenshots.
+(function bootUxPreview() {
+  if (!isUxPreviewMode()) return;
+  document.body.classList.add('ux-preview-mode', 'app-ready');
+  if (!document.getElementById('uxPreviewBadge')) {
+    const badge = document.createElement('div');
+    badge.id = 'uxPreviewBadge';
+    badge.className = 'ux-preview-badge';
+    badge.textContent = 'UX preview · local';
+    document.body.appendChild(badge);
+  }
+  const run = () => {
+    if (appBooted) return;
+    appBooted = true;
+    boot();
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})();
 </script>
 </body>
 </html>
