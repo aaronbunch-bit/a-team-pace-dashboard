@@ -1220,11 +1220,11 @@
   /* Manual Attribution page tabs + card queues */
   .attr-page-shell { display: flex; flex-direction: column; gap: 14px; }
   .attr-page-tabs {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
-    padding: 6px;
-    border-radius: 16px;
+    padding: 8px;
+    border-radius: 18px;
     background: var(--metric-box-bg);
     border: 1px solid var(--card-border);
   }
@@ -1233,14 +1233,20 @@
     border: 1px solid transparent;
     background: transparent;
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 800;
-    padding: 10px 14px;
-    border-radius: 12px;
+    padding: 14px 18px;
+    min-height: 52px;
+    border-radius: 14px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+  }
+  @media (max-width: 640px) {
+    .attr-page-tabs { grid-template-columns: 1fr; }
   }
   .attr-page-tab:hover { color: var(--text); background: var(--card-bg); }
   .attr-page-tab.active {
@@ -1306,18 +1312,44 @@
     padding: 18px 18px 16px;
   }
   .attr-submit-card h2 { margin: 0 0 6px; }
-  .attr-onbehalf-note {
+  .attr-rep-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .attr-info-btn {
+    margin: 0;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border-radius: 999px;
+    border: 1px solid var(--card-border);
+    background: var(--metric-box-bg);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 800;
+    font-style: italic;
+    font-family: Georgia, 'Times New Roman', serif;
+    line-height: 1;
+    cursor: help;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    margin-top: 8px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 11.5px;
+    justify-content: center;
+  }
+  .attr-info-btn:hover,
+  .attr-info-btn:focus-visible {
+    color: var(--text);
+    border-color: var(--text-faint);
+  }
+  .attr-client-url {
+    word-break: break-all;
+    font-size: 12.5px;
     font-weight: 700;
-    color: var(--text-muted);
-    background: var(--metric-box-bg);
-    border: 1px solid var(--card-border);
+  }
+  .attr-export-btn {
+    margin: 0;
+    white-space: nowrap;
   }
   .attr-status-row {
     display: flex;
@@ -1325,6 +1357,28 @@
     align-items: center;
     gap: 8px;
     margin-top: 8px;
+  }
+  .attr-timestamps {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+  }
+  .attr-timestamp {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-faint);
+    line-height: 1.35;
+  }
+  .attr-timestamp strong {
+    color: var(--text-muted);
+    font-weight: 800;
+  }
+  .attr-status-cell .attr-timestamp {
+    display: block;
+    white-space: normal;
+    margin-top: 4px;
+    font-size: 10.5px;
   }
   /* Pending / actioned card queues */
   .attr-approvals-list {
@@ -3080,7 +3134,7 @@
 <div class="detail-overlay" id="manualAttroOverlay">
   <div class="detail-page">
     <div class="detail-header">
-      <button class="theme-btn" id="attroBackBtn" type="button">← Back to dashboard</button>
+      <button class="theme-btn" id="attroBackBtn" type="button">← Dashboard</button>
       <h2 id="attroPageTitle">Manual Attribution</h2>
     </div>
     <div class="card" id="attributionSignedOutNote">
@@ -3189,6 +3243,7 @@
             <label>Month
               <select id="attrMonthFilter"></select>
             </label>
+            <button type="button" class="theme-btn attr-export-btn" id="attrExportApprovedBtn" style="display:none;" title="Export approved requests for the selected month">Export approvals CSV</button>
           </div>
         </div>
         <div class="meta-note" id="attrActionedStatus" style="margin:0 0 10px;"></div>
@@ -3198,18 +3253,18 @@
   </div>
 </div>
 
-<!-- Reject Manual Attribution — comment required. -->
+<!-- Admin decision modal — note required for approve/reject; optional for reopen. -->
 <div class="celebration-modal-backdrop" id="attrRejectBackdrop">
-  <div class="celebration-modal" style="text-align:left; max-width:440px;">
-    <div class="celebration-modal-emoji" style="text-align:center;">✗</div>
-    <div class="celebration-modal-title" style="text-align:center;">Reject request</div>
+  <div class="celebration-modal" style="text-align:left; max-width:460px;">
+    <div class="celebration-modal-emoji" style="text-align:center;" id="attrDecisionEmoji">✓</div>
+    <div class="celebration-modal-title" style="text-align:center;" id="attrDecisionTitle">Review request</div>
     <div class="celebration-modal-body" id="attrRejectSummary" style="margin-bottom:12px;"></div>
     <label style="display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-      Comment for the rep <span style="color:#dc2626; text-transform:none; letter-spacing:0;">(required)</span>
-      <textarea id="attrRejectComment" style="min-height:90px; font-size:13px; font-weight:600; text-transform:none; letter-spacing:normal; color:var(--text); padding:8px 10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg); font-family:inherit;" placeholder="Explain why this was rejected so they can fix and resubmit…"></textarea>
+      <span id="attrDecisionNoteLabel">Decision note <span style="color:#dc2626; text-transform:none; letter-spacing:0;">(required)</span></span>
+      <textarea id="attrRejectComment" style="min-height:90px; font-size:13px; font-weight:600; text-transform:none; letter-spacing:normal; color:var(--text); padding:8px 10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg); font-family:inherit;" placeholder="Add a short note for the record…"></textarea>
     </label>
     <div class="meta-note" id="attrRejectStatus" style="margin-top:8px;"></div>
-    <button type="button" class="celebration-modal-close reject-btn" id="attrRejectConfirm" style="margin-top:14px; width:100%;">Reject request</button>
+    <button type="button" class="celebration-modal-close" id="attrRejectConfirm" style="margin-top:14px; width:100%;">Confirm</button>
     <button type="button" class="celebration-modal-mute" id="attrRejectCancel">Cancel</button>
   </div>
 </div>
@@ -9362,7 +9417,11 @@ document.getElementById('detailManualAttroBtn')?.addEventListener('click', () =>
     : 'manual-attribution';
 });
 document.getElementById('attroBackBtn').addEventListener('click', () => {
-  if (location.hash) history.back(); else { document.getElementById('manualAttroOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
+  // Hard return to the landing dashboard (not browser history).
+  history.replaceState(null, '', location.pathname + location.search);
+  document.getElementById('manualAttroOverlay')?.classList.remove('open');
+  if (typeof syncOverlayBodyScroll === 'function') syncOverlayBodyScroll();
+  window.scrollTo(0, 0);
 });
 document.getElementById('attrPageTabs')?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-attr-tab]');
@@ -9970,7 +10029,12 @@ async function authedFetch(path, options) {
   opts.headers = Object.assign({ Authorization: 'Bearer ' + token }, options && options.headers);
   const res = await fetch(path, opts);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+  if (!res.ok) {
+    const err = new Error(data.error || ('Request failed (' + res.status + ')'));
+    err.status = res.status;
+    err.payload = data;
+    throw err;
+  }
   return data;
 }
 
@@ -9986,6 +10050,47 @@ function attrStatusPill(status, reviewComment) {
     ? `<span class="attr-review-comment">Admin: ${escapeHtml(reviewComment)}</span>`
     : '';
   return `<span class="status-pill small ${cls}">${label}</span>${noteHtml}`;
+}
+/** Format Manual Attribution timestamps in Central Time. */
+function formatAttrTimestamp(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  try {
+    return d.toLocaleString('en-US', {
+      timeZone: TEAM_TIME_ZONE,
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch (_) {
+    return d.toLocaleString();
+  }
+}
+function attrTimestampsHTML(r, opts) {
+  const compact = !!(opts && opts.compact);
+  const lines = [];
+  if (r.submittedAt) {
+    lines.push(`<div class="attr-timestamp"><strong>Submitted</strong> ${escapeHtml(formatAttrTimestamp(r.submittedAt))}</div>`);
+  }
+  if (r.updatedAt && r.updatedAt !== r.submittedAt && r.updatedAt !== r.reviewedAt && r.updatedAt !== r.resubmittedAt) {
+    lines.push(`<div class="attr-timestamp"><strong>Updated</strong> ${escapeHtml(formatAttrTimestamp(r.updatedAt))}</div>`);
+  }
+  if (r.resubmittedAt) {
+    lines.push(`<div class="attr-timestamp"><strong>Resubmitted</strong> ${escapeHtml(formatAttrTimestamp(r.resubmittedAt))}</div>`);
+  }
+  if (r.status === 'approved' && r.reviewedAt) {
+    lines.push(`<div class="attr-timestamp"><strong>Approved</strong> ${escapeHtml(formatAttrTimestamp(r.reviewedAt))}${r.reviewedBy ? ` · ${escapeHtml(r.reviewedBy)}` : ''}</div>`);
+  } else if (r.status === 'rejected' && r.reviewedAt) {
+    lines.push(`<div class="attr-timestamp"><strong>Rejected</strong> ${escapeHtml(formatAttrTimestamp(r.reviewedAt))}${r.reviewedBy ? ` · ${escapeHtml(r.reviewedBy)}` : ''}</div>`);
+  } else if (r.reviewedAt && r.status !== 'pending') {
+    lines.push(`<div class="attr-timestamp"><strong>Reviewed</strong> ${escapeHtml(formatAttrTimestamp(r.reviewedAt))}${r.reviewedBy ? ` · ${escapeHtml(r.reviewedBy)}` : ''}</div>`);
+  }
+  if (!lines.length) return '';
+  if (compact) return lines.join('');
+  return `<div class="attr-timestamps">${lines.join('')}</div>`;
 }
 
 function isBucaAttrReason(r) {
@@ -10070,7 +10175,7 @@ function attrDeleteBtnHTML(r) {
   return `<button type="button" class="attr-delete-btn" data-delete-attr="${escapeAttr(r.id)}" title="Delete this request" aria-label="Delete Manual Attribution request">🗑️</button>`;
 }
 function attrStatusCellHTML(r) {
-  return `<div class="attr-status-cell">${attrStatusPill(r.status, r.reviewComment)}${attrEditBtnHTML(r)}${attrDeleteBtnHTML(r)}</div>`;
+  return `<div class="attr-status-cell">${attrStatusPill(r.status, r.reviewComment)}${attrTimestampsHTML(r, { compact: true })}${attrEditBtnHTML(r)}${attrDeleteBtnHTML(r)}</div>`;
 }
 
 // Cached from the last successful /api/attributions/list fetch, so the month
@@ -10130,20 +10235,30 @@ function syncAttrQueueCopy() {
   const actionedNote = document.getElementById('attrActionedNote');
   const pendingHeading = document.getElementById('attrPendingHeading');
   const actionedHeading = document.getElementById('attrActionedHeading');
+  const submitIntro = document.getElementById('attrSubmitIntro');
+  const submitTab = document.querySelector('#attrPageTabs [data-attr-tab="submit"]');
+  const exportBtn = document.getElementById('attrExportApprovedBtn');
   if (pendingHeading) pendingHeading.textContent = team ? 'Pending' : 'Your pending';
   if (actionedHeading) actionedHeading.textContent = team ? 'Actioned' : 'Your actioned';
+  if (submitTab) submitTab.textContent = team ? 'Submit' : 'New request';
+  if (submitIntro) {
+    submitIntro.textContent = team
+      ? 'Submit credit for a rep. Pick who receives it — the request is logged under that person, even if you submit for them.'
+      : 'Ask for credit the system missed. Your request lands in Pending until an admin reviews it.';
+  }
   if (pendingNote) {
     pendingNote.textContent = admin
-      ? 'Team requests waiting for your decision. Approve or reject below — reject needs a short comment.'
+      ? 'Team requests waiting for your decision. Approve and reject both need a short note.'
       : team
         ? 'Open team requests. Admins approve or reject; you can still edit or delete when allowed.'
         : 'Your open requests waiting for an admin decision. Edit anytime before they’re reviewed.';
   }
   if (actionedNote) {
     actionedNote.textContent = team
-      ? 'Approved and rejected team requests. Admins can still edit approved credit.'
+      ? 'Approved and rejected team requests. Admins can flip decisions or return items to pending. Export ships approvals only.'
       : 'Your approved and rejected requests. Rejected items can be edited and will return to Pending.';
   }
+  if (exportBtn) exportBtn.style.display = team ? '' : 'none';
 }
 function syncAttrTabCounts() {
   const pendingN = pendingAttrRecords().length;
@@ -10162,39 +10277,67 @@ function attrApprovalsSkeletonHTML(count) {
       <div class="skeleton-bar" style="width:70%; height:12px;"></div>
     </div>`).join('');
 }
-function attrOnBehalfNoteHTML(r) {
+function attrSubmitterInfoHTML(r) {
   const initiated = String(r.initiatedBy || '').trim();
   const repEmail = String(r.repEmail || '').trim().toLowerCase();
   if (!initiated) return '';
   if (!r.submittedOnBehalf && initiated.toLowerCase() === repEmail) return '';
-  return `<span class="attr-onbehalf-note">Submitted by ${escapeHtml(initiated)} on their behalf</span>`;
+  const tip = `Submitted on behalf by ${initiated}`;
+  return `<button type="button" class="attr-info-btn has-tip" data-tip="${escapeAttr(tip)}" title="${escapeAttr(tip)}" aria-label="${escapeAttr(tip)}">i</button>`;
+}
+function attrClientLinkHTML(r) {
+  const url = String(r.clientLink || '').trim();
+  if (url) {
+    return `<a class="attr-client-url" href="${escapeAttr(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`;
+  }
+  if (r.clientId) return escapeHtml(String(r.clientId));
+  return '—';
+}
+function attrDecisionActionsHTML(r, mode) {
+  const admin = !!(lastAttrIsAdmin || (typeof isRealAdmin === 'function' && isRealAdmin()));
+  if (!admin || !r || !r.id) return '';
+  const id = escapeAttr(r.id);
+  const status = r.status || 'pending';
+  if (mode === 'pending' || status === 'pending') {
+    return `
+      <button class="approve-btn" data-review="${id}" data-action="approve" type="button">Approve</button>
+      <button class="reject-btn" data-review="${id}" data-action="reject" type="button">Reject</button>`;
+  }
+  if (status === 'approved') {
+    return `
+      <button class="reject-btn" data-review="${id}" data-action="reject" type="button">Change to rejected</button>
+      <button class="theme-btn" data-review="${id}" data-action="reopen" type="button">Return to pending</button>`;
+  }
+  if (status === 'rejected') {
+    return `
+      <button class="approve-btn" data-review="${id}" data-action="approve" type="button">Change to approved</button>
+      <button class="theme-btn" data-review="${id}" data-action="reopen" type="button">Return to pending</button>`;
+  }
+  return '';
 }
 function attrRequestCardHTML(r, mode) {
   const reason = r.adjustmentReason || r.reason || 'Manual Attribution';
-  const linkHtml = r.clientLink
-    ? `<a href="${escapeAttr(r.clientLink)}" target="_blank" rel="noopener">View client page</a>`
-    : escapeHtml(r.clientId || 'No client page link');
-  const showReviewActions = mode === 'pending' && !!(lastAttrIsAdmin || (typeof isRealAdmin === 'function' && isRealAdmin()));
-  const statusHtml = mode === 'actioned'
-    ? `<div class="attr-status-row">${attrStatusPill(r.status, r.reviewComment)}</div>`
-    : '';
-  const reviewMeta = (mode === 'actioned' && r.reviewedBy)
-    ? `<div class="attr-approval-meta-item">
-        <span class="attr-approval-meta-label">Reviewed by</span>
-        <div class="attr-approval-meta-val">${escapeHtml(r.reviewedBy)}${r.reviewedAt ? ` · ${escapeHtml(String(r.reviewedAt).slice(0, 10))}` : ''}</div>
-      </div>`
-    : '';
+  const statusHtml = `<div class="attr-status-row">${attrStatusPill(r.status || 'pending', r.reviewComment)}</div>`;
   const bucaLinkEdit = mode === 'actioned' && canEditAttrClientLink(r)
     ? `<button type="button" class="theme-btn attr-edit-link-btn" data-edit-attr-link="${escapeAttr(r.id)}" title="Update client page link">Update link</button>`
+    : '';
+  const adminNote = r.reviewComment
+    ? `<div class="attr-approval-comments">
+        <span class="attr-approval-meta-label">Admin note</span>
+        <p class="attr-approval-comments-body">${escapeHtml(r.reviewComment)}</p>
+      </div>`
     : '';
   return `
     <article class="attr-approval-card" data-attr-id="${escapeAttr(r.id)}">
       <div class="attr-approval-top">
         <div class="attr-approval-who">
-          <h3 class="attr-approval-rep">${escapeHtml(r.repName || 'Rep')}</h3>
+          <div class="attr-rep-line">
+            <h3 class="attr-approval-rep">${escapeHtml(r.repName || 'Rep')}</h3>
+            ${attrSubmitterInfoHTML(r)}
+          </div>
           <span class="attr-approval-reason">${escapeHtml(reason)}</span>
-          ${attrOnBehalfNoteHTML(r)}
           ${statusHtml}
+          ${attrTimestampsHTML(r)}
         </div>
         <div class="attr-approval-credit">
           <div class="attr-credit-chip">
@@ -10208,25 +10351,22 @@ function attrRequestCardHTML(r, mode) {
         </div>
       </div>
       <div class="attr-approval-meta">
-        <div class="attr-approval-meta-item">
+        <div class="attr-approval-meta-item" style="grid-column:1/-1;">
           <span class="attr-approval-meta-label">Client page</span>
-          <div class="attr-approval-meta-val">${linkHtml}${bucaLinkEdit ? ` ${bucaLinkEdit}` : ''}</div>
+          <div class="attr-approval-meta-val">${attrClientLinkHTML(r)}${bucaLinkEdit ? ` ${bucaLinkEdit}` : ''}</div>
         </div>
         <div class="attr-approval-meta-item">
           <span class="attr-approval-meta-label">Phone or email</span>
           <div class="attr-approval-meta-val">${escapeHtml(r.contact || '—')}</div>
         </div>
-        ${reviewMeta}
       </div>
       <div class="attr-approval-comments">
         <span class="attr-approval-meta-label">Submitter comments</span>
         <p class="attr-approval-comments-body">${escapeHtml(r.comments || '—')}</p>
       </div>
+      ${adminNote}
       <div class="attr-approvals-actions">
-        ${showReviewActions ? `
-          <button class="approve-btn" data-review="${escapeAttr(r.id)}" data-action="approve" type="button">Approve</button>
-          <button class="reject-btn" data-review="${escapeAttr(r.id)}" data-action="reject" type="button">Reject</button>
-        ` : ''}
+        ${attrDecisionActionsHTML(r, mode)}
         ${attrEditBtnHTML(r)}
         ${attrDeleteBtnHTML(r)}
       </div>
@@ -10316,6 +10456,90 @@ async function refreshMyAttributions() {
 
 document.getElementById('attrMonthFilter')?.addEventListener('change', renderActionedAttrQueue);
 document.getElementById('attrActionedStatusFilter')?.addEventListener('change', renderActionedAttrQueue);
+
+/** Spreadsheet export labels mapped from in-app adjustment reasons. */
+const ATTR_EXPORT_REASON_MAP = {
+  'BUCA / Class Wallet': 'Corporate, BUCA or Class Wallet',
+  'Duplicate Lead Page': 'Duplicate Page',
+  'No Attro Given in Flex': 'No Attro Given (Self Convert or Guided Enrollment)',
+  'Shifting Attro Between Reps': 'Shifting Attro Between Reps',
+  'Cancellation Error': 'Cancellation Error (Void + repurchase, used all sessions)',
+};
+function attrExportReasonLabel(reason) {
+  const raw = String(reason || '').trim();
+  return ATTR_EXPORT_REASON_MAP[raw] || raw || '';
+}
+function csvEscapeAttr(value) {
+  const s = String(value == null ? '' : value);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+function attrExportNotes(r) {
+  const parts = [];
+  if (r.comments) parts.push(String(r.comments).trim());
+  if (r.reviewComment) parts.push('Admin: ' + String(r.reviewComment).trim());
+  if (r.submittedAt) parts.push('Submitted ' + formatAttrTimestamp(r.submittedAt));
+  if (r.reviewedAt) parts.push((r.status === 'approved' ? 'Approved ' : 'Reviewed ') + formatAttrTimestamp(r.reviewedAt));
+  return parts.filter(Boolean).join(' | ');
+}
+function approvedAttrRecordsForExport() {
+  const monthFilter = document.getElementById('attrMonthFilter')?.value || 'all';
+  return (lastAttrRecords || []).filter((r) => {
+    if (!r || r.status !== 'approved') return false;
+    if (monthFilter !== 'all' && attrMonthKey(r) !== monthFilter) return false;
+    return true;
+  });
+}
+function buildApprovedAttrCsv(records) {
+  const headers = [
+    'Rep',
+    'Manager Name',
+    '# Net Monthly Hours Sold Adj',
+    '# Expert Net Memberships Sold Adj',
+    '# ISC Gross Memberships Sold Adj',
+    'Net Bookings Sold',
+    'Adjustment Reason',
+    'URL',
+    'Notes',
+  ];
+  const rows = records.map((r) => [
+    r.repName || '',
+    '', // Manager not stored on roster/goals yet
+    r.sessions != null ? Number(r.sessions) : '',
+    r.members != null ? Number(r.members) : '',
+    '', // ISC gross not captured in Manual Attribution
+    '', // Net bookings $ not captured in Manual Attribution
+    attrExportReasonLabel(r.adjustmentReason || r.reason),
+    r.clientLink || '',
+    attrExportNotes(r),
+  ]);
+  return [headers, ...rows].map((row) => row.map(csvEscapeAttr).join(',')).join('\r\n') + '\r\n';
+}
+function downloadApprovedAttrCsv() {
+  const team = !!(lastAttrCanViewTeam || (typeof canViewTeamDetails === 'function' && canViewTeamDetails()));
+  if (!team) {
+    alert('Admin or Sales Coach access is required to export.');
+    return;
+  }
+  const records = approvedAttrRecordsForExport();
+  if (!records.length) {
+    alert('No approved requests in the selected month filter to export.');
+    return;
+  }
+  const monthFilter = document.getElementById('attrMonthFilter')?.value || 'all';
+  const stamp = monthFilter === 'all' ? teamTodayMonthKey() : monthFilter;
+  const csv = buildApprovedAttrCsv(records);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `manual-attribution-approvals-${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+document.getElementById('attrExportApprovedBtn')?.addEventListener('click', downloadApprovedAttrCsv);
 
 document.getElementById('attrReasonSelect')?.addEventListener('change', () => {
   const hint = document.getElementById('attrBucaEditHint');
@@ -10414,25 +10638,58 @@ document.addEventListener('click', (e) => {
 });
 
 let attrRejectPendingId = '';
-function openAttrRejectModal(id) {
+let attrDecisionPendingAction = 'reject';
+function openAttrDecisionModal(id, action) {
   const record = lastAttrRecords.find((r) => r.id === id);
   attrRejectPendingId = id;
+  attrDecisionPendingAction = action || 'reject';
   const backdrop = document.getElementById('attrRejectBackdrop');
   const summary = document.getElementById('attrRejectSummary');
   const comment = document.getElementById('attrRejectComment');
   const status = document.getElementById('attrRejectStatus');
+  const title = document.getElementById('attrDecisionTitle');
+  const emoji = document.getElementById('attrDecisionEmoji');
+  const noteLabel = document.getElementById('attrDecisionNoteLabel');
+  const confirmBtn = document.getElementById('attrRejectConfirm');
+  const needNote = action === 'approve' || action === 'reject';
+  if (title) {
+    title.textContent = action === 'approve' ? 'Approve request'
+      : action === 'reopen' ? 'Return to pending'
+      : 'Reject request';
+  }
+  if (emoji) emoji.textContent = action === 'approve' ? '✓' : action === 'reopen' ? '↺' : '✗';
+  if (noteLabel) {
+    noteLabel.innerHTML = needNote
+      ? 'Decision note <span style="color:#dc2626; text-transform:none; letter-spacing:0;">(required)</span>'
+      : 'Decision note <span style="text-transform:none; letter-spacing:0; font-weight:600;">(optional)</span>';
+  }
+  if (confirmBtn) {
+    confirmBtn.textContent = action === 'approve' ? 'Approve request'
+      : action === 'reopen' ? 'Return to pending'
+      : 'Reject request';
+    confirmBtn.classList.toggle('reject-btn', action === 'reject');
+  }
+  if (comment) {
+    comment.value = '';
+    comment.placeholder = action === 'approve'
+      ? 'Note for the approval record (required for export / audit)…'
+      : action === 'reopen'
+        ? 'Optional note about why this is back in pending…'
+        : 'Explain why this was rejected so they can fix and resubmit…';
+  }
   if (summary) {
     summary.textContent = record
-      ? `${record.repName || 'Rep'} · ${record.adjustmentReason || record.reason || 'Manual Attribution'} · ${fmt(record.sessions, 1)} sess / ${fmt(record.members, 1)} mem`
-      : 'Reject this Manual Attribution request.';
+      ? `${record.repName || 'Rep'} · currently ${record.status || 'pending'} · ${record.adjustmentReason || record.reason || 'Manual Attribution'} · ${fmt(record.sessions, 1)} sess / ${fmt(record.members, 1)} mem`
+      : 'Review this Manual Attribution request.';
   }
-  if (comment) comment.value = '';
   if (status) { status.textContent = ''; status.style.color = ''; }
   backdrop?.classList.add('open');
   comment?.focus();
 }
+function openAttrRejectModal(id) { openAttrDecisionModal(id, 'reject'); }
 function closeAttrRejectModal() {
   attrRejectPendingId = '';
+  attrDecisionPendingAction = 'reject';
   document.getElementById('attrRejectBackdrop')?.classList.remove('open');
 }
 async function reviewAttributionRequest(id, action, comment) {
@@ -10446,7 +10703,10 @@ async function reviewAttributionRequest(id, action, comment) {
   if (record) applyAttrRecordLocally(record);
   else {
     const hit = lastAttrRecords.find((r) => r.id === id);
-    if (hit) hit.status = action === 'approve' ? 'approved' : 'rejected';
+    if (hit) {
+      hit.status = action === 'approve' ? 'approved' : action === 'reopen' ? 'pending' : 'rejected';
+      if (comment) hit.reviewComment = comment;
+    }
   }
   renderMyAttributionsTable();
   APPROVED_TOTALS = await fetchApprovedTotals();
@@ -10456,7 +10716,7 @@ async function reviewAttributionRequest(id, action, comment) {
   return record;
 }
 
-document.getElementById('attrPendingList')?.addEventListener('click', async (e) => {
+async function handleAttrReviewClick(e) {
   const btn = e.target.closest('[data-review]');
   if (!btn) return;
   e.preventDefault();
@@ -10464,27 +10724,29 @@ document.getElementById('attrPendingList')?.addEventListener('click', async (e) 
   const id = btn.getAttribute('data-review');
   const action = btn.getAttribute('data-action');
   if (!id || !action) return;
-  if (action === 'reject') {
-    openAttrRejectModal(id);
-    return;
-  }
-  btn.disabled = true;
-  try {
-    await reviewAttributionRequest(id, 'approve');
-  } catch (err) {
-    alert(err.message || 'Could not approve');
-    btn.disabled = false;
-    renderPendingApprovalsTable();
-  }
+  openAttrDecisionModal(id, action);
+}
+document.getElementById('attrPendingList')?.addEventListener('click', handleAttrReviewClick);
+document.getElementById('attrActionedList')?.addEventListener('click', handleAttrReviewClick);
+document.getElementById('attributionSignedInArea')?.addEventListener('click', (e) => {
+  const info = e.target.closest('.attr-info-btn');
+  if (!info) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const tip = info.getAttribute('data-tip') || info.getAttribute('title') || '';
+  if (tip) alert(tip);
 });
 
 document.getElementById('attrRejectConfirm')?.addEventListener('click', async () => {
   const status = document.getElementById('attrRejectStatus');
   const comment = (document.getElementById('attrRejectComment')?.value || '').trim();
   if (!attrRejectPendingId) return;
-  if (!comment) {
+  const action = attrDecisionPendingAction || 'reject';
+  if ((action === 'approve' || action === 'reject') && !comment) {
     if (status) {
-      status.textContent = 'Add a short comment so the rep knows what to fix.';
+      status.textContent = action === 'approve'
+        ? 'Add a short approval note for the record / export.'
+        : 'Add a short comment so the rep knows what to fix.';
       status.style.color = '#dc2626';
     }
     document.getElementById('attrRejectComment')?.focus();
@@ -10493,11 +10755,11 @@ document.getElementById('attrRejectConfirm')?.addEventListener('click', async ()
   const btn = document.getElementById('attrRejectConfirm');
   if (btn) btn.disabled = true;
   try {
-    await reviewAttributionRequest(attrRejectPendingId, 'reject', comment);
+    await reviewAttributionRequest(attrRejectPendingId, action, comment);
     closeAttrRejectModal();
   } catch (err) {
     if (status) {
-      status.textContent = err.message || 'Could not reject';
+      status.textContent = err.message || 'Could not update decision';
       status.style.color = '#dc2626';
     }
   } finally {
@@ -10672,27 +10934,107 @@ document.addEventListener('click', (e) => {
   if (inputId) setAttrMembersValue(inputId, value);
 });
 
+function normalizeAttrClientKey(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const u = new URL(raw);
+    u.hash = '';
+    u.search = '';
+    const path = u.pathname.replace(/\/+$/, '') || '';
+    return (u.origin + path).toLowerCase();
+  } catch (_) {
+    return raw.replace(/\/+$/, '').toLowerCase();
+  }
+}
+function normalizeAttrContactKey(value) {
+  const s = String(value || '').trim().toLowerCase();
+  if (!s) return '';
+  if (s.includes('@')) return s;
+  const digits = s.replace(/\D/g, '');
+  return digits || s;
+}
+function findLocalAttrDuplicates(clientLink, contact) {
+  const clientKey = normalizeAttrClientKey(clientLink);
+  const contactKey = normalizeAttrContactKey(contact);
+  if (!clientKey && !contactKey) return [];
+  return (lastAttrRecords || []).filter((r) => {
+    if (!r) return false;
+    const linkHit = !!(clientKey && normalizeAttrClientKey(r.clientLink) === clientKey);
+    const contactHit = !!(contactKey && normalizeAttrContactKey(r.contact) === contactKey);
+    return linkHit || contactHit;
+  });
+}
+function confirmAttrDuplicateProceed(matches) {
+  const sample = (matches || []).slice(0, 3).map((m) => {
+    const when = m.submittedAt ? formatAttrTimestamp(m.submittedAt) : 'unknown time';
+    const status = m.status || 'pending';
+    const who = m.repName || 'Rep';
+    return `• ${who} · ${status} · ${when}`;
+  }).join('\n');
+  const extra = (matches || []).length > 3 ? `\n…and ${(matches.length - 3)} more` : '';
+  return window.confirm(
+    'A request for this client has already been submitted. Are you sure you want to proceed?\n\n' +
+    (sample || 'Matching request found.') +
+    extra
+  );
+}
+async function postManualAttrSubmit(payload, onBehalf, selectedRep, forceDuplicate) {
+  const body = forceDuplicate ? Object.assign({}, payload, { forceDuplicate: true }) : payload;
+  if (onBehalf) {
+    return submitAttributionAsAdmin(Object.assign({}, body, {
+      repName: selectedRep,
+      source: 'on-behalf',
+    }));
+  }
+  return authedFetch('/api/attributions/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
 document.getElementById('submitAttribution').addEventListener('click', async () => {
   const statusEl = document.getElementById('attrSubmitStatus');
   const validated = validateManualAttrSubmit();
   if (!validated) return;
   const { onBehalf, selectedRep, ...payload } = validated;
-  try {
-    if (onBehalf) {
-      await submitAttributionAsAdmin({
-        ...payload,
-        repName: selectedRep,
-        source: 'on-behalf',
-      });
-      statusEl.textContent = `Request submitted for ${selectedRep} — pending admin approval.`;
-    } else {
-      await authedFetch('/api/attributions/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      statusEl.textContent = 'Request submitted — pending admin approval.';
+
+  // Local safeguard first (uses cached list — team-wide for admins/coaches).
+  const localMatches = findLocalAttrDuplicates(payload.clientLink, payload.contact);
+  let forceDuplicate = false;
+  if (localMatches.length) {
+    if (!confirmAttrDuplicateProceed(localMatches)) {
+      if (statusEl) {
+        statusEl.textContent = 'Submit cancelled — a request for this client already exists.';
+        statusEl.style.color = '#dc2626';
+      }
+      return;
     }
+    forceDuplicate = true;
+  }
+
+  try {
+    try {
+      await postManualAttrSubmit(payload, onBehalf, selectedRep, forceDuplicate);
+    } catch (err) {
+      // Server-side duplicate check (covers matches outside the local cache).
+      if (err && err.payload && err.payload.duplicate && !forceDuplicate) {
+        if (!confirmAttrDuplicateProceed(err.payload.matches || [])) {
+          if (statusEl) {
+            statusEl.textContent = 'Submit cancelled — a request for this client already exists.';
+            statusEl.style.color = '#dc2626';
+          }
+          return;
+        }
+        await postManualAttrSubmit(payload, onBehalf, selectedRep, true);
+      } else {
+        throw err;
+      }
+    }
+    statusEl.textContent = onBehalf
+      ? `Request submitted for ${selectedRep} — pending admin approval.`
+      : 'Request submitted — pending admin approval.';
     statusEl.style.color = '#16a34a';
     resetManualAttrForm();
     await refreshMyAttributions();
