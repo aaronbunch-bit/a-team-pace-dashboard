@@ -2040,10 +2040,9 @@
 
   /* First-login guided tour — spotlight + card over the live dashboard. */
   .guided-tour {
-    position: fixed; inset: 0; z-index: 2147482000;
+    position: fixed; inset: 0; z-index: 2147482500;
     pointer-events: none;
   }
-  .guided-tour.open { pointer-events: auto; }
   .guided-tour[hidden] { display: none !important; }
   .guided-tour-spotlight {
     position: fixed; z-index: 1;
@@ -2054,22 +2053,25 @@
     pointer-events: none;
   }
   .guided-tour-spotlight.is-center {
-    box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.62);
+    box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.55);
     outline: none;
     background: transparent;
   }
+  /* Always docked — never floats under a tall spotlight where Next/Back die. */
   .guided-tour-card {
     position: fixed; z-index: 2;
-    width: min(360px, calc(100vw - 28px));
+    left: 50%; bottom: 20px; top: auto;
+    transform: translateX(-50%);
+    width: min(400px, calc(100vw - 28px));
     padding: 16px 16px 14px;
     border-radius: 16px;
     background:
-      linear-gradient(165deg, rgba(14,165,233,0.10), rgba(99,102,241,0.10) 55%, transparent 80%),
+      linear-gradient(165deg, rgba(14,165,233,0.12), rgba(99,102,241,0.10) 55%, transparent 80%),
       var(--card-bg);
     border: 1px solid var(--card-border);
-    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.28);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.32);
     color: var(--text);
-    transition: top 0.28s ease, left 0.28s ease, transform 0.28s ease;
+    pointer-events: auto;
   }
   .guided-tour-progress {
     font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em;
@@ -2084,7 +2086,7 @@
   .guided-tour-actions {
     display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end;
   }
-  .guided-tour-actions .theme-btn { margin-top: 0; }
+  .guided-tour-actions .theme-btn { margin-top: 0; pointer-events: auto; }
   .guided-tour-skip {
     margin-right: auto !important;
     background: transparent; border-color: transparent; box-shadow: none;
@@ -2095,6 +2097,9 @@
     background: linear-gradient(105deg, #0ea5e9, #6366f1 70%);
     color: #fff; border: none;
     box-shadow: 0 2px 10px rgba(14, 165, 233, 0.35);
+  }
+  .guided-tour-actions .theme-btn:disabled {
+    opacity: 0.4; cursor: default;
   }
   body.guided-tour-active { overflow: hidden; }
   [data-replay-tour] { display: none; }
@@ -10141,11 +10146,13 @@ async function boot() {
 }
 
 // ---------- First-login guided tour ---------------------------------------
-const GUIDED_TOUR_VERSION = 1;
+const GUIDED_TOUR_VERSION = 2;
 const GUIDED_TOUR_KEY = 'pace_dashboard_guided_tour_v1';
 let guidedTourActive = false;
 let guidedTourStepIdx = 0;
 let guidedTourOpenedPacer = false;
+let guidedTourNavDir = 1; // +1 Next, -1 Back — used when skipping missing targets
+let guidedTourRenderToken = 0;
 
 function guidedTourStorageKey() {
   return (currentUserEmail() || (isUxPreviewMode() ? 'ux-preview' : '') || '').toLowerCase();
@@ -10169,6 +10176,12 @@ function guidedTourForceRequested() {
   catch (_) { return false; }
 }
 function sleepMs(ms) { return new Promise((r) => setTimeout(r, ms)); }
+function dismissTourBlockingPopups() {
+  [
+    'celebrationModalBackdrop', 'shoutoutCelebrationBackdrop',
+    'personalGoalGateBackdrop', 'lwomPaceBackdrop', 'rampCheckBackdrop',
+  ].forEach((id) => document.getElementById(id)?.classList.remove('open'));
+}
 async function waitForQuietUi(timeoutMs) {
   const ids = [
     'celebrationModalBackdrop', 'shoutoutCelebrationBackdrop',
@@ -10180,6 +10193,7 @@ async function waitForQuietUi(timeoutMs) {
     if (!busy) return true;
     await sleepMs(200);
   }
+  dismissTourBlockingPopups();
   return false;
 }
 function isTourTargetVisible(el) {
@@ -10189,63 +10203,112 @@ function isTourTargetVisible(el) {
   const r = el.getBoundingClientRect();
   return r.width > 2 && r.height > 2;
 }
+async function waitForTourTarget(selector, timeoutMs) {
+  if (!selector) return null;
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const el = document.querySelector(selector);
+    if (isTourTargetVisible(el)) return el;
+    await sleepMs(80);
+  }
+  const el = document.querySelector(selector);
+  return isTourTargetVisible(el) ? el : null;
+}
 
+/** Rep-facing walkthrough — landing then full Individual Pacer. */
 function guidedTourSteps() {
   return [
     {
       id: 'welcome',
-      title: 'Welcome to A-Team Pacer',
-      body: 'A quick tour of the landing dashboard and Individual Pacer — how pacing, boards, and your tools fit together. Takes about a minute.',
+      title: 'You’ve got this 🚀',
+      body: 'Quick tour of your A-Team Pacer — where you stand, what to chase next, and how to grab credit when a sale doesn’t land. About a minute. Let’s go.',
       selector: null,
     },
     {
       id: 'banner',
-      title: 'Month pulse',
-      body: 'These pills show where the month stands — day of month, expected pace, and team context. Hover status colors later on any rep for what each tier means.',
+      title: 'Where the month stands',
+      body: 'These pills are your pulse check — day of the month and expected pace. You’re racing the calendar, not guessing in the dark.',
       selector: '#landingStatus',
     },
     {
       id: 'team',
-      title: 'A-Team total',
-      body: 'The team card is the combined pace for everyone with goals — same attainment math you will see on individual rows.',
+      title: 'We’re in it together',
+      body: 'A-Team Total is the whole crew’s combined pace. Same math you’ll see on your own row — celebrate the team wins too.',
       selector: '#teamCard',
     },
     {
       id: 'boards',
-      title: 'Side boards',
-      body: 'Finish line, leaderboards, Most Improved (distinct clients over time), and the shoutout wall live here. They stick beside the roster as you scroll.',
+      title: 'Fuel on the side',
+      body: 'Finish line, leaderboards, Most Improved, and shoutouts live here. Peek for inspiration, then get back to your number.',
       selector: '#landingBoards',
     },
     {
       id: 'roster',
-      title: 'The roster',
-      body: 'Every teammate’s pace, status, and badges. Click a row to open their Individual Pacer. Sort above the list by name or attainment.',
+      title: 'Your roster view',
+      body: 'Every teammate’s pace, status, and badges. Find yourself, cheer a streak, or tap any row to open an Individual Pacer.',
       selector: '#landingReps',
     },
     {
       id: 'actions',
-      title: 'Your tools',
-      body: 'Manual Attribution, Shoutout, Weekly schedules, and — when your email matches a roster rep — Open My Individual Pacer.',
-      selector: '#landingTools .landing-actions-row',
+      title: 'Your everyday tools',
+      body: 'Shout someone out. Log a missing sale with Manual Attribution. Open My Individual Pacer when you want the deep dive — that’s your home base.',
+      selector: '#landingTools',
+      fallbackSelector: '#myPacerShoutoutCluster',
     },
     {
-      id: 'pacer',
-      title: 'Individual Pacer',
-      body: 'Your detailed month: pacing, activity (sold / refunds), and a side panel for Still Needed, Bonus, goals, and standings.',
+      id: 'pacerWelcome',
+      title: 'Your Individual Pacer',
+      body: 'This is your month, up close. Everything here is about helping you finish strong — not burying you in admin chrome.',
+      selector: '#detailRepName',
+      openPacer: true,
+    },
+    {
+      id: 'pacerPace',
+      title: 'Your pace bar',
+      body: 'Attainment vs expected pace, right up top. Green means you’re on track for the finish line — keep stacking days like this.',
       selector: '#detailHeaderPace',
       openPacer: true,
     },
     {
+      id: 'pacerTabs',
+      title: 'Current · Historical',
+      body: 'Stay on Current for today’s fight. Flip to Historical when you want the longer story — how you’ve been trending month to month.',
+      selector: '#pacerLayoutTabs',
+      openPacer: true,
+    },
+    {
+      id: 'pacerNet',
+      title: 'This month’s scoreboard',
+      body: 'Net members and sessions — the real units behind your pace. When these climb, your bar moves. Simple as that.',
+      selector: '#detailNetActuals',
+      openPacer: true,
+    },
+    {
+      id: 'pacerActivity',
+      title: 'Your activity',
+      body: 'Sold, refunds, filters, and “Missing a sale?” if something didn’t auto-attribute. Never leave a win on the table.',
+      selector: '#detailContent',
+      openPacer: true,
+    },
+    {
+      id: 'pacerStillNeeded',
+      title: 'Still Needed',
+      body: 'Exact members and sessions to hit 100% or 80%. Expand it, flip the target, and you’ll always know the next play.',
+      selector: '#paceNeedSideToggle',
+      openPacer: true,
+      expandStillNeeded: true,
+    },
+    {
       id: 'pacerSide',
-      title: 'Side panel',
-      body: 'Expand sections for Still Needed (gap to 100% or 80%), Bonus Payout, Team Standings, and more. It sticks as you scroll this page — like the landing boards.',
+      title: 'Your side panel',
+      body: 'Month goal, Bonus Payout, Team Standings — collapse what you don’t need. It sticks with you as you scroll.',
       selector: '#metricsSidePanel',
       openPacer: true,
     },
     {
       id: 'done',
-      title: 'You’re set',
-      body: 'Replay anytime from Take tour in the signed-in bar (or add ?tour=1 to the URL). Go close a sale — or shout someone out.',
+      title: 'Now go make it rain 🌧️',
+      body: 'You’re ready. Replay anytime with Take tour (or ?tour=1). Close a sale, send a shoutout, and finish this month proud.',
       selector: null,
       openPacer: true,
     },
@@ -10253,7 +10316,10 @@ function guidedTourSteps() {
 }
 
 async function guidedTourEnsurePacer() {
-  if (document.getElementById('clientDetailOverlay')?.classList.contains('open')) return true;
+  if (document.getElementById('clientDetailOverlay')?.classList.contains('open')) {
+    dismissTourBlockingPopups();
+    return true;
+  }
   let target = ownRepDisplayName();
   if (!target || !canViewClientDetail(target)) {
     const hit = getRoster().find((r) => canViewClientDetail(r.display));
@@ -10261,10 +10327,12 @@ async function guidedTourEnsurePacer() {
   }
   if (!target) return false;
   guidedTourOpenedPacer = true;
+  dismissTourBlockingPopups();
   location.hash = 'individual-pacer=' + encodeURIComponent(target);
-  for (let i = 0; i < 25; i++) {
+  for (let i = 0; i < 40; i++) {
     if (document.getElementById('clientDetailOverlay')?.classList.contains('open')) {
-      await sleepMs(80);
+      dismissTourBlockingPopups();
+      await sleepMs(120);
       return true;
     }
     await sleepMs(80);
@@ -10272,55 +10340,58 @@ async function guidedTourEnsurePacer() {
   return document.getElementById('clientDetailOverlay')?.classList.contains('open');
 }
 
-function placeGuidedTourCard(targetRect, center) {
-  const card = document.getElementById('guidedTourCard');
-  if (!card) return;
-  const pad = 14;
-  const cardW = Math.min(360, window.innerWidth - 28);
-  const cardH = card.offsetHeight || 180;
-  let left;
-  let top;
-  if (center || !targetRect) {
-    left = (window.innerWidth - cardW) / 2;
-    top = Math.max(24, (window.innerHeight - cardH) / 2);
-  } else {
-    left = Math.min(Math.max(pad, targetRect.left), window.innerWidth - cardW - pad);
-    top = targetRect.bottom + 12;
-    if (top + cardH > window.innerHeight - pad) {
-      top = Math.max(pad, targetRect.top - cardH - 12);
+async function guidedTourEnsureLanding() {
+  if (location.hash && /individual-pacer|client-detail/i.test(location.hash)) {
+    location.hash = '';
+    for (let i = 0; i < 30; i++) {
+      if (!document.getElementById('clientDetailOverlay')?.classList.contains('open')) break;
+      await sleepMs(80);
     }
+    await sleepMs(100);
   }
-  card.style.left = left + 'px';
-  card.style.top = top + 'px';
+  guidedTourOpenedPacer = false;
 }
 
 function updateGuidedTourSpotlight(el) {
   const spot = document.getElementById('guidedTourSpotlight');
-  if (!spot) return null;
+  if (!spot) return;
+  // Leave room above the docked card so the highlight isn’t covered.
+  const cardReserve = 210;
   if (!el) {
     const w = Math.min(420, window.innerWidth - 48);
-    const h = 200;
+    const h = Math.min(160, window.innerHeight - cardReserve - 40);
     const left = (window.innerWidth - w) / 2;
-    const top = (window.innerHeight - h) / 2;
+    const top = Math.max(24, (window.innerHeight - cardReserve - h) / 2);
     spot.classList.add('is-center');
     spot.style.left = left + 'px';
     spot.style.top = top + 'px';
     spot.style.width = w + 'px';
     spot.style.height = h + 'px';
-    return { left, top, right: left + w, bottom: top + h, width: w, height: h };
+    return;
   }
   spot.classList.remove('is-center');
-  el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  try {
+    el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' in ScrollOptions.prototype ? 'instant' : 'auto' });
+  } catch (_) {
+    el.scrollIntoView({ block: 'center', inline: 'nearest' });
+  }
   const r = el.getBoundingClientRect();
   const pad = 8;
+  const maxBottom = window.innerHeight - cardReserve;
+  let top = Math.max(4, r.top - pad);
+  let height = Math.min(r.height + pad * 2, maxBottom - top);
+  if (height < 40) {
+    top = Math.max(4, maxBottom - 120);
+    height = 120;
+  }
   spot.style.left = Math.max(4, r.left - pad) + 'px';
-  spot.style.top = Math.max(4, r.top - pad) + 'px';
+  spot.style.top = top + 'px';
   spot.style.width = Math.min(window.innerWidth - 8, r.width + pad * 2) + 'px';
-  spot.style.height = Math.min(window.innerHeight - 8, r.height + pad * 2) + 'px';
-  return el.getBoundingClientRect();
+  spot.style.height = Math.max(40, height) + 'px';
 }
 
 async function showGuidedTourStep() {
+  const token = ++guidedTourRenderToken;
   const steps = guidedTourSteps();
   if (guidedTourStepIdx < 0) guidedTourStepIdx = 0;
   if (guidedTourStepIdx >= steps.length) {
@@ -10328,21 +10399,44 @@ async function showGuidedTourStep() {
     return;
   }
   const step = steps[guidedTourStepIdx];
+
   if (step.openPacer) {
     const ok = await guidedTourEnsurePacer();
-    if (!ok && step.selector) {
-      guidedTourStepIdx += 1;
+    if (token !== guidedTourRenderToken) return;
+    if (!ok) {
+      // Can't open a pacer — skip this step in the travel direction.
+      guidedTourStepIdx += guidedTourNavDir;
+      if (guidedTourStepIdx < 0) guidedTourStepIdx = 0;
       return showGuidedTourStep();
     }
-  } else if (guidedTourOpenedPacer && location.hash) {
-    location.hash = '';
-    await sleepMs(120);
+    if (step.expandStillNeeded) {
+      const needBody = document.getElementById('paceNeedSideContent');
+      if (needBody?.classList.contains('collapsed')) {
+        document.getElementById('paceNeedSideToggle')?.click();
+        await sleepMs(80);
+      }
+    }
+  } else {
+    await guidedTourEnsureLanding();
+    if (token !== guidedTourRenderToken) return;
   }
 
-  let el = step.selector ? document.querySelector(step.selector) : null;
-  if (step.selector && !isTourTargetVisible(el)) {
-    guidedTourStepIdx += 1;
-    return showGuidedTourStep();
+  let el = null;
+  if (step.selector) {
+    el = await waitForTourTarget(step.selector, 900);
+    if (!el && step.fallbackSelector) el = await waitForTourTarget(step.fallbackSelector, 400);
+    if (token !== guidedTourRenderToken) return;
+    if (!el) {
+      // Missing target: keep moving the way the user was going (fixes Back).
+      const next = guidedTourStepIdx + guidedTourNavDir;
+      if (next < 0 || next >= steps.length) {
+        // Nowhere to go — show a center card for this step anyway.
+        el = null;
+      } else {
+        guidedTourStepIdx = next;
+        return showGuidedTourStep();
+      }
+    }
   }
 
   const root = document.getElementById('guidedTourRoot');
@@ -10350,22 +10444,28 @@ async function showGuidedTourStep() {
   root.hidden = false;
   root.classList.add('open');
   document.body.classList.add('guided-tour-active');
+  dismissTourBlockingPopups();
 
   document.getElementById('guidedTourProgress').textContent =
     `Step ${guidedTourStepIdx + 1} of ${steps.length}`;
   document.getElementById('guidedTourTitle').textContent = step.title;
   document.getElementById('guidedTourBody').textContent = step.body;
-  document.getElementById('guidedTourBack').style.visibility = guidedTourStepIdx === 0 ? 'hidden' : 'visible';
+  const backBtn = document.getElementById('guidedTourBack');
+  if (backBtn) {
+    backBtn.disabled = guidedTourStepIdx === 0;
+    backBtn.style.visibility = 'visible';
+  }
   document.getElementById('guidedTourNext').textContent =
-    guidedTourStepIdx === steps.length - 1 ? 'Finish' : 'Next';
+    guidedTourStepIdx === steps.length - 1 ? 'Let’s go' : 'Next';
 
-  await sleepMs(40);
-  const rect = updateGuidedTourSpotlight(el);
-  placeGuidedTourCard(rect, !el);
+  await sleepMs(30);
+  if (token !== guidedTourRenderToken) return;
+  updateGuidedTourSpotlight(el);
 }
 
 function endGuidedTour(completed) {
   guidedTourActive = false;
+  guidedTourRenderToken += 1;
   const root = document.getElementById('guidedTourRoot');
   if (root) {
     root.hidden = true;
@@ -10376,11 +10476,17 @@ function endGuidedTour(completed) {
 }
 
 async function startGuidedTour(opts) {
-  if (guidedTourActive) return;
+  if (guidedTourActive) {
+    // Restart cleanly if replay clicked mid-tour.
+    endGuidedTour(false);
+  }
   guidedTourActive = true;
   guidedTourStepIdx = 0;
   guidedTourOpenedPacer = false;
-  if (!(opts && opts.skipQuietWait)) await waitForQuietUi(5000);
+  guidedTourNavDir = 1;
+  dismissTourBlockingPopups();
+  if (!(opts && opts.skipQuietWait)) await waitForQuietUi(2500);
+  dismissTourBlockingPopups();
   await showGuidedTourStep();
 }
 
@@ -10390,17 +10496,26 @@ function maybeStartGuidedTour() {
   setTimeout(() => { startGuidedTour(); }, 700);
 }
 
-document.getElementById('guidedTourNext')?.addEventListener('click', () => {
+function guidedTourGo(delta) {
   if (!guidedTourActive) return;
-  guidedTourStepIdx += 1;
+  guidedTourNavDir = delta < 0 ? -1 : 1;
+  guidedTourStepIdx = Math.max(0, guidedTourStepIdx + delta);
   showGuidedTourStep();
+}
+
+document.getElementById('guidedTourNext')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  guidedTourGo(1);
 });
-document.getElementById('guidedTourBack')?.addEventListener('click', () => {
-  if (!guidedTourActive) return;
-  guidedTourStepIdx = Math.max(0, guidedTourStepIdx - 1);
-  showGuidedTourStep();
+document.getElementById('guidedTourBack')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  guidedTourGo(-1);
 });
-document.getElementById('guidedTourSkip')?.addEventListener('click', () => {
+document.getElementById('guidedTourSkip')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
   endGuidedTour(true);
 });
 document.addEventListener('click', (e) => {
@@ -10410,20 +10525,28 @@ document.addEventListener('click', (e) => {
   startGuidedTour({ skipQuietWait: true });
 });
 window.addEventListener('resize', () => {
-  if (guidedTourActive) showGuidedTourStep();
+  if (!guidedTourActive) return;
+  const steps = guidedTourSteps();
+  const step = steps[guidedTourStepIdx];
+  if (!step) return;
+  const el = step.selector
+    ? (document.querySelector(step.selector) || (step.fallbackSelector && document.querySelector(step.fallbackSelector)))
+    : null;
+  updateGuidedTourSpotlight(isTourTargetVisible(el) ? el : null);
 });
 document.addEventListener('keydown', (e) => {
   if (!guidedTourActive) return;
-  if (e.key === 'Escape') endGuidedTour(true);
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    endGuidedTour(true);
+  }
   if (e.key === 'ArrowRight' || e.key === 'Enter') {
     e.preventDefault();
-    guidedTourStepIdx += 1;
-    showGuidedTourStep();
+    guidedTourGo(1);
   }
   if (e.key === 'ArrowLeft') {
     e.preventDefault();
-    guidedTourStepIdx = Math.max(0, guidedTourStepIdx - 1);
-    showGuidedTourStep();
+    guidedTourGo(-1);
   }
 });
 
