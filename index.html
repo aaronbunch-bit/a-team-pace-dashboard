@@ -213,7 +213,6 @@
       </div>
       <div class="culture-card" id="recognitionWallCard">
         <div class="culture-card-title">Recognition wall</div>
-        <p class="recognition-wall-tagline">One win at a time — today’s shoutouts and badges, on rotate.</p>
         <div id="recognitionWallBody"></div>
       </div>
     </div>
@@ -2911,14 +2910,24 @@ function stopRecognitionWallRotation() {
     recognitionWallRotateTimer = 0;
   }
 }
+function recognitionTypeEmoji(type) {
+  return type === 'shoutout' ? '📣' : '🏅';
+}
+function recognitionSplitEmoji(text, type) {
+  const raw = String(text || '').trim();
+  const m = raw.match(/^(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*)\s*(.*)$/u);
+  if (!m) return { emoji: recognitionTypeEmoji(type), label: raw };
+  return { emoji: m[1], label: (m[2] || '').trim() };
+}
 function recognitionSpotlightHTML(it, idx, total) {
   if (!it) return '';
-  const typeLabel = it.type === 'badge' ? 'Badge' : 'Shoutout';
   const typeCls = it.type === 'badge' ? 'is-badge' : 'is-shoutout';
-  const fromLine = it.from
-    ? (it.type === 'badge' ? `from ${escapeHtml(it.from)}` : `from ${escapeHtml(it.from)}`)
-    : (it.type === 'badge' ? 'Earned today' : 'Team shoutout');
-  const cheerLabel = it.type === 'badge' ? 'Congratulate' : 'Cheer too';
+  const split = recognitionSplitEmoji(it.text, it.type);
+  const emoji = split.emoji || recognitionTypeEmoji(it.type);
+  const label = split.label || it.text || '';
+  const fromBit = it.type === 'shoutout' && it.from
+    ? `<div class="recognition-wall-from">${escapeHtml(it.from)}</div>`
+    : '';
   const dots = total > 1
     ? `<div class="recognition-wall-dots" aria-hidden="true">${Array.from({ length: total }, (_, i) =>
         `<span class="recognition-wall-dot${i === idx ? ' is-active' : ''}"></span>`
@@ -2926,42 +2935,35 @@ function recognitionSpotlightHTML(it, idx, total) {
     : '';
   return `
     <div class="recognition-wall-spotlight ${typeCls}" data-recog-idx="${idx}">
-      <div class="recognition-wall-meta">
-        <span class="recognition-wall-type ${typeCls}">${typeLabel}</span>
-        <span class="recognition-wall-count">${idx + 1} of ${total}</span>
-      </div>
+      <div class="recognition-wall-aurora" aria-hidden="true"></div>
+      <span class="recognition-wall-spark s1" aria-hidden="true"></span>
+      <span class="recognition-wall-spark s2" aria-hidden="true"></span>
+      <span class="recognition-wall-spark s3" aria-hidden="true"></span>
+      <div class="recognition-wall-emoji" aria-hidden="true">${escapeHtml(emoji)}</div>
       <div class="recognition-wall-name">${escapeHtml(it.rep || '')}</div>
-      <div class="recognition-wall-text">${escapeHtml(it.text)}</div>
-      <div class="recognition-wall-from">${fromLine}</div>
+      ${label ? `<div class="recognition-wall-text">${escapeHtml(label)}</div>` : ''}
+      ${fromBit}
       ${dots}
-      <div class="recognition-wall-actions">
-        <button type="button" class="theme-btn" data-recog-cheer="${escapeAttr(it.rep)}">📣 ${cheerLabel}</button>
-      </div>
+      <div class="recognition-wall-progress" aria-hidden="true"><span></span></div>
     </div>`;
 }
-function paintRecognitionSpotlight() {
+function paintRecognitionSpotlight(opts) {
   const stage = document.getElementById('recognitionWallStage');
   if (!stage) return;
   const items = recognitionWallItemsCache;
   if (!items.length) return;
   const idx = ((recognitionWallRotateIdx % items.length) + items.length) % items.length;
-  const prev = stage.querySelector('.recognition-wall-spotlight');
-  const html = recognitionSpotlightHTML(items[idx], idx, items.length);
-  if (prev && !document.body.classList.contains('motion-static')) {
-    prev.classList.add('is-leaving');
-    window.setTimeout(() => {
-      stage.innerHTML = html;
-      const next = stage.querySelector('.recognition-wall-spotlight');
-      if (next) next.classList.add('is-entering');
-      stage.querySelectorAll('[data-recog-cheer]').forEach((btn) => {
-        btn.addEventListener('click', () => openShoutoutForRep(btn.getAttribute('data-recog-cheer')));
-      });
-    }, 220);
-  } else {
-    stage.innerHTML = html;
-    stage.querySelectorAll('[data-recog-cheer]').forEach((btn) => {
-      btn.addEventListener('click', () => openShoutoutForRep(btn.getAttribute('data-recog-cheer')));
-    });
+  const animate = !(opts && opts.instant) && !document.body.classList.contains('motion-static');
+  stage.innerHTML = recognitionSpotlightHTML(items[idx], idx, items.length);
+  const next = stage.querySelector('.recognition-wall-spotlight');
+  if (next && animate) next.classList.add('is-entering');
+  // Restart progress fill so each turn reads as timed / alive.
+  const bar = next?.querySelector('.recognition-wall-progress > span');
+  if (bar && animate && items.length > 1) {
+    bar.style.animation = 'none';
+    // Force reflow so the progress animation restarts cleanly each slide.
+    void bar.offsetWidth;
+    bar.style.animation = '';
   }
 }
 function startRecognitionWallRotation() {
@@ -2980,7 +2982,6 @@ function startRecognitionWallRotation() {
 function recognitionWallShoutoutCtaHTML() {
   return `
     <div class="recognition-wall-cta">
-      <p class="recognition-wall-cta-tagline">Got a win to share? Shout someone out — it’ll land on the wall.</p>
       <button type="button" class="theme-btn recognition-wall-shout-btn" id="recognitionWallShoutBtn">📣 Shoutout someone</button>
     </div>`;
 }
@@ -3017,7 +3018,7 @@ function renderRecognitionWall() {
   host.innerHTML = `
     <div class="recognition-wall-stage" id="recognitionWallStage" aria-live="polite"></div>
     ${recognitionWallShoutoutCtaHTML()}`;
-  paintRecognitionSpotlight();
+  paintRecognitionSpotlight({ instant: true });
   bindRecognitionWallShoutBtn();
   startRecognitionWallRotation();
 }

@@ -4281,140 +4281,197 @@
   border: none !important; color: #fff !important;
 }
 
-/* —— Recognition Wall: one-person spotlight rotator —— */
-.recognition-wall-tagline {
-  margin: -2px 0 10px;
-  font-size: 12px;
-  line-height: 1.4;
-  font-weight: 600;
-  color: var(--text-muted);
+/* —— Recognition Wall: lively one-person spotlight —— */
+#recognitionWallCard {
+  overflow: hidden;
 }
 .recognition-wall-stage {
   position: relative;
-  min-height: 132px;
+  min-height: 168px;
 }
 .recognition-wall-spotlight {
-  display: grid;
-  gap: 4px;
-  padding: 10px 12px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--card-border);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+  min-height: 168px;
+  padding: 18px 16px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(244, 114, 182, 0.22);
+  overflow: hidden;
   background:
-    linear-gradient(145deg, rgba(244, 114, 182, 0.10), rgba(250, 204, 21, 0.08) 55%, transparent),
-    var(--metric-box-bg, var(--card-bg));
-  transition: opacity 0.22s ease, transform 0.22s ease;
+    radial-gradient(120% 80% at 50% 0%, rgba(250, 204, 21, 0.22), transparent 55%),
+    linear-gradient(160deg, rgba(244, 114, 182, 0.14), rgba(255, 255, 255, 0.55) 45%, rgba(56, 189, 248, 0.10));
+  isolation: isolate;
 }
 .recognition-wall-spotlight.is-badge {
+  border-color: rgba(250, 204, 21, 0.35);
   background:
-    linear-gradient(145deg, rgba(250, 204, 21, 0.16), rgba(244, 114, 182, 0.06) 55%, transparent),
-    var(--metric-box-bg, var(--card-bg));
+    radial-gradient(120% 80% at 50% 0%, rgba(250, 204, 21, 0.30), transparent 55%),
+    linear-gradient(160deg, rgba(251, 191, 36, 0.18), rgba(255, 255, 255, 0.55) 45%, rgba(244, 114, 182, 0.10));
 }
-.recognition-wall-spotlight.is-leaving {
-  opacity: 0;
-  transform: translateY(4px);
+.recognition-wall-aurora {
+  position: absolute;
+  inset: -40% -20%;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 20% 40%, rgba(244, 114, 182, 0.35), transparent 42%),
+    radial-gradient(circle at 80% 30%, rgba(250, 204, 21, 0.32), transparent 40%),
+    radial-gradient(circle at 50% 90%, rgba(56, 189, 248, 0.22), transparent 45%);
+  animation: recognitionAuroraDrift 7s ease-in-out infinite alternate;
+  pointer-events: none;
 }
-.recognition-wall-spotlight.is-entering {
-  animation: recognitionSpotlightIn 0.28s ease;
+.recognition-wall-spotlight > *:not(.recognition-wall-aurora):not(.recognition-wall-spark):not(.recognition-wall-progress) {
+  position: relative;
+  z-index: 1;
 }
-@keyframes recognitionSpotlightIn {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: translateY(0); }
+.recognition-wall-spark {
+  position: absolute;
+  z-index: 1;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fbbf24;
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.15);
+  pointer-events: none;
+  animation: recognitionSparkFloat 3.2s ease-in-out infinite;
 }
-body.motion-static .recognition-wall-spotlight.is-entering,
-body.motion-static .recognition-wall-spotlight.is-leaving {
-  animation: none !important;
-  transition: none !important;
-  opacity: 1;
-  transform: none;
-}
-.recognition-wall-spotlight .recognition-wall-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  margin-bottom: 2px;
-}
-.recognition-wall-count {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--text-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+.recognition-wall-spark.s1 { top: 18%; left: 14%; animation-delay: 0s; }
+.recognition-wall-spark.s2 { top: 28%; right: 16%; left: auto; background: #f472b6; animation-delay: 0.7s; animation-duration: 3.8s; }
+.recognition-wall-spark.s3 { bottom: 22%; left: 22%; top: auto; background: #38bdf8; animation-delay: 1.2s; animation-duration: 4.1s; }
+.recognition-wall-emoji {
+  font-size: 34px;
+  line-height: 1;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.08));
+  animation: recognitionEmojiBob 2.4s ease-in-out infinite;
+  transform-origin: 50% 80%;
 }
 .recognition-wall-name {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 900;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   color: var(--text);
-  line-height: 1.2;
+  line-height: 1.15;
+  max-width: 100%;
 }
 .recognition-wall-spotlight .recognition-wall-text {
-  font-size: 13.5px;
-  line-height: 1.4;
-  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 750;
   color: var(--text);
+  max-width: 22ch;
 }
 .recognition-wall-from {
-  font-size: 11.5px;
-  font-weight: 650;
+  font-size: 11px;
+  font-weight: 700;
   color: var(--text-muted);
 }
 .recognition-wall-dots {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 5px;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 .recognition-wall-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--divider);
+  background: rgba(15, 23, 42, 0.12);
+  transition: transform 0.25s ease, background 0.25s ease;
 }
 .recognition-wall-dot.is-active {
   background: #db2777;
+  transform: scale(1.35);
 }
 .recognition-wall-spotlight.is-badge .recognition-wall-dot.is-active {
   background: #ca8a04;
 }
-.recognition-wall-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
+.recognition-wall-progress {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 8px;
+  z-index: 1;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  overflow: hidden;
 }
-.recognition-wall-actions .theme-btn {
-  margin-top: 0;
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 800;
+.recognition-wall-progress > span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f472b6, #fbbf24);
+  animation: recognitionProgressFill 5.5s linear forwards;
 }
+.recognition-wall-spotlight.is-badge .recognition-wall-progress > span {
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+}
+.recognition-wall-spotlight.is-entering {
+  animation: recognitionSpotlightIn 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes recognitionSpotlightIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes recognitionEmojiBob {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-7px) rotate(4deg); }
+}
+@keyframes recognitionAuroraDrift {
+  from { transform: translate3d(-4%, -2%, 0) rotate(0deg) scale(1); }
+  to { transform: translate3d(5%, 3%, 0) rotate(8deg) scale(1.08); }
+}
+@keyframes recognitionSparkFloat {
+  0%, 100% { transform: translateY(0) scale(0.85); opacity: 0.35; }
+  50% { transform: translateY(-10px) scale(1.15); opacity: 0.95; }
+}
+@keyframes recognitionProgressFill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+body.motion-static .recognition-wall-spotlight.is-entering,
+body.motion-static .recognition-wall-aurora,
+body.motion-static .recognition-wall-emoji,
+body.motion-static .recognition-wall-spark,
+body.motion-static .recognition-wall-progress > span {
+  animation: none !important;
+  transform: none !important;
+}
+body.motion-static .recognition-wall-progress > span {
+  transform: scaleX(1) !important;
+}
+body.dark .recognition-wall-spotlight {
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(250, 204, 21, 0.16), transparent 55%),
+    linear-gradient(160deg, rgba(244, 114, 182, 0.16), rgba(30, 27, 48, 0.88) 50%, rgba(56, 189, 248, 0.10));
+}
+body.dark .recognition-wall-dot { background: rgba(255, 255, 255, 0.18); }
+body.dark .recognition-wall-progress { background: rgba(255, 255, 255, 0.12); }
 .recognition-wall-cta {
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--divider);
-  display: grid;
-  gap: 8px;
-}
-.recognition-wall-cta-tagline {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.4;
-  font-weight: 600;
-  color: var(--text-muted);
+  margin-top: 10px;
 }
 .recognition-wall-shout-btn {
   width: 100%;
   justify-content: center;
   margin-top: 0;
 }
-.recognition-wall-item {
-  display: grid;
-  gap: 4px;
+.recognition-wall-empty {
+  text-align: center;
+  padding: 10px 6px 4px;
 }
-.recognition-wall-item.is-badge .recognition-wall-text {
-  font-size: 13.5px;
+.recognition-wall-empty p {
+  margin: 0 0 4px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 /* —— Contest recap —— */
