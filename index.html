@@ -6317,6 +6317,8 @@ function setContestArenaTab(tab) {
     const on = el.getAttribute('data-contest-tab') === contestArenaTab;
     el.classList.toggle('is-active', on);
     el.setAttribute('aria-selected', on ? 'true' : 'false');
+    if (el.getAttribute('data-contest-tab') === 'live') el.textContent = 'Live race';
+    if (el.getAttribute('data-contest-tab') === 'history') el.textContent = 'History';
   });
   renderContestBoard();
 }
