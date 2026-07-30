@@ -165,6 +165,7 @@
      non-dropdown chips look faded/blue compared to Team & Admin. */
   .landing-actions-row > .theme-btn.large:not(.manual-attro-btn),
   .landing-actions-row .landing-actions-cluster > .theme-btn.large:not(.my-pacer-btn),
+  .landing-actions-row .landing-actions-group > .theme-btn.large:not(.manual-attro-btn):not(.my-pacer-btn),
   .landing-actions-row .header-dropdown > .theme-btn.large {
     background: #ffffff;
     color: var(--text);
@@ -174,6 +175,7 @@
   }
   body.dark .landing-actions-row > .theme-btn.large:not(.manual-attro-btn),
   body.dark .landing-actions-row .landing-actions-cluster > .theme-btn.large:not(.my-pacer-btn),
+  body.dark .landing-actions-row .landing-actions-group > .theme-btn.large:not(.manual-attro-btn):not(.my-pacer-btn),
   body.dark .landing-actions-row .header-dropdown > .theme-btn.large {
     background: var(--card-bg);
   }
@@ -221,12 +223,62 @@
   .header-dropdown { position: relative; display: flex; align-items: center; }
   .header-dropdown-menu {
     position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
-    background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px;
-    box-shadow: 0 8px 24px var(--shadow); padding: 8px; display: none; flex-direction: column;
-    gap: 6px; min-width: 190px; z-index: 65;
+    background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px;
+    box-shadow: 0 16px 40px rgba(15,23,42,0.16); padding: 8px; display: none; flex-direction: column;
+    gap: 2px; min-width: 260px; z-index: 65;
   }
   .header-dropdown-menu.open { display: flex; }
   .header-dropdown-menu .theme-btn { width: 100%; margin-top: 0; }
+  .nav-menu-label {
+    padding: 8px 10px 4px; font-size: 10px; font-weight: 900; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--text-faint);
+  }
+  .nav-menu-item {
+    display: flex; align-items: flex-start; gap: 10px; width: 100%;
+    text-align: left; margin-top: 0 !important; padding: 10px 11px !important;
+    border-radius: 12px !important; border: 1px solid transparent !important;
+    background: transparent !important; box-shadow: none !important;
+    color: var(--text) !important; cursor: pointer; font-family: inherit;
+  }
+  .nav-menu-item:hover {
+    background: var(--metric-box-bg) !important;
+    border-color: var(--card-border) !important;
+    opacity: 1 !important;
+  }
+  .nav-menu-icon {
+    flex: none; width: 34px; height: 34px; border-radius: 10px;
+    display: grid; place-items: center; font-size: 16px;
+    background: linear-gradient(135deg, rgba(244,114,182,0.18), rgba(99,102,241,0.16));
+    border: 1px solid rgba(99,102,241,0.12);
+  }
+  .nav-menu-item.admin .nav-menu-icon {
+    background: linear-gradient(135deg, rgba(251,191,36,0.2), rgba(249,115,22,0.14));
+  }
+  .nav-menu-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; padding-top: 1px; }
+  .nav-menu-text strong {
+    font-size: 13.5px; font-weight: 900; letter-spacing: -0.01em; line-height: 1.2;
+  }
+  .nav-menu-text small {
+    font-size: 11.5px; font-weight: 650; color: var(--text-muted); line-height: 1.3;
+  }
+  .landing-actions-row {
+    gap: 10px;
+  }
+  .landing-actions-group {
+    display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 6px; border-radius: 999px;
+    background: rgba(148,163,184,0.1); border: 1px solid rgba(148,163,184,0.16);
+  }
+  body.dark .landing-actions-group {
+    background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08);
+  }
+  .landing-actions-group .theme-btn.large,
+  .landing-actions-group .header-dropdown > .theme-btn.large {
+    box-shadow: none;
+  }
+  .landing-menu-hint {
+    max-width: 520px; margin-left: auto; margin-right: auto;
+  }
   /* Base "wide" popover panel — held a row of sort buttons or the (now
      removed) Key legend, wider than a simple stacked button list would need.
      Sort no longer renders as a panel at all (see .header-dropdown-menu-side
@@ -761,76 +813,172 @@
     font-size: 10.5px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em;
   }
 
-  /* —— Live Contest: fun, theme-driven race / wheel —— */
-  .contest-banner-stack {
-    display: flex; flex-direction: column; gap: 10px; margin: 10px 0 4px;
+  /* —— Live Contest sticky ticker (thin, top of every page) —— */
+  html {
+    --contest-sticky-h: 0px;
   }
-  .contest-banner-stack:empty { display: none; }
-  .contest-promo-banner {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px;
-    padding: 14px 16px; border-radius: 18px; position: relative; overflow: hidden;
-    border: 1px solid transparent;
-    background: var(--contest-banner-bg, linear-gradient(120deg, #fdf2f8, #eef2ff 50%, #ecfeff));
-    box-shadow: 0 10px 32px rgba(99,102,241,0.16);
-  }
-  .contest-promo-banner::before {
-    content: ''; position: absolute; inset: -40% -20%;
-    background: radial-gradient(circle at 20% 40%, rgba(255,255,255,0.55), transparent 42%),
-      radial-gradient(circle at 80% 20%, rgba(244,114,182,0.35), transparent 40%);
+  .contest-sticky-host {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 120;
     pointer-events: none;
   }
-  body:not(.motion-static) .contest-promo-banner::before {
-    animation: contestBannerDrift 7s ease-in-out infinite alternate;
+  .contest-sticky-host:empty,
+  .contest-sticky-host.is-empty {
+    display: none !important;
   }
-  @keyframes contestBannerDrift {
-    from { transform: translate3d(-2%, 0, 0) scale(1); }
-    to { transform: translate3d(3%, -2%, 0) scale(1.05); }
+  /* Hide on contest arena itself + login gate to avoid double chrome / chaos */
+  html.contest-arena-open .contest-sticky-host,
+  body:not(.app-ready) .contest-sticky-host {
+    display: none !important;
   }
-  .contest-promo-banner.theme-morning { --contest-banner-bg: linear-gradient(120deg, #fff7ed, #fef3c7 45%, #ffedd5); border-color: rgba(251,146,60,0.35); }
-  .contest-promo-banner.theme-power-hour { --contest-banner-bg: linear-gradient(120deg, #fdf2f8, #ede9fe 40%, #e0f2fe); border-color: rgba(236,72,153,0.4); }
-  .contest-promo-banner.theme-evening { --contest-banner-bg: linear-gradient(120deg, #1e1b4b, #312e81 50%, #4c1d95); border-color: rgba(167,139,250,0.45); color: #f8fafc; }
-  .contest-promo-banner.theme-evening .contest-promo-name,
-  .contest-promo-banner.theme-evening .contest-promo-place-val { color: #fff; }
-  .contest-promo-banner.theme-evening .contest-promo-eyebrow,
-  .contest-promo-banner.theme-evening .contest-promo-meta,
-  .contest-promo-banner.theme-evening .contest-promo-place-label { color: rgba(255,255,255,0.72); }
-  .contest-promo-banner.theme-evening .contest-promo-place { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); }
-  .contest-promo-main { flex: 1 1 200px; min-width: 0; position: relative; z-index: 1; }
-  .contest-promo-eyebrow {
-    font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em;
-    text-transform: uppercase; color: var(--text-faint); margin: 0 0 3px;
+  .contest-sticky-bar {
+    pointer-events: auto;
+    display: flex; align-items: center; gap: 10px 14px;
+    min-height: 36px; max-height: 44px;
+    padding: 5px 12px 5px 14px;
+    position: relative; overflow: hidden;
+    border-bottom: 1px solid rgba(255,255,255,0.22);
+    background: var(--contest-sticky-bg, linear-gradient(90deg, #fce7f3, #e0e7ff 45%, #cffafe));
+    box-shadow: 0 6px 18px rgba(15,23,42,0.12);
+    color: var(--text);
   }
-  .contest-promo-name {
-    margin: 0; font-size: 20px; font-weight: 900; color: var(--text);
-    letter-spacing: -0.02em; line-height: 1.15;
+  .contest-sticky-bar::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.35) 45%, transparent 70%);
+    background-size: 220% 100%;
+    pointer-events: none; opacity: 0.55;
   }
-  .contest-promo-meta { margin-top: 5px; font-size: 12.5px; font-weight: 750; color: var(--text-muted); }
-  .contest-promo-place {
-    position: relative; z-index: 1; min-width: 78px; padding: 10px 12px; border-radius: 14px;
-    background: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.8); text-align: center;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+  body:not(.motion-static) .contest-sticky-bar::before {
+    animation: contestStickySheen 14s linear infinite;
   }
-  body.dark .contest-promo-place { background: rgba(0,0,0,0.28); border-color: rgba(255,255,255,0.1); }
-  .contest-promo-place-label {
-    display: block; font-size: 10px; font-weight: 800; color: var(--text-faint);
-    text-transform: uppercase; letter-spacing: 0.04em;
+  @keyframes contestStickySheen {
+    from { background-position: 120% 0; }
+    to { background-position: -40% 0; }
   }
-  .contest-promo-place-val {
-    display: block; margin-top: 1px; font-size: 22px; font-weight: 900;
-    font-variant-numeric: tabular-nums; color: var(--text);
+  .contest-sticky-bar::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    background: linear-gradient(90deg, #ec4899, #8b5cf6, #06b6d4, #ec4899);
+    background-size: 200% 100%;
+    opacity: 0.85;
   }
-  .contest-promo-actions { position: relative; z-index: 1; display: flex; gap: 8px; flex-wrap: wrap; }
-  .contest-view-btn {
+  body:not(.motion-static) .contest-sticky-bar::after {
+    animation: contestStickyEdge 10s linear infinite;
+  }
+  @keyframes contestStickyEdge {
+    from { background-position: 0 0; }
+    to { background-position: 200% 0; }
+  }
+  .contest-sticky-live {
+    flex: none; display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 999px;
+    font-size: 10px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase;
+    background: rgba(220,38,38,0.12); color: #b91c1c; border: 1px solid rgba(220,38,38,0.2);
+    position: relative; z-index: 1;
+  }
+  .contest-sticky-live::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%; background: #ef4444;
+  }
+  body:not(.motion-static) .contest-sticky-live::before {
+    animation: contestLiveDot 1.4s ease-in-out infinite;
+  }
+  .contest-sticky-mascot {
+    flex: none; font-size: 16px; line-height: 1; position: relative; z-index: 1;
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.15));
+  }
+  body:not(.motion-static) .contest-sticky-mascot {
+    animation: contestStickyBob 3.6s ease-in-out infinite;
+  }
+  @keyframes contestStickyBob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
+  }
+  .contest-sticky-copy {
+    flex: 1 1 auto; min-width: 0; position: relative; z-index: 1;
+    display: flex; align-items: baseline; gap: 8px; flex-wrap: nowrap;
+    overflow: hidden;
+  }
+  .contest-sticky-name {
+    margin: 0; font-size: 13.5px; font-weight: 900; letter-spacing: -0.02em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: min(42vw, 320px);
+  }
+  .contest-sticky-meta {
+    font-size: 11.5px; font-weight: 750; color: var(--text-muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .contest-sticky-place {
+    flex: none; position: relative; z-index: 1;
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 9px; border-radius: 999px;
+    background: rgba(255,255,255,0.72); border: 1px solid rgba(255,255,255,0.85);
+    font-size: 11.5px; font-weight: 900; white-space: nowrap;
+  }
+  body.dark .contest-sticky-place { background: rgba(0,0,0,0.28); border-color: rgba(255,255,255,0.12); }
+  .contest-sticky-place b { font-variant-numeric: tabular-nums; }
+  .contest-sticky-cd {
+    flex: none; position: relative; z-index: 1;
+    font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em; white-space: nowrap;
+  }
+  .contest-sticky-cta {
+    flex: none; position: relative; z-index: 1;
     appearance: none; border: none; cursor: pointer;
-    padding: 11px 16px; border-radius: 999px; font-size: 13.5px; font-weight: 900;
+    padding: 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 900;
     color: #fff; background: linear-gradient(135deg, #ec4899, #8b5cf6 55%, #06b6d4);
-    box-shadow: 0 8px 22px rgba(236,72,153,0.35);
+    box-shadow: 0 4px 12px rgba(236,72,153,0.28);
+    font-family: inherit; white-space: nowrap;
   }
-  body:not(.motion-static) .contest-view-btn { animation: contestCtaPulse 2s ease-in-out infinite; }
-  @keyframes contestCtaPulse {
-    0%, 100% { transform: scale(1); box-shadow: 0 8px 22px rgba(236,72,153,0.35); }
-    50% { transform: scale(1.05); box-shadow: 0 10px 28px rgba(99,102,241,0.4); }
+  .contest-sticky-cta:hover { filter: brightness(1.05); }
+  /* Theme accents for sticky bar */
+  .contest-sticky-bar.theme-grand-prix { --contest-sticky-bg: linear-gradient(90deg, #fef3c7, #e0e7ff 50%, #fecdd3); }
+  .contest-sticky-bar.theme-neon-night { --contest-sticky-bg: linear-gradient(90deg, #1e1b4b, #4c1d95 50%, #0e7490); color: #f8fafc; }
+  .contest-sticky-bar.theme-neon-night .contest-sticky-meta { color: rgba(255,255,255,0.72); }
+  .contest-sticky-bar.theme-neon-night .contest-sticky-place { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); color: #fff; }
+  .contest-sticky-bar.theme-space-race { --contest-sticky-bg: linear-gradient(90deg, #0f172a, #312e81 45%, #581c87); color: #f8fafc; }
+  .contest-sticky-bar.theme-space-race .contest-sticky-meta { color: rgba(255,255,255,0.72); }
+  .contest-sticky-bar.theme-space-race .contest-sticky-place { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); color: #fff; }
+  .contest-sticky-bar.theme-desert-rally { --contest-sticky-bg: linear-gradient(90deg, #ffedd5, #fde68a 50%, #fdba74); }
+  .contest-sticky-bar.theme-rainbow-road { --contest-sticky-bg: linear-gradient(90deg, #fda4af, #c4b5fd 35%, #7dd3fc 70%, #86efac); }
+  .contest-sticky-bar.theme-ice-circuit { --contest-sticky-bg: linear-gradient(90deg, #e0f2fe, #bae6fd 50%, #a5f3fc); }
+  .contest-sticky-bar.theme-stadium { --contest-sticky-bg: linear-gradient(90deg, #dcfce7, #bbf7d0 50%, #fef08a); }
+  .contest-sticky-bar.theme-carnival { --contest-sticky-bg: linear-gradient(90deg, #fce7f3, #fbcfe8 40%, #fde68a); }
+  .contest-sticky-bar.theme-pirate { --contest-sticky-bg: linear-gradient(90deg, #44403c, #78716c 45%, #b45309); color: #fafaf9; }
+  .contest-sticky-bar.theme-pirate .contest-sticky-meta { color: rgba(255,255,255,0.72); }
+  .contest-sticky-bar.theme-pirate .contest-sticky-place { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); color: #fff; }
+  .contest-sticky-bar.theme-arcade { --contest-sticky-bg: linear-gradient(90deg, #2e1065, #7c3aed 50%, #db2777); color: #fdf4ff; }
+  .contest-sticky-bar.theme-arcade .contest-sticky-meta { color: rgba(255,255,255,0.75); }
+  .contest-sticky-bar.theme-arcade .contest-sticky-place { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); color: #fff; }
+  .contest-sticky-bar.theme-blood-type-a { --contest-sticky-bg: linear-gradient(90deg, #450a0a, #991b1b 40%, #e11d48 80%, #7f1d1d); color: #fff1f2; }
+  .contest-sticky-bar.theme-blood-type-a .contest-sticky-meta { color: rgba(255,255,255,0.78); }
+  .contest-sticky-bar.theme-blood-type-a .contest-sticky-place { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.22); color: #fff; }
+  .contest-sticky-bar.theme-blood-type-a .contest-sticky-live { background: rgba(255,255,255,0.16); color: #fecdd3; border-color: rgba(254,205,211,0.35); }
+  .contest-sticky-bar.theme-dragon-cup { --contest-sticky-bg: linear-gradient(90deg, #7c2d12, #ea580c 50%, #fbbf24); color: #fff7ed; }
+  .contest-sticky-bar.theme-dragon-cup .contest-sticky-meta { color: rgba(255,255,255,0.78); }
+  .contest-sticky-bar.theme-dragon-cup .contest-sticky-place { background: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.2); color: #fff; }
+  .contest-sticky-bar.theme-underwater { --contest-sticky-bg: linear-gradient(90deg, #082f49, #0369a1 50%, #22d3ee); color: #ecfeff; }
+  .contest-sticky-bar.theme-underwater .contest-sticky-meta { color: rgba(255,255,255,0.75); }
+  .contest-sticky-bar.theme-underwater .contest-sticky-place { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); color: #fff; }
+  .contest-sticky-bar.theme-retro { --contest-sticky-bg: linear-gradient(90deg, #fef3c7, #fde68a 40%, #f9a8d4); }
+  @media (max-width: 720px) {
+    .contest-sticky-meta { display: none; }
+    .contest-sticky-name { max-width: 38vw; font-size: 12.5px; }
+    .contest-sticky-cta { padding: 5px 9px; font-size: 11.5px; }
   }
+
+  /* Reserve space so sticky bar never covers page chrome */
+  html.has-contest-sticky body {
+    padding-top: calc(28px + var(--contest-sticky-h));
+  }
+  html.has-contest-sticky .mini-header {
+    top: var(--contest-sticky-h);
+  }
+  html.has-contest-sticky .detail-overlay {
+    top: var(--contest-sticky-h);
+  }
+  html.has-contest-sticky .detail-mini-header {
+    top: var(--contest-sticky-h);
+  }
+  /* Legacy in-flow stack kept empty / unused */
+  .contest-banner-stack { display: none !important; }
 
   #contestOverlay {
     background:
@@ -995,6 +1143,8 @@
   .contest-speedway.accent-lime { --sw-accent: #a3e635; }
   .contest-speedway.accent-orange { --sw-accent: #fb923c; }
   .contest-speedway.accent-violet { --sw-accent: #a78bfa; }
+  .contest-speedway.accent-red { --sw-accent: #ef4444; }
+  .contest-speedway.accent-blood { --sw-accent: #e11d48; }
   .contest-speedway.track-neon {
     --sw-sky: linear-gradient(180deg, #14061f 0%, #2a0a3d 50%, #0c1a2e 100%);
     --sw-road: #1a1030; --sw-mark: #f0abfc;
@@ -1015,6 +1165,35 @@
     --sw-sky: linear-gradient(180deg, #14532d 0%, #166534 40%, #052e16 100%);
     --sw-road: #14532d; --sw-mark: #fef08a;
   }
+  .contest-speedway.track-space {
+    --sw-sky: linear-gradient(180deg, #020617 0%, #1e1b4b 45%, #312e81 100%);
+    --sw-road: #0f172a; --sw-mark: #c4b5fd;
+  }
+  .contest-speedway.track-ocean {
+    --sw-sky: linear-gradient(180deg, #082f49 0%, #0369a1 50%, #22d3ee 100%);
+    --sw-road: #0c4a6e; --sw-mark: #a5f3fc;
+  }
+  .contest-speedway.track-lava {
+    --sw-sky: linear-gradient(180deg, #450a0a 0%, #9f1239 45%, #ea580c 100%);
+    --sw-road: #7f1d1d; --sw-mark: #fecdd3;
+  }
+  .contest-speedway.track-pixel {
+    --sw-sky: linear-gradient(180deg, #1e1b4b 0%, #5b21b6 50%, #db2777 100%);
+    --sw-road: #312e81; --sw-mark: #fde68a;
+  }
+  .contest-confetti-burst {
+    position: fixed; inset: 0; pointer-events: none; z-index: 200; overflow: hidden;
+  }
+  .contest-confetti-piece {
+    position: absolute; top: -12px; width: 8px; height: 12px; border-radius: 2px;
+    opacity: 0.95;
+    animation: contestConfettiFall 1.6s ease-out forwards;
+  }
+  @keyframes contestConfettiFall {
+    0% { transform: translate3d(0,0,0) rotate(0deg); opacity: 1; }
+    100% { transform: translate3d(var(--dx), 110vh, 0) rotate(540deg); opacity: 0; }
+  }
+  body.motion-static .contest-confetti-burst { display: none !important; }
   .contest-speedway-top {
     display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
     gap: 8px 12px; margin-bottom: 12px; position: relative; z-index: 2;
@@ -1334,7 +1513,10 @@
     background: linear-gradient(135deg, rgba(253,242,248,0.9), rgba(224,242,254,0.7));
   }
   .contest-empty-fun .emoji { font-size: 42px; display: block; margin-bottom: 8px; }
-  body.motion-static .contest-promo-banner::before,
+  body.motion-static .contest-sticky-bar::before,
+  body.motion-static .contest-sticky-bar::after,
+  body.motion-static .contest-sticky-mascot,
+  body.motion-static .contest-sticky-live::before,
   body.motion-static .contest-board-hero::after,
   body.motion-static .contest-hero-icon,
   body.motion-static .contest-view-btn,
@@ -2830,11 +3012,13 @@
   }
   .landing-actions-row > button.theme-btn.large:not(.manual-attro-btn),
   .landing-actions-row .landing-actions-cluster > button.theme-btn.large:not(.my-pacer-btn),
+  .landing-actions-row .landing-actions-group > button.theme-btn.large:not(.manual-attro-btn):not(.my-pacer-btn),
   .landing-actions-row .header-dropdown > button.theme-btn.large {
     background: #ffffff; color: var(--text); border: 1px solid var(--pill-border); opacity: 1;
   }
   body.dark .landing-actions-row > button.theme-btn.large:not(.manual-attro-btn),
   body.dark .landing-actions-row .landing-actions-cluster > button.theme-btn.large:not(.my-pacer-btn),
+  body.dark .landing-actions-row .landing-actions-group > button.theme-btn.large:not(.manual-attro-btn):not(.my-pacer-btn),
   body.dark .landing-actions-row .header-dropdown > button.theme-btn.large {
     background: var(--card-bg);
   }
@@ -2968,8 +3152,39 @@
   .detail-page-grid { display: grid; grid-template-columns: 1fr 240px; gap: 24px; align-items: stretch; }
   .detail-main-col { min-width: 0; }
   @media (max-width: 900px) { .detail-page-grid { grid-template-columns: 1fr; } }
-  .detail-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-  .detail-header h2 { font-size: 17px; margin: 0; }
+  .detail-header {
+    display: flex; align-items: center; gap: 12px 16px; margin-bottom: 18px; flex-wrap: wrap;
+    padding: 12px 14px; border-radius: 18px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.72), rgba(248,250,252,0.55));
+    border: 1px solid var(--card-border);
+    box-shadow: 0 8px 24px rgba(15,23,42,0.05);
+  }
+  body.dark .detail-header {
+    background: linear-gradient(135deg, rgba(30,27,48,0.9), rgba(26,23,41,0.75));
+  }
+  .detail-header h2 {
+    font-size: clamp(18px, 2.4vw, 22px); margin: 0; font-weight: 900;
+    letter-spacing: -0.02em; flex: 1 1 auto; min-width: 0;
+  }
+  .detail-header .theme-btn {
+    margin-top: 0; border-radius: 999px;
+  }
+  .detail-header .page-back-btn {
+    background: var(--card-bg); font-weight: 800;
+  }
+  .page-kicker {
+    display: block; font-size: 10.5px; font-weight: 900; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--text-faint); margin-bottom: 2px;
+  }
+  .detail-page > .meta-note:first-of-type {
+    margin-top: -6px;
+  }
+  .detail-overlay .detail-page {
+    padding-top: 18px;
+  }
+  .workspace-tabs, .attr-page-tabs, .contest-tabs, .pacer-layout-tabs .pacer-tab-track {
+    box-shadow: 0 4px 14px rgba(15,23,42,0.04);
+  }
   /* Same sweeping full-bleed glow as the landing title (.header-aura), scoped
      to Client Detail's own header only — Manual Attribution/Edit Goals/SIP
      share the .detail-header class but weren't asked for the glow, so the
@@ -3156,6 +3371,11 @@
   .detail-panel-refund .detail-table td:nth-child(2),
   .detail-panel-refund .detail-table td:nth-child(3) { color: #dc2626; }
   .detail-table tr:hover { background: var(--metric-box-bg); }
+  .detail-client-link {
+    color: #6366f1; font-weight: 800; text-decoration: none;
+    border-bottom: 1px solid rgba(99,102,241,0.35);
+  }
+  .detail-client-link:hover { color: #a855f7; border-bottom-color: rgba(168,85,247,0.55); }
   .date-chip { display: inline-block; background: var(--metric-box-bg); color: var(--text-muted); font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
 
   /* Signed-in footer — full-width room for View as / Revert. */
@@ -3577,6 +3797,8 @@
   }, true);
 })();
 </script>
+<!-- Sticky contest ticker — thin bar above every page while a contest is live -->
+<div class="contest-sticky-host is-empty" id="contestStickyHost" aria-live="polite"></div>
 <!-- Slim reminder bar — hidden until the main banner (day/expected pace pills)
      scrolls out of view, so the context isn't lost while scrolling a long rep
      list. Toggled by an IntersectionObserver watching #banner (see bottom of
@@ -3608,7 +3830,7 @@
     <h1><span class="grad-text">A-Team</span> <span id="titleMonth">Monthly</span> Pacer</h1>
     <span class="title-blood-badge" aria-hidden="true"><span class="title-blood-emoji">🅰️</span></span>
   </div>
-  <div class="contest-banner-stack" id="contestBannerStack" aria-live="polite"></div>
+  <!-- contest banner moved to #contestStickyHost (fixed top) -->
   </div>
   <div class="landing-region landing-region-chrome landing-region-tools" id="landingTools">
   <!-- Centered under the title, isolated from anything else so new buttons
@@ -3624,28 +3846,54 @@
        .rep-list-toolbar near #repList). Signed-in state lives in the page
        footer (.session-bar), not in this action row. -->
   <div class="landing-actions-row">
-    <button class="theme-btn manual-attro-btn large" id="manualAttroBtn" type="button">📝 Manual Attribution</button>
-    <div class="header-dropdown" id="teamMenuWrap" style="display:none;">
-      <button class="theme-btn large" id="teamMenuBtn" type="button">👥 Team ▾</button>
-      <div class="header-dropdown-menu" id="teamMenu">
-        <button class="theme-btn" id="teamDetailsBtn" type="button">🗂️ Cancels &amp; attributions</button>
-        <button class="theme-btn" id="teamPersonalGoalsBtn" type="button">🎯 Personal month goals</button>
-        <button class="theme-btn" id="teamContestsBtn" type="button">🏆 Contests</button>
-      </div>
-    </div>
-    <div class="header-dropdown" id="adminMenuWrap" style="display:none;">
-      <button class="theme-btn large" id="adminMenuBtn" type="button">⚙️ Admin ▾</button>
-      <div class="header-dropdown-menu" id="adminMenu">
-        <button class="theme-btn" id="footerGoalsBtn" type="button">Edit Monthly Goals</button>
-        <button class="theme-btn" id="footerAdminSettingsBtn" type="button">Access, badges &amp; tools</button>
-        <button class="theme-btn" id="footerSipBtn" type="button">Historical SIP</button>
-      </div>
-    </div>
-    <button class="theme-btn large" id="teamScheduleBtn" type="button" style="display:none;">📅 Weekly schedules</button>
-    <span class="landing-actions-cluster" id="myPacerShoutoutCluster">
-      <button class="theme-btn large my-pacer-btn" id="openMyPacerBtn" type="button" style="display:none;">🏃 Open My Individual Pacer</button>
+    <div class="landing-actions-group" id="landingPrimaryActions">
+      <button class="theme-btn manual-attro-btn large" id="manualAttroBtn" type="button">📝 Manual Attribution</button>
+      <button class="theme-btn large my-pacer-btn" id="openMyPacerBtn" type="button" style="display:none;">🏃 My Pacer</button>
       <button class="theme-btn large" id="shoutoutSendBtn" type="button">📣 Shoutout</button>
-    </span>
+    </div>
+    <div class="landing-actions-group" id="landingNavActions">
+      <div class="header-dropdown" id="teamMenuWrap" style="display:none;">
+        <button class="theme-btn large" id="teamMenuBtn" type="button" aria-haspopup="menu">👥 Team ▾</button>
+        <div class="header-dropdown-menu" id="teamMenu" role="menu">
+          <div class="nav-menu-label">Team ops</div>
+          <button class="theme-btn nav-menu-item" id="teamContestsBtn" type="button" role="menuitem">
+            <span class="nav-menu-icon" aria-hidden="true">🏆</span>
+            <span class="nav-menu-text"><strong>Contests</strong><small>Live speedway, wheel &amp; history</small></span>
+          </button>
+          <button class="theme-btn nav-menu-item" id="teamDetailsBtn" type="button" role="menuitem">
+            <span class="nav-menu-icon" aria-hidden="true">🗂️</span>
+            <span class="nav-menu-text"><strong>Cancels &amp; attributions</strong><small>Team workspace &amp; corrections</small></span>
+          </button>
+          <button class="theme-btn nav-menu-item" id="teamPersonalGoalsBtn" type="button" role="menuitem">
+            <span class="nav-menu-icon" aria-hidden="true">🎯</span>
+            <span class="nav-menu-text"><strong>Personal month goals</strong><small>See who’s set targets</small></span>
+          </button>
+          <button class="theme-btn nav-menu-item" id="teamScheduleBtn" type="button" role="menuitem" style="display:none;">
+            <span class="nav-menu-icon" aria-hidden="true">📅</span>
+            <span class="nav-menu-text"><strong>Weekly schedules</strong><small>Shifts, Off days &amp; capacity</small></span>
+          </button>
+        </div>
+      </div>
+      <div class="header-dropdown" id="adminMenuWrap" style="display:none;">
+        <button class="theme-btn large" id="adminMenuBtn" type="button" aria-haspopup="menu">⚙️ Admin ▾</button>
+        <div class="header-dropdown-menu" id="adminMenu" role="menu">
+          <div class="nav-menu-label">Admin tools</div>
+          <button class="theme-btn nav-menu-item admin" id="footerGoalsBtn" type="button" role="menuitem">
+            <span class="nav-menu-icon" aria-hidden="true">📊</span>
+            <span class="nav-menu-text"><strong>Monthly goals</strong><small>Sessions, members &amp; tags</small></span>
+          </button>
+          <button class="theme-btn nav-menu-item admin" id="footerAdminSettingsBtn" type="button" role="menuitem">
+            <span class="nav-menu-icon" aria-hidden="true">🛠️</span>
+            <span class="nav-menu-text"><strong>Access, badges &amp; tools</strong><small>Roles, view-as, badge tips</small></span>
+          </button>
+          <button class="theme-btn nav-menu-item admin" id="footerSipBtn" type="button" role="menuitem">
+            <span class="nav-menu-icon" aria-hidden="true">📈</span>
+            <span class="nav-menu-text"><strong>Historical SIP</strong><small>Past months &amp; close-out</small></span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <span class="landing-actions-cluster" id="myPacerShoutoutCluster" style="display:none;" aria-hidden="true"></span>
     <div class="header-dropdown" id="layoutToolsWrap" style="display:none;">
       <button class="theme-btn large" id="layoutToolsBtn" type="button">🧰 Tools ▾</button>
       <div class="header-dropdown-menu" id="layoutToolsMenu">
@@ -3660,7 +3908,7 @@
       </div>
     </div>
   </div>
-  <div class="landing-menu-hint" id="landingMenuHint" style="display:none;">Team tools and admin settings live in the menus above — open a rep below for Individual Pacer.</div>
+  <div class="landing-menu-hint" id="landingMenuHint" style="display:none;">Use <b>Team</b> for contests &amp; ops · <b>Admin</b> for goals &amp; access · open a rep below for Individual Pacer.</div>
   </div>
 
   <div class="landing-region landing-region-status" id="landingStatus">
@@ -3784,8 +4032,11 @@
     </div>
     <div class="detail-header">
       <div class="header-aura" aria-hidden="true"></div>
-      <button class="theme-btn" id="detailBackBtn" type="button">← Back to dashboard</button>
-      <h2 id="detailRepName"></h2>
+      <button class="theme-btn page-back-btn" id="detailBackBtn" type="button">← Dashboard</button>
+      <div style="min-width:0;flex:1 1 auto;">
+        <span class="page-kicker">Individual Pacer</span>
+        <h2 id="detailRepName"></h2>
+      </div>
       <button class="theme-btn manual-attro-btn" id="detailManualAttroBtn" type="button">📝 Manual Attribution</button>
       <div class="detail-header-pace" id="detailHeaderPace"></div>
     </div>
@@ -3984,8 +4235,11 @@
 <div class="detail-overlay" id="contestOverlay">
   <div class="detail-page">
     <div class="detail-header">
-      <button class="theme-btn" id="contestBackBtn" type="button">← Dashboard</button>
-      <h2 id="contestPageTitle">🏆 Contest Arena</h2>
+      <button class="theme-btn page-back-btn" id="contestBackBtn" type="button">← Dashboard</button>
+      <div style="min-width:0;flex:1 1 auto;">
+        <span class="page-kicker">Live arena</span>
+        <h2 id="contestPageTitle">🏆 Contest Arena</h2>
+      </div>
       <button class="theme-btn" id="contestNewBtn" type="button" style="display:none; margin-left:auto;">✨ New contest</button>
     </div>
     <div class="contest-tabs" role="tablist" aria-label="Contest views">
@@ -4011,12 +4265,31 @@
       <label class="full">Custom tagline <span style="font-weight:600;text-transform:none;letter-spacing:0;">(optional)</span>
         <input type="text" id="contestEditTagline" maxlength="120" placeholder="One hour. Full send.">
       </label>
-      <label>Timing theme
-        <select id="contestEditPreset">
-          <option value="morning">Morning</option>
-          <option value="power-hour">Power Hour</option>
-          <option value="evening">Evening</option>
-          <option value="custom">Custom</option>
+      <label class="full">Contest theme
+        <select id="contestEditTheme">
+          <option value="grand-prix">🏁 Grand Prix</option>
+          <option value="neon-night">🌃 Neon Night</option>
+          <option value="space-race">🚀 Space Race</option>
+          <option value="desert-rally">🏜️ Desert Rally</option>
+          <option value="rainbow-road">🌈 Rainbow Road</option>
+          <option value="ice-circuit">❄️ Ice Circuit</option>
+          <option value="stadium">🏟️ Stadium</option>
+          <option value="carnival">🎡 Carnival Wheel</option>
+          <option value="pirate">🏴‍☠️ Pirate Quest</option>
+          <option value="arcade">👾 Arcade Cup</option>
+          <option value="blood-type-a">🅰️ Blood Type A</option>
+          <option value="dragon-cup">🐉 Dragon Cup</option>
+          <option value="underwater">🐠 Underwater</option>
+          <option value="retro">📼 Retro Rally</option>
+        </select>
+      </label>
+      <label>Duration
+        <select id="contestEditDuration">
+          <option value="30m">30 minutes</option>
+          <option value="1h" selected>1 hour</option>
+          <option value="2h">2 hours</option>
+          <option value="4h">4 hours</option>
+          <option value="custom">Custom window</option>
         </select>
       </label>
       <label>Kind
@@ -4060,21 +4333,29 @@
       <div class="contest-form-section full" id="contestEditRaceOpts">
         <div class="contest-form-section-title">🏎️ Race vibes</div>
         <div class="contest-form-grid">
-          <label>Vehicle
+          <label>Vehicle / runner
             <select id="contestEditVehicle">
               <option value="car">🏎️ Race car</option>
               <option value="kart">🛵 Kart</option>
               <option value="rocket">🚀 Rocket</option>
+              <option value="blood-a">🅰️ Blood Type A</option>
               <option value="horse">🐴 Horse</option>
+              <option value="unicorn">🦄 Unicorn</option>
               <option value="turtle">🐢 Turtle</option>
               <option value="bolt">⚡ Lightning</option>
               <option value="runner">🏃 Runner</option>
               <option value="bike">🚲 Bike</option>
               <option value="boat">🚤 Boat</option>
               <option value="dragon">🐉 Dragon</option>
+              <option value="phoenix">🔥 Phoenix</option>
+              <option value="alien">👽 Alien</option>
+              <option value="ghost">👻 Ghost</option>
+              <option value="crown">👑 Crown</option>
+              <option value="pizza">🍕 Pizza</option>
+              <option value="hotdog">🌭 Hotdog</option>
             </select>
           </label>
-          <label>Track theme
+          <label>Track / world
             <select id="contestEditTrack">
               <option value="asphalt">Asphalt speedway</option>
               <option value="neon">Neon night</option>
@@ -4082,6 +4363,10 @@
               <option value="rainbow">Rainbow road</option>
               <option value="ice">Ice circuit</option>
               <option value="stadium">Stadium lights</option>
+              <option value="space">Deep space</option>
+              <option value="ocean">Ocean lane</option>
+              <option value="lava">Lava run</option>
+              <option value="pixel">Pixel world</option>
             </select>
           </label>
           <label>Hype level
@@ -4099,7 +4384,59 @@
               <option value="lime">Lime</option>
               <option value="orange">Orange</option>
               <option value="violet">Violet</option>
+              <option value="red">Racing red</option>
+              <option value="blood">Blood Type A</option>
             </select>
+          </label>
+          <label>Mascot
+            <select id="contestEditMascot">
+              <option value="🏁">🏁 Flag</option>
+              <option value="🅰️">🅰️ Blood Type A</option>
+              <option value="🚀">🚀 Rocket</option>
+              <option value="🐉">🐉 Dragon</option>
+              <option value="🦄">🦄 Unicorn</option>
+              <option value="🏟️">🏟️ Stadium</option>
+              <option value="🎡">🎡 Wheel</option>
+              <option value="👾">👾 Arcade</option>
+              <option value="🏴‍☠️">🏴‍☠️ Pirate</option>
+              <option value="❄️">❄️ Ice</option>
+              <option value="🌈">🌈 Rainbow</option>
+              <option value="🏆">🏆 Trophy</option>
+            </select>
+          </label>
+          <label>Effects
+            <select id="contestEditEffects">
+              <option value="none">None</option>
+              <option value="sparks">Sparks</option>
+              <option value="confetti">Confetti</option>
+              <option value="fireworks">Fireworks</option>
+              <option value="max">Max party</option>
+            </select>
+          </label>
+          <label>Cheer style
+            <select id="contestEditCheer">
+              <option value="announcer">Announcer</option>
+              <option value="hype-crew">Hype crew</option>
+              <option value="radio">Race radio</option>
+              <option value="silent">Silent</option>
+            </select>
+          </label>
+          <label>Board size
+            <select id="contestEditBoardSize">
+              <option value="hero">Hero (board focus)</option>
+              <option value="normal">Normal</option>
+            </select>
+          </label>
+          <label class="full">Custom cheer <span style="font-weight:600;text-transform:none;letter-spacing:0;">(optional)</span>
+            <input type="text" id="contestEditCustomCheer" maxlength="140" placeholder="LDOM is HERE — take the lead!">
+          </label>
+          <label class="full" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;font-weight:700;">
+            <input type="checkbox" id="contestEditConfettiLead" checked style="width:auto;">
+            Confetti when the lead changes
+          </label>
+          <label class="full" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;font-weight:700;">
+            <input type="checkbox" id="contestEditShowTicker" checked style="width:auto;">
+            Show live moves ticker
           </label>
           <label>Finish-line goal <span style="font-weight:600;text-transform:none;letter-spacing:0;">(optional)</span>
             <input type="number" id="contestEditRaceGoal" min="0" step="any" placeholder="Auto vs leader">
@@ -4125,6 +4462,8 @@
               <option value="candy">Candy</option>
               <option value="midnight">Midnight</option>
               <option value="gold">Gold rush</option>
+              <option value="blood">Blood Type A</option>
+              <option value="pixel">Pixel</option>
             </select>
           </label>
         </div>
@@ -4148,8 +4487,11 @@
 <div class="detail-overlay" id="manualAttroOverlay">
   <div class="detail-page">
     <div class="detail-header">
-      <button class="theme-btn" id="attroBackBtn" type="button">← Dashboard</button>
-      <h2 id="attroPageTitle">Manual Attribution</h2>
+      <button class="theme-btn page-back-btn" id="attroBackBtn" type="button">← Dashboard</button>
+      <div style="min-width:0;flex:1 1 auto;">
+        <span class="page-kicker">Requests</span>
+        <h2 id="attroPageTitle">Manual Attribution</h2>
+      </div>
     </div>
     <div class="card" id="attributionSignedOutNote">
       <div class="meta-note" style="margin-top:0;">Sign in with your company Google account to request credit for a sale the system didn't auto-attribute to you.</div>
@@ -4386,8 +4728,11 @@
 <div class="detail-overlay" id="teamDetailsOverlay">
   <div class="detail-page">
     <div class="detail-header">
-      <button class="theme-btn" id="teamDetailsBackBtn" type="button">← Back to dashboard</button>
-      <h2>Team workspace</h2>
+      <button class="theme-btn page-back-btn" id="teamDetailsBackBtn" type="button">← Dashboard</button>
+      <div style="min-width:0;flex:1 1 auto;">
+        <span class="page-kicker">Team ops</span>
+        <h2>Team workspace</h2>
+      </div>
     </div>
     <div class="meta-note" id="teamWorkspaceIntro" style="margin:-4px 0 12px;">Coach view for day-to-day team ops. Admin goal/SIP setup lives under <strong>Admin</strong> on the landing page.</div>
     <div class="workspace-tabs" id="teamWorkspaceTabs">
@@ -4492,8 +4837,11 @@
 <div class="detail-overlay" id="goalsOverlay">
   <div class="detail-page">
     <div class="detail-header">
-      <button class="theme-btn" id="goalsBackBtn" type="button">← Back to dashboard</button>
-      <h2>Edit Monthly Goals</h2>
+      <button class="theme-btn page-back-btn" id="goalsBackBtn" type="button">← Dashboard</button>
+      <div style="min-width:0;flex:1 1 auto;">
+        <span class="page-kicker">Admin</span>
+        <h2>Edit Monthly Goals</h2>
+      </div>
     </div>
     <div class="card">
       <h2>Add a person</h2>
@@ -4529,8 +4877,11 @@
 <div class="detail-overlay" id="adminSettingsOverlay">
   <div class="detail-page">
     <div class="detail-header">
-      <button class="theme-btn" id="adminSettingsBackBtn" type="button">← Back to dashboard</button>
-      <h2>Access, badges &amp; tools</h2>
+      <button class="theme-btn page-back-btn" id="adminSettingsBackBtn" type="button">← Dashboard</button>
+      <div style="min-width:0;flex:1 1 auto;">
+        <span class="page-kicker">Admin</span>
+        <h2>Access, badges &amp; tools</h2>
+      </div>
     </div>
     <p class="admin-settings-intro">Manage who can open Individual Pacers, badges, and shoutouts. Main sections stay open so nothing is buried.</p>
 
@@ -4638,8 +4989,11 @@
 <div class="detail-overlay" id="sipOverlay">
   <div class="detail-page">
     <div class="detail-header">
-      <button class="theme-btn" id="sipBackBtn" type="button">← Back to dashboard</button>
-      <h2>Historical Performance (SIP)</h2>
+      <button class="theme-btn page-back-btn" id="sipBackBtn" type="button">← Dashboard</button>
+      <div style="min-width:0;flex:1 1 auto;">
+        <span class="page-kicker">Admin</span>
+        <h2>Historical Performance (SIP)</h2>
+      </div>
     </div>
     <div id="monthStorySummaryContainer"></div>
     <div class="card">
@@ -9390,25 +9744,45 @@ function contestStakeLabel(c) {
   if (c.stakeType === 'money' && c.stakeAmount) return `$${Number(c.stakeAmount).toLocaleString('en-US')} pot`;
   return 'Bragging rights';
 }
+function contestResolveTheme(contest) {
+  const t = String((contest && contest.theme) || '').trim();
+  const themes = ['grand-prix','neon-night','space-race','desert-rally','rainbow-road','ice-circuit','stadium','carnival','pirate','arcade','blood-type-a','dragon-cup','underwater','retro'];
+  if (themes.includes(t)) return t;
+  const p = String((contest && contest.preset) || '');
+  if (p === 'morning') return 'desert-rally';
+  if (p === 'evening') return 'neon-night';
+  if (p === 'power-hour') return 'grand-prix';
+  return 'grand-prix';
+}
 function contestThemeClass(contest) {
-  const p = String((contest && contest.preset) || 'custom');
-  if (p === 'morning' || p === 'power-hour' || p === 'evening') return 'theme-' + p;
-  return 'theme-power-hour';
+  return 'theme-' + contestResolveTheme(contest);
+}
+function contestThemeMeta(theme) {
+  const map = {
+    'grand-prix': { icon: '🏁', name: 'Grand Prix', tagline: 'Hit the track. Take the lead.', track: 'asphalt', vehicle: 'car', accent: 'gold', mascot: '🏁', effects: 'confetti', mode: 'race' },
+    'neon-night': { icon: '🌃', name: 'Neon Night', tagline: 'Lights out. Full send.', track: 'neon', vehicle: 'kart', accent: 'cyan', mascot: '🌃', effects: 'sparks', mode: 'race' },
+    'space-race': { icon: '🚀', name: 'Space Race', tagline: 'Zero gravity. Maximum credits.', track: 'space', vehicle: 'rocket', accent: 'violet', mascot: '🚀', effects: 'max', mode: 'race' },
+    'desert-rally': { icon: '🏜️', name: 'Desert Rally', tagline: 'Dust, grit, and early heat.', track: 'desert', vehicle: 'car', accent: 'orange', mascot: '🏜️', effects: 'sparks', mode: 'race' },
+    'rainbow-road': { icon: '🌈', name: 'Rainbow Road', tagline: 'No rails. All vibes.', track: 'rainbow', vehicle: 'kart', accent: 'pink', mascot: '🌈', effects: 'confetti', mode: 'race' },
+    'ice-circuit': { icon: '❄️', name: 'Ice Circuit', tagline: 'Stay frosty. Stay first.', track: 'ice', vehicle: 'car', accent: 'cyan', mascot: '❄️', effects: 'sparks', mode: 'race' },
+    stadium: { icon: '🏟️', name: 'Stadium', tagline: 'Crowd on their feet.', track: 'stadium', vehicle: 'runner', accent: 'lime', mascot: '🏟️', effects: 'fireworks', mode: 'race' },
+    carnival: { icon: '🎡', name: 'Carnival', tagline: 'Earn tickets. Spin for glory.', track: 'rainbow', vehicle: 'unicorn', accent: 'pink', mascot: '🎡', effects: 'confetti', mode: 'wheel', wheelSkin: 'candy' },
+    pirate: { icon: '🏴‍☠️', name: 'Pirate Quest', tagline: 'Hunt credits. Claim the treasure.', track: 'ocean', vehicle: 'boat', accent: 'gold', mascot: '🏴‍☠️', effects: 'sparks', mode: 'race' },
+    arcade: { icon: '👾', name: 'Arcade Cup', tagline: 'Insert sale to continue.', track: 'pixel', vehicle: 'ghost', accent: 'violet', mascot: '👾', effects: 'max', mode: 'race' },
+    'blood-type-a': { icon: '🅰️', name: 'Blood Type A', tagline: 'A-Team energy only.', track: 'lava', vehicle: 'blood-a', accent: 'blood', mascot: '🅰️', effects: 'max', mode: 'race' },
+    'dragon-cup': { icon: '🐉', name: 'Dragon Cup', tagline: 'Breathe fire. Close deals.', track: 'lava', vehicle: 'dragon', accent: 'orange', mascot: '🐉', effects: 'fireworks', mode: 'race' },
+    underwater: { icon: '🐠', name: 'Underwater', tagline: 'Dive deep. Surface first.', track: 'ocean', vehicle: 'boat', accent: 'cyan', mascot: '🐠', effects: 'sparks', mode: 'race' },
+    retro: { icon: '📼', name: 'Retro Rally', tagline: 'Old-school pace. New-school wins.', track: 'pixel', vehicle: 'car', accent: 'gold', mascot: '📼', effects: 'confetti', mode: 'race' },
+  };
+  return map[theme] || map['grand-prix'];
 }
 function contestThemeIcon(contest) {
-  const p = String((contest && contest.preset) || 'custom');
-  if (p === 'morning') return '☀️';
-  if (p === 'evening') return '🌙';
-  if (p === 'power-hour') return '⚡';
-  return contest && contest.mode === 'wheel' ? '🎡' : '🏁';
+  if (contest && contest.mascot) return contest.mascot;
+  return contestThemeMeta(contestResolveTheme(contest)).icon;
 }
 function contestThemeTagline(contest) {
   if (contest && contest.tagline) return contest.tagline;
-  const p = String((contest && contest.preset) || 'custom');
-  if (p === 'morning') return 'Rise & grind — early credits count double in vibes';
-  if (p === 'evening') return 'Late desk energy — close strong';
-  if (p === 'power-hour') return 'One hour. Full send. No chill.';
-  return contest && contest.mode === 'wheel' ? 'Earn tickets. Spin for glory.' : 'Hit the track. Take the lead.';
+  return contestThemeMeta(contestResolveTheme(contest)).tagline;
 }
 function contestPlaceLabel(place) {
   if (!place || place < 1) return '—';
@@ -9422,6 +9796,8 @@ function contestVehicleEmoji(vehicle) {
   const map = {
     car: '🏎️', kart: '🛵', rocket: '🚀', horse: '🐴', turtle: '🐢',
     bolt: '⚡', runner: '🏃', bike: '🚲', boat: '🚤', dragon: '🐉',
+    'blood-a': '🅰️', unicorn: '🦄', alien: '👽', crown: '👑',
+    pizza: '🍕', ghost: '👻', hotdog: '🌭', phoenix: '🔥',
   };
   return map[vehicle] || '🏎️';
 }
@@ -9559,36 +9935,87 @@ function setContestArenaTab(tab) {
   });
   renderContestBoard();
 }
+let contestStickyRotateTimer = 0;
+let contestStickyRotateIdx = 0;
+function syncContestStickyOffset() {
+  const host = document.getElementById('contestStickyHost');
+  const arenaOpen = document.getElementById('contestOverlay')?.classList.contains('open');
+  document.documentElement.classList.toggle('contest-arena-open', !!arenaOpen);
+  if (!host || host.classList.contains('is-empty') || arenaOpen || !document.body.classList.contains('app-ready')) {
+    document.documentElement.style.setProperty('--contest-sticky-h', '0px');
+    document.documentElement.classList.remove('has-contest-sticky');
+    return;
+  }
+  const h = Math.ceil(host.getBoundingClientRect().height || 0);
+  if (h > 0) {
+    document.documentElement.style.setProperty('--contest-sticky-h', h + 'px');
+    document.documentElement.classList.add('has-contest-sticky');
+  } else {
+    document.documentElement.style.setProperty('--contest-sticky-h', '0px');
+    document.documentElement.classList.remove('has-contest-sticky');
+  }
+}
+function contestStickyBarHTML(c) {
+  const standings = computeContestStandings(c);
+  const place = contestMyPlace(c, standings);
+  const placeVal = c.status === 'scheduled' ? 'Soon' : contestPlaceLabel(place);
+  const modeLabel = c.mode === 'wheel' ? 'Wheel' : 'Race';
+  const leader = standings[0];
+  const mascot = contestThemeIcon(c);
+  const liveLabel = c.status === 'scheduled' ? 'Soon' : 'Live';
+  const metaBits = [
+    modeLabel,
+    contestStakeLabel(c),
+    leader ? `Lead: ${leader.repName}` : 'Track’s open',
+  ].filter(Boolean).join(' · ');
+  return `
+    <div class="contest-sticky-bar ${contestThemeClass(c)}" data-contest-banner="${escapeAttr(c.id)}">
+      <span class="contest-sticky-live">${escapeHtml(liveLabel)}</span>
+      <span class="contest-sticky-mascot" aria-hidden="true">${escapeHtml(mascot)}</span>
+      <div class="contest-sticky-copy">
+        <h3 class="contest-sticky-name">${escapeHtml(c.name || 'Contest')}</h3>
+        <span class="contest-sticky-meta">${escapeHtml(metaBits)}</span>
+      </div>
+      <span class="contest-sticky-place">You <b>${escapeHtml(placeVal)}</b></span>
+      <span class="contest-sticky-cd" data-contest-cd="${escapeAttr(c.id)}">${escapeHtml(contestCountdownHTML(c.endAt))}</span>
+      <button type="button" class="contest-sticky-cta" data-view-contest="${escapeAttr(c.id)}">View →</button>
+    </div>`;
+}
 function renderContestPromoBanners() {
-  const host = document.getElementById('contestBannerStack');
+  const host = document.getElementById('contestStickyHost') || document.getElementById('contestBannerStack');
   if (!host) return;
   const list = bannerContests();
   if (!list.length) {
     host.innerHTML = '';
+    host.classList.add('is-empty');
+    if (contestStickyRotateTimer) { clearInterval(contestStickyRotateTimer); contestStickyRotateTimer = 0; }
+    syncContestStickyOffset();
     return;
   }
-  host.innerHTML = list.map((c) => {
-    const standings = computeContestStandings(c);
-    const place = contestMyPlace(c, standings);
-    const placeVal = c.status === 'scheduled' ? 'Soon' : contestPlaceLabel(place);
-    const modeLabel = c.mode === 'wheel' ? 'Wheel' : 'Race';
-    const kindLabel = c.kind === 'promo' ? 'Company-wide' : 'Live now';
-    return `
-      <div class="contest-promo-banner ${contestThemeClass(c)}" data-contest-banner="${escapeAttr(c.id)}">
-        <div class="contest-promo-main">
-          <p class="contest-promo-eyebrow">${escapeHtml(contestThemeIcon(c))} ${escapeHtml(kindLabel)} · ${escapeHtml(modeLabel)} · ${escapeHtml(contestStakeLabel(c))}</p>
-          <h3 class="contest-promo-name">${escapeHtml(c.name || 'Contest')}</h3>
-          <div class="contest-promo-meta">${escapeHtml(contestUnitsLabel(c.units))} · <span data-contest-cd="${escapeAttr(c.id)}">${escapeHtml(contestCountdownHTML(c.endAt))}</span></div>
-        </div>
-        <div class="contest-promo-place">
-          <span class="contest-promo-place-label">Your place</span>
-          <span class="contest-promo-place-val">${escapeHtml(placeVal)}</span>
-        </div>
-        <div class="contest-promo-actions">
-          <button type="button" class="contest-view-btn" data-view-contest="${escapeAttr(c.id)}">View contest →</button>
-        </div>
-      </div>`;
-  }).join('');
+  host.classList.remove('is-empty');
+  // One thin bar at a time — slow rotate if multiple (no stacked chaos).
+  if (contestStickyRotateIdx >= list.length) contestStickyRotateIdx = 0;
+  const c = list[contestStickyRotateIdx] || list[0];
+  host.innerHTML = contestStickyBarHTML(c);
+  requestAnimationFrame(() => {
+    syncContestStickyOffset();
+    requestAnimationFrame(syncContestStickyOffset);
+  });
+  if (list.length > 1 && !contestStickyRotateTimer) {
+    contestStickyRotateTimer = window.setInterval(() => {
+      const next = bannerContests();
+      if (next.length < 2) return;
+      contestStickyRotateIdx = (contestStickyRotateIdx + 1) % next.length;
+      const bar = next[contestStickyRotateIdx];
+      if (!bar) return;
+      host.innerHTML = contestStickyBarHTML(bar);
+      syncContestStickyOffset();
+    }, 12000); // slow rotate
+  }
+  if (list.length <= 1 && contestStickyRotateTimer) {
+    clearInterval(contestStickyRotateTimer);
+    contestStickyRotateTimer = 0;
+  }
 }
 function contestLaneBoardHTML(contest, standings) {
   if (!standings.length) return '';
@@ -10636,12 +11063,18 @@ function detailDateMonthDay(iso) {
   if (!y || !m || !d) return String(iso);
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
+function detailClientIdCellHTML(rawId) {
+  const id = String(rawId || '').trim();
+  if (!id || id === '—') return '—';
+  const href = 'https://www.varsitytutors.com/clients/' + encodeURIComponent(id);
+  return `<a class="detail-client-link" href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer" title="Open client ${escapeAttr(id)}">${escapeHtml(id)}</a>`;
+}
 function detailRowHTML(it) {
   const client = (it && (it.clientId || it.client_id)) || '—';
   const members = it ? Number(it.members) || 0 : 0;
   const sessions = it ? Number(it.sessions) || 0 : 0;
   return `<tr>
-    <td>${client}</td>
+    <td>${detailClientIdCellHTML(client)}</td>
     <td>${fmt(members, 1)}</td>
     <td>${fmt(sessions, 1)}</td>
     <td><span class="date-chip">${detailDateMonthDay(it && it.date)}</span></td>
@@ -14070,7 +14503,8 @@ function syncRoleChrome() {
   const schedules = canViewTeamSchedules();
   const myPacer = !!ownRepDisplayName();
   const teamMenu = document.getElementById('teamMenuWrap');
-  if (teamMenu) teamMenu.style.display = team ? '' : 'none';
+  // Team menu opens for coaches OR anyone who can view schedules (schedules lives inside it).
+  if (teamMenu) teamMenu.style.display = (team || schedules) ? '' : 'none';
   const adminMenu = document.getElementById('adminMenuWrap');
   if (adminMenu) adminMenu.style.display = admin ? '' : 'none';
   const tools = document.getElementById('layoutToolsWrap');
@@ -14086,12 +14520,19 @@ function syncRoleChrome() {
   if (toolsTeamDetails) toolsTeamDetails.style.display = team ? '' : 'none';
   if (toolsTeamGoals) toolsTeamGoals.style.display = team ? '' : 'none';
   if (toolsTeamSchedule) toolsTeamSchedule.style.display = schedules ? '' : 'none';
+  // Coach-only items inside Team menu
+  ['teamDetailsBtn', 'teamPersonalGoalsBtn', 'teamContestsBtn'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = team ? '' : 'none';
+  });
   const schedBtn = document.getElementById('teamScheduleBtn');
   if (schedBtn) schedBtn.style.display = schedules ? '' : 'none';
   const myPacerBtn = document.getElementById('openMyPacerBtn');
   if (myPacerBtn) myPacerBtn.style.display = myPacer ? '' : 'none';
   const hint = document.getElementById('landingMenuHint');
   if (hint) hint.style.display = (team || admin || schedules) ? '' : 'none';
+  const navGroup = document.getElementById('landingNavActions');
+  if (navGroup) navGroup.style.display = (team || admin || schedules) ? '' : 'none';
   const shoutHist = document.getElementById('viewShoutoutHistoryLink');
   if (shoutHist) shoutHist.style.display = admin ? '' : 'none';
   syncTeamWorkspaceChrome();

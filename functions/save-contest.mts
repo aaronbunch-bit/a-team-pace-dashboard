@@ -53,7 +53,6 @@ export default async (req: Request, context: Context) => {
     }
   }
 
-  // Visibility-only patch (hide/unhide from History) — skip full field validation.
   if (id && existing && body?.visibilityOnly) {
     existing.hiddenFromHistory = !!body.hiddenFromHistory;
     existing.updatedAt = new Date().toISOString();
@@ -85,7 +84,7 @@ export default async (req: Request, context: Context) => {
     units: patch.units || "sessions",
     stakeType: patch.stakeType || "bragging",
     stakeAmount: patch.stakeAmount ?? null,
-    preset: patch.preset || "custom",
+    theme: patch.theme || "grand-prix",
     startAt: patch.startAt || nowIso,
     endAt: patch.endAt || nowIso,
     status: existing?.status === "ended" ? "ended" : "scheduled",
@@ -101,6 +100,13 @@ export default async (req: Request, context: Context) => {
     showLaneBoard: patch.showLaneBoard !== false,
     announcer: patch.announcer !== false,
     wheelSkin: patch.wheelSkin || "classic",
+    mascot: patch.mascot ?? "🏁",
+    effects: patch.effects || "confetti",
+    cheerStyle: patch.cheerStyle || "announcer",
+    confettiOnLead: patch.confettiOnLead !== false,
+    showTicker: patch.showTicker !== false,
+    boardSize: patch.boardSize || "hero",
+    customCheer: patch.customCheer ?? null,
     hiddenFromHistory: !!patch.hiddenFromHistory,
     finalStandings: patch.finalStandings ?? existing?.finalStandings ?? null,
     manualEntries: Array.isArray(existing?.manualEntries) ? existing!.manualEntries : [],
@@ -111,12 +117,10 @@ export default async (req: Request, context: Context) => {
     endedBy: existing?.endedBy ?? null,
   };
 
-  // Re-derive unless explicitly ended.
   if (record.status !== "ended") {
     record.status = deriveContestStatus({ ...record, status: "scheduled" }, now);
   }
 
-  // Only one active hosted contest at a time.
   if (record.kind === "hosted" && record.status === "active") {
     const { blobs } = await store.list();
     const all = (
