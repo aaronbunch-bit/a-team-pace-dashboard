@@ -2,7 +2,12 @@ import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
 import { resolveAccess } from "./_shared/access.mts";
-import { CONTEST_STORE, publicContest, type ContestRecord } from "./_shared/contest.mts";
+import {
+  CONTEST_STORE,
+  normalizeFinalStandings,
+  publicContest,
+  type ContestRecord,
+} from "./_shared/contest.mts";
 
 export default async (req: Request, context: Context) => {
   if (req.method !== "POST") {
@@ -54,6 +59,11 @@ export default async (req: Request, context: Context) => {
   record.endedAt = nowIso;
   record.endedBy = access.email;
   record.updatedAt = nowIso;
+  if (body?.hiddenFromHistory !== undefined) {
+    record.hiddenFromHistory = !!body.hiddenFromHistory;
+  }
+  const snap = normalizeFinalStandings(body?.finalStandings);
+  if (snap) record.finalStandings = snap;
   await store.setJSON(id, record);
 
   return new Response(JSON.stringify({ ok: true, contest: publicContest(record) }), {

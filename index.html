@@ -157,8 +157,26 @@
     background: var(--card-bg); color: var(--text); border: 1px solid var(--pill-border);
     border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
     box-shadow: 0 1px 2px var(--shadow); flex: none; margin-top: 2px; white-space: nowrap;
+    opacity: 1;
   }
   .theme-btn:hover { opacity: 0.85; }
+  /* Landing action chips (Team / Admin / Weekly schedules / Shoutout) must stay
+     solid white — the later bare `button {}` gradient + soft page wash made
+     non-dropdown chips look faded/blue compared to Team & Admin. */
+  .landing-actions-row > .theme-btn.large:not(.manual-attro-btn),
+  .landing-actions-row .landing-actions-cluster > .theme-btn.large:not(.my-pacer-btn),
+  .landing-actions-row .header-dropdown > .theme-btn.large {
+    background: #ffffff;
+    color: var(--text);
+    border: 1px solid var(--pill-border);
+    opacity: 1;
+    box-shadow: 0 1px 2px var(--shadow);
+  }
+  body.dark .landing-actions-row > .theme-btn.large:not(.manual-attro-btn),
+  body.dark .landing-actions-row .landing-actions-cluster > .theme-btn.large:not(.my-pacer-btn),
+  body.dark .landing-actions-row .header-dropdown > .theme-btn.large {
+    background: var(--card-bg);
+  }
   /* Centered under the title instead of sharing a row with it — see the
      .landing-title-row comment in the HTML above for why. "large" bumps up
      size/padding so these read as real, tappable primary actions rather than
@@ -933,6 +951,22 @@
     border-color: rgba(244,114,182,0.35);
   }
 
+  .contest-tabs {
+    display: flex; gap: 6px; margin: 4px 0 14px; padding: 4px;
+    border-radius: 14px; background: rgba(148,163,184,0.12); border: 1px solid var(--card-border);
+    width: fit-content; max-width: 100%;
+  }
+  .contest-tab {
+    appearance: none; border: none; cursor: pointer;
+    padding: 8px 14px; border-radius: 11px; font-size: 13px; font-weight: 900;
+    color: var(--text-muted); background: transparent; font-family: inherit;
+  }
+  .contest-tab.is-active {
+    color: #fff;
+    background: linear-gradient(135deg, #ec4899, #8b5cf6 60%, #06b6d4);
+    box-shadow: 0 6px 16px rgba(236,72,153,0.3);
+  }
+
   .contest-section-title {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
     margin: 0 0 10px; font-size: 13px; font-weight: 900; letter-spacing: 0.04em;
@@ -941,6 +975,174 @@
   .contest-standings, .contest-race-lanes {
     display: flex; flex-direction: column; gap: 10px;
   }
+
+  /* ---- Speedway ---- */
+  .contest-speedway {
+    --sw-road: #334155;
+    --sw-mark: rgba(248,250,252,0.55);
+    --sw-accent: #ec4899;
+    --sw-sky: linear-gradient(180deg, #0f172a 0%, #1e293b 55%, #334155 100%);
+    position: relative; overflow: hidden;
+    border-radius: 22px; padding: 14px 14px 16px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: var(--sw-sky);
+    box-shadow: 0 18px 48px rgba(15,23,42,0.28);
+    color: #f8fafc;
+  }
+  .contest-speedway.accent-pink { --sw-accent: #ec4899; }
+  .contest-speedway.accent-gold { --sw-accent: #fbbf24; }
+  .contest-speedway.accent-cyan { --sw-accent: #22d3ee; }
+  .contest-speedway.accent-lime { --sw-accent: #a3e635; }
+  .contest-speedway.accent-orange { --sw-accent: #fb923c; }
+  .contest-speedway.accent-violet { --sw-accent: #a78bfa; }
+  .contest-speedway.track-neon {
+    --sw-sky: linear-gradient(180deg, #14061f 0%, #2a0a3d 50%, #0c1a2e 100%);
+    --sw-road: #1a1030; --sw-mark: #f0abfc;
+  }
+  .contest-speedway.track-desert {
+    --sw-sky: linear-gradient(180deg, #fde68a 0%, #fdba74 40%, #ea580c 100%);
+    --sw-road: #78350f; --sw-mark: #fef3c7; color: #1c1917;
+  }
+  .contest-speedway.track-rainbow {
+    --sw-sky: linear-gradient(135deg, #fda4af, #c4b5fd 40%, #7dd3fc 75%, #86efac);
+    --sw-road: #312e81; --sw-mark: #fff; color: #1e1b4b;
+  }
+  .contest-speedway.track-ice {
+    --sw-sky: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 45%, #7dd3fc 100%);
+    --sw-road: #0e7490; --sw-mark: #ecfeff; color: #0c4a6e;
+  }
+  .contest-speedway.track-stadium {
+    --sw-sky: linear-gradient(180deg, #14532d 0%, #166534 40%, #052e16 100%);
+    --sw-road: #14532d; --sw-mark: #fef08a;
+  }
+  .contest-speedway-top {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: 8px 12px; margin-bottom: 12px; position: relative; z-index: 2;
+  }
+  .contest-leader-callout {
+    display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 12px; border-radius: 14px;
+    background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.18);
+    font-size: 13px; font-weight: 900;
+  }
+  .contest-leader-callout .lead-crown { font-size: 18px; }
+  .contest-leader-callout .lead-name { color: var(--sw-accent); }
+  .contest-announcer {
+    font-size: 12.5px; font-weight: 800; opacity: 0.92; max-width: 100%;
+  }
+  body:not(.motion-static) .contest-speedway.hype-max .contest-announcer {
+    animation: contestAnnouncePop 0.55s ease;
+  }
+  @keyframes contestAnnouncePop {
+    0% { transform: scale(0.92); opacity: 0; }
+    60% { transform: scale(1.04); opacity: 1; }
+    100% { transform: scale(1); }
+  }
+  .contest-speedway-lanes {
+    display: flex; flex-direction: column; gap: 7px; position: relative; z-index: 1;
+  }
+  .contest-sw-lane {
+    display: grid; grid-template-columns: 92px minmax(0, 1fr) 52px;
+    gap: 8px; align-items: center;
+  }
+  @media (max-width: 560px) {
+    .contest-sw-lane { grid-template-columns: 72px minmax(0, 1fr) 44px; gap: 6px; }
+  }
+  .contest-sw-meta { min-width: 0; }
+  .contest-sw-place {
+    font-size: 11px; font-weight: 900; letter-spacing: 0.04em; opacity: 0.8;
+  }
+  .contest-sw-lane.place-1 .contest-sw-place { color: #fde68a; }
+  .contest-speedway.track-desert .contest-sw-lane.place-1 .contest-sw-place,
+  .contest-speedway.track-ice .contest-sw-lane.place-1 .contest-sw-place,
+  .contest-speedway.track-rainbow .contest-sw-lane.place-1 .contest-sw-place { color: #b45309; }
+  .contest-sw-name {
+    font-size: 13px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .contest-sw-road {
+    position: relative; height: 36px; border-radius: 10px; overflow: hidden;
+    background:
+      linear-gradient(90deg, transparent 0 92%, repeating-linear-gradient(0deg, #fff 0 4px, transparent 4px 10px) 92% 100%),
+      repeating-linear-gradient(90deg, var(--sw-mark) 0 2px, transparent 2px 18px),
+      var(--sw-road);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15);
+  }
+  .contest-sw-lane.is-me .contest-sw-road {
+    box-shadow: inset 0 0 0 2px var(--sw-accent), 0 0 16px color-mix(in srgb, var(--sw-accent) 45%, transparent);
+  }
+  .contest-sw-lane.place-1 .contest-sw-road {
+    box-shadow: inset 0 0 0 2px #fbbf24, 0 0 18px rgba(251,191,36,0.35);
+  }
+  .contest-sw-finish {
+    position: absolute; right: 0; top: 0; bottom: 0; width: 10px;
+    background: repeating-linear-gradient(45deg, #111 0 4px, #f8fafc 4px 8px);
+    opacity: 0.85; pointer-events: none;
+  }
+  .contest-car {
+    position: absolute; top: 50%; left: 8%;
+    transform: translate(-50%, -50%);
+    z-index: 2; display: flex; flex-direction: column; align-items: center;
+    filter: drop-shadow(0 3px 4px rgba(0,0,0,0.35));
+  }
+  body:not(.motion-static) .contest-car {
+    transition: left 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .contest-car-emoji { font-size: 22px; line-height: 1; display: block; }
+  .contest-car-shell {
+    width: 34px; height: 18px; border-radius: 6px 12px 7px 7px;
+    background: linear-gradient(90deg, var(--car-color, #ec4899), color-mix(in srgb, var(--car-color, #ec4899) 60%, #fff));
+    position: relative; margin-top: -4px;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.25);
+  }
+  .contest-car-shell::before,
+  .contest-car-shell::after {
+    content: ''; position: absolute; bottom: -3px; width: 7px; height: 7px; border-radius: 50%;
+    background: #0f172a; border: 1.5px solid #94a3b8;
+  }
+  .contest-car-shell::before { left: 4px; }
+  .contest-car-shell::after { right: 5px; }
+  .contest-car-ini {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    font-size: 8px; font-weight: 900; color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,0.4);
+  }
+  .contest-car.is-leader::before {
+    content: '👑'; position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+    font-size: 12px;
+  }
+  body:not(.motion-static) .contest-car.is-surging .contest-car-emoji {
+    animation: contestCarSurge 0.55s ease;
+  }
+  @keyframes contestCarSurge {
+    0% { transform: scale(1) translateX(0); }
+    40% { transform: scale(1.18) translateX(3px); }
+    100% { transform: scale(1) translateX(0); }
+  }
+  body:not(.motion-static) .contest-speedway.hype-hype .contest-car.is-leader .contest-car-emoji,
+  body:not(.motion-static) .contest-speedway.hype-max .contest-car.is-leader .contest-car-emoji {
+    animation: contestLeaderBob 0.7s ease-in-out infinite;
+  }
+  @keyframes contestLeaderBob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+  body:not(.motion-static) .contest-speedway.hype-max .contest-sw-road {
+    background-size: auto, 36px 100%, auto;
+    animation: contestRoadScroll 1.2s linear infinite;
+  }
+  @keyframes contestRoadScroll {
+    from { background-position: 0 0, 0 0, 0 0; }
+    to { background-position: 0 0, -36px 0, 0 0; }
+  }
+  .contest-sw-score {
+    text-align: right; font-size: 16px; font-weight: 900;
+    font-variant-numeric: tabular-nums; line-height: 1.1;
+  }
+  .contest-sw-score span {
+    display: block; font-size: 9px; font-weight: 800; opacity: 0.7;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+
   .contest-race-lane {
     display: grid;
     grid-template-columns: 44px minmax(0, 1fr) 72px;
@@ -980,32 +1182,6 @@
   .contest-race-lane.place-3 .contest-race-rank { background: #ffedd5; color: #c2410c; }
   .contest-race-name { font-size: 14.5px; font-weight: 900; color: var(--text); }
   .contest-race-sub { font-size: 11.5px; font-weight: 700; color: var(--text-faint); margin-top: 2px; }
-  .contest-race-track {
-    position: relative; height: 16px; margin-top: 8px; border-radius: 999px;
-    background: repeating-linear-gradient(90deg, rgba(148,163,184,0.22) 0 10px, rgba 10px 18px),
-      rgba(148,163,184,0.15);
-    overflow: hidden;
-  }
-  .contest-race-fill {
-    position: absolute; left: 0; top: 0; bottom: 0; min-width: 18px;
-    border-radius: 999px;
-    background: linear-gradient(90deg, #f472b6, #8b5cf6 55%, #22d3ee);
-    box-shadow: 0 0 12px rgba(139,92,246,0.45);
-  }
-  body:not(.motion-static) .contest-race-fill {
-    transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .contest-race-runner {
-    position: absolute; right: -2px; top: 50%; transform: translateY(-50%);
-    font-size: 14px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));
-  }
-  body:not(.motion-static) .contest-race-lane.place-1 .contest-race-runner {
-    animation: contestRunnerBounce 0.7s ease-in-out infinite;
-  }
-  @keyframes contestRunnerBounce {
-    0%, 100% { transform: translateY(-50%) translateX(0); }
-    50% { transform: translateY(-62%) translateX(1px); }
-  }
   .contest-race-score {
     text-align: right; font-size: 20px; font-weight: 900;
     font-variant-numeric: tabular-nums; color: var(--text); line-height: 1.1;
@@ -1014,6 +1190,34 @@
     display: block; font-size: 10px; font-weight: 800; color: var(--text-faint);
     text-transform: uppercase; letter-spacing: 0.04em;
   }
+
+  /* History */
+  .contest-history-list { display: flex; flex-direction: column; gap: 10px; }
+  .contest-history-card {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 14px; align-items: center;
+    padding: 14px 16px; border-radius: 16px; cursor: pointer;
+    background: rgba(255,255,255,0.72); border: 1px solid var(--card-border);
+    box-shadow: 0 6px 18px rgba(15,23,42,0.05); text-align: left; width: 100%;
+    font-family: inherit; color: inherit;
+  }
+  body.dark .contest-history-card { background: rgba(15,23,42,0.55); }
+  .contest-history-card:hover { border-color: rgba(236,72,153,0.4); transform: translateY(-1px); }
+  .contest-history-card.is-hidden { opacity: 0.72; border-style: dashed; }
+  .contest-history-name { margin: 0; font-size: 16px; font-weight: 900; }
+  .contest-history-meta { margin-top: 3px; font-size: 12px; font-weight: 700; color: var(--text-muted); }
+  .contest-history-podium {
+    display: flex; flex-direction: column; gap: 2px; font-size: 12px; font-weight: 800;
+    color: var(--text-muted); text-align: right;
+  }
+  .contest-history-podium strong { color: var(--text); }
+  .contest-history-actions { display: flex; flex-wrap: wrap; gap: 6px; grid-column: 1 / -1; }
+  .contest-history-actions .theme-btn { font-size: 12px; padding: 6px 10px; }
+  .contest-hist-badge {
+    display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 999px;
+    font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em;
+    background: rgba(148,163,184,0.25); color: var(--text-muted);
+  }
+  .contest-hist-badge.hidden-badge { background: rgba(220,38,38,0.12); color: #b91c1c; }
 
   .contest-wheel-wrap {
     display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
@@ -1086,6 +1290,26 @@
     background: var(--card-bg); color: var(--text); font-family: inherit;
   }
   .contest-form-grid .full { grid-column: 1 / -1; }
+  .contest-form-section {
+    margin-top: 4px; padding: 12px; border-radius: 14px;
+    background: rgba(148,163,184,0.08); border: 1px solid var(--card-border);
+  }
+  .contest-form-section-title {
+    font-size: 12px; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--text-muted); margin: 0 0 10px;
+  }
+  #contestEditBackdrop .celebration-modal.contest-edit-modal {
+    width: min(640px, calc(100vw - 28px));
+    max-width: min(640px, calc(100vw - 28px));
+    max-height: min(88vh, 900px);
+    overflow: auto;
+    box-sizing: border-box;
+    background:
+      linear-gradient(180deg, rgba(253,242,248,0.95), rgba(255,255,255,0.98) 28%),
+      var(--card-bg);
+    border: 1px solid rgba(236,72,153,0.28);
+    box-shadow: 0 24px 60px rgba(99,102,241,0.28);
+  }
   #contestEditBackdrop .celebration-modal {
     width: min(520px, calc(100vw - 28px));
     max-width: min(520px, calc(100vw - 28px));
@@ -1116,10 +1340,15 @@
   body.motion-static .contest-view-btn,
   body.motion-static .contest-live-pill::before,
   body.motion-static .contest-race-lane.is-me,
-  body.motion-static .contest-race-lane.place-1 .contest-race-runner,
+  body.motion-static .contest-car.is-surging .contest-car-emoji,
+  body.motion-static .contest-speedway.hype-hype .contest-car.is-leader .contest-car-emoji,
+  body.motion-static .contest-speedway.hype-max .contest-car.is-leader .contest-car-emoji,
+  body.motion-static .contest-speedway.hype-max .contest-sw-road,
+  body.motion-static .contest-speedway.hype-max .contest-announcer,
   body.motion-static .contest-wheel.is-spinning {
     animation: none !important;
   }
+  body.motion-static .contest-car { transition: none !important; }
   .shoutout-wall-item {
     padding: 8px 0; border-top: 1px solid var(--divider);
   }
@@ -2586,6 +2815,29 @@
   }
   button.secondary { background: var(--metric-box-bg); color: var(--text-muted); }
   button:hover { opacity: 0.88; }
+  /* Re-assert after bare `button {}` so theme chips keep solid card fill. */
+  button.theme-btn {
+    background: var(--card-bg); color: var(--text); border: 1px solid var(--pill-border);
+    box-shadow: 0 1px 2px var(--shadow); opacity: 1;
+  }
+  button.theme-btn.manual-attro-btn {
+    background: linear-gradient(90deg,#f472b6,#a855f7 45%,#6366f1 75%,#38bdf8);
+    color: #fff; border: none; box-shadow: 0 2px 10px rgba(139,92,246,0.4);
+  }
+  button.theme-btn.my-pacer-btn {
+    background: linear-gradient(105deg, #0ea5e9 0%, #6366f1 55%, #a855f7 100%);
+    color: #fff; border: none; box-shadow: 0 3px 14px rgba(14, 165, 233, 0.38);
+  }
+  .landing-actions-row > button.theme-btn.large:not(.manual-attro-btn),
+  .landing-actions-row .landing-actions-cluster > button.theme-btn.large:not(.my-pacer-btn),
+  .landing-actions-row .header-dropdown > button.theme-btn.large {
+    background: #ffffff; color: var(--text); border: 1px solid var(--pill-border); opacity: 1;
+  }
+  body.dark .landing-actions-row > button.theme-btn.large:not(.manual-attro-btn),
+  body.dark .landing-actions-row .landing-actions-cluster > button.theme-btn.large:not(.my-pacer-btn),
+  body.dark .landing-actions-row .header-dropdown > button.theme-btn.large {
+    background: var(--card-bg);
+  }
   .goal-grid { display: grid; grid-template-columns: 1fr 0.6fr 0.6fr 0.65fr 0.8fr 1.1fr 0.6fr; gap: 8px; align-items: center; margin-bottom: 6px; font-size: 13px; }
   /* Default view: Tag / Email / Cap columns (cells 5-7) hidden behind the
      "Show advanced fields" toggle on Edit Monthly Goals — those are set-once
@@ -3736,6 +3988,10 @@
       <h2 id="contestPageTitle">🏆 Contest Arena</h2>
       <button class="theme-btn" id="contestNewBtn" type="button" style="display:none; margin-left:auto;">✨ New contest</button>
     </div>
+    <div class="contest-tabs" role="tablist" aria-label="Contest views">
+      <button type="button" class="contest-tab is-active" id="contestTabLive" data-contest-tab="live" role="tab" aria-selected="true">Live race</button>
+      <button type="button" class="contest-tab" id="contestTabHistory" data-contest-tab="history" role="tab" aria-selected="false">History</button>
+    </div>
     <div id="contestBoardHost" class="contest-arena">
       <div class="meta-note">Loading contests…</div>
     </div>
@@ -3744,13 +4000,16 @@
 
 <!-- Coach/admin: create or edit a contest -->
 <div class="celebration-modal-backdrop" id="contestEditBackdrop">
-  <div class="celebration-modal" style="text-align:left;">
+  <div class="celebration-modal contest-edit-modal" style="text-align:left;">
     <div class="celebration-modal-emoji" style="text-align:center;" aria-hidden="true">⚡</div>
     <div class="celebration-modal-title" style="text-align:center;" id="contestEditTitle">New contest</div>
     <div class="meta-note" style="text-align:center; margin:0 0 8px;">Make it loud. Make it timed. Make it fun.</div>
     <div class="contest-form-grid" style="margin-top:12px;">
       <label class="full">Contest name
         <input type="text" id="contestEditName" maxlength="80" placeholder="Power Hour">
+      </label>
+      <label class="full">Custom tagline <span style="font-weight:600;text-transform:none;letter-spacing:0;">(optional)</span>
+        <input type="text" id="contestEditTagline" maxlength="120" placeholder="One hour. Full send.">
       </label>
       <label>Timing theme
         <select id="contestEditPreset">
@@ -3768,7 +4027,7 @@
       </label>
       <label>Mode
         <select id="contestEditMode">
-          <option value="race">Race</option>
+          <option value="race">Race (speedway)</option>
           <option value="wheel">Wheel</option>
         </select>
       </label>
@@ -3797,9 +4056,87 @@
       <label class="full">External link (optional — company-wide boards)
         <input type="url" id="contestEditExternalUrl" placeholder="https://…">
       </label>
+
+      <div class="contest-form-section full" id="contestEditRaceOpts">
+        <div class="contest-form-section-title">🏎️ Race vibes</div>
+        <div class="contest-form-grid">
+          <label>Vehicle
+            <select id="contestEditVehicle">
+              <option value="car">🏎️ Race car</option>
+              <option value="kart">🛵 Kart</option>
+              <option value="rocket">🚀 Rocket</option>
+              <option value="horse">🐴 Horse</option>
+              <option value="turtle">🐢 Turtle</option>
+              <option value="bolt">⚡ Lightning</option>
+              <option value="runner">🏃 Runner</option>
+              <option value="bike">🚲 Bike</option>
+              <option value="boat">🚤 Boat</option>
+              <option value="dragon">🐉 Dragon</option>
+            </select>
+          </label>
+          <label>Track theme
+            <select id="contestEditTrack">
+              <option value="asphalt">Asphalt speedway</option>
+              <option value="neon">Neon night</option>
+              <option value="desert">Desert rally</option>
+              <option value="rainbow">Rainbow road</option>
+              <option value="ice">Ice circuit</option>
+              <option value="stadium">Stadium lights</option>
+            </select>
+          </label>
+          <label>Hype level
+            <select id="contestEditHype">
+              <option value="chill">Chill</option>
+              <option value="hype">Hype</option>
+              <option value="max">Max chaos</option>
+            </select>
+          </label>
+          <label>Accent color
+            <select id="contestEditAccent">
+              <option value="pink">Hot pink</option>
+              <option value="gold">Gold</option>
+              <option value="cyan">Cyan</option>
+              <option value="lime">Lime</option>
+              <option value="orange">Orange</option>
+              <option value="violet">Violet</option>
+            </select>
+          </label>
+          <label>Finish-line goal <span style="font-weight:600;text-transform:none;letter-spacing:0;">(optional)</span>
+            <input type="number" id="contestEditRaceGoal" min="0" step="any" placeholder="Auto vs leader">
+          </label>
+          <label class="full" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;font-weight:700;">
+            <input type="checkbox" id="contestEditShowLaneBoard" checked style="width:auto;">
+            Show detail board under the track
+          </label>
+          <label class="full" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;font-weight:700;">
+            <input type="checkbox" id="contestEditAnnouncer" checked style="width:auto;">
+            Announcer callouts when the lead changes
+          </label>
+        </div>
+      </div>
+
+      <div class="contest-form-section full" id="contestEditWheelOpts" style="display:none;">
+        <div class="contest-form-section-title">🎡 Wheel vibes</div>
+        <div class="contest-form-grid">
+          <label>Wheel skin
+            <select id="contestEditWheelSkin">
+              <option value="classic">Classic</option>
+              <option value="neon">Neon</option>
+              <option value="candy">Candy</option>
+              <option value="midnight">Midnight</option>
+              <option value="gold">Gold rush</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
       <label class="full" style="flex-direction:row; align-items:center; gap:8px; text-transform:none; font-weight:700;">
         <input type="checkbox" id="contestEditShowBanner" checked style="width:auto;">
         Show promo banner on landing
+      </label>
+      <label class="full" style="flex-direction:row; align-items:center; gap:8px; text-transform:none; font-weight:700;">
+        <input type="checkbox" id="contestEditHideHistory" style="width:auto;">
+        Hide from Contest History (coaches can still see)
       </label>
     </div>
     <div class="meta-note" id="contestEditStatus" style="margin-top:10px;"></div>
@@ -8973,6 +9310,14 @@ let CONTEST_CAN_MANAGE = false;
 let contestViewId = '';
 let contestCountdownTimer = 0;
 let contestEditId = '';
+let contestArenaTab = 'live'; // 'live' | 'history'
+/** @type {Record<string, number>} prior car left-% by contestId|repName */
+let contestCarPos = {};
+let contestLastLeader = '';
+let contestAnnouncerLine = '';
+let contestLiveTimer = 0;
+const CONTEST_LIVE_POLL_MS = 8000;
+const CONTEST_CAR_COLORS = ['#ec4899','#38bdf8','#a3e635','#fbbf24','#a78bfa','#fb923c','#22d3ee','#f472b6','#34d399','#818cf8'];
 
 function contestCanManage() {
   if (typeof getViewAsRepRaw === 'function' && getViewAsRepRaw()) return false;
@@ -9007,7 +9352,6 @@ function contestPresetWindow(preset) {
     end.setHours(end.getHours() + 1);
   }
   if (end.getTime() <= Date.now()) {
-    // Push to tomorrow if today's window already ended.
     start.setDate(start.getDate() + 1);
     end.setDate(end.getDate() + 1);
   }
@@ -9059,6 +9403,7 @@ function contestThemeIcon(contest) {
   return contest && contest.mode === 'wheel' ? '🎡' : '🏁';
 }
 function contestThemeTagline(contest) {
+  if (contest && contest.tagline) return contest.tagline;
   const p = String((contest && contest.preset) || 'custom');
   if (p === 'morning') return 'Rise & grind — early credits count double in vibes';
   if (p === 'evening') return 'Late desk energy — close strong';
@@ -9073,9 +9418,55 @@ function contestPlaceLabel(place) {
   if (j === 3 && k !== 13) return place + 'rd';
   return place + 'th';
 }
-/** Standings from live actuals (hosted) + coach manual adds. Manual Attro never counts. */
+function contestVehicleEmoji(vehicle) {
+  const map = {
+    car: '🏎️', kart: '🛵', rocket: '🚀', horse: '🐴', turtle: '🐢',
+    bolt: '⚡', runner: '🏃', bike: '🚲', boat: '🚤', dragon: '🐉',
+  };
+  return map[vehicle] || '🏎️';
+}
+function contestCarColor(name, idx) {
+  const roster = typeof getRoster === 'function' ? getRoster() : [];
+  const ri = roster.findIndex((r) => r.display === name);
+  const i = ri >= 0 ? ri : (idx || 0);
+  return CONTEST_CAR_COLORS[i % CONTEST_CAR_COLORS.length];
+}
+function contestFormatWhen(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleString('en-US', {
+      timeZone: typeof TEAM_TIME_ZONE !== 'undefined' ? TEAM_TIME_ZONE : 'America/Chicago',
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    });
+  } catch (_) {
+    return String(iso).slice(0, 16);
+  }
+}
+function contestStandingSnapRows(standings) {
+  return (standings || []).map((r) => ({
+    place: r.place,
+    repName: r.repName,
+    sessions: Number(r.sessions) || 0,
+    members: Number(r.members) || 0,
+    score: Number(r.score) || 0,
+    tickets: Number(r.tickets) || 0,
+    manual: Number(r.manual) || 0,
+  }));
+}
+/** Standings from snapshot (history) or live actuals + manual adds. Manual Attro never counts. */
 function computeContestStandings(contest) {
   if (!contest) return [];
+  if (contest.status === 'ended' && Array.isArray(contest.finalStandings) && contest.finalStandings.length) {
+    return contest.finalStandings.map((r, i) => ({
+      repName: r.repName,
+      sessions: Number(r.sessions) || 0,
+      members: Number(r.members) || 0,
+      score: Number(r.score) || 0,
+      tickets: Number(r.tickets) || Math.max(0, Number(r.score) || 0),
+      manual: Number(r.manual) || 0,
+      place: Number(r.place) || (i + 1),
+    }));
+  }
   const roster = typeof getRoster === 'function' ? getRoster() : [];
   const filter = Array.isArray(contest.repFilter) && contest.repFilter.length
     ? new Set(contest.repFilter)
@@ -9098,7 +9489,7 @@ function computeContestStandings(contest) {
       items.forEach((it) => {
         const sessions = Number(it.sessions) || 0;
         const members = Number(it.members) || 0;
-        if (sessions <= 0 && members <= 0) return; // sold only — no refunds
+        if (sessions <= 0 && members <= 0) return;
         if (!contestItemInWindow(it.date, contest.startAt, contest.endAt)) return;
         const row = ensure(repName);
         row.sessions += sessions;
@@ -9141,6 +9532,9 @@ function bannerContests() {
     return c.status === 'active' || c.status === 'scheduled';
   });
 }
+function historyContests() {
+  return (CONTEST_CACHE || []).filter((c) => c && c.status === 'ended');
+}
 function contestCountdownHTML(endAt) {
   const end = new Date(endAt).getTime();
   const ms = end - Date.now();
@@ -9155,6 +9549,15 @@ function contestCountdownHTML(endAt) {
     return `${days}d ${h % 24}h left`;
   }
   return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+function setContestArenaTab(tab) {
+  contestArenaTab = tab === 'history' ? 'history' : 'live';
+  document.querySelectorAll('.contest-tab').forEach((el) => {
+    const on = el.getAttribute('data-contest-tab') === contestArenaTab;
+    el.classList.toggle('is-active', on);
+    el.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  renderContestBoard();
 }
 function renderContestPromoBanners() {
   const host = document.getElementById('contestBannerStack');
@@ -9187,18 +9590,13 @@ function renderContestPromoBanners() {
       </div>`;
   }).join('');
 }
-function contestStandingsHTML(contest, standings) {
-  if (!standings.length) {
-    return `<div class="contest-empty-fun"><span class="emoji" aria-hidden="true">🏁</span><p style="margin:0 0 6px;font-weight:900;font-size:16px;">Track’s clear — be first!</p><p class="meta-note" style="margin:0;">No credits in this window yet${contest.kind === 'promo' ? ' — coaches can add entries below' : ''}.</p></div>`;
-  }
+function contestLaneBoardHTML(contest, standings) {
+  if (!standings.length) return '';
   const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
   const unit = contest.mode === 'wheel' ? 'tickets' : 'pts';
-  const maxScore = Math.max(...standings.map((r) => Number(r.score) || 0), 0.0001);
-  const runner = contest.mode === 'wheel' ? '🎟️' : '🚀';
   return `
-    <div class="contest-section-title"><span>${contest.mode === 'wheel' ? '🎟️ Ticket board' : '🏁 Live race'}</span><span>${standings.length} racing</span></div>
+    <div class="contest-section-title" style="margin-top:14px;"><span>📋 Detail board</span><span>${standings.length} racing</span></div>
     <div class="contest-race-lanes">${standings.map((r) => {
-      const pct = Math.max(8, Math.round((Number(r.score) / maxScore) * 100));
       const placeCls = r.place <= 3 ? ` place-${r.place}` : '';
       const medal = r.place === 1 ? '🥇' : r.place === 2 ? '🥈' : r.place === 3 ? '🥉' : String(r.place);
       return `
@@ -9207,17 +9605,164 @@ function contestStandingsHTML(contest, standings) {
         <div>
           <div class="contest-race-name">${escapeHtml(r.repName)}${r.repName === me ? ' · you' : ''}</div>
           <div class="contest-race-sub">${fmt(r.sessions, 1)} sess · ${fmt(r.members, 1)} mem${r.manual ? ` · ${r.manual} manual` : ''}</div>
-          <div class="contest-race-track" aria-hidden="true">
-            <div class="contest-race-fill" style="width:${pct}%;">
-              <span class="contest-race-runner">${runner}</span>
-            </div>
-          </div>
         </div>
         <div class="contest-race-score">${fmt(r.score, 1)}<span>${unit}</span></div>
       </div>`;
     }).join('')}</div>`;
 }
+function contestAnnouncerFor(leaderName, standings, contest) {
+  if (!contest || contest.announcer === false) return '';
+  if (!leaderName) return 'Green flag — first sale takes the lead!';
+  if (contestLastLeader && contestLastLeader !== leaderName) {
+    const lines = [
+      `${leaderName} snags the lead!`,
+      `New leader — ${leaderName} is flying!`,
+      `${leaderName} takes P1!`,
+      `Watch out — ${leaderName} just passed!`,
+    ];
+    return lines[Math.floor(Math.random() * lines.length)];
+  }
+  if (contest.status === 'ended') return `${leaderName} takes the checkered flag!`;
+  const top = standings[0];
+  const second = standings[1];
+  if (top && second && (top.score - second.score) <= 1) {
+    return `Photo finish vibes — ${leaderName} by a nose!`;
+  }
+  return `${leaderName} holds the lead. Keep pushing!`;
+}
+function contestSpeedwayHTML(contest, standings) {
+  const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
+  const vehicle = contest.vehicle || 'car';
+  const track = contest.trackTheme || 'asphalt';
+  const hype = contest.hypeLevel || 'hype';
+  const accent = contest.accent || 'pink';
+  const unit = contest.mode === 'wheel' ? 'tix' : 'pts';
+  const emoji = contestVehicleEmoji(vehicle);
+  const goal = Number(contest.raceGoal) > 0 ? Number(contest.raceGoal) : 0;
+  const maxScore = goal || Math.max(...standings.map((r) => Number(r.score) || 0), 0.0001);
+  const leader = standings[0] || null;
+  const leaderName = leader ? leader.repName : '';
+  if (leaderName && contestLastLeader && contestLastLeader !== leaderName) {
+    contestAnnouncerLine = contestAnnouncerFor(leaderName, standings, contest);
+  } else if (!contestAnnouncerLine) {
+    contestAnnouncerLine = contestAnnouncerFor(leaderName, standings, contest);
+  }
+  if (leaderName) contestLastLeader = leaderName;
+
+  const lanes = standings.map((r, idx) => {
+    const rawPct = Math.round((Number(r.score) / maxScore) * 100);
+    const pct = Math.max(6, Math.min(96, rawPct || 6));
+    const placeCls = r.place <= 3 ? ` place-${r.place}` : '';
+    const key = `${contest.id}|${r.repName}`;
+    const prev = contestCarPos[key];
+    const startPct = (prev != null && Number.isFinite(prev)) ? prev : 6;
+    contestCarPos[key] = pct;
+    const surged = prev != null && pct > prev + 0.5;
+    const color = contestCarColor(r.repName, idx);
+    const ini = typeof initials === 'function' ? initials(r.repName) : r.repName.slice(0, 2).toUpperCase();
+    return `
+      <div class="contest-sw-lane${r.repName === me ? ' is-me' : ''}${placeCls}" data-contest-rep="${escapeAttr(r.repName)}">
+        <div class="contest-sw-meta">
+          <div class="contest-sw-place">P${r.place}${r.place === 1 ? ' · LEAD' : ''}</div>
+          <div class="contest-sw-name" title="${escapeAttr(r.repName)}">${escapeHtml(r.repName)}${r.repName === me ? ' · you' : ''}</div>
+        </div>
+        <div class="contest-sw-road" aria-hidden="true">
+          <div class="contest-car${r.place === 1 ? ' is-leader' : ''}${surged ? ' is-surging' : ''}"
+               data-car-key="${escapeAttr(key)}"
+               style="left:${startPct}%; --car-color:${color};" data-target-left="${pct}">
+            <span class="contest-car-emoji">${emoji}</span>
+            <span class="contest-car-shell"><span class="contest-car-ini">${escapeHtml(ini)}</span></span>
+          </div>
+          <div class="contest-sw-finish"></div>
+        </div>
+        <div class="contest-sw-score">${fmt(r.score, 1)}<span>${unit}</span></div>
+      </div>`;
+  }).join('');
+
+  const leadBlock = leader
+    ? `<div class="contest-leader-callout"><span class="lead-crown">👑</span> Leading: <span class="lead-name">${escapeHtml(leader.repName)}</span> · ${fmt(leader.score, 1)} ${unit}</div>`
+    : `<div class="contest-leader-callout"><span class="lead-crown">🏁</span> Waiting for the first credit…</div>`;
+
+  return `
+    <div class="contest-section-title"><span>🏎️ Live speedway</span><span>${standings.length} on track${goal ? ` · goal ${fmt(goal, 1)}` : ''}</span></div>
+    <div class="contest-speedway track-${escapeAttr(track)} accent-${escapeAttr(accent)} hype-${escapeAttr(hype)}">
+      <div class="contest-speedway-top">
+        ${leadBlock}
+        ${contest.announcer !== false ? `<div class="contest-announcer" id="contestAnnouncer">${escapeHtml(contestAnnouncerLine)}</div>` : ''}
+      </div>
+      <div class="contest-speedway-lanes">${lanes}</div>
+    </div>
+    ${contest.showLaneBoard !== false ? contestLaneBoardHTML(contest, standings) : ''}`;
+}
+function contestStandingsHTML(contest, standings) {
+  if (!standings.length) {
+    return `<div class="contest-empty-fun"><span class="emoji" aria-hidden="true">🏁</span><p style="margin:0 0 6px;font-weight:900;font-size:16px;">Track’s clear — be first!</p><p class="meta-note" style="margin:0;">No credits in this window yet${contest.kind === 'promo' ? ' — coaches can add entries below' : ''}.</p></div>`;
+  }
+  if (contest.mode === 'race') return contestSpeedwayHTML(contest, standings);
+  // Wheel: ticket board (compact lanes)
+  const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
+  return `
+    <div class="contest-section-title"><span>🎟️ Ticket board</span><span>${standings.length} racing</span></div>
+    <div class="contest-race-lanes">${standings.map((r) => {
+      const placeCls = r.place <= 3 ? ` place-${r.place}` : '';
+      const medal = r.place === 1 ? '🥇' : r.place === 2 ? '🥈' : r.place === 3 ? '🥉' : String(r.place);
+      return `
+      <div class="contest-race-lane${r.repName === me ? ' is-me' : ''}${placeCls}">
+        <div class="contest-race-rank" aria-label="Place ${r.place}">${medal}</div>
+        <div>
+          <div class="contest-race-name">${escapeHtml(r.repName)}${r.repName === me ? ' · you' : ''}</div>
+          <div class="contest-race-sub">${fmt(r.sessions, 1)} sess · ${fmt(r.members, 1)} mem${r.manual ? ` · ${r.manual} manual` : ''}</div>
+        </div>
+        <div class="contest-race-score">${fmt(r.score, 1)}<span>tickets</span></div>
+      </div>`;
+    }).join('')}</div>`;
+}
+function contestWheelSkinStyle(skin) {
+  const map = {
+    classic: 'conic-gradient(from 0deg, #f472b6, #a855f7, #38bdf8, #fbbf24, #f472b6)',
+    neon: 'conic-gradient(from 0deg, #22d3ee, #a855f7, #f0abfc, #22d3ee)',
+    candy: 'conic-gradient(from 0deg, #fb7185, #f9a8d4, #fda4af, #fbbf24, #fb7185)',
+    midnight: 'conic-gradient(from 0deg, #1e1b4b, #4c1d95, #831843, #0f172a, #1e1b4b)',
+    gold: 'conic-gradient(from 0deg, #fbbf24, #f59e0b, #fde68a, #d97706, #fbbf24)',
+  };
+  return map[skin] || map.classic;
+}
+function contestHistoryHTML() {
+  const list = historyContests();
+  const manage = contestCanManage();
+  if (!list.length) {
+    return `<div class="contest-empty-fun">
+      <span class="emoji" aria-hidden="true">📜</span>
+      <p style="margin:0 0 8px;font-weight:900;font-size:18px;">No contest history yet</p>
+      <p class="meta-note" style="margin:0;">Ended races show up here with their final leaderboard.</p>
+    </div>`;
+  }
+  return `
+    <div class="contest-section-title"><span>📜 Contest history</span><span>${list.length} past</span></div>
+    <div class="contest-history-list">${list.map((c) => {
+      const standings = computeContestStandings(c);
+      const top3 = standings.slice(0, 3);
+      const myPlace = contestMyPlace(c, standings);
+      const hidden = !!c.hiddenFromHistory;
+      const podium = top3.length
+        ? top3.map((r, i) => `${i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} <strong>${escapeHtml(r.repName)}</strong> · ${fmt(r.score, 1)}`).join('<br>')
+        : '<span>No scores</span>';
+      return `
+        <div class="contest-history-card${hidden ? ' is-hidden' : ''}" data-history-open="${escapeAttr(c.id)}" role="button" tabindex="0">
+          <div>
+            <h3 class="contest-history-name">${escapeHtml(contestThemeIcon(c))} ${escapeHtml(c.name || 'Contest')}${hidden ? '<span class="contest-hist-badge hidden-badge">Hidden</span>' : ''}</h3>
+            <div class="contest-history-meta">${escapeHtml(contestFormatWhen(c.startAt))} → ${escapeHtml(contestFormatWhen(c.endAt))} · ${escapeHtml(c.mode === 'wheel' ? 'Wheel' : 'Race')} · ${escapeHtml(contestUnitsLabel(c.units))} · ${escapeHtml(contestStakeLabel(c))}${myPlace ? ` · You: ${escapeHtml(contestPlaceLabel(myPlace))}` : ''}</div>
+          </div>
+          <div class="contest-history-podium">${podium}</div>
+          ${manage ? `<div class="contest-history-actions">
+            <button type="button" class="theme-btn" data-history-open="${escapeAttr(c.id)}">View leaderboard</button>
+            <button type="button" class="theme-btn" data-contest-hide="${escapeAttr(c.id)}" data-hide="${hidden ? '0' : '1'}">${hidden ? 'Unhide from history' : 'Hide from history'}</button>
+          </div>` : ''}
+        </div>`;
+    }).join('')}</div>`;
+}
 function contestBoardHTML(contest) {
+  if (contestArenaTab === 'history') return contestHistoryHTML();
   if (!contest) {
     return `<div class="contest-empty-fun">
       <span class="emoji" aria-hidden="true">🏆</span>
@@ -9230,12 +9775,13 @@ function contestBoardHTML(contest) {
   const myPlace = contestMyPlace(contest, standings);
   const manage = contestCanManage();
   const theme = contestThemeClass(contest);
+  const wheelSkin = contest.wheelSkin || 'classic';
   const wheelBlock = contest.mode === 'wheel' ? `
     <div class="contest-wheel-wrap">
       <div class="contest-wheel-stage">
         <div class="contest-section-title" style="justify-content:center;"><span>🎡 Spin zone</span></div>
         <div class="contest-wheel-pointer" aria-hidden="true"></div>
-        <div class="contest-wheel" id="contestWheel" title="Ticket wheel"></div>
+        <div class="contest-wheel" id="contestWheel" title="Ticket wheel" style="background:${contestWheelSkinStyle(wheelSkin)};"></div>
         ${manage && contest.status === 'active' ? '<button type="button" id="contestSpinBtn">🎰 Spin the wheel</button>' : ''}
         <div id="contestSpinResult"></div>
       </div>
@@ -9248,6 +9794,7 @@ function contestBoardHTML(contest) {
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
         <button type="button" class="theme-btn" data-contest-edit="${escapeAttr(contest.id)}">Edit contest</button>
         ${contest.status !== 'ended' ? `<button type="button" class="theme-btn" data-contest-end="${escapeAttr(contest.id)}">End contest</button>` : ''}
+        ${contest.status === 'ended' ? `<button type="button" class="theme-btn" data-contest-hide="${escapeAttr(contest.id)}" data-hide="${contest.hiddenFromHistory ? '0' : '1'}">${contest.hiddenFromHistory ? 'Unhide from history' : 'Hide from history'}</button>` : ''}
         ${contest.externalUrl ? `<a class="theme-btn" href="${escapeAttr(contest.externalUrl)}" target="_blank" rel="noopener">Open external board</a>` : ''}
       </div>
       <div class="m-label" style="margin-bottom:6px;">Manual add (not Manual Attro)</div>
@@ -9271,7 +9818,13 @@ function contestBoardHTML(contest) {
 
   const livePill = contest.status === 'active'
     ? '<span class="contest-live-pill">Live</span>'
-    : `<span class="contest-chip"><strong>${escapeHtml(contest.status)}</strong></span>`;
+    : contest.status === 'ended'
+      ? '<span class="contest-chip"><strong>Final results</strong></span>'
+      : `<span class="contest-chip"><strong>${escapeHtml(contest.status)}</strong></span>`;
+
+  const frozenNote = contest.status === 'ended' && Array.isArray(contest.finalStandings) && contest.finalStandings.length
+    ? '<div class="meta-note" style="margin-top:8px;">Leaderboard frozen at contest end.</div>'
+    : '';
 
   return `
     <div class="contest-board-hero ${theme}">
@@ -9280,13 +9833,13 @@ function contestBoardHTML(contest) {
           <div class="contest-hero-icon" aria-hidden="true">${contestThemeIcon(contest)}</div>
           <div class="contest-hero-copy">
             ${livePill}
-            <p class="contest-promo-eyebrow" style="margin-top:8px;">${contest.kind === 'promo' ? 'Promo / company-wide' : 'Hosted'} · ${contest.mode === 'wheel' ? 'Wheel' : 'Race'}</p>
+            <p class="contest-promo-eyebrow" style="margin-top:8px;">${contest.kind === 'promo' ? 'Promo / company-wide' : 'Hosted'} · ${contest.mode === 'wheel' ? 'Wheel' : 'Race'} · ${escapeHtml(contestVehicleEmoji(contest.vehicle || 'car'))}</p>
             <h2>${escapeHtml(contest.name)}</h2>
             <div class="contest-promo-meta" style="margin-top:6px;">${escapeHtml(contestThemeTagline(contest))}</div>
           </div>
         </div>
         <div class="contest-countdown-block">
-          <div class="contest-countdown-label">Time left</div>
+          <div class="contest-countdown-label">${contest.status === 'ended' ? 'Ended' : 'Time left'}</div>
           <div class="contest-countdown" data-contest-cd="${escapeAttr(contest.id)}">${escapeHtml(contestCountdownHTML(contest.endAt))}</div>
         </div>
       </div>
@@ -9294,7 +9847,9 @@ function contestBoardHTML(contest) {
         <span class="contest-chip hot"><strong>${escapeHtml(contestUnitsLabel(contest.units))}</strong></span>
         <span class="contest-chip hot"><strong>${escapeHtml(contestStakeLabel(contest))}</strong></span>
         <span class="contest-chip">Your place <strong>${escapeHtml(contest.status === 'scheduled' ? 'Soon' : contestPlaceLabel(myPlace))}</strong></span>
+        ${contest.raceGoal ? `<span class="contest-chip">Goal <strong>${fmt(contest.raceGoal, 1)}</strong></span>` : ''}
       </div>
+      ${frozenNote}
     </div>
     ${wheelBlock}
     ${coachPanel}`;
@@ -9305,35 +9860,45 @@ function populateContestManualRepSelect() {
   const roster = typeof getRoster === 'function' ? getRoster() : [];
   sel.innerHTML = roster.map((r) => `<option value="${escapeAttr(r.display)}">${escapeHtml(r.display)}</option>`).join('');
 }
+function animateContestCars(host) {
+  if (!host) return;
+  const cars = host.querySelectorAll('.contest-car[data-target-left]');
+  requestAnimationFrame(() => {
+    cars.forEach((el) => {
+      const target = Number(el.getAttribute('data-target-left'));
+      if (!Number.isFinite(target)) return;
+      el.style.left = target + '%';
+    });
+  });
+}
 function renderContestBoard() {
   const host = document.getElementById('contestBoardHost');
   const title = document.getElementById('contestPageTitle');
   const newBtn = document.getElementById('contestNewBtn');
   const overlay = document.getElementById('contestOverlay');
-  if (newBtn) newBtn.style.display = contestCanManage() ? '' : 'none';
+  if (newBtn) newBtn.style.display = contestCanManage() && contestArenaTab === 'live' ? '' : 'none';
   if (!host) return;
   let contest = CONTEST_CACHE.find((c) => c.id === contestViewId);
-  if (!contest) {
+  if (!contest && contestArenaTab === 'live') {
     contest = CONTEST_CACHE.find((c) => c.status === 'active')
       || CONTEST_CACHE.find((c) => c.status === 'scheduled')
-      || CONTEST_CACHE[0];
+      || CONTEST_CACHE.find((c) => c.status !== 'ended')
+      || null;
     if (contest) contestViewId = contest.id;
   }
-  if (title) title.textContent = contest ? `${contestThemeIcon(contest)} ${contest.name}` : '🏆 Contest Arena';
+  if (title) {
+    if (contestArenaTab === 'history') title.textContent = '📜 Contest History';
+    else title.textContent = contest ? `${contestThemeIcon(contest)} ${contest.name}` : '🏆 Contest Arena';
+  }
   if (overlay) {
     overlay.classList.remove('theme-morning', 'theme-power-hour', 'theme-evening');
-    if (contest) overlay.classList.add(contestThemeClass(contest));
+    if (contest && contestArenaTab === 'live') overlay.classList.add(contestThemeClass(contest));
   }
-  host.innerHTML = contestBoardHTML(contest);
-  populateContestManualRepSelect();
-  // Kick race-bar width transitions after paint.
-  requestAnimationFrame(() => {
-    host.querySelectorAll('.contest-race-fill').forEach((el) => {
-      const w = el.style.width;
-      el.style.width = '0%';
-      requestAnimationFrame(() => { el.style.width = w; });
-    });
-  });
+  host.innerHTML = contestBoardHTML(contestArenaTab === 'history' ? null : contest);
+  if (contestArenaTab === 'live') {
+    populateContestManualRepSelect();
+    animateContestCars(host);
+  }
   const emptyCreate = document.getElementById('contestEmptyCreate');
   if (emptyCreate) emptyCreate.addEventListener('click', () => openContestEditModal(null));
 }
@@ -9343,6 +9908,30 @@ function tickContestCountdowns() {
     const c = CONTEST_CACHE.find((x) => x.id === id);
     if (c) el.textContent = contestCountdownHTML(c.endAt);
   });
+}
+async function maybeFreezeEndedContests() {
+  const ended = (CONTEST_CACHE || []).filter((c) =>
+    c && c.status === 'ended' && !(Array.isArray(c.finalStandings) && c.finalStandings.length)
+  );
+  for (const c of ended) {
+    // Recompute without snapshot path by temporarily clearing finalStandings
+    const live = (() => {
+      const copy = Object.assign({}, c, { finalStandings: null, status: 'active' });
+      return computeContestStandings(copy);
+    })();
+    if (!live.length) continue;
+    try {
+      const { contest } = await authedFetch('/api/contests/freeze-standings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: c.id, finalStandings: contestStandingSnapRows(live) }),
+      });
+      if (contest) {
+        const idx = CONTEST_CACHE.findIndex((x) => x.id === contest.id);
+        if (idx >= 0) CONTEST_CACHE[idx] = contest;
+      }
+    } catch (_) { /* ignore */ }
+  }
 }
 async function refreshContestsUi(opts) {
   const quiet = !!(opts && opts.quiet);
@@ -9358,6 +9947,7 @@ async function refreshContestsUi(opts) {
     const data = await authedFetch('/api/contests/list');
     CONTEST_CACHE = Array.isArray(data.contests) ? data.contests : [];
     CONTEST_CAN_MANAGE = !!data.canManage;
+    await maybeFreezeEndedContests();
     renderContestPromoBanners();
     if (document.getElementById('contestOverlay')?.classList.contains('open')) renderContestBoard();
     if (!contestCountdownTimer) {
@@ -9368,8 +9958,33 @@ async function refreshContestsUi(opts) {
     renderContestPromoBanners();
   }
 }
+function startContestLiveLoop() {
+  if (contestLiveTimer) return;
+  contestLiveTimer = window.setInterval(async () => {
+    const open = document.getElementById('contestOverlay')?.classList.contains('open');
+    if (!open || contestArenaTab !== 'live') return;
+    try {
+      if (typeof fetchLiveActuals === 'function') await fetchLiveActuals();
+      await refreshContestsUi({ quiet: true });
+    } catch (_) { /* ignore */ }
+  }, CONTEST_LIVE_POLL_MS);
+}
+function stopContestLiveLoop() {
+  if (contestLiveTimer) {
+    clearInterval(contestLiveTimer);
+    contestLiveTimer = 0;
+  }
+}
 function openContestOverlay(id) {
-  if (id) contestViewId = id;
+  if (id) {
+    contestViewId = id;
+    const c = CONTEST_CACHE.find((x) => x.id === id);
+    contestArenaTab = (c && c.status === 'ended') ? 'history' : 'live';
+    if (c && c.status === 'ended') {
+      // Viewing a specific ended contest: show its board (not the list)
+      contestArenaTab = 'live';
+    }
+  }
   if (location.hash !== '#contest' && !String(location.hash || '').startsWith('#contest=')) {
     location.hash = id ? 'contest=' + encodeURIComponent(id) : 'contest';
     return;
@@ -9378,8 +9993,14 @@ function openContestOverlay(id) {
   overlay?.classList.add('open');
   window.scrollTo(0, 0);
   syncOverlayBodyScroll();
+  document.querySelectorAll('.contest-tab').forEach((el) => {
+    const on = el.getAttribute('data-contest-tab') === contestArenaTab;
+    el.classList.toggle('is-active', on);
+    el.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
   renderContestBoard();
   refreshContestsUi();
+  startContestLiveLoop();
 }
 function closeContestOverlay() {
   document.getElementById('contestOverlay')?.classList.remove('open');
@@ -9387,6 +10008,7 @@ function closeContestOverlay() {
     history.replaceState(null, '', location.pathname + location.search);
   }
   syncOverlayBodyScroll();
+  stopContestLiveLoop();
 }
 function renderContestHash() {
   const h = location.hash || '';
@@ -9396,6 +10018,7 @@ function renderContestHash() {
   } else {
     document.getElementById('contestOverlay')?.classList.remove('open');
     syncOverlayBodyScroll();
+    stopContestLiveLoop();
   }
 }
 function syncContestStakeFields() {
@@ -9403,11 +10026,20 @@ function syncContestStakeFields() {
   const wrap = document.getElementById('contestEditStakeAmountWrap');
   if (wrap) wrap.style.display = type === 'money' ? '' : 'none';
 }
+function syncContestEditModeFields() {
+  const mode = document.getElementById('contestEditMode')?.value || 'race';
+  const race = document.getElementById('contestEditRaceOpts');
+  const wheel = document.getElementById('contestEditWheelOpts');
+  if (race) race.style.display = mode === 'race' ? '' : 'none';
+  if (wheel) wheel.style.display = mode === 'wheel' ? '' : 'none';
+}
 function syncContestEditEmoji() {
   const emoji = document.querySelector('#contestEditBackdrop .celebration-modal-emoji');
   if (!emoji) return;
-  const preset = document.getElementById('contestEditPreset')?.value || 'power-hour';
-  emoji.textContent = preset === 'morning' ? '☀️' : preset === 'evening' ? '🌙' : preset === 'power-hour' ? '⚡' : '🏆';
+  const mode = document.getElementById('contestEditMode')?.value || 'race';
+  if (mode === 'wheel') { emoji.textContent = '🎡'; return; }
+  const vehicle = document.getElementById('contestEditVehicle')?.value || 'car';
+  emoji.textContent = contestVehicleEmoji(vehicle);
 }
 function openContestEditModal(id) {
   contestEditId = id || '';
@@ -9419,8 +10051,9 @@ function openContestEditModal(id) {
     ? { startAt: existing.startAt, endAt: existing.endAt }
     : contestPresetWindow(preset);
   document.getElementById('contestEditName').value = existing?.name || (preset === 'power-hour' ? 'Power Hour' : preset === 'morning' ? 'Morning Mayhem' : preset === 'evening' ? 'Evening Surge' : '');
+  const taglineEl = document.getElementById('contestEditTagline');
+  if (taglineEl) taglineEl.value = existing?.tagline || '';
   document.getElementById('contestEditPreset').value = preset;
-  syncContestEditEmoji();
   document.getElementById('contestEditKind').value = existing?.kind || 'hosted';
   document.getElementById('contestEditMode').value = existing?.mode || 'race';
   document.getElementById('contestEditUnits').value = existing?.units || 'sessions';
@@ -9430,9 +10063,23 @@ function openContestEditModal(id) {
   document.getElementById('contestEditStakeAmount').value = existing?.stakeAmount || '';
   document.getElementById('contestEditExternalUrl').value = existing?.externalUrl || '';
   document.getElementById('contestEditShowBanner').checked = existing ? existing.showBanner !== false : true;
+  const hideEl = document.getElementById('contestEditHideHistory');
+  if (hideEl) hideEl.checked = !!(existing && existing.hiddenFromHistory);
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
+  setVal('contestEditVehicle', existing?.vehicle || 'car');
+  setVal('contestEditTrack', existing?.trackTheme || 'asphalt');
+  setVal('contestEditHype', existing?.hypeLevel || 'hype');
+  setVal('contestEditAccent', existing?.accent || 'pink');
+  setVal('contestEditRaceGoal', existing?.raceGoal || '');
+  setVal('contestEditWheelSkin', existing?.wheelSkin || 'classic');
+  setChk('contestEditShowLaneBoard', existing ? existing.showLaneBoard !== false : true);
+  setChk('contestEditAnnouncer', existing ? existing.announcer !== false : true);
   const status = document.getElementById('contestEditStatus');
   if (status) { status.textContent = ''; status.style.color = ''; }
   syncContestStakeFields();
+  syncContestEditModeFields();
+  syncContestEditEmoji();
   document.getElementById('contestEditBackdrop')?.classList.add('open');
 }
 function closeContestEditModal() {
@@ -9441,7 +10088,7 @@ function closeContestEditModal() {
 }
 document.getElementById('contestEditPreset')?.addEventListener('change', () => {
   syncContestEditEmoji();
-  if (contestEditId) return; // don't clobber edits on existing contests
+  if (contestEditId) return;
   const preset = document.getElementById('contestEditPreset').value;
   const win = contestPresetWindow(preset);
   document.getElementById('contestEditStart').value = contestIsoToLocalInput(win.startAt);
@@ -9452,6 +10099,11 @@ document.getElementById('contestEditPreset')?.addEventListener('change', () => {
   }
 });
 document.getElementById('contestEditStakeType')?.addEventListener('change', syncContestStakeFields);
+document.getElementById('contestEditMode')?.addEventListener('change', () => {
+  syncContestEditModeFields();
+  syncContestEditEmoji();
+});
+document.getElementById('contestEditVehicle')?.addEventListener('change', syncContestEditEmoji);
 document.getElementById('contestEditCancel')?.addEventListener('click', closeContestEditModal);
 document.getElementById('contestEditBackdrop')?.addEventListener('click', (e) => {
   if (e.target.id === 'contestEditBackdrop') closeContestEditModal();
@@ -9461,6 +10113,7 @@ document.getElementById('contestEditSave')?.addEventListener('click', async () =
   const payload = {
     id: contestEditId || undefined,
     name: document.getElementById('contestEditName').value,
+    tagline: document.getElementById('contestEditTagline')?.value || '',
     preset: document.getElementById('contestEditPreset').value,
     kind: document.getElementById('contestEditKind').value,
     mode: document.getElementById('contestEditMode').value,
@@ -9471,6 +10124,15 @@ document.getElementById('contestEditSave')?.addEventListener('click', async () =
     stakeAmount: document.getElementById('contestEditStakeAmount').value,
     externalUrl: document.getElementById('contestEditExternalUrl').value,
     showBanner: document.getElementById('contestEditShowBanner').checked,
+    hiddenFromHistory: !!document.getElementById('contestEditHideHistory')?.checked,
+    vehicle: document.getElementById('contestEditVehicle')?.value || 'car',
+    trackTheme: document.getElementById('contestEditTrack')?.value || 'asphalt',
+    hypeLevel: document.getElementById('contestEditHype')?.value || 'hype',
+    accent: document.getElementById('contestEditAccent')?.value || 'pink',
+    raceGoal: document.getElementById('contestEditRaceGoal')?.value || '',
+    showLaneBoard: !!document.getElementById('contestEditShowLaneBoard')?.checked,
+    announcer: !!document.getElementById('contestEditAnnouncer')?.checked,
+    wheelSkin: document.getElementById('contestEditWheelSkin')?.value || 'classic',
   };
   const btn = document.getElementById('contestEditSave');
   if (btn) btn.disabled = true;
@@ -9481,6 +10143,7 @@ document.getElementById('contestEditSave')?.addEventListener('click', async () =
       body: JSON.stringify(payload),
     });
     closeContestEditModal();
+    contestArenaTab = 'live';
     await refreshContestsUi();
     if (contest?.id) {
       contestViewId = contest.id;
@@ -9496,14 +10159,20 @@ document.getElementById('contestEditSave')?.addEventListener('click', async () =
   }
 });
 
+document.querySelectorAll('[data-contest-tab]').forEach((tab) => {
+  tab.addEventListener('click', () => setContestArenaTab(tab.getAttribute('data-contest-tab')));
+});
+
 document.getElementById('contestBackBtn')?.addEventListener('click', () => {
   history.replaceState(null, '', location.pathname + location.search);
   document.getElementById('contestOverlay')?.classList.remove('open');
   syncOverlayBodyScroll();
+  stopContestLiveLoop();
   window.scrollTo(0, 0);
 });
 document.getElementById('contestNewBtn')?.addEventListener('click', () => openContestEditModal(null));
 document.getElementById('teamContestsBtn')?.addEventListener('click', () => {
+  contestArenaTab = 'live';
   location.hash = 'contest';
 });
 document.getElementById('contestBannerStack')?.addEventListener('click', (e) => {
@@ -9511,9 +10180,49 @@ document.getElementById('contestBannerStack')?.addEventListener('click', (e) => 
   if (!btn) return;
   e.preventDefault();
   const id = btn.getAttribute('data-view-contest');
+  contestArenaTab = 'live';
   location.hash = 'contest=' + encodeURIComponent(id);
 });
+
+async function toggleContestHistoryHidden(id, hide) {
+  await authedFetch('/api/contests/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, visibilityOnly: true, hiddenFromHistory: !!hide }),
+  });
+  await refreshContestsUi();
+  renderContestBoard();
+}
+
 document.getElementById('contestBoardHost')?.addEventListener('click', async (e) => {
+  const hideBtn = e.target.closest('[data-contest-hide]');
+  if (hideBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const id = hideBtn.getAttribute('data-contest-hide');
+    const hide = hideBtn.getAttribute('data-hide') === '1';
+    try {
+      await toggleContestHistoryHidden(id, hide);
+    } catch (err) {
+      alert(err.message || 'Could not update visibility');
+    }
+    return;
+  }
+  const histOpen = e.target.closest('[data-history-open]');
+  if (histOpen) {
+    const id = histOpen.getAttribute('data-history-open');
+    if (id) {
+      contestViewId = id;
+      contestArenaTab = 'live';
+      document.querySelectorAll('.contest-tab').forEach((el) => {
+        const on = el.getAttribute('data-contest-tab') === 'live';
+        el.classList.toggle('is-active', on);
+        el.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      renderContestBoard();
+    }
+    return;
+  }
   const edit = e.target.closest('[data-contest-edit]');
   if (edit) {
     openContestEditModal(edit.getAttribute('data-contest-edit'));
@@ -9522,15 +10231,18 @@ document.getElementById('contestBoardHost')?.addEventListener('click', async (e)
   const endBtn = e.target.closest('[data-contest-end]');
   if (endBtn) {
     const id = endBtn.getAttribute('data-contest-end');
-    if (!id || !confirm('End this contest now? Standings will freeze.')) return;
+    if (!id || !confirm('End this contest now? Standings will freeze into History.')) return;
+    const contest = CONTEST_CACHE.find((c) => c.id === id);
+    const snap = contestStandingSnapRows(computeContestStandings(contest));
     try {
       await authedFetch('/api/contests/end', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id, finalStandings: snap }),
       });
       await refreshContestsUi();
-      renderContestBoard();
+      contestArenaTab = 'history';
+      setContestArenaTab('history');
     } catch (err) {
       alert(err.message || 'Could not end contest');
     }
@@ -9599,7 +10311,6 @@ function bootContestsUi() {
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootContestsUi);
 else bootContestsUi();
-// Identity login also refreshes contests once available.
 if (window.netlifyIdentity) {
   netlifyIdentity.on('login', () => refreshContestsUi({ quiet: true }));
   netlifyIdentity.on('logout', () => {

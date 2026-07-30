@@ -53,6 +53,17 @@ export default async (req: Request, context: Context) => {
     }
   }
 
+  // Visibility-only patch (hide/unhide from History) — skip full field validation.
+  if (id && existing && body?.visibilityOnly) {
+    existing.hiddenFromHistory = !!body.hiddenFromHistory;
+    existing.updatedAt = new Date().toISOString();
+    await store.setJSON(id, existing);
+    return new Response(JSON.stringify({ ok: true, contest: publicContest(existing) }), {
+      status: 200,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    });
+  }
+
   const patch = normalizeContestPatch(body, existing);
   const err = validateContestFields(patch);
   if (err) {
@@ -81,6 +92,17 @@ export default async (req: Request, context: Context) => {
     showBanner: patch.showBanner !== false,
     externalUrl: patch.externalUrl ?? null,
     repFilter: patch.repFilter ?? null,
+    vehicle: patch.vehicle || "car",
+    trackTheme: patch.trackTheme || "asphalt",
+    hypeLevel: patch.hypeLevel || "hype",
+    accent: patch.accent || "pink",
+    raceGoal: patch.raceGoal ?? null,
+    tagline: patch.tagline ?? null,
+    showLaneBoard: patch.showLaneBoard !== false,
+    announcer: patch.announcer !== false,
+    wheelSkin: patch.wheelSkin || "classic",
+    hiddenFromHistory: !!patch.hiddenFromHistory,
+    finalStandings: patch.finalStandings ?? existing?.finalStandings ?? null,
     manualEntries: Array.isArray(existing?.manualEntries) ? existing!.manualEntries : [],
     createdBy: existing?.createdBy || access.email,
     createdAt: existing?.createdAt || nowIso,
