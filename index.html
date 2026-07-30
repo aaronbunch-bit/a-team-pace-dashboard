@@ -878,7 +878,9 @@
       top: var(--sticky-top);
       align-self: start;
       overflow-x: hidden;
-      overflow-y: hidden; /* inner scroll only if boards taller than roster (JS) */
+      overflow-y: auto;
+      /* Mirror Individual Pacer side panel; JS tightens as roster/footer approach. */
+      max-height: calc(100vh - var(--sticky-top) - 96px);
     }
     body[data-layout="split-rail"] .landing-region-reps { grid-area: reps; min-width: 0; }
   }
@@ -903,10 +905,13 @@
       top: var(--sticky-top);
       align-self: start;
       overflow-x: hidden;
-      /* Like Individual Pacer side panel: stick with the main column; no second
-         scrollbar unless boards content is taller than the roster (JS sets
-         max-height to roster height and may flip overflow-y to auto). */
-      overflow-y: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      /* Same idea as #metricsSidePanel: stick beside the main column, scroll
+         inside if needed, and leave room above the signed-in footer. JS
+         syncLandingBoardsScrollCap() shrinks this as the roster bottom
+         approaches so sticky boards never phase through the footer. */
+      max-height: calc(100vh - var(--sticky-top) - 96px);
     }
     body[data-layout="split-stack"] .landing-region-reps { grid-area: reps; min-width: 0; }
     body[data-layout="split-stack"].stack-boards-hidden .wrap {
@@ -2032,6 +2037,68 @@
   .login-gate-setup li { margin: 6px 0; }
   .login-gate-setup-check { margin: 12px 0 0; color: var(--text-muted); word-break: break-all; }
   .login-gate-setup code { font-size: 11.5px; }
+
+  /* First-login guided tour — spotlight + card over the live dashboard. */
+  .guided-tour {
+    position: fixed; inset: 0; z-index: 2147482000;
+    pointer-events: none;
+  }
+  .guided-tour.open { pointer-events: auto; }
+  .guided-tour[hidden] { display: none !important; }
+  .guided-tour-spotlight {
+    position: fixed; z-index: 1;
+    border-radius: 16px;
+    box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.58);
+    outline: 2px solid rgba(56, 189, 248, 0.85);
+    transition: top 0.28s ease, left 0.28s ease, width 0.28s ease, height 0.28s ease;
+    pointer-events: none;
+  }
+  .guided-tour-spotlight.is-center {
+    box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.62);
+    outline: none;
+    background: transparent;
+  }
+  .guided-tour-card {
+    position: fixed; z-index: 2;
+    width: min(360px, calc(100vw - 28px));
+    padding: 16px 16px 14px;
+    border-radius: 16px;
+    background:
+      linear-gradient(165deg, rgba(14,165,233,0.10), rgba(99,102,241,0.10) 55%, transparent 80%),
+      var(--card-bg);
+    border: 1px solid var(--card-border);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.28);
+    color: var(--text);
+    transition: top 0.28s ease, left 0.28s ease, transform 0.28s ease;
+  }
+  .guided-tour-progress {
+    font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--text-faint); margin-bottom: 6px;
+  }
+  .guided-tour-card h3 {
+    margin: 0 0 6px; font-size: 16px; font-weight: 800; line-height: 1.25;
+  }
+  .guided-tour-card p {
+    margin: 0 0 14px; font-size: 13px; line-height: 1.45; color: var(--text-muted); font-weight: 600;
+  }
+  .guided-tour-actions {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end;
+  }
+  .guided-tour-actions .theme-btn { margin-top: 0; }
+  .guided-tour-skip {
+    margin-right: auto !important;
+    background: transparent; border-color: transparent; box-shadow: none;
+    color: var(--text-faint); font-weight: 700;
+  }
+  .guided-tour-skip:hover { color: var(--text); opacity: 1; }
+  .guided-tour-next {
+    background: linear-gradient(105deg, #0ea5e9, #6366f1 70%);
+    color: #fff; border: none;
+    box-shadow: 0 2px 10px rgba(14, 165, 233, 0.35);
+  }
+  body.guided-tour-active { overflow: hidden; }
+  [data-replay-tour] { display: none; }
+  body.app-ready [data-replay-tour] { display: inline-flex; }
 </style>
 </head>
 <body>
@@ -2176,7 +2243,7 @@
   <button type="button" class="split-panel-toggle" id="splitPanelToggle" aria-expanded="true">Hide boards</button>
   <div class="layout-boards-switch" id="layoutBoardsSwitch">
     <button type="button" class="theme-btn active" data-board-surface="leaders">Leaderboards</button>
-    <button type="button" class="theme-btn" data-board-surface="improved">Depth</button>
+    <button type="button" class="theme-btn" data-board-surface="improved">Most Improved</button>
   </div>
   <div class="landing-grid">
     <div class="landing-region landing-region-team" id="landingTeam">
@@ -2205,12 +2272,16 @@
         <div class="leaderboard-list" id="lbActiveList"></div>
       </div>
 
-      <!-- Depth — biggest gain in distinct clients sold this week vs prior week
-           (breadth of book). Replaces pacing-based Most Improved. Single winner,
-           compact companion to the leaderboard above. -->
+      <!-- Most Improved — gain in DISTINCT clients (breadth), not pacing %.
+           Tabs: yesterday / last week / this time last month. -->
       <div class="leaderboard-panel improved-panel">
-        <div class="leaderboard-title improved-fixed-title">📚 Depth</div>
-        <div class="improved-sublabel" id="improvedActiveTitle">Distinct clients vs prior 7 days</div>
+        <div class="leaderboard-title improved-fixed-title">🏆 Most Improved</div>
+        <div class="leaderboard-tabs" id="improvedTabs">
+          <button type="button" class="leaderboard-tab has-tip" data-board="yesterday" data-tip="Distinct clients yesterday vs the day before">📈</button>
+          <button type="button" class="leaderboard-tab has-tip" data-board="lastWeek" data-tip="Distinct clients last 7 days vs the prior 7">🗓️</button>
+          <button type="button" class="leaderboard-tab has-tip" data-board="lastMonth" data-tip="Distinct clients this week vs the same days last month">📆</button>
+        </div>
+        <div class="improved-sublabel" id="improvedActiveTitle"></div>
         <div class="leaderboard-list improved-list" id="improvedActiveList"></div>
       </div>
       <div class="culture-card" id="shoutoutWallCard">
@@ -2252,8 +2323,23 @@
       <select class="sip-select" data-view-as-select aria-label="View as rep"></select>
       <button type="button" class="identity-btn" data-view-as-revert>Revert to admin</button>
     </span>
+    <button type="button" class="identity-btn" data-replay-tour>Take tour</button>
     <button type="button" class="identity-btn" data-identity-btn>Sign out</button>
   </div>
+  </div>
+</div>
+
+<div id="guidedTourRoot" class="guided-tour" hidden aria-live="polite">
+  <div class="guided-tour-spotlight" id="guidedTourSpotlight" aria-hidden="true"></div>
+  <div class="guided-tour-card" id="guidedTourCard" role="dialog" aria-modal="true" aria-labelledby="guidedTourTitle">
+    <div class="guided-tour-progress" id="guidedTourProgress"></div>
+    <h3 id="guidedTourTitle"></h3>
+    <p id="guidedTourBody"></p>
+    <div class="guided-tour-actions">
+      <button type="button" class="theme-btn guided-tour-skip" id="guidedTourSkip">Skip</button>
+      <button type="button" class="theme-btn" id="guidedTourBack">Back</button>
+      <button type="button" class="theme-btn guided-tour-next" id="guidedTourNext">Next</button>
+    </div>
   </div>
 </div>
 
@@ -2459,6 +2545,7 @@
         <select class="sip-select" data-view-as-select aria-label="View as rep"></select>
         <button type="button" class="identity-btn" data-view-as-revert>Revert to admin</button>
       </span>
+      <button type="button" class="identity-btn" data-replay-tour>Take tour</button>
       <button type="button" class="identity-btn" data-identity-btn>Sign out</button>
     </div>
   </div>
@@ -4004,11 +4091,10 @@ function syncLandingGridHeight() {
   grid.style.minHeight = sideCol.offsetHeight + 'px';
 }
 /**
- * Stack/Rail boards sticky — mirror Individual Pacer side panel behavior:
- * stick beside the roster, and end when the last rep ends. Cap boards height
- * to the roster so the grid row can't grow past the team list (which would
- * let sticky spill into the footer). Prefer page scroll only; enable an inner
- * scrollbar only when boards content is actually taller than the roster.
+ * Stack/Rail boards sticky — mirror Individual Pacer `#metricsSidePanel`:
+ * stick under --sticky-top with a viewport max-height + inner scroll, and
+ * shrink the cap as the roster bottom approaches so the panel releases with
+ * the last rep instead of phasing through the signed-in footer.
  */
 function syncLandingBoardsScrollCap() {
   const boards = document.getElementById('landingBoards');
@@ -4020,22 +4106,29 @@ function syncLandingBoardsScrollCap() {
     boards.style.overflowY = '';
     return;
   }
-  const rosterH = Math.max(1, reps.offsetHeight);
-  boards.style.maxHeight = rosterH + 'px';
-  // After the cap applies, only unlock inner scroll if content overflows it.
-  const needsInner = boards.scrollHeight > rosterH + 2;
-  boards.style.overflowY = needsInner ? 'auto' : 'hidden';
+  const stickyRaw = getComputedStyle(document.documentElement).getPropertyValue('--sticky-top');
+  const stickyTop = parseFloat(stickyRaw) || 12;
+  const footerPad = 96; // room for session bar / foot breathing room (matches CSS)
+  const viewportCap = Math.max(140, window.innerHeight - stickyTop - footerPad);
+  const repsBottom = reps.getBoundingClientRect().bottom;
+  // While stuck, panel top ≈ stickyTop. Available height ends at roster bottom.
+  const releaseCap = Math.max(140, repsBottom - stickyTop - 8);
+  boards.style.maxHeight = Math.min(viewportCap, releaseCap) + 'px';
+  boards.style.overflowY = 'auto';
 }
 window.addEventListener('resize', () => {
   syncLandingGridHeight();
   syncLandingBoardsScrollCap();
   fitLandingBadges();
 });
+window.addEventListener('scroll', () => { syncLandingBoardsScrollCap(); }, { passive: true });
 if (typeof ResizeObserver !== 'undefined') {
   const ro = new ResizeObserver(() => syncLandingBoardsScrollCap());
   const watchBoardsCap = () => {
     const reps = document.getElementById('landingReps');
+    const boards = document.getElementById('landingBoards');
     if (reps) ro.observe(reps);
+    if (boards) ro.observe(boards);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchBoardsCap);
   else watchBoardsCap();
@@ -4360,9 +4453,9 @@ function animateLeaderboard(listId, items, boardKey) {
   showNext();
 }
 
-// --- Depth (second sidebar panel, below the main leaderboard) -------------
-// Ranked by gain in DISTINCT clients with a positive sale this week vs the
-// prior week — breadth of book, not pacing %. Ledger clientId on each item.
+// --- Most Improved (distinct-client breadth, not pacing %) ----------------
+// Ranked by gain in DISTINCT clients with a positive sale over a window —
+// breadth of book. Ledger clientId on each item.
 function cumulativeActualsAsOf(repDisplay, cutoffDateStr) {
   const actuals = loadActuals();
   const raw = (actuals.perRep && actuals.perRep[repDisplay]) || {};
@@ -4389,6 +4482,16 @@ function shiftDateStr(dateStr, n) {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
 }
 
+/** Shift calendar month, clamping day to the last day of the target month. */
+function shiftMonthKeepDay(ymd, monthDelta) {
+  const [y, m, d] = String(ymd).slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return ymd;
+  const target = new Date(y, m - 1 + monthDelta, 1);
+  const dim = daysInMonth(target.getFullYear(), target.getMonth() + 1);
+  const day = Math.min(d, dim);
+  return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 function distinctClientIdsInRange(repDisplay, startYmd, endYmd) {
   const items = ((loadActuals().perRep || {})[repDisplay] || {}).items || [];
   const ids = new Set();
@@ -4401,30 +4504,71 @@ function distinctClientIdsInRange(repDisplay, startYmd, endYmd) {
   return ids;
 }
 
-/** Top depth gainer: +distinct clients this 7 days vs prior 7 days. */
-function computeDepthTop() {
+const IMPROVED_TAB_KEY = 'pace_dashboard_improved_tab_v2';
+let improvedTab = loadJSON(IMPROVED_TAB_KEY, 'lastWeek');
+if (!['yesterday', 'lastWeek', 'lastMonth'].includes(improvedTab)) improvedTab = 'lastWeek';
+const IMPROVED_META = {
+  yesterday: { sublabel: 'Yesterday vs day before' },
+  lastWeek: { sublabel: 'Last 7 days vs prior 7' },
+  lastMonth: { sublabel: 'This week vs same days last month' },
+};
+const IMPROVED_EMPTY_TEXT = 'No one widened their client book in this window yet';
+let improvedBoardsCache = { yesterday: [], lastWeek: [], lastMonth: [] };
+
+function improvedWindowForPeriod(period) {
   const asOf = loadActuals().asOf;
-  if (!asOf) return [];
-  const thisStart = shiftDateStr(asOf, -6);
+  if (!asOf) return null;
+  if (period === 'yesterday') {
+    const yest = shiftDateStr(asOf, -1);
+    const dayBefore = shiftDateStr(asOf, -2);
+    return {
+      currentStart: yest, currentEnd: yest,
+      priorStart: dayBefore, priorEnd: dayBefore,
+      currentLabel: 'yesterday', priorLabel: 'day before',
+    };
+  }
+  if (period === 'lastMonth') {
+    const currentStart = shiftDateStr(asOf, -6);
+    const priorEnd = shiftMonthKeepDay(asOf, -1);
+    const priorStart = shiftMonthKeepDay(currentStart, -1);
+    return {
+      currentStart, currentEnd: asOf,
+      priorStart, priorEnd,
+      currentLabel: 'this week', priorLabel: 'same days last month',
+    };
+  }
+  // lastWeek (default)
+  const currentStart = shiftDateStr(asOf, -6);
   const priorEnd = shiftDateStr(asOf, -7);
   const priorStart = shiftDateStr(asOf, -13);
+  return {
+    currentStart, currentEnd: asOf,
+    priorStart, priorEnd,
+    currentLabel: 'last 7 days', priorLabel: 'prior 7 days',
+  };
+}
+
+/** Top Most Improved by +distinct clients for a time window. */
+function computeMostImprovedDepth(period) {
+  const win = improvedWindowForPeriod(period);
+  if (!win) return [];
   const results = getRoster().map((r) => {
-    const thisWeek = distinctClientIdsInRange(r.display, thisStart, asOf).size;
-    const priorWeek = distinctClientIdsInRange(r.display, priorStart, priorEnd).size;
+    const current = distinctClientIdsInRange(r.display, win.currentStart, win.currentEnd).size;
+    const prior = distinctClientIdsInRange(r.display, win.priorStart, win.priorEnd).size;
     return {
       name: r.display,
-      val: thisWeek - priorWeek,
-      thisWeek,
-      priorWeek,
+      val: current - prior,
+      current,
+      prior,
+      currentLabel: win.currentLabel,
+      priorLabel: win.priorLabel,
     };
-  }).filter((r) => r.thisWeek > 0 || r.priorWeek > 0);
-  results.sort((a, b) => b.val - a.val || b.thisWeek - a.thisWeek);
+  }).filter((r) => r.current > 0 || r.prior > 0);
+  results.sort((a, b) => b.val - a.val || b.current - a.current);
   const top = results[0];
   if (!top || top.val <= 0) return [];
   return [top];
 }
-const DEPTH_EMPTY_TEXT = 'No one widened their client book vs the prior 7 days yet';
-let depthBoardCache = [];
 
 // --- Engagement extras: streak, comeback, personal best -------------------
 // All three deliberately follow the same "quiet until it matters" principle
@@ -5131,11 +5275,11 @@ function firstTo100MiniHTML() {
   return `<span>🥇 <b>${champion}</b> was first to 100%+ this month</span>`;
 }
 
-// Depth leader for the mini-header — distinct-client breadth, not pacing %.
+// Most Improved mini-header — distinct-client breadth leader (last week tab).
 function mostImprovedMiniHTML() {
-  const item = computeDepthTop()[0];
+  const item = computeMostImprovedDepth('lastWeek')[0];
   if (!item || item.val <= 0) return null;
-  return `<span>📚 <b>${item.name}</b> widened their book — ${item.priorWeek} → ${item.thisWeek} distinct clients this week</span>`;
+  return `<span>🏆 <b>${item.name}</b> widened their book — ${item.prior} → ${item.current} distinct clients this week</span>`;
 }
 
 // Always available (never null) — a safety net so the rotation never comes
@@ -5565,22 +5709,30 @@ function maybeShowShoutoutCelebration(repName) {
 }
 
 function renderImprovedBoards() {
-  depthBoardCache = computeDepthTop().map((item) => ({
-    ...item,
-    valLabel: item.priorWeek === 0
-      ? `${item.thisWeek} clients`
-      : `${item.priorWeek} → ${item.thisWeek}`,
-    compact: true,
-    tip: `Distinct clients with a sale: ${item.thisWeek} in the last 7 days vs ${item.priorWeek} in the prior 7 — breadth of book, not pacing %.`,
-  }));
+  ['yesterday', 'lastWeek', 'lastMonth'].forEach((period) => {
+    improvedBoardsCache[period] = computeMostImprovedDepth(period).map((item) => ({
+      ...item,
+      valLabel: item.prior === 0 ? `${item.current} clients` : `${item.prior} → ${item.current}`,
+      compact: true,
+      tip: `Distinct clients with a sale: ${item.current} (${item.currentLabel}) vs ${item.prior} (${item.priorLabel}) — breadth of book, not pacing %.`,
+    }));
+  });
+  syncImprovedTabButtons();
   displayImprovedTab();
 }
 
+function syncImprovedTabButtons() {
+  document.querySelectorAll('#improvedTabs .leaderboard-tab').forEach((b) => {
+    b.classList.toggle('active', b.getAttribute('data-board') === improvedTab);
+  });
+}
+
 function displayImprovedTab() {
+  const meta = IMPROVED_META[improvedTab] || IMPROVED_META.lastWeek;
   const titleEl = document.getElementById('improvedActiveTitle');
-  if (titleEl) titleEl.textContent = 'Distinct clients vs prior 7 days';
+  if (titleEl) titleEl.textContent = meta.sublabel;
   const listEl = document.getElementById('improvedActiveList');
-  if (listEl) listEl.innerHTML = leaderboardStaticHTML(depthBoardCache, DEPTH_EMPTY_TEXT);
+  if (listEl) listEl.innerHTML = leaderboardStaticHTML(improvedBoardsCache[improvedTab] || [], IMPROVED_EMPTY_TEXT);
 }
 
 // --- Double Goal champion (landing-page glow + Client Detail congrats) -----
@@ -6897,6 +7049,17 @@ document.getElementById('leaderboardTabs').addEventListener('click', (e) => {
   saveJSON(LEADERBOARD_TAB_KEY, leaderboardTab);
   syncLeaderboardTabButtons();
   displayLeaderboardTab();
+});
+
+document.getElementById('improvedTabs')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.leaderboard-tab');
+  if (!btn) return;
+  const board = btn.getAttribute('data-board');
+  if (!board || board === improvedTab) return;
+  improvedTab = board;
+  saveJSON(IMPROVED_TAB_KEY, improvedTab);
+  syncImprovedTabButtons();
+  displayImprovedTab();
 });
 
 
@@ -9974,7 +10137,295 @@ async function boot() {
   renderClientDetail();
   renderTeamDetailsOverlay();
   if (!isUxPreviewMode()) startLiveActualsPolling();
+  maybeStartGuidedTour();
 }
+
+// ---------- First-login guided tour ---------------------------------------
+const GUIDED_TOUR_VERSION = 1;
+const GUIDED_TOUR_KEY = 'pace_dashboard_guided_tour_v1';
+let guidedTourActive = false;
+let guidedTourStepIdx = 0;
+let guidedTourOpenedPacer = false;
+
+function guidedTourStorageKey() {
+  return (currentUserEmail() || (isUxPreviewMode() ? 'ux-preview' : '') || '').toLowerCase();
+}
+function hasCompletedGuidedTour() {
+  const key = guidedTourStorageKey();
+  if (!key) return true;
+  const map = loadJSON(GUIDED_TOUR_KEY, {});
+  const entry = map[key];
+  return !!(entry && entry.v === GUIDED_TOUR_VERSION);
+}
+function markGuidedTourComplete() {
+  const key = guidedTourStorageKey();
+  if (!key) return;
+  const map = loadJSON(GUIDED_TOUR_KEY, {});
+  map[key] = { v: GUIDED_TOUR_VERSION, at: new Date().toISOString() };
+  saveJSON(GUIDED_TOUR_KEY, map);
+}
+function guidedTourForceRequested() {
+  try { return new URLSearchParams(location.search || '').get('tour') === '1'; }
+  catch (_) { return false; }
+}
+function sleepMs(ms) { return new Promise((r) => setTimeout(r, ms)); }
+async function waitForQuietUi(timeoutMs) {
+  const ids = [
+    'celebrationModalBackdrop', 'shoutoutCelebrationBackdrop',
+    'personalGoalGateBackdrop', 'lwomPaceBackdrop', 'rampCheckBackdrop',
+  ];
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const busy = ids.some((id) => document.getElementById(id)?.classList.contains('open'));
+    if (!busy) return true;
+    await sleepMs(200);
+  }
+  return false;
+}
+function isTourTargetVisible(el) {
+  if (!el) return false;
+  const style = getComputedStyle(el);
+  if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false;
+  const r = el.getBoundingClientRect();
+  return r.width > 2 && r.height > 2;
+}
+
+function guidedTourSteps() {
+  return [
+    {
+      id: 'welcome',
+      title: 'Welcome to A-Team Pacer',
+      body: 'A quick tour of the landing dashboard and Individual Pacer — how pacing, boards, and your tools fit together. Takes about a minute.',
+      selector: null,
+    },
+    {
+      id: 'banner',
+      title: 'Month pulse',
+      body: 'These pills show where the month stands — day of month, expected pace, and team context. Hover status colors later on any rep for what each tier means.',
+      selector: '#landingStatus',
+    },
+    {
+      id: 'team',
+      title: 'A-Team total',
+      body: 'The team card is the combined pace for everyone with goals — same attainment math you will see on individual rows.',
+      selector: '#teamCard',
+    },
+    {
+      id: 'boards',
+      title: 'Side boards',
+      body: 'Finish line, leaderboards, Most Improved (distinct clients over time), and the shoutout wall live here. They stick beside the roster as you scroll.',
+      selector: '#landingBoards',
+    },
+    {
+      id: 'roster',
+      title: 'The roster',
+      body: 'Every teammate’s pace, status, and badges. Click a row to open their Individual Pacer. Sort above the list by name or attainment.',
+      selector: '#landingReps',
+    },
+    {
+      id: 'actions',
+      title: 'Your tools',
+      body: 'Manual Attribution, Shoutout, Weekly schedules, and — when your email matches a roster rep — Open My Individual Pacer.',
+      selector: '#landingTools .landing-actions-row',
+    },
+    {
+      id: 'pacer',
+      title: 'Individual Pacer',
+      body: 'Your detailed month: pacing, activity (sold / refunds), and a side panel for Still Needed, Bonus, goals, and standings.',
+      selector: '#detailHeaderPace',
+      openPacer: true,
+    },
+    {
+      id: 'pacerSide',
+      title: 'Side panel',
+      body: 'Expand sections for Still Needed (gap to 100% or 80%), Bonus Payout, Team Standings, and more. It sticks as you scroll this page — like the landing boards.',
+      selector: '#metricsSidePanel',
+      openPacer: true,
+    },
+    {
+      id: 'done',
+      title: 'You’re set',
+      body: 'Replay anytime from Take tour in the signed-in bar (or add ?tour=1 to the URL). Go close a sale — or shout someone out.',
+      selector: null,
+      openPacer: true,
+    },
+  ];
+}
+
+async function guidedTourEnsurePacer() {
+  if (document.getElementById('clientDetailOverlay')?.classList.contains('open')) return true;
+  let target = ownRepDisplayName();
+  if (!target || !canViewClientDetail(target)) {
+    const hit = getRoster().find((r) => canViewClientDetail(r.display));
+    target = hit ? hit.display : null;
+  }
+  if (!target) return false;
+  guidedTourOpenedPacer = true;
+  location.hash = 'individual-pacer=' + encodeURIComponent(target);
+  for (let i = 0; i < 25; i++) {
+    if (document.getElementById('clientDetailOverlay')?.classList.contains('open')) {
+      await sleepMs(80);
+      return true;
+    }
+    await sleepMs(80);
+  }
+  return document.getElementById('clientDetailOverlay')?.classList.contains('open');
+}
+
+function placeGuidedTourCard(targetRect, center) {
+  const card = document.getElementById('guidedTourCard');
+  if (!card) return;
+  const pad = 14;
+  const cardW = Math.min(360, window.innerWidth - 28);
+  const cardH = card.offsetHeight || 180;
+  let left;
+  let top;
+  if (center || !targetRect) {
+    left = (window.innerWidth - cardW) / 2;
+    top = Math.max(24, (window.innerHeight - cardH) / 2);
+  } else {
+    left = Math.min(Math.max(pad, targetRect.left), window.innerWidth - cardW - pad);
+    top = targetRect.bottom + 12;
+    if (top + cardH > window.innerHeight - pad) {
+      top = Math.max(pad, targetRect.top - cardH - 12);
+    }
+  }
+  card.style.left = left + 'px';
+  card.style.top = top + 'px';
+}
+
+function updateGuidedTourSpotlight(el) {
+  const spot = document.getElementById('guidedTourSpotlight');
+  if (!spot) return null;
+  if (!el) {
+    const w = Math.min(420, window.innerWidth - 48);
+    const h = 200;
+    const left = (window.innerWidth - w) / 2;
+    const top = (window.innerHeight - h) / 2;
+    spot.classList.add('is-center');
+    spot.style.left = left + 'px';
+    spot.style.top = top + 'px';
+    spot.style.width = w + 'px';
+    spot.style.height = h + 'px';
+    return { left, top, right: left + w, bottom: top + h, width: w, height: h };
+  }
+  spot.classList.remove('is-center');
+  el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  const r = el.getBoundingClientRect();
+  const pad = 8;
+  spot.style.left = Math.max(4, r.left - pad) + 'px';
+  spot.style.top = Math.max(4, r.top - pad) + 'px';
+  spot.style.width = Math.min(window.innerWidth - 8, r.width + pad * 2) + 'px';
+  spot.style.height = Math.min(window.innerHeight - 8, r.height + pad * 2) + 'px';
+  return el.getBoundingClientRect();
+}
+
+async function showGuidedTourStep() {
+  const steps = guidedTourSteps();
+  if (guidedTourStepIdx < 0) guidedTourStepIdx = 0;
+  if (guidedTourStepIdx >= steps.length) {
+    endGuidedTour(true);
+    return;
+  }
+  const step = steps[guidedTourStepIdx];
+  if (step.openPacer) {
+    const ok = await guidedTourEnsurePacer();
+    if (!ok && step.selector) {
+      guidedTourStepIdx += 1;
+      return showGuidedTourStep();
+    }
+  } else if (guidedTourOpenedPacer && location.hash) {
+    location.hash = '';
+    await sleepMs(120);
+  }
+
+  let el = step.selector ? document.querySelector(step.selector) : null;
+  if (step.selector && !isTourTargetVisible(el)) {
+    guidedTourStepIdx += 1;
+    return showGuidedTourStep();
+  }
+
+  const root = document.getElementById('guidedTourRoot');
+  if (!root) return;
+  root.hidden = false;
+  root.classList.add('open');
+  document.body.classList.add('guided-tour-active');
+
+  document.getElementById('guidedTourProgress').textContent =
+    `Step ${guidedTourStepIdx + 1} of ${steps.length}`;
+  document.getElementById('guidedTourTitle').textContent = step.title;
+  document.getElementById('guidedTourBody').textContent = step.body;
+  document.getElementById('guidedTourBack').style.visibility = guidedTourStepIdx === 0 ? 'hidden' : 'visible';
+  document.getElementById('guidedTourNext').textContent =
+    guidedTourStepIdx === steps.length - 1 ? 'Finish' : 'Next';
+
+  await sleepMs(40);
+  const rect = updateGuidedTourSpotlight(el);
+  placeGuidedTourCard(rect, !el);
+}
+
+function endGuidedTour(completed) {
+  guidedTourActive = false;
+  const root = document.getElementById('guidedTourRoot');
+  if (root) {
+    root.hidden = true;
+    root.classList.remove('open');
+  }
+  document.body.classList.remove('guided-tour-active');
+  if (completed) markGuidedTourComplete();
+}
+
+async function startGuidedTour(opts) {
+  if (guidedTourActive) return;
+  guidedTourActive = true;
+  guidedTourStepIdx = 0;
+  guidedTourOpenedPacer = false;
+  if (!(opts && opts.skipQuietWait)) await waitForQuietUi(5000);
+  await showGuidedTourStep();
+}
+
+function maybeStartGuidedTour() {
+  const force = guidedTourForceRequested();
+  if (!force && hasCompletedGuidedTour()) return;
+  setTimeout(() => { startGuidedTour(); }, 700);
+}
+
+document.getElementById('guidedTourNext')?.addEventListener('click', () => {
+  if (!guidedTourActive) return;
+  guidedTourStepIdx += 1;
+  showGuidedTourStep();
+});
+document.getElementById('guidedTourBack')?.addEventListener('click', () => {
+  if (!guidedTourActive) return;
+  guidedTourStepIdx = Math.max(0, guidedTourStepIdx - 1);
+  showGuidedTourStep();
+});
+document.getElementById('guidedTourSkip')?.addEventListener('click', () => {
+  endGuidedTour(true);
+});
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-replay-tour]');
+  if (!btn) return;
+  e.preventDefault();
+  startGuidedTour({ skipQuietWait: true });
+});
+window.addEventListener('resize', () => {
+  if (guidedTourActive) showGuidedTourStep();
+});
+document.addEventListener('keydown', (e) => {
+  if (!guidedTourActive) return;
+  if (e.key === 'Escape') endGuidedTour(true);
+  if (e.key === 'ArrowRight' || e.key === 'Enter') {
+    e.preventDefault();
+    guidedTourStepIdx += 1;
+    showGuidedTourStep();
+  }
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    guidedTourStepIdx = Math.max(0, guidedTourStepIdx - 1);
+    showGuidedTourStep();
+  }
+});
 
 // Activity filters + contextual Manual Attribution (Individual Pacer).
 document.getElementById('activityFilterTabs')?.addEventListener('click', (e) => {
