@@ -2472,6 +2472,7 @@
             <span class="side-chevron" id="bonusSideChevron">▾</span>
           </div>
           <div id="bonusSideContent" class="bonus-side"></div>
+          <div id="paceNeedSideSection">
           <div class="metrics-side-section-head" id="paceNeedSideToggle">
             <span class="metrics-side-title" style="margin-bottom:0;">📈 Still Needed</span>
             <span class="side-chevron" id="paceNeedSideChevron">▾</span>
@@ -2485,6 +2486,7 @@
               </div>
             </div>
             <div id="paceNeedSideBody"></div>
+          </div>
           </div>
           <div class="metrics-side-section-head" id="rankSideToggle">
             <span class="metrics-side-title" style="margin-bottom:0;">🏆 Team Standings</span>
@@ -10266,7 +10268,7 @@ async function boot() {
 }
 
 // ---------- First-login guided tour ---------------------------------------
-const GUIDED_TOUR_VERSION = 2;
+const GUIDED_TOUR_VERSION = 3;
 const GUIDED_TOUR_KEY = 'pace_dashboard_guided_tour_v1';
 let guidedTourActive = false;
 let guidedTourStepIdx = 0;
@@ -10359,8 +10361,23 @@ function guidedTourSteps() {
     {
       id: 'boards',
       title: 'Fuel on the side',
-      body: 'Finish line, leaderboards, Most Improved, and shoutouts live here. Peek for inspiration, then get back to your number.',
+      body: 'Finish line, leaderboards, and Most Improved live here. Peek for inspiration, then get back to your number.',
       selector: '#landingBoards',
+      ensureBoardsVisible: true,
+    },
+    {
+      id: 'shoutoutWall',
+      title: 'Shoutout wall',
+      body: 'Public wins land here. When a teammate gets celebrated, the whole crew sees it — keep the energy high.',
+      selector: '#shoutoutWallCard',
+      ensureBoardsVisible: true,
+    },
+    {
+      id: 'shoutoutSend',
+      title: 'Send a shoutout',
+      body: 'Tap 📣 Shoutout anytime. Pick a teammate, write why they’re crushing it, and send it — takes ten seconds.',
+      selector: '#shoutoutSendBtn',
+      fallbackSelector: '#toolsShoutoutBtn',
     },
     {
       id: 'roster',
@@ -10371,9 +10388,9 @@ function guidedTourSteps() {
     {
       id: 'actions',
       title: 'Your everyday tools',
-      body: 'Shout someone out. Log a missing sale with Manual Attribution. Open My Individual Pacer when you want the deep dive — that’s your home base.',
+      body: 'Log a missing sale with Manual Attribution. Open My Individual Pacer when you want the deep dive — that’s your home base.',
       selector: '#landingTools',
-      fallbackSelector: '#myPacerShoutoutCluster',
+      fallbackSelector: '#openMyPacerBtn',
     },
     {
       id: 'pacerWelcome',
@@ -10411,19 +10428,22 @@ function guidedTourSteps() {
       openPacer: true,
     },
     {
-      id: 'pacerStillNeeded',
-      title: 'Still Needed',
-      body: 'Exact members and sessions to hit 100% or 80%. Expand it, flip the target, and you’ll always know the next play.',
-      selector: '#paceNeedSideToggle',
-      openPacer: true,
-      expandStillNeeded: true,
-    },
-    {
       id: 'pacerSide',
       title: 'Your side panel',
-      body: 'Month goal, Bonus Payout, Team Standings — collapse what you don’t need. It sticks with you as you scroll.',
+      body: 'Month goal, Bonus Payout, Still Needed, Team Standings — collapse what you don’t need. It sticks with you as you scroll.',
       selector: '#metricsSidePanel',
       openPacer: true,
+      ensurePacerTab: 'current',
+    },
+    {
+      id: 'pacerStillNeeded',
+      title: 'Still Needed — your next play',
+      body: 'Exact members and sessions left to hit the target. Use 100% for full goal, or flip to 80% when you want the nearer finish line. This is the number to chase today.',
+      selector: '#paceNeedSideSection',
+      fallbackSelector: '#paceNeedSideToggle',
+      openPacer: true,
+      ensurePacerTab: 'current',
+      expandStillNeeded: true,
     },
     {
       id: 'done',
@@ -10529,16 +10549,27 @@ async function showGuidedTourStep() {
       if (guidedTourStepIdx < 0) guidedTourStepIdx = 0;
       return showGuidedTourStep();
     }
+    if (step.ensurePacerTab === 'current' && pacerTab !== 'current') {
+      pacerTab = 'current';
+      applyLayout(document.body.dataset.layout || 'split-stack');
+      await sleepMs(80);
+    }
     if (step.expandStillNeeded) {
-      const needBody = document.getElementById('paceNeedSideContent');
-      if (needBody?.classList.contains('collapsed')) {
-        document.getElementById('paceNeedSideToggle')?.click();
-        await sleepMs(80);
-      }
+      // Expand directly — don't click-toggle (race if already open).
+      paceNeedSideCollapsed = false;
+      saveJSON(PACE_NEED_SIDE_COLLAPSED_KEY, false);
+      document.getElementById('paceNeedSideToggle')?.classList.remove('is-collapsed');
+      document.getElementById('paceNeedSideChevron')?.classList.remove('collapsed');
+      document.getElementById('paceNeedSideContent')?.classList.remove('collapsed');
+      await sleepMs(80);
     }
   } else {
     await guidedTourEnsureLanding();
     if (token !== guidedTourRenderToken) return;
+    if (step.ensureBoardsVisible && typeof setStackBoardsHidden === 'function') {
+      setStackBoardsHidden(false);
+      await sleepMs(40);
+    }
   }
 
   let el = null;
