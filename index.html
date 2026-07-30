@@ -10037,6 +10037,29 @@ function contestLaneBoardHTML(contest, standings) {
       </div>`;
     }).join('')}</div>`;
 }
+function burstContestConfetti(kind) {
+  if (document.body.classList.contains('motion-static')) return;
+  if (kind === 'none' || kind === 'sparks') return;
+  const host = document.createElement('div');
+  host.className = 'contest-confetti-burst';
+  host.setAttribute('aria-hidden', 'true');
+  const colors = kind === 'fireworks' || kind === 'max'
+    ? ['#ec4899', '#fbbf24', '#22d3ee', '#a78bfa', '#ef4444', '#fff']
+    : ['#ec4899', '#8b5cf6', '#06b6d4', '#fbbf24'];
+  const n = kind === 'max' ? 48 : 28;
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('span');
+    p.className = 'contest-confetti-piece';
+    p.style.left = (Math.random() * 100) + '%';
+    p.style.background = colors[i % colors.length];
+    p.style.setProperty('--dx', ((Math.random() - 0.5) * 180) + 'px');
+    p.style.animationDelay = (Math.random() * 0.25) + 's';
+    p.style.width = (6 + Math.random() * 6) + 'px';
+    host.appendChild(p);
+  }
+  document.body.appendChild(host);
+  setTimeout(() => host.remove(), 1900);
+}
 function contestAnnouncerFor(leaderName, standings, contest) {
   if (!contest || contest.announcer === false) return '';
   if (!leaderName) return 'Green flag — first sale takes the lead!';
@@ -10071,6 +10094,7 @@ function contestSpeedwayHTML(contest, standings) {
   const leaderName = leader ? leader.repName : '';
   if (leaderName && contestLastLeader && contestLastLeader !== leaderName) {
     contestAnnouncerLine = contestAnnouncerFor(leaderName, standings, contest);
+    if (contest.confettiOnLead !== false) burstContestConfetti(contest.effects || 'confetti');
   } else if (!contestAnnouncerLine) {
     contestAnnouncerLine = contestAnnouncerFor(leaderName, standings, contest);
   }
