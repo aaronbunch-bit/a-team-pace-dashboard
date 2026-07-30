@@ -11,7 +11,7 @@ export function ymdInTimeZone(date: Date = new Date(), timeZone: string = TEAM_T
   }).format(date);
 }
 
-/** Today's date on the team calendar. */
+/** Today's date on the team calendar (wall-clock Central — not ledger as-of). */
 export function teamTodayYmd(date: Date = new Date()): string {
   return ymdInTimeZone(date, TEAM_TIME_ZONE);
 }
@@ -21,7 +21,11 @@ export function teamTodayMonthKey(date: Date = new Date()): string {
   return teamTodayYmd(date).slice(0, 7);
 }
 
-/** Cap an as-of date so it never runs ahead of the team calendar day. */
+/**
+ * Cap an as-of date so it never runs ahead of the team calendar day.
+ * Note: as-of may still lag *behind* today when no sales have posted yet —
+ * UI pace/day-of-month must use teamTodayYmd(), not as-of.
+ */
 export function clampAsOfToTeamToday(asOf: string | null | undefined, now: Date = new Date()): string {
   const today = teamTodayYmd(now);
   const raw = String(asOf || "").slice(0, 10);
