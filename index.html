@@ -68,7 +68,8 @@
   body.motion-static .bar-shimmer,
   body.motion-static .double-goal-glow,
   body.motion-static .double-goal-glow-subtle,
-  body.motion-static .goal-met-pulse {
+  body.motion-static .goal-met-pulse,
+  body.motion-static .rep-badges-ticker.is-scrolling .rep-badges-track {
     animation: none !important;
   }
   body.motion-static .header-aura { transform: translateY(-50%); }
@@ -271,11 +272,43 @@
   .rep-name-row .rep-name { flex: none; }
   .rep-name-row .rep-tag { flex: none; }
   .rep-name-row .status-pill { flex: none; }
-  .rep-name-row .engagement-badge { flex: none; }
   .rep-meta { flex: 1; min-width: 0; overflow: hidden; }
   .metric-pill-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
   .rep-name { font-weight: 700; font-size: 14.5px; }
   .rep-tag { font-size: 10.5px; color: var(--text-faint); font-weight: 600; background: var(--metric-box-bg); padding: 1px 8px; border-radius: 999px; }
+  /* Engagement badges stay on the name row. If they'd wrap, they newscast-
+     scroll L→R inside this clip instead of dropping to a second line. */
+  .rep-badges-ticker {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 10px, #000 calc(100% - 14px), transparent);
+    mask-image: linear-gradient(90deg, transparent 0, #000 10px, #000 calc(100% - 14px), transparent);
+  }
+  .rep-badges-ticker:not(.is-scrolling) {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .rep-badges-track {
+    display: flex;
+    align-items: center;
+    width: max-content;
+    will-change: transform;
+  }
+  .rep-badges-set {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+    padding-right: 8px;
+  }
+  .rep-badges-ticker.is-scrolling .rep-badges-track {
+    animation: repBadgeNewscast var(--badge-ticker-dur, 14s) linear infinite;
+  }
+  @keyframes repBadgeNewscast {
+    from { transform: translateX(calc(-1 * var(--badge-shift, 50%))); }
+    to { transform: translateX(0); }
+  }
   /* Rare, earned engagement badges (streak / personal best / comeback) —
      visually lighter than the status pill so they read as a bonus callout,
      not a second status. Only ever rendered when the underlying condition is
@@ -283,7 +316,7 @@
      computeComebackCandidate) — never shown as empty/placeholder chrome. */
   .engagement-badge {
     font-size: 10.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
-    white-space: nowrap;
+    white-space: nowrap; flex: none;
   }
   .streak-badge { color: #ea580c; background: rgba(249,115,22,0.14); }
   .personal-best-badge { color: #7c3aed; background: rgba(168,85,247,0.14); }
@@ -747,7 +780,7 @@
   .detail-header-pace .detail-mini-header-avatar { grid-column: 1; grid-row: 1; }
   .detail-header-pace-main {
     grid-column: 2; grid-row: 1; min-width: 0;
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;
   }
   .detail-header-pace .detail-mini-header-num { grid-column: 3; grid-row: 1; }
   .detail-header-pace .detail-mini-header-bar,
@@ -1717,7 +1750,10 @@
     color: white; font-weight: 800; font-size: 10.5px;
   }
   .detail-mini-header-name { font-weight: 800; font-size: 13px; white-space: nowrap; flex: none; }
-  .detail-mini-header-badges { display: flex; align-items: center; gap: 6px; flex: none; overflow: hidden; }
+  .detail-mini-header-badges {
+    display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; overflow: hidden;
+  }
+  .detail-mini-header-badges .rep-badges-ticker { flex: 1 1 auto; }
   .detail-mini-header-bar { flex: 1; min-width: 60px; margin-top: 0; }
   .detail-mini-header-num { font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums; flex: none; min-width: 44px; text-align: right; }
   @media (max-width: 900px) {
@@ -3488,6 +3524,9 @@ function applyMotionMode(mode) {
     btn.setAttribute('aria-pressed', staticOn ? 'false' : 'true');
     btn.title = staticOn ? 'Gradients are static — click for moving gradients' : 'Gradients are moving — click to freeze';
   }
+  if (typeof fitLandingBadges === 'function') {
+    requestAnimationFrame(fitLandingBadges);
+  }
 }
 (function initMotionMode() {
   const saved = localStorage.getItem(MOTION_KEY) || 'dynamic';
@@ -4413,15 +4452,41 @@ function renderPaceWatch(repRows) {
 }
 
 function fitLandingBadges() {
-  document.querySelectorAll('#repList .rep-name-row').forEach((row) => {
-    const badges = [...row.querySelectorAll('.engagement-badge')];
-    badges.forEach((b) => { b.style.display = ''; });
-    const fits = () => row.scrollWidth <= row.clientWidth + 1;
-    if (fits()) return;
-    for (let i = badges.length - 1; i >= 0; i--) {
-      badges[i].style.display = 'none';
-      if (fits()) break;
+  document.querySelectorAll('.rep-badges-ticker').forEach((ticker) => {
+    const track = ticker.querySelector('.rep-badges-track');
+    if (!track) return;
+    track.querySelectorAll('.rep-badges-set[data-badge-clone="1"]').forEach((n) => n.remove());
+    ticker.classList.remove('is-scrolling');
+    track.style.removeProperty('--badge-shift');
+    track.style.removeProperty('--badge-ticker-dur');
+    track.style.animation = 'none';
+
+    const set = track.querySelector('.rep-badges-set');
+    if (!set || !set.querySelector('.engagement-badge')) {
+      ticker.style.display = 'none';
+      return;
     }
+    ticker.style.display = '';
+
+    // Force layout, then decide whether a newscast scroll is needed.
+    void ticker.offsetWidth;
+    const overflow = set.scrollWidth > ticker.clientWidth + 1;
+    if (!overflow || document.body.classList.contains('motion-static')) {
+      track.style.animation = '';
+      return;
+    }
+
+    const clone = set.cloneNode(true);
+    clone.setAttribute('data-badge-clone', '1');
+    clone.setAttribute('aria-hidden', 'true');
+    track.appendChild(clone);
+
+    const shift = set.offsetWidth;
+    const dur = Math.max(10, shift / 34);
+    track.style.setProperty('--badge-shift', shift + 'px');
+    track.style.setProperty('--badge-ticker-dur', dur + 's');
+    track.style.animation = '';
+    ticker.classList.add('is-scrolling');
   });
 }
 
@@ -5255,7 +5320,13 @@ function repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampi
   const mostSessionsBadge = (isBadgeEnabled('mostSessionsToday') && repDisplay === mostSessionsTodayChampion)
     ? `<span class="engagement-badge most-sessions-today-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('mostSessionsToday'))}">📅 Most Sessions Today</span>`
     : '';
-  return `${streakBadge}${personalBestBadge}${consistencyBadge}${firstTo100Badge}${earlyBirdBadge}${hatTrickBadge}${reboundBadge}${nightOwlBadge}${bestPaceDayBadge}${mostMembersBadge}${mostSessionsBadge}${manualBadgesHTML(repDisplay)}`;
+  const parts = [
+    streakBadge, personalBestBadge, consistencyBadge, firstTo100Badge, earlyBirdBadge,
+    hatTrickBadge, reboundBadge, nightOwlBadge, bestPaceDayBadge, mostMembersBadge,
+    mostSessionsBadge, manualBadgesHTML(repDisplay),
+  ].filter(Boolean);
+  if (!parts.length) return '';
+  return `<div class="rep-badges-ticker"><div class="rep-badges-track"><div class="rep-badges-set">${parts.join('')}</div></div></div>`;
 }
 
 // --- Weekly digest & other team-scale rotating header messages ------------
@@ -8395,6 +8466,7 @@ function renderClientDetail(opts) {
     if (headerPace) headerPace.innerHTML = detailMiniHeaderHTML(repName);
     const mini = document.getElementById('detailMiniHeader');
     if (mini) { mini.classList.remove('show'); mini.innerHTML = ''; }
+    requestAnimationFrame(fitLandingBadges);
     document.getElementById('doubleGoalBanner').innerHTML =
       hasDoubleGoal(repName) ? doubleGoalBannerHTML(repName) : '';
     maybeShowDoubleGoalCelebration(repName);
