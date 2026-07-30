@@ -2,6 +2,7 @@ import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { runSupabaseSql, supabaseConfig } from "./_shared/supabase.mts";
 import { FALLBACK_ROSTER_EMAILS } from "./_shared/roster.mts";
+import { TEAM_TIME_ZONE, clampAsOfToTeamToday, teamTodayYmd } from "./_shared/time.mts";
 
 type LedgerRow = {
   email: string;
@@ -95,7 +96,9 @@ function buildActuals(
   }
 
   return {
-    asOf: maxDate || new Date().toISOString().slice(0, 10),
+    // Never let as-of run ahead of Central Time "today" (UTC midnight is still
+    // evening prior day in America/Chicago).
+    asOf: clampAsOfToTeamToday(maxDate || teamTodayYmd()),
     perRep,
     matchedRows,
     unmatchedManagers: [...unmatched].sort(),
@@ -176,14 +179,15 @@ export default async (req: Request, context: Context) => {
       });
     }
 
-    // Current calendar month in UTC — matches approved-totals / frontend month keys.
+    // Current calendar month in America/Chicago (CST/CDT) — team business day.
+    const tz = TEAM_TIME_ZONE.replace(/'/g, "''");
     const sql = `
 select
   lower(f.email) as email,
   f.name as manager_name,
   a.client_id,
-  (a.occurred_at at time zone 'UTC')::date::text as attribution_date,
-  (a.occurred_at at time zone 'UTC')::text as occurred_at,
+  (a.occurred_at at time zone '${tz}')::date::text as attribution_date,
+  (a.occurred_at at time zone '${tz}')::text as occurred_at,
   l.net_client_credit_amount::float8 as members,
   l.hours_amount::float8 as sessions
 from sales_attribution.rep_scores_ledger_entries l
@@ -194,8 +198,8 @@ join sales_attribution.flex_team_members f
  and f.deleted_at is null
 where l.deleted_at is null
   and a.deleted_at is null
-  and a.occurred_at >= date_trunc('month', now() at time zone 'UTC')
-  and a.occurred_at <  date_trunc('month', now() at time zone 'UTC') + interval '1 month'
+  and a.occurred_at >= (date_trunc('month', (now() at time zone '${tz}')) at time zone '${tz}')
+  and a.occurred_at <  ((date_trunc('month', (now() at time zone '${tz}')) + interval '1 month') at time zone '${tz}')
   and lower(f.email) in (${sqlStringList(emails)})
 order by a.occurred_at asc, l.id asc;
 `;

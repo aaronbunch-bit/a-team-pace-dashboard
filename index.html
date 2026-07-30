@@ -3208,6 +3208,28 @@ function loadJSON(key, fallback) {
   return JSON.parse(JSON.stringify(fallback));
 }
 function saveJSON(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+
+// Team business calendar — America/Chicago (CST/CDT). Never use UTC midnight
+// for "today" / month keys; evenings Central are already the next UTC day.
+const TEAM_TIME_ZONE = 'America/Chicago';
+function ymdInTimeZone(date, timeZone) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: timeZone || TEAM_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date || new Date());
+}
+function teamTodayYmd(date) { return ymdInTimeZone(date || new Date(), TEAM_TIME_ZONE); }
+function teamTodayMonthKey(date) { return teamTodayYmd(date).slice(0, 7); }
+function teamTodayYear(date) { return teamTodayYmd(date).slice(0, 4); }
+function clampAsOfToTeamToday(asOf, date) {
+  const today = teamTodayYmd(date);
+  const raw = String(asOf || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return today;
+  return raw > today ? today : raw;
+}
+
 // Goals and actuals are backed by real Netlify Functions + Blobs now (same
 // pattern as Manual Attribution/badges/roster above), not localStorage.
 // GOALS_CACHE/ACTUALS_CACHE/PRELIM_CACHE start out as the baked-in defaults
@@ -3226,7 +3248,12 @@ async function saveGoals(g) {
   });
   GOALS_CACHE = g;
 }
-function loadActuals() { return ACTUALS_CACHE; }
+function loadActuals() {
+  if (ACTUALS_CACHE && ACTUALS_CACHE.asOf) {
+    ACTUALS_CACHE.asOf = clampAsOfToTeamToday(ACTUALS_CACHE.asOf);
+  }
+  return ACTUALS_CACHE;
+}
 
 // Preliminary last-month snapshot: the moment "Update actuals from ledger
 // export" is pasted with a NEW month's data, the outgoing month's final live
@@ -3550,7 +3577,7 @@ function computeActualsFromCSV(text) {
       perRep[display].items.push({ clientId: (r[idx.client] || '').trim(), members: m, sessions: s, date: d });
     }
   }
-  return { asOf: maxDate || new Date().toISOString().slice(0, 10), perRep };
+  return { asOf: clampAsOfToTeamToday(maxDate || teamTodayYmd()), perRep };
 }
 
 function daysInMonth(year, month) { return new Date(year, month, 0).getDate(); }
@@ -7115,7 +7142,7 @@ function sipPresetRange(preset) {
   const lastKey = list[n - 1].k;
   if (preset === 'all') return [list[0].k, lastKey];
   if (preset === 'ytd') {
-    const year = String(new Date().getFullYear());
+    const year = teamTodayYear();
     const ytd = list.filter(m => m.k.startsWith(year));
     if (!ytd.length) return [lastKey, lastKey];
     return [ytd[0].k, ytd[ytd.length - 1].k];
@@ -9325,7 +9352,7 @@ const PERSONAL_GOAL_SIDE_COLLAPSED_KEY = 'pace_dashboard_personal_goal_side_coll
 let personalGoalSideCollapsed = loadJSON(PERSONAL_GOAL_SIDE_COLLAPSED_KEY, false);
 
 function liveMonthKey() {
-  return String((loadActuals().asOf || new Date().toISOString().slice(0, 10))).slice(0, 7);
+  return String((loadActuals().asOf || teamTodayYmd())).slice(0, 7);
 }
 function getPersonalGoal(repDisplay) {
   return PERSONAL_GOALS_CACHE[repDisplay] || null;

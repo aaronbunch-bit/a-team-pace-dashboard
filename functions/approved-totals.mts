@@ -1,5 +1,6 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
+import { teamTodayMonthKey } from "./_shared/time.mts";
 
 // Deliberately PUBLIC / no auth check — every viewer of the dashboard needs these
 // aggregate numbers to see accurate pace, not just the rep who submitted them or
@@ -9,7 +10,7 @@ import { getStore } from "@netlify/blobs";
 export default async (req: Request, context: Context) => {
   const url = new URL(req.url);
   const month = url.searchParams.get("month"); // "YYYY-MM"; defaults to current month
-  const targetMonth = month || new Date().toISOString().slice(0, 7);
+  const targetMonth = month || teamTodayMonthKey();
 
   const store = getStore("manual-attributions");
   const { blobs } = await store.list();
