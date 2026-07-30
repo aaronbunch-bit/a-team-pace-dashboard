@@ -33,3 +33,68 @@ export function membersValidationError(
   }
   return null;
 }
+
+/** Normalize client page URL for duplicate matching. */
+export function normalizeAttrClientKey(value: unknown): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const u = new URL(raw);
+    u.hash = "";
+    u.search = "";
+    const path = u.pathname.replace(/\/+$/, "") || "";
+    return (u.origin + path).toLowerCase();
+  } catch {
+    return raw.replace(/\/+$/, "").toLowerCase();
+  }
+}
+
+/** Normalize phone/email for duplicate matching. */
+export function normalizeAttrContactKey(value: unknown): string {
+  const s = String(value || "").trim().toLowerCase();
+  if (!s) return "";
+  if (s.includes("@")) return s;
+  const digits = s.replace(/\D/g, "");
+  return digits || s;
+}
+
+export type AttrDuplicateMatch = {
+  id: string;
+  repName: string;
+  status: string;
+  submittedAt: string | null;
+  clientLink: string;
+  contact: string;
+  matchedOn: "clientLink" | "contact" | "both";
+};
+
+/** Find prior Manual Attribution requests for the same client page and/or contact. */
+export function findAttrDuplicates(
+  records: any[],
+  opts: { clientLink?: unknown; contact?: unknown; excludeId?: string }
+): AttrDuplicateMatch[] {
+  const clientKey = normalizeAttrClientKey(opts.clientLink);
+  const contactKey = normalizeAttrContactKey(opts.contact);
+  if (!clientKey && !contactKey) return [];
+
+  const out: AttrDuplicateMatch[] = [];
+  for (const r of records || []) {
+    if (!r || (opts.excludeId && r.id === opts.excludeId)) continue;
+    const rClient = normalizeAttrClientKey(r.clientLink);
+    const rContact = normalizeAttrContactKey(r.contact);
+    const linkHit = !!(clientKey && rClient && clientKey === rClient);
+    const contactHit = !!(contactKey && rContact && contactKey === rContact);
+    if (!linkHit && !contactHit) continue;
+    out.push({
+      id: String(r.id || ""),
+      repName: String(r.repName || "Rep"),
+      status: String(r.status || "pending"),
+      submittedAt: r.submittedAt ? String(r.submittedAt) : null,
+      clientLink: String(r.clientLink || ""),
+      contact: String(r.contact || ""),
+      matchedOn: linkHit && contactHit ? "both" : linkHit ? "clientLink" : "contact",
+    });
+  }
+  out.sort((a, b) => String(b.submittedAt || "").localeCompare(String(a.submittedAt || "")));
+  return out;
+}
