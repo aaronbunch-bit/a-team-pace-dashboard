@@ -1563,6 +1563,18 @@
     background: var(--metric-box-bg); color: var(--text-muted); border: 1px solid var(--card-border);
   }
   .attr-edit-link-btn:hover { color: var(--text); border-color: var(--text-faint); }
+  .attr-status-cell {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; white-space: nowrap;
+  }
+  .attr-delete-btn {
+    margin: 0; padding: 2px 6px; font-size: 13px; line-height: 1;
+    background: transparent; border: 1px solid transparent; border-radius: 8px;
+    color: var(--text-faint); cursor: pointer;
+  }
+  .attr-delete-btn:hover {
+    color: #dc2626; border-color: rgba(220, 38, 38, 0.35); background: rgba(220, 38, 38, 0.08);
+  }
+  .attr-delete-btn:disabled { opacity: 0.45; cursor: default; }
 
   .client-detail-btn {
     display: block; width: 100%; margin-top: 16px;
@@ -2690,7 +2702,7 @@
             <tbody id="myAttributionsBody"></tbody>
           </table>
         </div>
-        <div class="meta-note">Reps see only their own requests here; admins see every rep's — filter by month to look back on any past period. <b>BUCA / Class Wallet</b> requests keep an Edit control on the client page so you can drop in the final URL after submit.</div>
+        <div class="meta-note">Reps see only their own requests here; admins see every rep's — filter by month to look back on any past period. <b>BUCA / Class Wallet</b> requests keep an Edit control on the client page so you can drop in the final URL after submit. Use 🗑️ to delete a request you own (or any request if you’re an admin/coach).</div>
       </div>
       <div class="card" id="adminApprovalsCard" style="display:none;">
         <h2>Pending approvals (all reps)</h2>
@@ -2768,7 +2780,7 @@
           </table>
         </div>
         <div class="meta-note" id="teamAttributionsStatus"></div>
-        <div class="meta-note">Every Manual Attribution request across the team, any status. Full admins and Sales Coaches see the whole team here (coaches stay read-only — only admins can approve/reject).</div>
+        <div class="meta-note">Every Manual Attribution request across the team, any status. Full admins and Sales Coaches see the whole team here (coaches stay read-only on approve/reject — only admins can approve/reject). Admins and coaches can delete any request with 🗑️.</div>
       </div>
     </div>
   </div>
@@ -9046,7 +9058,7 @@ async function refreshTeamAttributions() {
         <td>${fmt(r.sessions,1)}</td>
         <td>${fmt(r.members,1)}</td>
         <td>${r.adjustmentReason || r.reason || '—'}</td>
-        <td>${attrStatusPill(r.status)}</td>
+        <td>${attrStatusCellHTML(r)}</td>
       </tr>`).join('') : `<tr><td colspan="6" style="text-align:center; color:var(--text-faint); padding:16px 0;">No attribution requests yet.</td></tr>`;
   } catch (err) {
     tbody.innerHTML = '';
@@ -9085,7 +9097,7 @@ async function refreshDetailAttributions(repName) {
         <td>${fmt(r.sessions,1)}</td>
         <td>${fmt(r.members,1)}</td>
         <td>${r.adjustmentReason || r.reason || '—'}</td>
-        <td>${attrStatusPill(r.status)}</td>
+        <td>${attrStatusCellHTML(r)}</td>
       </tr>`).join('') : `<tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:14px 0;">No pending requests this month.</td></tr>`;
   } catch (err) {
     tbody.innerHTML = '';
@@ -9345,6 +9357,23 @@ function canEditAttrClientLink(r) {
   if (lastAttrIsAdmin) return true;
   return String(r.repEmail || '').toLowerCase() === email;
 }
+/** Rep owns the row (self-submit or on-behalf under their name); admins/coaches delete any. */
+function canDeleteAttr(r) {
+  if (!r || !r.id) return false;
+  if (lastAttrCanViewTeam) return true;
+  const email = (currentUserEmail() || '').toLowerCase();
+  if (email && String(r.repEmail || '').toLowerCase() === email) return true;
+  const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
+  if (me && String(r.repName || '') === me) return true;
+  return false;
+}
+function attrDeleteBtnHTML(r) {
+  if (!canDeleteAttr(r)) return '';
+  return `<button type="button" class="attr-delete-btn" data-delete-attr="${escapeAttr(r.id)}" title="Delete this request" aria-label="Delete Manual Attribution request">🗑️</button>`;
+}
+function attrStatusCellHTML(r) {
+  return `<div class="attr-status-cell">${attrStatusPill(r.status)}${attrDeleteBtnHTML(r)}</div>`;
+}
 
 // Cached from the last successful /api/attributions/list fetch, so the month
 // filter can re-render instantly without a re-fetch. canViewTeam drives whether
@@ -9395,7 +9424,7 @@ function renderMyAttributionsTable() {
       <td>${fmt(r.sessions,1)}</td>
       <td>${fmt(r.members,1)}</td>
       <td>${r.adjustmentReason || r.reason || '—'}</td>
-      <td>${attrStatusPill(r.status)}</td>
+      <td>${attrStatusCellHTML(r)}</td>
     </tr>`).join('') : `<tr><td colspan="${colspan}" style="text-align:center; color:var(--text-faint); padding:16px 0;">No requests ${filterVal === 'all' ? 'yet' : 'for that month'}.</td></tr>`;
 }
 
@@ -9447,6 +9476,7 @@ async function refreshMyAttributions() {
           <td style="white-space:nowrap;">
             <button class="approve-btn" data-review="${r.id}" data-action="approve" type="button">Approve</button>
             <button class="reject-btn" data-review="${r.id}" data-action="reject" type="button">Reject</button>
+            ${attrDeleteBtnHTML(r)}
           </td>
         </tr>`).join('') : `<tr><td colspan="8" style="text-align:center; color:var(--text-faint); padding:16px 0;">Nothing pending 🎉</td></tr>`;
     }
@@ -9509,6 +9539,48 @@ document.addEventListener('click', (e) => {
   e.stopPropagation();
   const id = btn.getAttribute('data-edit-attr-link');
   if (id) saveAttrClientLinkEdit(id);
+});
+
+async function deleteAttributionRequest(id) {
+  if (!id) return;
+  const cached = lastAttrRecords.find((r) => r.id === id);
+  const label = cached
+    ? `${cached.repName || 'Request'} · ${cached.adjustmentReason || cached.reason || 'Manual Attribution'}`
+    : 'this Manual Attribution request';
+  if (!window.confirm(`Delete ${label}?\n\nThis permanently removes the request and can’t be undone.`)) return;
+  try {
+    await authedFetch('/api/attributions/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    lastAttrRecords = lastAttrRecords.filter((r) => r.id !== id);
+    if (document.getElementById('manualAttroOverlay')?.classList.contains('open')) {
+      await refreshMyAttributions();
+    } else {
+      renderMyAttributionsTable();
+    }
+    if (document.getElementById('teamDetailsOverlay')?.classList.contains('open')) {
+      await refreshTeamAttributions();
+    }
+    if (document.getElementById('clientDetailOverlay')?.classList.contains('open')) {
+      const rep = currentBonusRep || activityFilterRep;
+      if (rep) await refreshDetailAttributions(rep);
+    }
+    APPROVED_TOTALS = await fetchApprovedTotals();
+    if (typeof render === 'function') render();
+  } catch (err) {
+    alert(err.message || 'Could not delete request');
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-delete-attr]');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const id = btn.getAttribute('data-delete-attr');
+  if (id) deleteAttributionRequest(id);
 });
 
 document.getElementById('pendingApprovalsBody').addEventListener('click', async (e) => {
