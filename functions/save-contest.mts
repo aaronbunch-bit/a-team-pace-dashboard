@@ -107,6 +107,7 @@ export default async (req: Request, context: Context) => {
     showTicker: patch.showTicker !== false,
     boardSize: patch.boardSize || "hero",
     customCheer: patch.customCheer ?? null,
+    isTest: !!patch.isTest,
     hiddenFromHistory: !!patch.hiddenFromHistory,
     finalStandings: patch.finalStandings ?? existing?.finalStandings ?? null,
     manualEntries: Array.isArray(existing?.manualEntries) ? existing!.manualEntries : [],
@@ -121,7 +122,9 @@ export default async (req: Request, context: Context) => {
     record.status = deriveContestStatus({ ...record, status: "scheduled" }, now);
   }
 
-  if (record.kind === "hosted" && record.status === "active") {
+  // Real hosted contests replace other live hosted contests. Test contests never
+  // end a live race — coaches need to dry-run without nuking the floor.
+  if (record.kind === "hosted" && record.status === "active" && !record.isTest) {
     const { blobs } = await store.list();
     const all = (
       await Promise.all(blobs.map((b) => store.get(b.key, { type: "json" })))
@@ -129,6 +132,7 @@ export default async (req: Request, context: Context) => {
     for (const other of all) {
       if (other.id === record.id) continue;
       if (other.kind !== "hosted") continue;
+      if (other.isTest) continue;
       const st = deriveContestStatus(other, now);
       if (st === "active" && other.status !== "ended") {
         other.status = "ended";

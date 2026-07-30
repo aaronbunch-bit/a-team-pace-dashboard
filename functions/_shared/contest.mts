@@ -124,6 +124,8 @@ export type ContestRecord = {
   boardSize: ContestBoardSize;
   /** Optional coach-written cheer that rotates in. */
   customCheer: string | null;
+  /** Short dry-run contest — does not end other live contests when saved. */
+  isTest: boolean;
   hiddenFromHistory: boolean;
   finalStandings: ContestStandingSnap[] | null;
   manualEntries: ContestManualEntry[];
@@ -348,6 +350,8 @@ export function normalizeContestPatch(body: any, existing?: ContestRecord | null
     body?.hiddenFromHistory === undefined
       ? (existing?.hiddenFromHistory ?? false)
       : !!body.hiddenFromHistory;
+  const isTest =
+    body?.isTest === undefined ? !!(existing?.isTest) : !!body.isTest;
 
   let finalStandings: ContestStandingSnap[] | null = existing?.finalStandings ?? null;
   if (body?.finalStandings !== undefined) {
@@ -392,6 +396,7 @@ export function normalizeContestPatch(body: any, existing?: ContestRecord | null
     showTicker,
     boardSize,
     customCheer: customCheerRaw,
+    isTest,
     hiddenFromHistory,
     finalStandings,
   };
@@ -443,6 +448,7 @@ export function publicContest(c: ContestRecord, now = new Date()): ContestRecord
     showTicker: c.showTicker !== false,
     boardSize: c.boardSize || "hero",
     customCheer: c.customCheer ?? null,
+    isTest: !!c.isTest,
     hiddenFromHistory: !!c.hiddenFromHistory,
     finalStandings: Array.isArray(c.finalStandings) ? c.finalStandings : null,
     manualEntries: Array.isArray(c.manualEntries) ? c.manualEntries : [],
