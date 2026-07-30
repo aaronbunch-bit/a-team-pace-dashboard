@@ -3,6 +3,7 @@ import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
 import { resolveAccess } from "./_shared/access.mts";
 import { loadValidRepDisplays, resolveRepNameFromEmail } from "./_shared/roster.mts";
+import { teamTodayMonthKey } from "./_shared/time.mts";
 
 // Personal month goals are Total Average Attainment % only (composite of
 // Members % and Sessions %). Floor is 100% — stretch tips live in the UI
@@ -43,7 +44,7 @@ export default async (req: Request, context: Context) => {
   // Ignore any legacy kind from the client — goals are attainment % only.
   const kind = KIND;
   const target = Number(body?.target);
-  const month = String(body?.month || new Date().toISOString().slice(0, 7)).slice(0, 7);
+  const month = String(body?.month || teamTodayMonthKey()).slice(0, 7);
 
   const validReps = await loadValidRepDisplays();
   if (!rep || !validReps.has(rep)) {

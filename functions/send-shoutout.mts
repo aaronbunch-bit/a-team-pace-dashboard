@@ -3,6 +3,7 @@ import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
 import { ADMIN_EMAIL } from "./_shared/access.mts";
 import { resolveRepNameFromEmail } from "./_shared/roster.mts";
+import { teamTodayYmd } from "./_shared/time.mts";
 
 // Open to any signed-in user, not just Aaron/admins — deliberate design.
 // Still requires real sign-in so `from` can be attributed truthfully instead
@@ -44,7 +45,7 @@ export default async (req: Request, context: Context) => {
     rep,
     text,
     hidden,
-    date: now.toISOString().slice(0, 10),
+    date: teamTodayYmd(now),
     createdAt: now.toISOString(),
     fromEmail: email,
     fromDisplayName,

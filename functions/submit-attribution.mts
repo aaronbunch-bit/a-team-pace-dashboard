@@ -2,6 +2,7 @@ import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
 import { resolveRepNameFromEmail } from "./_shared/roster.mts";
+import { teamTodayYmd } from "./_shared/time.mts";
 
 // Self-submit path: repName is always derived from the caller's own email so
 // nobody can claim credit as a different rep. Admins/coaches submitting on
@@ -54,8 +55,9 @@ export default async (req: Request, context: Context) => {
     sessions: sessionsNum,
     adjustmentReason: String(adjustmentReason).trim(),
     comments: String(comments).trim(),
-    // No sale-date field in the UI — approved-totals buckets by submission date.
-    saleDate: new Date().toISOString().slice(0, 10),
+    // No sale-date field in the UI — approved-totals buckets by submission date
+    // on the team calendar (America/Chicago).
+    saleDate: teamTodayYmd(),
     status: "pending",
     submittedAt: new Date().toISOString(),
     reviewedAt: null as string | null,
