@@ -6296,20 +6296,66 @@ function bannerContests() {
 function historyContests() {
   return (CONTEST_CACHE || []).filter((c) => c && c.status === 'ended');
 }
-function contestCountdownHTML(endAt) {
-  const end = new Date(endAt).getTime();
-  const ms = end - Date.now();
-  if (!Number.isFinite(end)) return '—';
-  if (ms <= 0) return 'Ended';
+/** Local phase from timestamps so countdown flips at start even before the next poll. */
+function contestCountdownPhase(contest) {
+  if (!contest) return 'ended';
+  if (contest.status === 'ended') return 'ended';
+  const now = Date.now();
+  const start = Date.parse(contest.startAt);
+  const end = Date.parse(contest.endAt);
+  if (Number.isFinite(end) && now > end) return 'ended';
+  if (Number.isFinite(start) && now < start) return 'scheduled';
+  return 'active';
+}
+function formatContestCountdownMs(ms) {
+  if (!(ms > 0) || !Number.isFinite(ms)) return null;
   const s = Math.floor(ms / 1000);
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
   if (h >= 24) {
     const days = Math.floor(h / 24);
-    return `${days}d ${h % 24}h left`;
+    return `${days}d ${h % 24}h`;
   }
   return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+function contestCountdownLabel(contest) {
+  const phase = contestCountdownPhase(contest);
+  if (phase === 'ended') return 'Ended';
+  if (phase === 'scheduled') return 'Starts in';
+  return 'Time left';
+}
+/**
+ * Countdown text for a contest.
+ * Scheduled → time until start; active → time left until end.
+ * Accepts a contest object, or a legacy endAt ISO string.
+ */
+function contestCountdownHTML(contestOrEndAt, opts) {
+  const compact = !!(opts && opts.compact);
+  if (contestOrEndAt && typeof contestOrEndAt === 'object') {
+    const contest = contestOrEndAt;
+    const phase = contestCountdownPhase(contest);
+    if (phase === 'ended') return 'Ended';
+    if (phase === 'scheduled') {
+      const ms = Date.parse(contest.startAt) - Date.now();
+      const dur = formatContestCountdownMs(ms);
+      if (!dur) return 'Starting…';
+      return compact ? `Starts ${dur}` : dur;
+    }
+    const ms = Date.parse(contest.endAt) - Date.now();
+    const dur = formatContestCountdownMs(ms);
+    if (!dur) return 'Ending…';
+    // Keep sticky compact; arena shows the "Time left" label separately.
+    if (compact && dur.includes('d')) return `${dur} left`;
+    return dur;
+  }
+  // Legacy: endAt string only (treat as active countdown to end).
+  const end = new Date(contestOrEndAt).getTime();
+  const ms = end - Date.now();
+  if (!Number.isFinite(end)) return '—';
+  if (ms <= 0) return 'Ended';
+  const dur = formatContestCountdownMs(ms);
+  return dur || 'Ended';
 }
 function setContestArenaTab(tab) {
   contestArenaTab = tab === 'history' ? 'history' : 'live';
@@ -6364,7 +6410,7 @@ function contestStickyBarHTML(c) {
         <span class="contest-sticky-meta">${escapeHtml(metaBits)}</span>
       </div>
       <span class="contest-sticky-place">You <b>${escapeHtml(placeVal)}</b></span>
-      <span class="contest-sticky-cd" data-contest-cd="${escapeAttr(c.id)}">${escapeHtml(contestCountdownHTML(c.endAt))}</span>
+      <span class="contest-sticky-cd" data-contest-cd="${escapeAttr(c.id)}">${escapeHtml(contestCountdownHTML(c, { compact: true }))}</span>
       <button type="button" class="contest-sticky-cta" data-view-contest="${escapeAttr(c.id)}">View →</button>
     </div>`;
 }
@@ -7056,8 +7102,8 @@ function contestBoardHTML(contest) {
           </div>
         </div>
         <div class="contest-countdown-block">
-          <div class="contest-countdown-label">${contest.status === 'ended' ? 'Ended' : 'Time left'}</div>
-          <div class="contest-countdown" data-contest-cd="${escapeAttr(contest.id)}">${escapeHtml(contestCountdownHTML(contest.endAt))}</div>
+          <div class="contest-countdown-label" data-contest-cd-label="${escapeAttr(contest.id)}">${escapeHtml(contestCountdownLabel(contest))}</div>
+          <div class="contest-countdown" data-contest-cd="${escapeAttr(contest.id)}">${escapeHtml(contestCountdownHTML(contest))}</div>
         </div>
       </div>
       <div class="contest-board-chips">
@@ -7151,7 +7197,14 @@ function tickContestCountdowns() {
   document.querySelectorAll('[data-contest-cd]').forEach((el) => {
     const id = el.getAttribute('data-contest-cd');
     const c = CONTEST_CACHE.find((x) => x.id === id);
-    if (c) el.textContent = contestCountdownHTML(c.endAt);
+    if (!c) return;
+    const compact = el.classList.contains('contest-sticky-cd');
+    el.textContent = contestCountdownHTML(c, { compact });
+  });
+  document.querySelectorAll('[data-contest-cd-label]').forEach((el) => {
+    const id = el.getAttribute('data-contest-cd-label');
+    const c = CONTEST_CACHE.find((x) => x.id === id);
+    if (c) el.textContent = contestCountdownLabel(c);
   });
 }
 async function maybeFreezeEndedContests() {
