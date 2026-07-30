@@ -3287,6 +3287,11 @@ function saveJSON(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 
 // Team business calendar — America/Chicago (CST/CDT). Never use UTC midnight
 // for "today" / month keys; evenings Central are already the next UTC day.
+//
+// Ledger `asOf` = last sale date in the feed (can lag behind the wall clock).
+// Pace math, Finish Line "Today", Day X / expected %, LWOM, ramp checks, and
+// month keys must use teamToday* — not asOf — so the dashboard rolls with the
+// Central calendar even before the first sale of the day lands.
 const TEAM_TIME_ZONE = 'America/Chicago';
 function ymdInTimeZone(date, timeZone) {
   return new Intl.DateTimeFormat('en-CA', {
@@ -3304,6 +3309,28 @@ function clampAsOfToTeamToday(asOf, date) {
   const raw = String(asOf || '').slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return today;
   return raw > today ? today : raw;
+}
+/** Pace / Finish Line / Day-of-month — always Central "today", never ledger asOf. */
+function teamCalendarParts(date) {
+  const ymd = teamTodayYmd(date);
+  const [y, m, d] = ymd.split('-').map(Number);
+  const dim = daysInMonth(y, m);
+  const expectedPct = dim > 0 ? (d / dim) * 100 : 0;
+  const monthName = new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'long' });
+  return { ymd, y, m, d, dim, expectedPct, elapsedFrac: expectedPct / 100, monthName };
+}
+/** Pretty weekday label for a YYYY-MM-DD on the team calendar. */
+function formatTeamYmdLabel(ymd) {
+  const [y, m, d] = String(ymd || '').split('-').map(Number);
+  if (!(y && m && d)) return String(ymd || '');
+  // 17:00 UTC ≈ midday Central — weekday matches the Chicago calendar date.
+  const probe = new Date(Date.UTC(y, m - 1, d, 17, 0, 0));
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: TEAM_TIME_ZONE,
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  }).format(probe);
 }
 
 // Goals and actuals are backed by real Netlify Functions + Blobs now (same
@@ -3932,11 +3959,10 @@ function render() {
   syncRoleChrome();
   const goals = loadGoals();
   const actuals = loadActuals();
-  const [y, m, d] = actuals.asOf.split('-').map(Number);
-  const dim = daysInMonth(y, m);
-  const expectedPct = (d / dim) * 100;
-  const monthName = new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'long' });
-  const elapsedFrac = expectedPct / 100;
+  // Calendar day = America/Chicago today. Ledger asOf can still be yesterday
+  // until the first sale posts — pace / Day X / Finish Line must not lag.
+  const cal = teamCalendarParts();
+  const { d, dim, expectedPct, elapsedFrac, monthName } = cal;
 
   const titleMonthEl = document.getElementById('titleMonth');
   if (titleMonthEl) titleMonthEl.textContent = monthName;
@@ -4176,7 +4202,7 @@ function render() {
   renderLeaderboards(repRows);
   renderImprovedBoards();
   renderGoalsForm(goals);
-  renderCultureSide(repRows, teamComposite, expectedPct, actuals.asOf, monthName, d, dim);
+  renderCultureSide(repRows, teamComposite, expectedPct, cal.ymd, monthName, d, dim);
   syncLandingGridHeight();
   syncLandingBoardsScrollCap();
   forceStackTeamExpanded();
@@ -4327,14 +4353,12 @@ function computeLeaderboardTop3(repRows, valueFn, limit) {
 }
 
 function lwomSprintWindow() {
-  const asOf = loadActuals().asOf;
-  if (!asOf || !isLastWeekOfMonth(asOf)) return null;
-  const [y, m, d] = asOf.split('-').map(Number);
-  const dim = daysInMonth(y, m);
-  const startDay = dim - 6;
+  const cal = teamCalendarParts();
+  if (!isLastWeekOfMonth(cal.ymd)) return null;
+  const startDay = cal.dim - 6;
   return {
-    from: `${y}-${String(m).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`,
-    to: asOf,
+    from: `${cal.y}-${String(cal.m).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`,
+    to: cal.ymd,
   };
 }
 function sprintUnitsInWindow(repDisplay, key, from, to) {
@@ -4485,14 +4509,12 @@ function renderShoutoutWall() {
       <div class="shoutout-wall-text">${it.text}</div>
     </div>`).join('');
 }
-function renderCultureSide(repRows, teamComposite, expectedPct, asOf, monthName, day, dim) {
+function renderCultureSide(repRows, teamComposite, expectedPct, calendarYmd, monthName, day, dim) {
   syncStackBoardsHidden();
   const finish = document.getElementById('finishLineGrid');
   if (finish) {
-    const [y, m, d] = String(asOf).split('-').map(Number);
-    const dateLabel = (y && m && d)
-      ? new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
-      : String(asOf || '');
+    const ymd = calendarYmd || teamTodayYmd();
+    const dateLabel = formatTeamYmdLabel(ymd);
     const daysLeft = Math.max(0, dim - day);
     finish.innerHTML = `
       <div class="finish-line-stat"><b>${dateLabel}</b><span>Today</span></div>
@@ -5970,9 +5992,8 @@ function hasDoubleGoal(repDisplay) {
 // nowrap/ellipsis, which is a safety net for this, not the primary fix).
 function doubleGoalBannerHTML(repDisplay) {
   const firstName = repDisplay.split(' ')[0];
-  const actuals = loadActuals();
-  const [y, m, d] = actuals.asOf.split('-').map(Number);
-  const daysLeft = daysInMonth(y, m) - d;
+  const { d, dim } = teamCalendarParts();
+  const daysLeft = Math.max(0, dim - d);
   const daysNote = daysLeft > 0
     ? `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`
     : 'Down to the wire';
@@ -6121,7 +6142,7 @@ function dismissLwomToday(repName, asOf) {
 function maybeShowLwomPacePopup(repName) {
   const backdrop = document.getElementById('lwomPaceBackdrop');
   if (!backdrop) return;
-  const asOf = loadActuals().asOf;
+  const asOf = teamTodayYmd();
   if (!isLastWeekOfMonth(asOf) || lwomDismissedToday(repName, asOf)) {
     backdrop.classList.remove('open');
     return;
@@ -6164,7 +6185,7 @@ function closeLwomPacePopup() {
 document.getElementById('lwomPaceClose').addEventListener('click', closeLwomPacePopup);
 document.getElementById('lwomPaceDismissToday').addEventListener('click', () => {
   const backdrop = document.getElementById('lwomPaceBackdrop');
-  dismissLwomToday(backdrop.dataset.rep || '', backdrop.dataset.asOf || loadActuals().asOf);
+  dismissLwomToday(backdrop.dataset.rep || '', backdrop.dataset.asOf || teamTodayYmd());
   closeLwomPacePopup();
 });
 document.getElementById('lwomPaceBackdrop').addEventListener('click', (e) => {
@@ -7932,15 +7953,13 @@ function syncMetricsSidePanel(repName) {
 function computeRepPacing(repDisplay) {
   const goals = loadGoals();
   const actuals = loadActuals();
-  const [y, m, d] = actuals.asOf.split('-').map(Number);
-  const dim = daysInMonth(y, m);
-  const elapsedFrac = d / dim;
+  const { dim, d, elapsedFrac, expectedPct } = teamCalendarParts();
   const g = goals[repDisplay] || { sessions: 0, members: 0 };
   const raw = (actuals.perRep && actuals.perRep[repDisplay]) || { members: 0, sessions: 0 };
   const approved = APPROVED_TOTALS[repDisplay] || { members: 0, sessions: 0 };
   const memMetric = computeMetric(raw.members + approved.members, g.members, elapsedFrac);
   const sesMetric = computeMetric(raw.sessions + approved.sessions, g.sessions, elapsedFrac);
-  return { ...compositeOf(memMetric, sesMetric), expectedPct: elapsedFrac * 100, memMetric, sesMetric };
+  return { ...compositeOf(memMetric, sesMetric), expectedPct, memMetric, sesMetric, calendarDay: d, calendarDim: dim };
 }
 
 function sipHasMonth(monthKey) { return SIP_HISTORY.some(m => m.k === monthKey); }
@@ -8059,8 +8078,7 @@ function rankSideContentHTML(repDisplay) {
 }
 
 function previousMonthKeyFromActuals() {
-  const actuals = loadActuals();
-  const liveMonth = String(actuals.asOf || '').slice(0, 7);
+  const liveMonth = liveMonthKey();
   const [ly, lm] = liveMonth.split('-').map(Number);
   if (!ly || !lm) return null;
   const prevDate = new Date(ly, lm - 2, 1);
@@ -8263,9 +8281,8 @@ function computeBonusForRep(repDisplay) {
   const goals = loadGoals();
   const ote = (goals[repDisplay] && goals[repDisplay].ote) || 0;
   const capAt200 = !!(goals[repDisplay] && goals[repDisplay].capAt200);
-  const actuals = loadActuals();
-  const [y, m] = actuals.asOf.split('-').map(Number);
-  const workingHours = workingHoursInMonth(y, m);
+  const cal = teamCalendarParts();
+  const workingHours = workingHoursInMonth(cal.y, cal.m);
   const inputs = getBonusInputs(repDisplay);
   const loaHours = inputs.loaHours || 0;
   const spiff = inputs.spiff || 0;
@@ -9049,7 +9066,7 @@ async function refreshDetailAttributions(repName) {
     lastAttrRecords = records;
     lastAttrIsAdmin = !!isAdmin;
     lastAttrCanViewTeam = canViewTeam !== undefined ? !!canViewTeam : !!isAdmin;
-    const liveMonth = String((loadActuals().asOf || '')).slice(0, 7);
+    const liveMonth = liveMonthKey();
     const mine = records.filter(r => r.repName === repName && r.status === 'pending' && attrMonthKey(r) === liveMonth);
     countEl.textContent = mine.length ? mine.length + ' pending' : '';
     tbody.innerHTML = mine.length ? mine.map(r => `
@@ -9217,6 +9234,34 @@ function startLiveActualsPolling() {
     const result = await fetchLiveActuals();
     if (result === 'changed') quietRefreshFromActuals();
   }, LIVE_ACTUALS_POLL_MS);
+}
+
+// Re-render when America/Chicago rolls to a new calendar day (tab left open overnight,
+// or user returns after midnight Central) — even if ledger asOf hasn't moved yet.
+let teamCalendarWatchYmd = '';
+let teamCalendarWatchTimer = null;
+function refreshForTeamCalendarDay() {
+  const ymd = teamTodayYmd();
+  if (ymd === teamCalendarWatchYmd) return false;
+  teamCalendarWatchYmd = ymd;
+  if (typeof render === 'function') render();
+  if (document.getElementById('clientDetailOverlay')?.classList.contains('open')
+      && typeof renderClientDetail === 'function') {
+    try { renderClientDetail({ preserveScroll: true }); } catch (_) {}
+  }
+  if (typeof fetchPersonalGoals === 'function') {
+    fetchPersonalGoals().catch(() => {});
+  }
+  return true;
+}
+function startTeamCalendarWatch() {
+  teamCalendarWatchYmd = teamTodayYmd();
+  if (!teamCalendarWatchTimer) {
+    teamCalendarWatchTimer = setInterval(() => { refreshForTeamCalendarDay(); }, 30_000);
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refreshForTeamCalendarDay();
+  });
 }
 
 async function fetchDashboardData() {
@@ -9539,7 +9584,8 @@ const PERSONAL_GOAL_SIDE_COLLAPSED_KEY = 'pace_dashboard_personal_goal_side_coll
 let personalGoalSideCollapsed = loadJSON(PERSONAL_GOAL_SIDE_COLLAPSED_KEY, false);
 
 function liveMonthKey() {
-  return String((loadActuals().asOf || teamTodayYmd())).slice(0, 7);
+  // Personal goals / SIP live month follow Central calendar, not last sale date.
+  return teamTodayMonthKey();
 }
 function getPersonalGoal(repDisplay) {
   return PERSONAL_GOALS_CACHE[repDisplay] || null;
@@ -9725,8 +9771,7 @@ function maybeMilestoneUnlockToast(repDisplay) {
 const RAMP_DISMISS_KEY = 'pace_dashboard_ramp_dismissed_v1';
 function maybeShowRampCheck(repDisplay) {
   if (ownRepDisplayName() !== repDisplay) return;
-  const asOf = loadActuals().asOf;
-  if (!asOf) return;
+  const asOf = teamTodayYmd();
   const day = Number(String(asOf).slice(8, 10));
   if (day !== 5 && day !== 10) return;
   const dismissed = loadJSON(RAMP_DISMISS_KEY, {});
@@ -9755,7 +9800,7 @@ function maybeShowRampCheck(repDisplay) {
 }
 function maybeLockInCelebration(repDisplay) {
   if (ownRepDisplayName() !== repDisplay) return;
-  if (!isLastWeekOfMonth(loadActuals().asOf)) return;
+  if (!isLastWeekOfMonth(teamTodayYmd())) return;
   if (!hasDoubleGoal(repDisplay)) return;
   const key = 'pace_dashboard_lockin_seen_v1';
   const seen = loadJSON(key, {});
@@ -9773,7 +9818,7 @@ document.getElementById('rampCheckClose').addEventListener('click', () => {
 document.getElementById('rampCheckDismissToday').addEventListener('click', () => {
   const backdrop = document.getElementById('rampCheckBackdrop');
   const map = loadJSON(RAMP_DISMISS_KEY, {});
-  map[backdrop.dataset.rep || ''] = backdrop.dataset.asOf || loadActuals().asOf;
+  map[backdrop.dataset.rep || ''] = backdrop.dataset.asOf || teamTodayYmd();
   saveJSON(RAMP_DISMISS_KEY, map);
   backdrop.classList.remove('open');
 });
@@ -10394,6 +10439,7 @@ async function boot() {
   renderClientDetail();
   renderTeamDetailsOverlay();
   if (!isUxPreviewMode()) startLiveActualsPolling();
+  startTeamCalendarWatch();
   maybeStartGuidedTour();
 }
 
