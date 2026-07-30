@@ -41,14 +41,20 @@ export default async (req: Request, context: Context) => {
   const toggles = Object.assign({}, DEFAULT_TOGGLES, togglesRaw || {});
   const custom = (customList || []).filter(Boolean);
 
-  // Assignments come back as flat records ({id, rep, badgeKey, ...}); the
-  // dashboard wants them grouped by rep display name (same shape the old
+  // Assignments come back as flat records ({id, rep, badgeKey, assignedAt, ...});
+  // the dashboard wants them grouped by rep display name (same shape the old
   // MANUAL_BADGES_KEY localStorage object used), so group them here rather
-  // than making the front end do it.
-  const assignments: Record<string, { id: string; key: string }[]> = {};
+  // than making the front end do it. Keep assignedAt/assignedBy so the
+  // Recognition Wall can sort badge awards into the mixed feed.
+  const assignments: Record<string, { id: string; key: string; assignedAt?: string; assignedBy?: string }[]> = {};
   for (const a of (assignList || []).filter(Boolean) as any[]) {
     if (!assignments[a.rep]) assignments[a.rep] = [];
-    assignments[a.rep].push({ id: a.id, key: a.badgeKey });
+    assignments[a.rep].push({
+      id: a.id,
+      key: a.badgeKey,
+      assignedAt: a.assignedAt || undefined,
+      assignedBy: a.assignedBy || undefined,
+    });
   }
 
   return new Response(JSON.stringify({
