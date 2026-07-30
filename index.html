@@ -9308,12 +9308,9 @@ async function saveAttrClientLinkEdit(id) {
     if (document.getElementById('teamDetailsOverlay')?.classList.contains('open')) {
       await refreshTeamAttributions();
     }
-    const detailOpen = document.getElementById('clientDetailOverlay')?.classList.contains('open');
-    if (detailOpen && typeof activityFilterRep === 'string' && activityFilterRep) {
-      await refreshDetailAttributions(activityFilterRep);
-    } else if (detailOpen) {
-      const name = (document.getElementById('detailRepName')?.textContent || '').trim();
-      if (name) await refreshDetailAttributions(name);
+    if (document.getElementById('clientDetailOverlay')?.classList.contains('open')) {
+      const rep = currentBonusRep || activityFilterRep;
+      if (rep) await refreshDetailAttributions(rep);
     }
   } catch (err) {
     alert(err.message || 'Could not update client page link');
