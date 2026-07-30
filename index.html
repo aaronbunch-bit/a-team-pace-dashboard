@@ -508,8 +508,8 @@
   body:not([data-layout]) .stack-side-toolbar,
   body[data-layout="classic"] .finish-line-card,
   body:not([data-layout]) .finish-line-card,
-  body[data-layout="classic"] #shoutoutWallCard,
-  body:not([data-layout]) #shoutoutWallCard { display: none !important; }
+  body[data-layout="classic"] #recognitionWallCard,
+  body:not([data-layout]) #recognitionWallCard { display: none !important; }
   .view-menu-btn { text-align: left; line-height: 1.25; }
   .view-menu-btn .skin-blurb {
     display: block; font-size: 10.5px; font-weight: 600; color: var(--text-faint);
@@ -768,7 +768,7 @@
     grid-template-rows: 1fr !important;
   }
 
-  /* Stack side: Finish line on top, boards, shoutouts, quote */
+  /* Stack side: Finish line on top, boards, recognition wall, quote */
   .stack-side-toolbar {
     display: none; justify-content: flex-end; margin: 0 0 8px;
   }
@@ -1726,24 +1726,35 @@
     animation: none !important;
   }
   body.motion-static .contest-car { transition: none !important; }
-  .shoutout-wall-item {
+  .recognition-wall-item {
     padding: 8px 0; border-top: 1px solid var(--divider);
   }
-  .shoutout-wall-item:first-child { border-top: 0; padding-top: 0; }
-  .shoutout-wall-meta {
+  .recognition-wall-item:first-child { border-top: 0; padding-top: 0; }
+  .recognition-wall-meta {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
     font-size: 10.5px; font-weight: 700; color: var(--text-faint);
     text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 3px;
   }
-  .shoutout-wall-text {
+  .recognition-wall-type {
+    display: inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: 0.04em;
+    padding: 1px 6px; border-radius: 4px; text-transform: uppercase;
+  }
+  .recognition-wall-type.is-shoutout {
+    color: #9d174d; background: rgba(244, 114, 182, 0.18);
+  }
+  .recognition-wall-type.is-badge {
+    color: #a16207; background: rgba(250, 204, 21, 0.22);
+  }
+  .recognition-wall-text {
     font-size: 12.5px; line-height: 1.4; color: var(--text); font-weight: 600;
   }
-  .shoutout-wall-empty {
+  .recognition-wall-empty {
     text-align: center; padding: 6px 4px 2px;
   }
-  .shoutout-wall-empty p {
+  .recognition-wall-empty p {
     margin: 0 0 10px; font-size: 12.5px; line-height: 1.45; color: var(--text-muted); font-weight: 600;
   }
-  .shoutout-wall-empty .theme-btn { width: 100%; justify-content: center; }
+  .recognition-wall-empty .theme-btn { width: 100%; justify-content: center; }
   .daily-quote-card {
     background:
       linear-gradient(135deg, rgba(244,114,182,0.12), rgba(99,102,241,0.14) 55%, rgba(56,189,248,0.12)),
@@ -4410,9 +4421,9 @@
         <div class="improved-sublabel" id="improvedActiveTitle"></div>
         <div class="leaderboard-list improved-list" id="improvedActiveList"></div>
       </div>
-      <div class="culture-card" id="shoutoutWallCard">
-        <div class="culture-card-title">Shoutout wall</div>
-        <div id="shoutoutWallBody"></div>
+      <div class="culture-card" id="recognitionWallCard">
+        <div class="culture-card-title">Recognition wall</div>
+        <div id="recognitionWallBody"></div>
       </div>
     </div>
     </div>
@@ -5391,12 +5402,12 @@
     </div>
     <div class="ops-page-intro admin-settings-intro">
       <span class="ops-intro-mark">Control room</span>
-      <p>Access roles, the badge bank, and the master shoutout log — one tab at a time.</p>
+      <p>Access roles, the badge bank, and the recognition log — one tab at a time.</p>
     </div>
     <div class="ops-subtabs" id="adminSubtabs" role="tablist">
       <button type="button" class="ops-subtab active" data-admin-tab="access" role="tab" aria-selected="true">Access<small>Admins &amp; coaches</small></button>
       <button type="button" class="ops-subtab" data-admin-tab="badges" role="tab" aria-selected="false">Badges<small>Bank &amp; assign</small></button>
-      <button type="button" class="ops-subtab" data-admin-tab="shoutouts" role="tab" aria-selected="false">Shoutouts<small>Master log</small></button>
+      <button type="button" class="ops-subtab" data-admin-tab="shoutouts" role="tab" aria-selected="false">Recognition<small>Shoutout log</small></button>
     </div>
 
     <div class="ops-subpanel active" data-admin-panel="access">
@@ -5480,10 +5491,10 @@
 
     <div class="ops-subpanel" data-admin-panel="shoutouts" id="shoutoutLogBody">
       <div class="card ops-panel-shell">
-        <h2>All shoutouts</h2>
+        <h2>Shoutout log</h2>
         <div id="masterShoutoutList"></div>
         <div class="meta-note" id="masterShoutoutEmpty" style="display:none;">No shoutouts yet.</div>
-        <div class="meta-note">Master log across every rep, newest first.</div>
+        <div class="meta-note">Master shoutout log across every rep, newest first. Public ones also appear on the Recognition Wall with badges.</div>
       </div>
     </div>
   </div>
@@ -5592,7 +5603,7 @@
       </label>
       <label style="display:flex; align-items:flex-start; gap:8px; margin-top:12px; font-size:12.5px; font-weight:650; color:var(--text-muted); text-transform:none; letter-spacing:0; cursor:pointer;">
         <input type="checkbox" id="shoutoutSendHidden" style="margin-top:2px;">
-        <span>Keep private — hide from the Shoutout Wall (recipient still sees it)</span>
+        <span>Keep private — hide from the Recognition Wall (recipient still sees it)</span>
       </label>
     </div>
     <button type="button" class="celebration-modal-close" id="shoutoutSendSubmit">Send Shoutout 📣</button>
@@ -7061,26 +7072,155 @@ function allShoutoutsFlat() {
   all.sort((a, b) => (b.date || '').localeCompare(a.date || '') || String(b.id || '').localeCompare(String(a.id || '')));
   return all;
 }
-function renderShoutoutWall() {
-  const host = document.getElementById('shoutoutWallBody');
+function recognitionSortKeyFromYmd(ymd) {
+  const s = String(ymd || '').slice(0, 10);
+  return s ? `${s}T12:00:00.000Z` : '';
+}
+function recognitionManualBadgeItems() {
+  const all = loadManualBadges();
+  const items = [];
+  Object.keys(all).forEach((rep) => {
+    (all[rep] || []).forEach((b) => {
+      const opt = allBadgeOptions().find((o) => o.key === b.key);
+      if (!opt) return;
+      const assignedAt = b.assignedAt || '';
+      const dateLabel = assignedAt ? assignedAt.slice(0, 10) : '';
+      items.push({
+        type: 'badge',
+        kind: 'manual',
+        sortKey: assignedAt || recognitionSortKeyFromYmd(dateLabel) || '0000-00-00T00:00:00.000Z',
+        dateLabel: dateLabel || 'Recently',
+        rep,
+        from: b.assignedBy || '',
+        text: `${opt.emoji} ${opt.label}`,
+      });
+    });
+  });
+  return items;
+}
+function recognitionPushAuto(items, rep, emoji, label, sortKey, dateLabel) {
+  items.push({
+    type: 'badge',
+    kind: 'auto',
+    sortKey,
+    dateLabel,
+    rep,
+    from: '',
+    text: `${emoji} ${label}`,
+  });
+}
+function recognitionAutoBadgeItems() {
+  const items = [];
+  const today = badgeTodayYmd() || '';
+  const todayKey = recognitionSortKeyFromYmd(today);
+  const monthKey = today ? recognitionSortKeyFromYmd(`${today.slice(0, 7)}-01`) : '';
+  const firstTo100 = isBadgeEnabled('firstTo100') ? getFirstTo100Champion() : null;
+  const earlyBird = isBadgeEnabled('earlyBird') ? getEarlyBirdChampion() : null;
+  const nightOwl = isBadgeEnabled('nightOwl') ? getNightOwlChampion() : null;
+  const mostMembers = isBadgeEnabled('mostMembersToday') ? getMostUnitsTodayChampion('members') : null;
+  const mostSessions = isBadgeEnabled('mostSessionsToday') ? getMostUnitsTodayChampion('sessions') : null;
+  getRoster().forEach((r) => {
+    const rep = r.display;
+    if (isBadgeEnabled('streak')) {
+      const days = computeCurrentStreak(rep);
+      if (days >= 3) recognitionPushAuto(items, rep, '🔥', `${days}d streak`, todayKey, today);
+    }
+    if (isBadgeEnabled('personalBest') && computePersonalBestFlag(rep)) {
+      recognitionPushAuto(items, rep, '🌟', 'Personal Best Pace', monthKey || todayKey, today || 'This month');
+    }
+    if (isBadgeEnabled('consistency') && computeConsistencyFlag(rep)) {
+      recognitionPushAuto(items, rep, '🛡️', 'Steady', monthKey || todayKey, today || 'This month');
+    }
+    if (firstTo100 && rep === firstTo100) {
+      recognitionPushAuto(items, rep, '🥇', 'First to 100%', monthKey || todayKey, today || 'This month');
+    }
+    if (earlyBird && rep === earlyBird) {
+      recognitionPushAuto(items, rep, '🐦', 'Early Bird', todayKey, today);
+    }
+    if (isBadgeEnabled('hatTrick') && hasHatTrickToday(rep)) {
+      recognitionPushAuto(items, rep, '🎩', 'Hat Trick', todayKey, today);
+    }
+    if (isBadgeEnabled('rebound') && hasReboundToday(rep)) {
+      recognitionPushAuto(items, rep, '🏀', 'Rebound', todayKey, today);
+    }
+    if (nightOwl && rep === nightOwl) {
+      recognitionPushAuto(items, rep, '🦉', 'Night Owl', todayKey, today);
+    }
+    if (isBadgeEnabled('bestPaceDay') && hasBestPaceDay(rep)) {
+      recognitionPushAuto(items, rep, '⚡', 'Best Pace Day', todayKey, today);
+    }
+    if (mostMembers && rep === mostMembers) {
+      recognitionPushAuto(items, rep, '👥', 'Most Members Today', todayKey, today);
+    }
+    if (mostSessions && rep === mostSessions) {
+      recognitionPushAuto(items, rep, '📅', 'Most Sessions Today', todayKey, today);
+    }
+  });
+  return items;
+}
+function buildRecognitionFeed(limit) {
+  const cap = limit || 5;
+  const byRecency = (a, b) => String(b.sortKey || '').localeCompare(String(a.sortKey || ''))
+    || String(a.rep || '').localeCompare(String(b.rep || ''))
+    || String(a.text || '').localeCompare(String(b.text || ''));
+  const shoutouts = allShoutoutsFlat()
+    .filter((it) => !it.hidden)
+    .map((it) => ({
+      type: 'shoutout',
+      sortKey: recognitionSortKeyFromYmd(it.date) || String(it.id || ''),
+      dateLabel: it.date || '',
+      rep: it.rep,
+      from: it.from || '',
+      text: it.text || '',
+    }));
+  // Prefer dated shoutouts + coach-assigned badges so auto badges don't flood
+  // the wall; fill remaining slots with currently earned auto badges.
+  const timed = shoutouts.concat(recognitionManualBadgeItems()).sort(byRecency);
+  const out = timed.slice(0, cap);
+  if (out.length < cap) {
+    const used = new Set(out.map((i) => `${i.type}|${i.rep}|${i.text}`));
+    recognitionAutoBadgeItems().sort(byRecency).forEach((item) => {
+      if (out.length >= cap) return;
+      const key = `${item.type}|${item.rep}|${item.text}`;
+      if (used.has(key)) return;
+      used.add(key);
+      out.push(item);
+    });
+  }
+  return out.sort(byRecency);
+}
+function renderRecognitionWall() {
+  const host = document.getElementById('recognitionWallBody');
   if (!host) return;
-  const publicItems = allShoutoutsFlat().filter((it) => !it.hidden).slice(0, 3);
-  if (!publicItems.length) {
+  const items = buildRecognitionFeed(5);
+  if (!items.length) {
     host.innerHTML = `
-      <div class="shoutout-wall-empty">
-        <p>No shoutouts on the wall yet. Celebrate a teammate — it takes ten seconds.</p>
-        <button type="button" class="theme-btn" id="shoutoutWallPromptBtn">📣 Send a shoutout</button>
+      <div class="recognition-wall-empty">
+        <p>No recognition yet. Send a shoutout or earn a badge — wins show up here for the crew.</p>
+        <button type="button" class="theme-btn" id="recognitionWallPromptBtn">📣 Send a shoutout</button>
       </div>`;
-    const btn = document.getElementById('shoutoutWallPromptBtn');
+    const btn = document.getElementById('recognitionWallPromptBtn');
     if (btn) btn.addEventListener('click', () => document.getElementById('shoutoutSendBtn')?.click());
     return;
   }
-  host.innerHTML = publicItems.map((it) => `
-    <div class="shoutout-wall-item">
-      <div class="shoutout-wall-meta">${it.date || ''} · to ${it.rep}${it.from ? ` · from ${it.from}` : ''}</div>
-      <div class="shoutout-wall-text">${it.text}</div>
-    </div>`).join('');
+  host.innerHTML = items.map((it) => {
+    const typeLabel = it.type === 'badge' ? 'Badge' : 'Shoutout';
+    const typeCls = it.type === 'badge' ? 'is-badge' : 'is-shoutout';
+    const who = it.type === 'badge'
+      ? `${escapeHtml(it.rep)}${it.from ? ` · from ${escapeHtml(it.from)}` : ''}`
+      : `to ${escapeHtml(it.rep)}${it.from ? ` · from ${escapeHtml(it.from)}` : ''}`;
+    return `
+    <div class="recognition-wall-item">
+      <div class="recognition-wall-meta">
+        <span class="recognition-wall-type ${typeCls}">${typeLabel}</span>
+        <span>${escapeHtml(it.dateLabel || '')} · ${who}</span>
+      </div>
+      <div class="recognition-wall-text">${escapeHtml(it.text)}</div>
+    </div>`;
+  }).join('');
 }
+// Back-compat alias — older call sites / tours may still say "shoutout wall".
+function renderShoutoutWall() { renderRecognitionWall(); }
 function renderCultureSide(repRows, teamComposite, expectedPct, calendarYmd, monthName, day, dim) {
   syncStackBoardsHidden();
   const finish = document.getElementById('finishLineGrid');
@@ -7093,7 +7233,7 @@ function renderCultureSide(repRows, teamComposite, expectedPct, calendarYmd, mon
       <div class="finish-line-stat"><b>${daysLeft}</b><span>Days left in the month</span></div>
       <div class="finish-line-stat"><b>${fmt(expectedPct, 1)}%</b><span>End of day pace</span></div>`;
   }
-  renderShoutoutWall();
+  renderRecognitionWall();
 }
 function renderPaceWatch(repRows) {
   // Back-compat name: culture column (finish line / quiet flex / wall / quote).
@@ -8723,7 +8863,7 @@ document.getElementById('shoutoutSendSubmit').addEventListener('click', async (e
   try {
     await addShoutout(rep, text, hidden);
     renderMasterShoutoutLog();
-    renderShoutoutWall();
+    renderRecognitionWall();
     const hiddenEl = document.getElementById('shoutoutSendHidden');
     if (hiddenEl) hiddenEl.checked = false;
     document.getElementById('shoutoutSendBackdrop').classList.remove('open');
@@ -16043,7 +16183,7 @@ async function boot() {
 // Ironclad walkthrough: lock underlying UI, prepare each surface (landing /
 // Manual Attribution / Individual Pacer), spotlight exact targets, and keep
 // the highlight glued on scroll/resize. Written for any skill level.
-const GUIDED_TOUR_VERSION = 4;
+const GUIDED_TOUR_VERSION = 5;
 const GUIDED_TOUR_KEY = 'pace_dashboard_guided_tour_v1';
 let guidedTourActive = false;
 let guidedTourStepIdx = 0;
@@ -16186,17 +16326,17 @@ function guidedTourSteps() {
       ensureBoardsVisible: true,
     },
     {
-      id: 'shoutoutWall',
-      title: 'Shoutout wall',
-      body: 'Public wins show up here. When someone gets celebrated, the whole crew sees it.',
-      selector: '#shoutoutWallCard',
+      id: 'recognitionWall',
+      title: 'Recognition wall',
+      body: 'Public shoutouts and badges flow here — when someone gets celebrated or earns a badge, the whole crew sees it.',
+      selector: '#recognitionWallCard',
       surface: 'landing',
       ensureBoardsVisible: true,
     },
     {
       id: 'shoutoutSend',
       title: 'Send a shoutout',
-      body: 'Tap 📣 Shoutout, pick a teammate, write why they’re crushing it, and send. Anyone signed in can do this.',
+      body: 'Tap 📣 Shoutout, pick a teammate, write why they’re crushing it, and send. Public ones land on the Recognition Wall. Anyone signed in can do this.',
       selector: '#shoutoutSendBtn',
       fallbackSelector: '#myPacerShoutoutCluster',
       surface: 'landing',

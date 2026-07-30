@@ -30,7 +30,15 @@ export default async (req: Request, context: Context) => {
   const store = getStore("badge-assignments");
   await store.setJSON(id, record);
 
-  return new Response(JSON.stringify({ ok: true, assignment: { id, key: badgeKey } }), {
+  return new Response(JSON.stringify({
+    ok: true,
+    assignment: {
+      id,
+      key: badgeKey,
+      assignedAt: record.assignedAt,
+      assignedBy: record.assignedBy,
+    },
+  }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
