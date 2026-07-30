@@ -109,6 +109,10 @@ export default async (req: Request, context: Context) => {
     customCheer: patch.customCheer ?? null,
     isTest: !!patch.isTest,
     hiddenFromHistory: !!patch.hiddenFromHistory,
+    // Keep an official spin when still in wheel mode; clear if format changes.
+    wheelSpin: (patch.mode || existing?.mode) === "wheel"
+      ? (existing?.wheelSpin ?? null)
+      : null,
     finalStandings: patch.finalStandings ?? existing?.finalStandings ?? null,
     manualEntries: Array.isArray(existing?.manualEntries) ? existing!.manualEntries : [],
     createdBy: existing?.createdBy || access.email,
