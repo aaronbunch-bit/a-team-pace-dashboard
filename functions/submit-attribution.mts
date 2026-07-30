@@ -3,6 +3,7 @@ import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
 import { resolveRepNameFromEmail } from "./_shared/roster.mts";
 import { teamTodayYmd } from "./_shared/time.mts";
+import { membersValidationError, normalizeAttrMembers } from "./_shared/attribution.mts";
 
 // Self-submit path: repName is always derived from the caller's own email so
 // nobody can claim credit as a different rep. Admins/coaches submitting on
@@ -34,8 +35,12 @@ export default async (req: Request, context: Context) => {
   }
 
   const { clientLink, contact, members, sessions, adjustmentReason, comments } = body || {};
-  const membersNum = Number(members) || 0;
+  const membersNum = normalizeAttrMembers(members);
   const sessionsNum = Number(sessions) || 0;
+  const membersErr = membersValidationError(members);
+  if (membersErr) {
+    return new Response(JSON.stringify({ error: membersErr }), { status: 400 });
+  }
   if (!clientLink || (!membersNum && !sessionsNum) || !adjustmentReason || !comments) {
     return new Response(
       JSON.stringify({

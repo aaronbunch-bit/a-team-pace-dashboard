@@ -4,6 +4,7 @@ import { getIdentityUser } from "./_shared/identity.mts";
 import { resolveAccess } from "./_shared/access.mts";
 import { loadValidRepDisplays, resolveEmailFromRepDisplay } from "./_shared/roster.mts";
 import { teamTodayYmd } from "./_shared/time.mts";
+import { membersValidationError, normalizeAttrMembers } from "./_shared/attribution.mts";
 
 // Two elevated submit paths share this endpoint:
 //   1) source: "cancel-conversion" — full admins only (Team Details cancel move)
@@ -60,8 +61,15 @@ export default async (req: Request, context: Context) => {
   }
 
   const { repName, members, sessions } = body || {};
-  const membersNum = Number(members) || 0;
+  const membersNum = normalizeAttrMembers(members);
   const sessionsNum = Number(sessions) || 0;
+  const membersErr = membersValidationError(members);
+  if (membersErr) {
+    return new Response(JSON.stringify({ error: membersErr }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
   const validReps = await loadValidRepDisplays();
   if (!repName || !validReps.has(String(repName))) {
     return new Response(JSON.stringify({ error: "repName must be a current rep on the roster" }), {

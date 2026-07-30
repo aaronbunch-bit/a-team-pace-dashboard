@@ -1217,6 +1217,51 @@
   .st-gold { background: linear-gradient(90deg,#fbbf24,#f59e0b); }
 
   .sip-table-wrap { max-height: 340px; overflow-y: auto; }
+  /* Pending approvals page — page scroll only, no nested box scrollbar. */
+  .attr-approvals-table-wrap {
+    max-height: none; overflow: visible;
+    margin-top: 8px;
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    background: var(--card-bg);
+  }
+  .attr-approvals-table-wrap .sip-table th { position: sticky; top: 0; z-index: 1; }
+  .attr-approvals-actions {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end;
+  }
+  .attr-approvals-empty {
+    text-align: center; color: var(--text-faint); padding: 36px 16px; font-weight: 600;
+  }
+  .attr-review-comment {
+    display: block; margin-top: 4px; font-size: 11px; font-weight: 600;
+    color: var(--text-muted); white-space: normal; max-width: 280px;
+  }
+  /* Manual Attribution submit/edit validation — highlight missing required fields. */
+  #attributionSignedInArea label.attr-field-missing,
+  #attributionSignedInArea .attr-units-pair.attr-field-missing,
+  #attrEditFormArea label.attr-field-missing,
+  #attrEditFormArea .attr-units-pair.attr-field-missing {
+    outline: 2px solid rgba(220, 38, 38, 0.55);
+    outline-offset: 3px;
+    border-radius: 10px;
+    background: rgba(220, 38, 38, 0.06);
+  }
+  #attributionSignedInArea label.attr-field-missing input,
+  #attributionSignedInArea label.attr-field-missing select,
+  #attributionSignedInArea label.attr-field-missing textarea,
+  #attrEditFormArea label.attr-field-missing input,
+  #attrEditFormArea label.attr-field-missing select,
+  #attrEditFormArea label.attr-field-missing textarea {
+    border-color: #dc2626 !important;
+    box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.25);
+  }
+  .attr-units-pair {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    padding: 2px;
+  }
   .sip-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
   .sip-table th { text-align: center; color: var(--text-faint); font-size: 10.5px; text-transform: uppercase; padding: 3px 6px; position: sticky; top: 0; background: var(--card-bg); }
   .sip-table th:first-child { text-align: left; }
@@ -1558,11 +1603,13 @@
   .attr-link-cell {
     display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
   }
-  .attr-edit-link-btn {
+  .attr-edit-link-btn,
+  .attr-edit-btn {
     margin: 0; padding: 3px 8px; font-size: 10.5px; font-weight: 700;
     background: var(--metric-box-bg); color: var(--text-muted); border: 1px solid var(--card-border);
   }
-  .attr-edit-link-btn:hover { color: var(--text); border-color: var(--text-faint); }
+  .attr-edit-link-btn:hover,
+  .attr-edit-btn:hover { color: var(--text); border-color: var(--text-faint); }
   .attr-status-cell {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap; white-space: nowrap;
   }
@@ -2664,11 +2711,19 @@
           <div class="meta-note" style="margin:6px 0 0;">Admins and Sales Coaches can submit on behalf of any rep. The request still goes through normal pending → approval.</div>
         </label>
         <div class="attribution-form-grid">
-          <label>Client Page Link<input type="url" id="attrClientLink" placeholder="https://www.varsitytutors.com/clients/..."></label>
-          <label><span class="has-tip" data-tip="From the page you had the conversation on">Phone Number / Email</span><input type="text" id="attrContact" placeholder="e.g. jane@company.com"></label>
-          <label>Sessions requested<input type="number" step="0.01" id="attrSessions" value="0"></label>
-          <label>Members requested<input type="number" step="0.01" id="attrMembers" value="0"></label>
-          <label>Adjustment Reason
+          <label id="attrClientLinkLabel">Client Page Link <span style="color:#dc2626;">(required)</span><input type="url" id="attrClientLink" placeholder="https://www.varsitytutors.com/clients/..."></label>
+          <label id="attrContactLabel"><span class="has-tip" data-tip="From the page you had the conversation on">Phone Number / Email</span><input type="text" id="attrContact" placeholder="e.g. jane@company.com"></label>
+          <div class="attr-units-pair" id="attrUnitsPair">
+            <label id="attrSessionsLabel">Sessions requested<input type="number" step="0.01" id="attrSessions" value="0"></label>
+            <label id="attrMembersLabel">Members requested <span class="has-tip" data-tip="Membership credit is only 0.5 or 1 per request (or none if sessions-only).">(?)</span>
+              <select id="attrMembers">
+                <option value="0">None (0)</option>
+                <option value="0.5">0.5</option>
+                <option value="1">1</option>
+              </select>
+            </label>
+          </div>
+          <label id="attrReasonLabel">Adjustment Reason <span style="color:#dc2626;">(required)</span>
             <select id="attrReasonSelect">
               <option value="">Select a reason…</option>
               <option>BUCA / Class Wallet</option>
@@ -2679,7 +2734,7 @@
             </select>
           </label>
         </div>
-        <label style="display:block; margin-top:10px;">Comments <span style="color:#dc2626;">(required)</span>
+        <label id="attrCommentsLabel" style="display:block; margin-top:10px;">Comments <span style="color:#dc2626;">(required)</span>
           <textarea id="attrComments" style="height:70px;" placeholder="Explain what happened — required for every request."></textarea>
         </label>
         <div class="meta-note" id="attrBucaEditHint" style="display:none; margin-top:8px;">
@@ -2687,6 +2742,15 @@
         </div>
         <button id="submitAttribution">Submit request</button>
         <div class="meta-note" id="attrSubmitStatus"></div>
+      </div>
+      <div class="card" id="attrApprovalsLaunchCard" style="display:none;">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+          <div>
+            <h2 style="margin:0 0 4px;">Pending approvals</h2>
+            <div class="meta-note" style="margin:0;" id="attrApprovalsLaunchNote">Review team Manual Attribution requests on a dedicated page — no cramped scroll box.</div>
+          </div>
+          <button type="button" class="theme-btn" id="openAttrApprovalsBtn">⏳ Open pending approvals</button>
+        </div>
       </div>
       <div class="card">
         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:2px;">
@@ -2702,18 +2766,104 @@
             <tbody id="myAttributionsBody"></tbody>
           </table>
         </div>
-        <div class="meta-note">Reps see only their own requests here; admins see every rep's — filter by month to look back on any past period. <b>BUCA / Class Wallet</b> requests keep an Edit control on the client page so you can drop in the final URL after submit. Use 🗑️ to delete a request you own (or any request if you’re an admin/coach).</div>
-      </div>
-      <div class="card" id="adminApprovalsCard" style="display:none;">
-        <h2>Pending approvals (all reps)</h2>
-        <div class="sip-table-wrap">
-          <table class="sip-table">
-            <thead><tr><th>Rep</th><th>Client Page</th><th>Contact</th><th>Sessions</th><th>Members</th><th>Reason</th><th>Comments</th><th>Action</th></tr></thead>
-            <tbody id="pendingApprovalsBody"></tbody>
-          </table>
-        </div>
+        <div class="meta-note">Reps see only their own requests here; admins see every rep's — filter by month to look back on any past period. Use <b>Edit</b> on pending or rejected requests to change details (rejected edits go back to pending for re-review). <b>BUCA / Class Wallet</b> approved requests still allow updating just the client page link. Use 🗑️ to delete a request you own (or any request if you’re an admin/coach). Members credit is only <b>0.5</b> or <b>1</b>.</div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Pending Manual Attribution approvals — full-page admin view (not nested in a scroll box). -->
+<div class="detail-overlay" id="attrApprovalsOverlay">
+  <div class="detail-page">
+    <div class="detail-header">
+      <button class="theme-btn" id="attrApprovalsBackBtn" type="button">← Back</button>
+      <h2>Pending Manual Attribution approvals</h2>
+      <button class="theme-btn" id="attrApprovalsToSubmitBtn" type="button">📝 New request</button>
+    </div>
+    <div class="meta-note" id="attrApprovalsPageNote" style="margin:-4px 0 10px;">
+      Approve or reject open requests for the whole team. Rejecting requires a short comment the rep can see. This page uses normal page scroll — the table isn’t trapped in a small box.
+    </div>
+    <div class="meta-note" id="attrApprovalsStatus" style="margin:0 0 8px;"></div>
+    <div class="attr-approvals-table-wrap">
+      <table class="sip-table">
+        <thead>
+          <tr>
+            <th>Rep</th>
+            <th>Client Page</th>
+            <th>Contact</th>
+            <th>Sessions</th>
+            <th>Members</th>
+            <th>Reason</th>
+            <th>Submitter comments</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="pendingApprovalsBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Reject Manual Attribution — comment required. -->
+<div class="celebration-modal-backdrop" id="attrRejectBackdrop">
+  <div class="celebration-modal" style="text-align:left; max-width:440px;">
+    <div class="celebration-modal-emoji" style="text-align:center;">✗</div>
+    <div class="celebration-modal-title" style="text-align:center;">Reject request</div>
+    <div class="celebration-modal-body" id="attrRejectSummary" style="margin-bottom:12px;"></div>
+    <label style="display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
+      Comment for the rep <span style="color:#dc2626; text-transform:none; letter-spacing:0;">(required)</span>
+      <textarea id="attrRejectComment" style="min-height:90px; font-size:13px; font-weight:600; text-transform:none; letter-spacing:normal; color:var(--text); padding:8px 10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg); font-family:inherit;" placeholder="Explain why this was rejected so they can fix and resubmit…"></textarea>
+    </label>
+    <div class="meta-note" id="attrRejectStatus" style="margin-top:8px;"></div>
+    <button type="button" class="celebration-modal-close reject-btn" id="attrRejectConfirm" style="margin-top:14px; width:100%;">Reject request</button>
+    <button type="button" class="celebration-modal-mute" id="attrRejectCancel">Cancel</button>
+  </div>
+</div>
+
+<!-- Edit Manual Attribution adjustment request (pending / rejected). -->
+<div class="celebration-modal-backdrop" id="attrEditBackdrop">
+  <div class="celebration-modal" style="text-align:left; max-width:520px;">
+    <div class="celebration-modal-title" style="text-align:center;">Edit adjustment request</div>
+    <div class="celebration-modal-body" id="attrEditSummary" style="margin-bottom:10px;"></div>
+    <div class="meta-note" id="attrEditResubmitNote" style="display:none; margin:0 0 10px;">This request was rejected. Saving will send it back to <b>pending</b> for admin re-review.</div>
+    <div id="attrEditFormArea">
+      <div class="attribution-form-grid">
+        <label id="attrEditClientLinkLabel">Client Page Link <span style="color:#dc2626;">(required)</span>
+          <input type="url" id="attrEditClientLink" placeholder="https://www.varsitytutors.com/clients/...">
+        </label>
+        <label id="attrEditContactLabel">Phone Number / Email
+          <input type="text" id="attrEditContact" placeholder="e.g. jane@company.com">
+        </label>
+        <div class="attr-units-pair" id="attrEditUnitsPair">
+          <label id="attrEditSessionsLabel">Sessions requested
+            <input type="number" step="0.01" id="attrEditSessions" value="0">
+          </label>
+          <label id="attrEditMembersLabel">Members requested
+            <select id="attrEditMembers">
+              <option value="0">None (0)</option>
+              <option value="0.5">0.5</option>
+              <option value="1">1</option>
+            </select>
+          </label>
+        </div>
+        <label id="attrEditReasonLabel">Adjustment Reason <span style="color:#dc2626;">(required)</span>
+          <select id="attrEditReasonSelect">
+            <option value="">Select a reason…</option>
+            <option>BUCA / Class Wallet</option>
+            <option>Duplicate Lead Page</option>
+            <option>No Attro Given in Flex</option>
+            <option>Shifting Attro Between Reps</option>
+            <option>Cancellation Error</option>
+          </select>
+        </label>
+      </div>
+      <label id="attrEditCommentsLabel" style="display:block; margin-top:10px;">Comments <span style="color:#dc2626;">(required)</span>
+        <textarea id="attrEditComments" style="height:70px;" placeholder="Explain what happened — required for every request."></textarea>
+      </label>
+    </div>
+    <div class="meta-note" id="attrEditStatus" style="margin-top:8px;"></div>
+    <button type="button" class="celebration-modal-close" id="attrEditSave" style="margin-top:14px; width:100%;">Save changes</button>
+    <button type="button" class="celebration-modal-mute" id="attrEditCancel">Cancel</button>
   </div>
 </div>
 
@@ -2798,7 +2948,13 @@
       <label>Client ID <input type="text" id="cancelConvertClientId" disabled></label>
       <label>Sale Date <input type="date" id="cancelConvertDate" disabled></label>
       <label>Sessions requested <input type="number" step="0.01" id="cancelConvertSessions"></label>
-      <label>Members requested <input type="number" step="0.01" id="cancelConvertMembers"></label>
+      <label>Members requested
+        <select id="cancelConvertMembers">
+          <option value="0">None (0)</option>
+          <option value="0.5">0.5</option>
+          <option value="1">1</option>
+        </select>
+      </label>
       <label>Adjustment Reason
         <select id="cancelConvertReason">
           <option value="">Select a reason…</option>
@@ -7548,7 +7704,7 @@ document.getElementById('toggleAdvancedFields').addEventListener('click', () => 
 // the Edit Monthly Goals overlay but auto-expands the All Shoutouts section.
 // Every full-page overlay is `.detail-overlay`: lock body scroll while any is open.
 function syncOverlayBodyScroll() {
-  const anyOpen = ['clientDetailOverlay', 'manualAttroOverlay', 'goalsOverlay', 'adminSettingsOverlay', 'sipOverlay', 'teamDetailsOverlay']
+  const anyOpen = ['clientDetailOverlay', 'manualAttroOverlay', 'attrApprovalsOverlay', 'goalsOverlay', 'adminSettingsOverlay', 'sipOverlay', 'teamDetailsOverlay']
     .some(id => {
       const el = document.getElementById(id);
       return el && el.classList.contains('open');
@@ -8713,22 +8869,55 @@ document.getElementById('repList').addEventListener('click', (e) => {
   location.hash = 'individual-pacer=' + btn.getAttribute('data-repname');
 });
 
-// ---------- Manual Attribution full-page overlay routing (#manual-attribution) ----------
+// ---------- Manual Attribution full-page overlay routing ----------
+// #manual-attribution → submit + my requests
+// #manual-attribution-approvals → admin pending queue (dedicated page, no nested scroll box)
 function renderManualAttroPage() {
   const overlay = document.getElementById('manualAttroOverlay');
   if (location.hash === '#manual-attribution') {
     overlay.classList.add('open');
     window.scrollTo(0, 0);
+    if (typeof refreshMyAttributions === 'function') refreshMyAttributions();
+  } else {
+    overlay.classList.remove('open');
+  }
+  syncOverlayBodyScroll();
+}
+function renderAttrApprovalsPage() {
+  const overlay = document.getElementById('attrApprovalsOverlay');
+  if (!overlay) return;
+  if (location.hash === '#manual-attribution-approvals') {
+    if (!isRealAdmin()) {
+      if (typeof denyHashIfUnauthorized === 'function') denyHashIfUnauthorized(false);
+      else location.hash = 'manual-attribution';
+      overlay.classList.remove('open');
+      syncOverlayBodyScroll();
+      return;
+    }
+    overlay.classList.add('open');
+    window.scrollTo(0, 0);
+    if (typeof refreshPendingApprovals === 'function') refreshPendingApprovals();
   } else {
     overlay.classList.remove('open');
   }
   syncOverlayBodyScroll();
 }
 window.addEventListener('hashchange', renderManualAttroPage);
+window.addEventListener('hashchange', renderAttrApprovalsPage);
 document.getElementById('manualAttroBtn').addEventListener('click', () => { location.hash = 'manual-attribution'; });
 document.getElementById('detailManualAttroBtn')?.addEventListener('click', () => { location.hash = 'manual-attribution'; });
 document.getElementById('attroBackBtn').addEventListener('click', () => {
   if (location.hash) history.back(); else { document.getElementById('manualAttroOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
+});
+document.getElementById('openAttrApprovalsBtn')?.addEventListener('click', () => {
+  location.hash = 'manual-attribution-approvals';
+});
+document.getElementById('attrApprovalsBackBtn')?.addEventListener('click', () => {
+  if (location.hash) history.back();
+  else { document.getElementById('attrApprovalsOverlay')?.classList.remove('open'); syncOverlayBodyScroll(); }
+});
+document.getElementById('attrApprovalsToSubmitBtn')?.addEventListener('click', () => {
+  location.hash = 'manual-attribution';
 });
 
 // ---------- Team workspace overlay (#team-details / #team-goals / #team-schedule / #team-attr) ----------
@@ -8990,7 +9179,8 @@ document.getElementById('teamCancelsBody').addEventListener('click', (e) => {
   // Pre-fill the REVERSAL of the cancel (a -1 member cancel becomes a +1
   // members-requested correction) — this is what "moving a cancel into Manual
   // Attribution" means: requesting the cancel be credited back.
-  document.getElementById('cancelConvertMembers').value = Math.abs(members);
+  // Members credit is only 0 / 0.5 / 1 on Manual Attribution requests.
+  document.getElementById('cancelConvertMembers').value = String(snapAttrMembers(Math.abs(members)));
   document.getElementById('cancelConvertSessions').value = Math.abs(sessions);
   document.getElementById('cancelConvertReason').value = 'Cancellation Error';
   document.getElementById('cancelConvertComments').value = '';
@@ -9008,12 +9198,25 @@ document.getElementById('cancelConvertSubmit').addEventListener('click', async (
   const status = document.getElementById('cancelConvertStatus');
   const comments = document.getElementById('cancelConvertComments').value.trim();
   if (!comments) { status.textContent = 'Comments are required.'; return; }
+  const membersVal = document.getElementById('cancelConvertMembers').value;
+  if (typeof isAllowedAttrMembers === 'function' && !isAllowedAttrMembers(membersVal)) {
+    status.textContent = 'Members must be 0, 0.5, or 1.';
+    return;
+  }
+  const members = typeof snapAttrMembers === 'function'
+    ? snapAttrMembers(membersVal)
+    : (parseFloat(membersVal) || 0);
+  const sessions = parseFloat(document.getElementById('cancelConvertSessions').value) || 0;
+  if (!(members || sessions)) {
+    status.textContent = 'Sessions and/or members are required.';
+    return;
+  }
   const payload = {
     repName: document.getElementById('cancelConvertRep').value,
     clientId: document.getElementById('cancelConvertClientId').value,
     saleDate: document.getElementById('cancelConvertDate').value,
-    members: parseFloat(document.getElementById('cancelConvertMembers').value) || 0,
-    sessions: parseFloat(document.getElementById('cancelConvertSessions').value) || 0,
+    members,
+    sessions,
     reason: document.getElementById('cancelConvertReason').value,
     comments,
   };
@@ -9317,24 +9520,42 @@ async function authedFetch(path, options) {
   return data;
 }
 
-function attrStatusPill(status) {
+function escapeHtml(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+function attrStatusPill(status, reviewComment) {
   const label = status === 'approved' ? '✓ Approved' : status === 'rejected' ? '✗ Rejected' : '⏳ Pending';
   const cls = status === 'approved' ? 'st-approved' : status === 'rejected' ? 'st-rejected' : 'st-pending';
-  return `<span class="status-pill small ${cls}">${label}</span>`;
+  const noteHtml = (status === 'rejected' && reviewComment)
+    ? `<span class="attr-review-comment">Admin: ${escapeHtml(reviewComment)}</span>`
+    : '';
+  return `<span class="status-pill small ${cls}">${label}</span>${noteHtml}`;
 }
 
 function isBucaAttrReason(r) {
   return /buca/i.test(String((r && (r.adjustmentReason || r.reason)) || ''));
 }
-function canEditAttrClientLink(r) {
-  if (!r || !isBucaAttrReason(r) || r.status === 'rejected') return false;
-  const email = (currentUserEmail() || '').toLowerCase();
-  if (!email) return false;
-  if (lastAttrIsAdmin) return true;
-  return String(r.repEmail || '').toLowerCase() === email;
+/** Membership units allowed on Manual Attribution: 0, 0.5, or 1. */
+function snapAttrMembers(value) {
+  const n = Math.round((Number(value) || 0) * 100) / 100;
+  if (n === 0.5 || n === 1 || n === 0) return n;
+  if (n > 0.75) return 1;
+  if (n > 0) return 0.5;
+  return 0;
 }
-/** Rep owns the row (self-submit or on-behalf under their name); admins/coaches delete any. */
-function canDeleteAttr(r) {
+function isAllowedAttrMembers(value) {
+  const n = Math.round((Number(value) || 0) * 100) / 100;
+  return n === 0 || n === 0.5 || n === 1;
+}
+function canEditAttrClientLink(r) {
+  // Approved BUCA rows: client-link-only edit. Pending/rejected use full Edit.
+  if (!r || !isBucaAttrReason(r) || r.status !== 'approved') return false;
+  return canOwnOrManageAttr(r);
+}
+/** Owner (self / on-behalf name) or admin/coach. */
+function canOwnOrManageAttr(r) {
   if (!r || !r.id) return false;
   if (lastAttrCanViewTeam) return true;
   const email = (currentUserEmail() || '').toLowerCase();
@@ -9343,12 +9564,25 @@ function canDeleteAttr(r) {
   if (me && String(r.repName || '') === me) return true;
   return false;
 }
+/** Full edit for pending/rejected adjustment requests. */
+function canEditAttrRequest(r) {
+  if (!canOwnOrManageAttr(r)) return false;
+  return r.status === 'pending' || r.status === 'rejected';
+}
+/** Rep owns the row (self-submit or on-behalf under their name); admins/coaches delete any. */
+function canDeleteAttr(r) {
+  return canOwnOrManageAttr(r);
+}
+function attrEditBtnHTML(r) {
+  if (!canEditAttrRequest(r)) return '';
+  return `<button type="button" class="theme-btn attr-edit-btn" data-edit-attr="${escapeAttr(r.id)}" title="Edit this adjustment request">Edit</button>`;
+}
 function attrDeleteBtnHTML(r) {
   if (!canDeleteAttr(r)) return '';
   return `<button type="button" class="attr-delete-btn" data-delete-attr="${escapeAttr(r.id)}" title="Delete this request" aria-label="Delete Manual Attribution request">🗑️</button>`;
 }
 function attrStatusCellHTML(r) {
-  return `<div class="attr-status-cell">${attrStatusPill(r.status)}${attrDeleteBtnHTML(r)}</div>`;
+  return `<div class="attr-status-cell">${attrStatusPill(r.status, r.reviewComment)}${attrEditBtnHTML(r)}${attrDeleteBtnHTML(r)}</div>`;
 }
 
 // Cached from the last successful /api/attributions/list fetch, so the month
@@ -9410,21 +9644,89 @@ function skeletonRowsHTML(rowCount, colCount) {
   return row.repeat(rowCount);
 }
 
+function pendingAttrRecords() {
+  return lastAttrRecords.filter((r) => r.status === 'pending');
+}
+function syncAttrApprovalsLaunchCard() {
+  const launch = document.getElementById('attrApprovalsLaunchCard');
+  const note = document.getElementById('attrApprovalsLaunchNote');
+  if (!launch) return;
+  const show = !!(lastAttrIsAdmin || isRealAdmin());
+  launch.style.display = show ? '' : 'none';
+  if (!show || !note) return;
+  const n = pendingAttrRecords().length;
+  note.textContent = n
+    ? `${n} request${n === 1 ? '' : 's'} waiting for review — open the dedicated approvals page (full page scroll, no nested box).`
+    : 'No pending requests right now. Open the approvals page anytime to check.';
+}
+function renderPendingApprovalsTable() {
+  const pendingBody = document.getElementById('pendingApprovalsBody');
+  const statusEl = document.getElementById('attrApprovalsStatus');
+  if (!pendingBody) return;
+  const pending = pendingAttrRecords();
+  if (statusEl) {
+    statusEl.textContent = pending.length
+      ? `${pending.length} pending · approve applies immediately; reject asks for a comment.`
+      : '';
+  }
+  pendingBody.innerHTML = pending.length ? pending.map((r) => `
+    <tr data-attr-id="${escapeAttr(r.id)}">
+      <td>${escapeHtml(r.repName || '—')}</td>
+      <td>${attrLinkCell(r)}</td>
+      <td>${escapeHtml(r.contact || '—')}</td>
+      <td>${fmt(r.sessions, 1)}</td>
+      <td>${fmt(r.members, 1)}</td>
+      <td>${escapeHtml(r.adjustmentReason || r.reason || '—')}</td>
+      <td style="max-width:260px; white-space:normal; text-align:left; font-weight:600;">${escapeHtml(r.comments || '')}</td>
+      <td>
+        <div class="attr-approvals-actions">
+          <button class="approve-btn" data-review="${escapeAttr(r.id)}" data-action="approve" type="button">Approve</button>
+          <button class="reject-btn" data-review="${escapeAttr(r.id)}" data-action="reject" type="button">Reject</button>
+          ${attrEditBtnHTML(r)}
+          ${attrDeleteBtnHTML(r)}
+        </div>
+      </td>
+    </tr>`).join('') : `<tr><td colspan="8" class="attr-approvals-empty">Nothing pending 🎉</td></tr>`;
+}
+function applyAttrRecordLocally(record) {
+  if (!record || !record.id) return;
+  const idx = lastAttrRecords.findIndex((r) => r.id === record.id);
+  if (idx >= 0) lastAttrRecords[idx] = Object.assign({}, lastAttrRecords[idx], record);
+  else lastAttrRecords.unshift(record);
+}
+async function refreshPendingApprovals() {
+  const pendingBody = document.getElementById('pendingApprovalsBody');
+  const statusEl = document.getElementById('attrApprovalsStatus');
+  if (!pendingBody) return;
+  if (!isRealAdmin()) {
+    pendingBody.innerHTML = `<tr><td colspan="8" class="attr-approvals-empty">Full admin access required.</td></tr>`;
+    return;
+  }
+  pendingBody.innerHTML = skeletonRowsHTML(3, 8);
+  if (statusEl) statusEl.textContent = 'Loading…';
+  try {
+    const { isAdmin, canViewTeam, records } = await authedFetch('/api/attributions/list');
+    lastAttrRecords = records;
+    lastAttrIsAdmin = !!isAdmin;
+    lastAttrCanViewTeam = canViewTeam !== undefined ? !!canViewTeam : !!isAdmin;
+    renderPendingApprovalsTable();
+    syncAttrApprovalsLaunchCard();
+  } catch (e) {
+    pendingBody.innerHTML = '';
+    if (statusEl) statusEl.textContent = e.message || 'Could not load pending approvals.';
+  }
+}
 async function refreshMyAttributions() {
   const user = window.netlifyIdentity && netlifyIdentity.currentUser();
   const tbody = document.getElementById('myAttributionsBody');
-  const adminCard = document.getElementById('adminApprovalsCard');
-  if (!user) { tbody.innerHTML = ''; adminCard.style.display = 'none'; return; }
-
-  // Show a skeleton instead of leaving the table blank while the real
-  // request list loads (a genuine network round-trip to a Netlify Function,
-  // not instant like everything else on this page). If the admin card was
-  // already visible from a previous load, skeleton its table too rather than
-  // leaving stale data up during the refetch.
-  tbody.innerHTML = skeletonRowsHTML(3, lastAttrCanViewTeam ? 7 : 6);
-  if (adminCard.style.display !== 'none') {
-    document.getElementById('pendingApprovalsBody').innerHTML = skeletonRowsHTML(2, 8);
+  const launch = document.getElementById('attrApprovalsLaunchCard');
+  if (!user) {
+    if (tbody) tbody.innerHTML = '';
+    if (launch) launch.style.display = 'none';
+    return;
   }
+
+  if (tbody) tbody.innerHTML = skeletonRowsHTML(3, lastAttrCanViewTeam ? 7 : 6);
 
   try {
     const { isAdmin, canViewTeam, records } = await authedFetch('/api/attributions/list');
@@ -9433,31 +9735,14 @@ async function refreshMyAttributions() {
     lastAttrCanViewTeam = canViewTeam !== undefined ? !!canViewTeam : !!isAdmin;
     populateAttrMonthFilter(records);
     renderMyAttributionsTable();
-
-    adminCard.style.display = lastAttrIsAdmin ? '' : 'none';
-    if (lastAttrIsAdmin) {
-      // Pending approvals stay unfiltered by month on purpose — an old pending
-      // request still needs action today regardless of when it was submitted.
-      const pending = records.filter(r => r.status === 'pending');
-      const pendingBody = document.getElementById('pendingApprovalsBody');
-      pendingBody.innerHTML = pending.length ? pending.map(r => `
-        <tr>
-          <td>${r.repName}</td>
-          <td>${attrLinkCell(r)}</td>
-          <td>${r.contact || '—'}</td>
-          <td>${fmt(r.sessions,1)}</td>
-          <td>${fmt(r.members,1)}</td>
-          <td>${r.adjustmentReason || r.reason || '—'}</td>
-          <td style="max-width:220px; white-space:normal;">${r.comments || ''}</td>
-          <td style="white-space:nowrap;">
-            <button class="approve-btn" data-review="${r.id}" data-action="approve" type="button">Approve</button>
-            <button class="reject-btn" data-review="${r.id}" data-action="reject" type="button">Reject</button>
-            ${attrDeleteBtnHTML(r)}
-          </td>
-        </tr>`).join('') : `<tr><td colspan="8" style="text-align:center; color:var(--text-faint); padding:16px 0;">Nothing pending 🎉</td></tr>`;
+    syncAttrApprovalsLaunchCard();
+    if (document.getElementById('attrApprovalsOverlay')?.classList.contains('open')) {
+      renderPendingApprovalsTable();
     }
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-faint); padding:16px 0;">${e.message}</td></tr>`;
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-faint); padding:16px 0;">${escapeHtml(e.message)}</td></tr>`;
+    }
   }
 }
 
@@ -9559,52 +9844,235 @@ document.addEventListener('click', (e) => {
   if (id) deleteAttributionRequest(id);
 });
 
-document.getElementById('pendingApprovalsBody').addEventListener('click', async (e) => {
+let attrRejectPendingId = '';
+function openAttrRejectModal(id) {
+  const record = lastAttrRecords.find((r) => r.id === id);
+  attrRejectPendingId = id;
+  const backdrop = document.getElementById('attrRejectBackdrop');
+  const summary = document.getElementById('attrRejectSummary');
+  const comment = document.getElementById('attrRejectComment');
+  const status = document.getElementById('attrRejectStatus');
+  if (summary) {
+    summary.textContent = record
+      ? `${record.repName || 'Rep'} · ${record.adjustmentReason || record.reason || 'Manual Attribution'} · ${fmt(record.sessions, 1)} sess / ${fmt(record.members, 1)} mem`
+      : 'Reject this Manual Attribution request.';
+  }
+  if (comment) comment.value = '';
+  if (status) { status.textContent = ''; status.style.color = ''; }
+  backdrop?.classList.add('open');
+  comment?.focus();
+}
+function closeAttrRejectModal() {
+  attrRejectPendingId = '';
+  document.getElementById('attrRejectBackdrop')?.classList.remove('open');
+}
+async function reviewAttributionRequest(id, action, comment) {
+  const { record } = await authedFetch('/api/attributions/review', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, action, comment: comment || '' }),
+  });
+  // Optimistic local update — Blob list lag used to leave the row "pending"
+  // until a second click. Apply the returned record immediately.
+  if (record) applyAttrRecordLocally(record);
+  else {
+    const hit = lastAttrRecords.find((r) => r.id === id);
+    if (hit) hit.status = action === 'approve' ? 'approved' : 'rejected';
+  }
+  renderPendingApprovalsTable();
+  renderMyAttributionsTable();
+  syncAttrApprovalsLaunchCard();
+  APPROVED_TOTALS = await fetchApprovedTotals();
+  if (typeof render === 'function') render();
+  // Background reconcile with server list (don't block UI).
+  refreshMyAttributions().catch(() => {});
+  return record;
+}
+
+document.getElementById('pendingApprovalsBody')?.addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-review]');
   if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const id = btn.getAttribute('data-review');
+  const action = btn.getAttribute('data-action');
+  if (!id || !action) return;
+  if (action === 'reject') {
+    openAttrRejectModal(id);
+    return;
+  }
   btn.disabled = true;
   try {
-    await authedFetch('/api/attributions/review', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: btn.getAttribute('data-review'), action: btn.getAttribute('data-action') }),
-    });
-    await refreshMyAttributions();
-    APPROVED_TOTALS = await fetchApprovedTotals();
-    render();
-  } catch (e) {
-    alert(e.message);
+    await reviewAttributionRequest(id, 'approve');
+  } catch (err) {
+    alert(err.message || 'Could not approve');
     btn.disabled = false;
+    renderPendingApprovalsTable();
   }
+});
+
+document.getElementById('attrRejectConfirm')?.addEventListener('click', async () => {
+  const status = document.getElementById('attrRejectStatus');
+  const comment = (document.getElementById('attrRejectComment')?.value || '').trim();
+  if (!attrRejectPendingId) return;
+  if (!comment) {
+    if (status) {
+      status.textContent = 'Add a short comment so the rep knows what to fix.';
+      status.style.color = '#dc2626';
+    }
+    document.getElementById('attrRejectComment')?.focus();
+    return;
+  }
+  const btn = document.getElementById('attrRejectConfirm');
+  if (btn) btn.disabled = true;
+  try {
+    await reviewAttributionRequest(attrRejectPendingId, 'reject', comment);
+    closeAttrRejectModal();
+  } catch (err) {
+    if (status) {
+      status.textContent = err.message || 'Could not reject';
+      status.style.color = '#dc2626';
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+});
+document.getElementById('attrRejectCancel')?.addEventListener('click', closeAttrRejectModal);
+document.getElementById('attrRejectBackdrop')?.addEventListener('click', (e) => {
+  if (e.target.id === 'attrRejectBackdrop') closeAttrRejectModal();
+});
+
+function clearAttrFieldHighlights(rootSelector) {
+  document.querySelectorAll(`${rootSelector} .attr-field-missing`).forEach((el) => {
+    el.classList.remove('attr-field-missing');
+  });
+}
+function clearAttrSubmitHighlights() {
+  clearAttrFieldHighlights('#attributionSignedInArea');
+}
+function markAttrFieldMissing(el) {
+  if (el) el.classList.add('attr-field-missing');
+}
+function validateManualAttrFields(opts) {
+  const {
+    rootSelector,
+    clientLinkId,
+    contactId,
+    sessionsId,
+    membersId,
+    reasonId,
+    commentsId,
+    unitsPairId,
+    clientLinkLabelId,
+    reasonLabelId,
+    commentsLabelId,
+    statusEl,
+    requireRep,
+    repSelectId,
+    repWrapId,
+  } = opts;
+
+  clearAttrFieldHighlights(rootSelector);
+  const clientLink = document.getElementById(clientLinkId).value.trim();
+  const contact = document.getElementById(contactId).value.trim();
+  const sessions = parseFloat(document.getElementById(sessionsId).value) || 0;
+  const membersRaw = document.getElementById(membersId).value;
+  const members = snapAttrMembers(membersRaw);
+  const adjustmentReason = document.getElementById(reasonId).value;
+  const comments = document.getElementById(commentsId).value.trim();
+  const selectedRep = requireRep ? (document.getElementById(repSelectId).value || '') : '';
+
+  const missing = [];
+  if (requireRep && !selectedRep) {
+    markAttrFieldMissing(document.getElementById(repWrapId));
+    missing.push('which rep this is for');
+  }
+  if (!clientLink) {
+    markAttrFieldMissing(document.getElementById(clientLinkLabelId));
+    missing.push('client page link');
+  }
+  if (!isAllowedAttrMembers(membersRaw)) {
+    markAttrFieldMissing(document.getElementById(unitsPairId));
+    missing.push('members (0, 0.5, or 1)');
+  } else if (!(members || sessions)) {
+    markAttrFieldMissing(document.getElementById(unitsPairId));
+    missing.push('sessions and/or members');
+  }
+  if (!adjustmentReason) {
+    markAttrFieldMissing(document.getElementById(reasonLabelId));
+    missing.push('adjustment reason');
+  }
+  if (!comments) {
+    markAttrFieldMissing(document.getElementById(commentsLabelId));
+    missing.push('comments');
+  }
+
+  if (missing.length) {
+    const first = document.querySelector(`${rootSelector} .attr-field-missing`);
+    first?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const focusable = first?.querySelector('input, select, textarea');
+    focusable?.focus();
+    if (statusEl) {
+      statusEl.textContent = 'Please complete: ' + missing.join(', ') + '.';
+      statusEl.style.color = '#dc2626';
+    }
+    return null;
+  }
+
+  return {
+    clientLink,
+    contact,
+    sessions,
+    members,
+    adjustmentReason,
+    comments,
+    selectedRep,
+  };
+}
+function validateManualAttrSubmit() {
+  const statusEl = document.getElementById('attrSubmitStatus');
+  const onBehalf = canViewTeamDetails();
+  const validated = validateManualAttrFields({
+    rootSelector: '#attributionSignedInArea',
+    clientLinkId: 'attrClientLink',
+    contactId: 'attrContact',
+    sessionsId: 'attrSessions',
+    membersId: 'attrMembers',
+    reasonId: 'attrReasonSelect',
+    commentsId: 'attrComments',
+    unitsPairId: 'attrUnitsPair',
+    clientLinkLabelId: 'attrClientLinkLabel',
+    reasonLabelId: 'attrReasonLabel',
+    commentsLabelId: 'attrCommentsLabel',
+    statusEl,
+    requireRep: onBehalf,
+    repSelectId: 'attrRepSelect',
+    repWrapId: 'attrRepSelectWrap',
+  });
+  if (!validated) return null;
+  return { ...validated, onBehalf };
+}
+['attrClientLink', 'attrContact', 'attrSessions', 'attrMembers', 'attrReasonSelect', 'attrComments', 'attrRepSelect'].forEach((id) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const clear = () => {
+    el.closest('label')?.classList.remove('attr-field-missing');
+    if (id === 'attrSessions' || id === 'attrMembers') {
+      document.getElementById('attrUnitsPair')?.classList.remove('attr-field-missing');
+    }
+    if (id === 'attrRepSelect') {
+      document.getElementById('attrRepSelectWrap')?.classList.remove('attr-field-missing');
+    }
+  };
+  el.addEventListener('input', clear);
+  el.addEventListener('change', clear);
 });
 
 document.getElementById('submitAttribution').addEventListener('click', async () => {
   const statusEl = document.getElementById('attrSubmitStatus');
-  const payload = {
-    clientLink: document.getElementById('attrClientLink').value.trim(),
-    contact: document.getElementById('attrContact').value.trim(),
-    sessions: parseFloat(document.getElementById('attrSessions').value) || 0,
-    members: parseFloat(document.getElementById('attrMembers').value) || 0,
-    adjustmentReason: document.getElementById('attrReasonSelect').value,
-    comments: document.getElementById('attrComments').value.trim(),
-  };
-  if (!payload.clientLink || !payload.adjustmentReason || !payload.comments) {
-    statusEl.textContent = 'Please fill in the client page link, an adjustment reason, and comments.';
-    statusEl.style.color = '#dc2626';
-    return;
-  }
-  if (!(payload.members || payload.sessions)) {
-    statusEl.textContent = 'Enter sessions and/or members to credit.';
-    statusEl.style.color = '#dc2626';
-    return;
-  }
-  const onBehalf = canViewTeamDetails();
-  const selectedRep = onBehalf ? (document.getElementById('attrRepSelect').value || '') : '';
-  if (onBehalf && !selectedRep) {
-    statusEl.textContent = 'Select which rep this request is for.';
-    statusEl.style.color = '#dc2626';
-    return;
-  }
+  const validated = validateManualAttrSubmit();
+  if (!validated) return;
+  const { onBehalf, selectedRep, ...payload } = validated;
   try {
     if (onBehalf) {
       await submitAttributionAsAdmin({
@@ -9622,10 +10090,11 @@ document.getElementById('submitAttribution').addEventListener('click', async () 
       statusEl.textContent = 'Request submitted — pending admin approval.';
     }
     statusEl.style.color = '#16a34a';
+    clearAttrSubmitHighlights();
     document.getElementById('attrClientLink').value = '';
     document.getElementById('attrContact').value = '';
     document.getElementById('attrSessions').value = 0;
-    document.getElementById('attrMembers').value = 0;
+    document.getElementById('attrMembers').value = '0';
     document.getElementById('attrReasonSelect').value = '';
     document.getElementById('attrComments').value = '';
     refreshMyAttributions();
@@ -9633,6 +10102,127 @@ document.getElementById('submitAttribution').addEventListener('click', async () 
     statusEl.textContent = 'Error: ' + e.message;
     statusEl.style.color = '#dc2626';
   }
+});
+
+let attrEditPendingId = '';
+function openAttrEditModal(id) {
+  const record = lastAttrRecords.find((r) => r.id === id);
+  if (!record || !canEditAttrRequest(record)) {
+    alert('This request can’t be edited.');
+    return;
+  }
+  attrEditPendingId = id;
+  const backdrop = document.getElementById('attrEditBackdrop');
+  const summary = document.getElementById('attrEditSummary');
+  const resubmitNote = document.getElementById('attrEditResubmitNote');
+  const status = document.getElementById('attrEditStatus');
+  if (summary) {
+    summary.textContent = `${record.repName || 'Rep'} · currently ${record.status || 'pending'}`;
+  }
+  if (resubmitNote) resubmitNote.style.display = record.status === 'rejected' ? '' : 'none';
+  document.getElementById('attrEditClientLink').value = record.clientLink || '';
+  document.getElementById('attrEditContact').value = record.contact || '';
+  document.getElementById('attrEditSessions').value = Number(record.sessions) || 0;
+  document.getElementById('attrEditMembers').value = String(snapAttrMembers(record.members));
+  const reason = record.adjustmentReason || record.reason || '';
+  const reasonSel = document.getElementById('attrEditReasonSelect');
+  if (reasonSel) {
+    const hasOpt = Array.from(reasonSel.options).some((o) => o.value === reason);
+    if (reason && !hasOpt) {
+      const opt = document.createElement('option');
+      opt.value = reason;
+      opt.textContent = reason;
+      reasonSel.appendChild(opt);
+    }
+    reasonSel.value = reason;
+  }
+  document.getElementById('attrEditComments').value = record.comments || '';
+  if (status) { status.textContent = ''; status.style.color = ''; }
+  clearAttrFieldHighlights('#attrEditFormArea');
+  backdrop?.classList.add('open');
+  document.getElementById('attrEditClientLink')?.focus();
+}
+function closeAttrEditModal() {
+  attrEditPendingId = '';
+  document.getElementById('attrEditBackdrop')?.classList.remove('open');
+}
+function validateManualAttrEdit() {
+  return validateManualAttrFields({
+    rootSelector: '#attrEditFormArea',
+    clientLinkId: 'attrEditClientLink',
+    contactId: 'attrEditContact',
+    sessionsId: 'attrEditSessions',
+    membersId: 'attrEditMembers',
+    reasonId: 'attrEditReasonSelect',
+    commentsId: 'attrEditComments',
+    unitsPairId: 'attrEditUnitsPair',
+    clientLinkLabelId: 'attrEditClientLinkLabel',
+    reasonLabelId: 'attrEditReasonLabel',
+    commentsLabelId: 'attrEditCommentsLabel',
+    statusEl: document.getElementById('attrEditStatus'),
+    requireRep: false,
+  });
+}
+['attrEditClientLink', 'attrEditContact', 'attrEditSessions', 'attrEditMembers', 'attrEditReasonSelect', 'attrEditComments'].forEach((id) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const clear = () => {
+    el.closest('label')?.classList.remove('attr-field-missing');
+    if (id === 'attrEditSessions' || id === 'attrEditMembers') {
+      document.getElementById('attrEditUnitsPair')?.classList.remove('attr-field-missing');
+    }
+  };
+  el.addEventListener('input', clear);
+  el.addEventListener('change', clear);
+});
+document.getElementById('attrEditSave')?.addEventListener('click', async () => {
+  const status = document.getElementById('attrEditStatus');
+  const validated = validateManualAttrEdit();
+  if (!validated || !attrEditPendingId) return;
+  const btn = document.getElementById('attrEditSave');
+  if (btn) btn.disabled = true;
+  try {
+    const { record } = await authedFetch('/api/attributions/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: attrEditPendingId, ...validated }),
+    });
+    applyAttrRecordLocally(record);
+    closeAttrEditModal();
+    renderMyAttributionsTable();
+    syncAttrApprovalsLaunchCard();
+    if (document.getElementById('attrApprovalsOverlay')?.classList.contains('open')) {
+      renderPendingApprovalsTable();
+    }
+    if (document.getElementById('teamDetailsOverlay')?.classList.contains('open')) {
+      await refreshTeamAttributions();
+    }
+    if (document.getElementById('clientDetailOverlay')?.classList.contains('open')) {
+      const rep = currentBonusRep || activityFilterRep;
+      if (rep) await refreshDetailAttributions(rep);
+    }
+    // Background refresh in case Blob list lags.
+    refreshMyAttributions();
+  } catch (err) {
+    if (status) {
+      status.textContent = err.message || 'Could not save changes';
+      status.style.color = '#dc2626';
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+});
+document.getElementById('attrEditCancel')?.addEventListener('click', closeAttrEditModal);
+document.getElementById('attrEditBackdrop')?.addEventListener('click', (e) => {
+  if (e.target.id === 'attrEditBackdrop') closeAttrEditModal();
+});
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-edit-attr]');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const id = btn.getAttribute('data-edit-attr');
+  if (id) openAttrEditModal(id);
 });
 
 // ---------- Personal month goals (rep-set stretch targets) ----------
@@ -10494,6 +11084,8 @@ async function boot() {
   initSip();
   renderClientDetail();
   renderTeamDetailsOverlay();
+  if (typeof renderManualAttroPage === 'function') renderManualAttroPage();
+  if (typeof renderAttrApprovalsPage === 'function') renderAttrApprovalsPage();
   if (!isUxPreviewMode()) startLiveActualsPolling();
   startTeamCalendarWatch();
   maybeStartGuidedTour();
@@ -10540,16 +11132,19 @@ function dismissTourBlockingPopups() {
   [
     'celebrationModalBackdrop', 'shoutoutCelebrationBackdrop',
     'personalGoalGateBackdrop', 'lwomPaceBackdrop', 'rampCheckBackdrop',
-    'shoutoutSendBackdrop',
+    'shoutoutSendBackdrop', 'attrRejectBackdrop', 'attrEditBackdrop',
+    'cancelConvertBackdrop',
   ].forEach((id) => document.getElementById(id)?.classList.remove('open'));
   document.querySelectorAll('.header-dropdown-menu.open').forEach((m) => m.classList.remove('open'));
 }
 function closeAllTourOverlays() {
   dismissTourBlockingPopups();
   [
-    'clientDetailOverlay', 'manualAttroOverlay', 'goalsOverlay',
+    'clientDetailOverlay', 'manualAttroOverlay', 'attrApprovalsOverlay', 'goalsOverlay',
     'adminSettingsOverlay', 'sipOverlay', 'teamDetailsOverlay',
   ].forEach((id) => document.getElementById(id)?.classList.remove('open'));
+  document.getElementById('attrRejectBackdrop')?.classList.remove('open');
+  document.getElementById('attrEditBackdrop')?.classList.remove('open');
   if (typeof syncOverlayBodyScroll === 'function') syncOverlayBodyScroll();
 }
 async function waitForQuietUi(timeoutMs) {
