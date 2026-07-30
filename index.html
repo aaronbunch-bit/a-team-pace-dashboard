@@ -213,6 +213,7 @@
       </div>
       <div class="culture-card" id="recognitionWallCard">
         <div class="culture-card-title">Recognition wall</div>
+        <p class="recognition-wall-tagline">One win at a time — today’s shoutouts and badges, on rotate.</p>
         <div id="recognitionWallBody"></div>
       </div>
     </div>
@@ -600,11 +601,13 @@
         </select>
         <span class="contest-field-hint">What counts as score, wheel tickets, or a Deal sale credit.</span>
       </label>
-      <label>Start
+      <label>Start (Central Time)
         <input type="datetime-local" id="contestEditStart">
+        <span class="contest-field-hint">Schedule ahead — countdown shows “Starts in…” until this time.</span>
       </label>
-      <label>End
+      <label>End (Central Time)
         <input type="datetime-local" id="contestEditEnd">
+        <span class="contest-field-hint">Once live, countdown switches to time left until End.</span>
       </label>
       <label>Stake
         <select id="contestEditStakeType">
@@ -2842,11 +2845,16 @@ function recognitionAutoBadgeItems() {
   });
   return items;
 }
-function buildRecognitionFeed(limit) {
-  const cap = limit || 5;
-  const byRecency = (a, b) => String(b.sortKey || '').localeCompare(String(a.sortKey || ''))
+function recognitionItemKey(it) {
+  return `${it.type}|${it.rep}|${it.text}|${it.dateLabel || ''}|${it.from || ''}`;
+}
+function recognitionByRecency(a, b) {
+  return String(b.sortKey || '').localeCompare(String(a.sortKey || ''))
     || String(a.rep || '').localeCompare(String(b.rep || ''))
     || String(a.text || '').localeCompare(String(b.text || ''));
+}
+/** All public shoutouts + badges for the feed (no cap). */
+function buildRecognitionFeed(limit) {
   const shoutouts = allShoutoutsFlat()
     .filter((it) => !it.hidden)
     .map((it) => ({
@@ -2857,21 +2865,28 @@ function buildRecognitionFeed(limit) {
       from: it.from || '',
       text: it.text || '',
     }));
-  // Prefer dated shoutouts + coach-assigned badges so auto badges don't flood
-  // the wall; fill remaining slots with currently earned auto badges.
-  const timed = shoutouts.concat(recognitionManualBadgeItems()).sort(byRecency);
-  const out = timed.slice(0, cap);
-  if (out.length < cap) {
-    const used = new Set(out.map((i) => `${i.type}|${i.rep}|${i.text}`));
-    recognitionAutoBadgeItems().sort(byRecency).forEach((item) => {
-      if (out.length >= cap) return;
-      const key = `${item.type}|${item.rep}|${item.text}`;
-      if (used.has(key)) return;
-      used.add(key);
-      out.push(item);
-    });
-  }
-  return out.sort(byRecency);
+  const timed = shoutouts.concat(recognitionManualBadgeItems()).sort(recognitionByRecency);
+  const used = new Set(timed.map(recognitionItemKey));
+  const autos = [];
+  recognitionAutoBadgeItems().sort(recognitionByRecency).forEach((item) => {
+    const key = recognitionItemKey(item);
+    if (used.has(key)) return;
+    used.add(key);
+    autos.push(item);
+  });
+  const all = timed.concat(autos).sort(recognitionByRecency);
+  return typeof limit === 'number' ? all.slice(0, limit) : all;
+}
+/** Today's congratulations only — what the wall rotates through. */
+function buildTodayRecognitionFeed() {
+  const today = (typeof badgeTodayYmd === 'function' && badgeTodayYmd())
+    || (typeof teamTodayYmd === 'function' && teamTodayYmd())
+    || '';
+  const all = buildRecognitionFeed();
+  if (!today) return all;
+  const todays = all.filter((it) => String(it.dateLabel || '').slice(0, 10) === today);
+  // If nothing dated today yet, still rotate recent wins so the wall isn't empty mid-day.
+  return todays.length ? todays : all.slice(0, 8);
 }
 function openShoutoutForRep(repDisplay) {
   const btn = document.getElementById('shoutoutSendBtn');
@@ -2886,42 +2901,125 @@ function openShoutoutForRep(repDisplay) {
   });
   if (hit) sel.value = hit.value;
 }
-function renderRecognitionWall() {
-  const host = document.getElementById('recognitionWallBody');
-  if (!host) return;
-  const items = buildRecognitionFeed(6);
-  if (!items.length) {
-    host.innerHTML = `
-      <div class="recognition-wall-empty">
-        <p>No recognition yet. Send a shoutout or earn a badge — wins show up here for the crew.</p>
-        <button type="button" class="theme-btn" id="recognitionWallPromptBtn">📣 Send a shoutout</button>
-      </div>`;
-    const btn = document.getElementById('recognitionWallPromptBtn');
-    if (btn) btn.addEventListener('click', () => document.getElementById('shoutoutSendBtn')?.click());
-    return;
+let recognitionWallRotateTimer = 0;
+let recognitionWallRotateIdx = 0;
+let recognitionWallItemsCache = [];
+const RECOGNITION_WALL_ROTATE_MS = 5500;
+function stopRecognitionWallRotation() {
+  if (recognitionWallRotateTimer) {
+    window.clearInterval(recognitionWallRotateTimer);
+    recognitionWallRotateTimer = 0;
   }
-  host.innerHTML = items.map((it) => {
-    const typeLabel = it.type === 'badge' ? 'Badge' : 'Shoutout';
-    const typeCls = it.type === 'badge' ? 'is-badge' : 'is-shoutout';
-    const who = it.type === 'badge'
-      ? `${escapeHtml(it.rep)}${it.from ? ` · from ${escapeHtml(it.from)}` : ''}`
-      : `to ${escapeHtml(it.rep)}${it.from ? ` · from ${escapeHtml(it.from)}` : ''}`;
-    const cheerLabel = it.type === 'badge' ? 'Congratulate' : 'Cheer too';
-    return `
-    <div class="recognition-wall-item ${typeCls}">
+}
+function recognitionSpotlightHTML(it, idx, total) {
+  if (!it) return '';
+  const typeLabel = it.type === 'badge' ? 'Badge' : 'Shoutout';
+  const typeCls = it.type === 'badge' ? 'is-badge' : 'is-shoutout';
+  const fromLine = it.from
+    ? (it.type === 'badge' ? `from ${escapeHtml(it.from)}` : `from ${escapeHtml(it.from)}`)
+    : (it.type === 'badge' ? 'Earned today' : 'Team shoutout');
+  const cheerLabel = it.type === 'badge' ? 'Congratulate' : 'Cheer too';
+  const dots = total > 1
+    ? `<div class="recognition-wall-dots" aria-hidden="true">${Array.from({ length: total }, (_, i) =>
+        `<span class="recognition-wall-dot${i === idx ? ' is-active' : ''}"></span>`
+      ).join('')}</div>`
+    : '';
+  return `
+    <div class="recognition-wall-spotlight ${typeCls}" data-recog-idx="${idx}">
       <div class="recognition-wall-meta">
         <span class="recognition-wall-type ${typeCls}">${typeLabel}</span>
-        <span>${escapeHtml(it.dateLabel || '')} · ${who}</span>
+        <span class="recognition-wall-count">${idx + 1} of ${total}</span>
       </div>
+      <div class="recognition-wall-name">${escapeHtml(it.rep || '')}</div>
       <div class="recognition-wall-text">${escapeHtml(it.text)}</div>
+      <div class="recognition-wall-from">${fromLine}</div>
+      ${dots}
       <div class="recognition-wall-actions">
         <button type="button" class="theme-btn" data-recog-cheer="${escapeAttr(it.rep)}">📣 ${cheerLabel}</button>
       </div>
     </div>`;
-  }).join('');
-  host.querySelectorAll('[data-recog-cheer]').forEach((btn) => {
-    btn.addEventListener('click', () => openShoutoutForRep(btn.getAttribute('data-recog-cheer')));
+}
+function paintRecognitionSpotlight() {
+  const stage = document.getElementById('recognitionWallStage');
+  if (!stage) return;
+  const items = recognitionWallItemsCache;
+  if (!items.length) return;
+  const idx = ((recognitionWallRotateIdx % items.length) + items.length) % items.length;
+  const prev = stage.querySelector('.recognition-wall-spotlight');
+  const html = recognitionSpotlightHTML(items[idx], idx, items.length);
+  if (prev && !document.body.classList.contains('motion-static')) {
+    prev.classList.add('is-leaving');
+    window.setTimeout(() => {
+      stage.innerHTML = html;
+      const next = stage.querySelector('.recognition-wall-spotlight');
+      if (next) next.classList.add('is-entering');
+      stage.querySelectorAll('[data-recog-cheer]').forEach((btn) => {
+        btn.addEventListener('click', () => openShoutoutForRep(btn.getAttribute('data-recog-cheer')));
+      });
+    }, 220);
+  } else {
+    stage.innerHTML = html;
+    stage.querySelectorAll('[data-recog-cheer]').forEach((btn) => {
+      btn.addEventListener('click', () => openShoutoutForRep(btn.getAttribute('data-recog-cheer')));
+    });
+  }
+}
+function startRecognitionWallRotation() {
+  stopRecognitionWallRotation();
+  if (recognitionWallItemsCache.length <= 1) return;
+  if (document.body.classList.contains('motion-static')) return;
+  recognitionWallRotateTimer = window.setInterval(() => {
+    if (!document.getElementById('recognitionWallStage')) {
+      stopRecognitionWallRotation();
+      return;
+    }
+    recognitionWallRotateIdx = (recognitionWallRotateIdx + 1) % recognitionWallItemsCache.length;
+    paintRecognitionSpotlight();
+  }, RECOGNITION_WALL_ROTATE_MS);
+}
+function recognitionWallShoutoutCtaHTML() {
+  return `
+    <div class="recognition-wall-cta">
+      <p class="recognition-wall-cta-tagline">Got a win to share? Shout someone out — it’ll land on the wall.</p>
+      <button type="button" class="theme-btn recognition-wall-shout-btn" id="recognitionWallShoutBtn">📣 Shoutout someone</button>
+    </div>`;
+}
+function bindRecognitionWallShoutBtn() {
+  const btn = document.getElementById('recognitionWallShoutBtn');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const spotlight = recognitionWallItemsCache[recognitionWallRotateIdx];
+    if (spotlight && spotlight.rep) openShoutoutForRep(spotlight.rep);
+    else document.getElementById('shoutoutSendBtn')?.click();
   });
+}
+function renderRecognitionWall() {
+  const host = document.getElementById('recognitionWallBody');
+  if (!host) return;
+  const prevKey = recognitionWallItemsCache[recognitionWallRotateIdx]
+    ? recognitionItemKey(recognitionWallItemsCache[recognitionWallRotateIdx])
+    : '';
+  const items = buildTodayRecognitionFeed();
+  recognitionWallItemsCache = items;
+  if (!items.length) {
+    stopRecognitionWallRotation();
+    recognitionWallRotateIdx = 0;
+    host.innerHTML = `
+      <div class="recognition-wall-empty">
+        <p>No congratulations yet today. Be the first to send one.</p>
+      </div>
+      ${recognitionWallShoutoutCtaHTML()}`;
+    bindRecognitionWallShoutBtn();
+    return;
+  }
+  const keepIdx = prevKey ? items.findIndex((it) => recognitionItemKey(it) === prevKey) : -1;
+  recognitionWallRotateIdx = keepIdx >= 0 ? keepIdx : 0;
+  host.innerHTML = `
+    <div class="recognition-wall-stage" id="recognitionWallStage" aria-live="polite"></div>
+    ${recognitionWallShoutoutCtaHTML()}`;
+  paintRecognitionSpotlight();
+  bindRecognitionWallShoutBtn();
+  startRecognitionWallRotation();
 }
 // Back-compat alias — older call sites / tours may still say "shoutout wall".
 function renderShoutoutWall() { renderRecognitionWall(); }
@@ -6054,25 +6152,86 @@ function contestCanManage() {
   if (typeof getViewAsRepRaw === 'function' && getViewAsRepRaw()) return false;
   return !!(CONTEST_CAN_MANAGE || (typeof canViewTeamDetails === 'function' && canViewTeamDetails()));
 }
+/** Contest wall-clock parts in America/Chicago (matches team calendar). */
+function contestCentralParts(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return null;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: typeof TEAM_TIME_ZONE !== 'undefined' ? TEAM_TIME_ZONE : 'America/Chicago',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(d);
+  const get = (type) => Number((parts.find((p) => p.type === type) || {}).value);
+  return {
+    y: get('year'),
+    m: get('month'),
+    d: get('day'),
+    hh: get('hour'),
+    mm: get('minute'),
+    ss: get('second'),
+  };
+}
+/** datetime-local value from an ISO instant, shown in Central Time. */
 function contestIsoToLocalInput(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
+  const parts = contestCentralParts(iso);
+  if (!parts) return '';
   const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${parts.y}-${pad(parts.m)}-${pad(parts.d)}T${pad(parts.hh)}:${pad(parts.mm)}`;
 }
+/**
+ * Interpret datetime-local as America/Chicago wall time → UTC ISO.
+ * Avoids browser-local skew so “schedule for 2pm” means 2pm Central.
+ */
 function contestLocalInputToIso(value) {
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? '' : d.toISOString();
+  const raw = String(value || '').trim();
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!m) {
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? '' : d.toISOString();
+  }
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const hh = Number(m[4]);
+  const mm = Number(m[5]);
+  // Guess UTC, then correct until Central parts match the requested wall time.
+  let utcMs = Date.UTC(y, mo - 1, d, hh, mm, 0);
+  for (let i = 0; i < 4; i++) {
+    const parts = contestCentralParts(new Date(utcMs));
+    if (!parts) break;
+    const asUtc = Date.UTC(parts.y, parts.m - 1, parts.d, parts.hh, parts.mm, 0);
+    const wanted = Date.UTC(y, mo - 1, d, hh, mm, 0);
+    const delta = wanted - asUtc;
+    if (delta === 0) break;
+    utcMs += delta;
+  }
+  return new Date(utcMs).toISOString();
 }
-function contestDurationWindow(duration) {
-  const now = new Date();
-  const start = new Date(now);
-  const end = new Date(now);
+function contestDurationMinutes(duration) {
   const map = { '2m': 2, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '2h': 120, '4h': 240 };
-  const mins = map[duration] || 60;
-  end.setMinutes(end.getMinutes() + mins);
+  return map[duration] || null;
+}
+function contestDurationWindow(duration, fromStartIso) {
+  const mins = contestDurationMinutes(duration) || 60;
+  const startMs = fromStartIso ? Date.parse(fromStartIso) : Date.now();
+  const start = new Date(Number.isFinite(startMs) ? startMs : Date.now());
+  const end = new Date(start.getTime() + mins * 60000);
   return { startAt: start.toISOString(), endAt: end.toISOString() };
+}
+/** Keep End = Start + duration when a preset duration is selected. */
+function syncContestEndFromStartAndDuration() {
+  const duration = document.getElementById('contestEditDuration')?.value || '1h';
+  const mins = contestDurationMinutes(duration);
+  if (!mins) return;
+  const startVal = document.getElementById('contestEditStart')?.value;
+  if (!startVal) return;
+  const startIso = contestLocalInputToIso(startVal);
+  if (!startIso) return;
+  const end = new Date(Date.parse(startIso) + mins * 60000);
+  const endEl = document.getElementById('contestEditEnd');
+  if (endEl) endEl.value = contestIsoToLocalInput(end.toISOString());
 }
 /** Infer a duration select value from an existing start/end window. */
 function contestInferDuration(startAt, endAt) {
@@ -6327,7 +6486,7 @@ function contestCountdownLabel(contest) {
 }
 /**
  * Countdown text for a contest.
- * Scheduled → time until start; active → time left until end.
+ * Scheduled → time until startAt; active → time left until endAt.
  * Accepts a contest object, or a legacy endAt ISO string.
  */
 function contestCountdownHTML(contestOrEndAt, opts) {
@@ -6340,13 +6499,13 @@ function contestCountdownHTML(contestOrEndAt, opts) {
       const ms = Date.parse(contest.startAt) - Date.now();
       const dur = formatContestCountdownMs(ms);
       if (!dur) return 'Starting…';
-      return compact ? `Starts ${dur}` : dur;
+      // Sticky has no separate label — keep the verb in the value.
+      return compact ? `Starts in ${dur}` : dur;
     }
     const ms = Date.parse(contest.endAt) - Date.now();
     const dur = formatContestCountdownMs(ms);
     if (!dur) return 'Ending…';
-    // Keep sticky compact; arena shows the "Time left" label separately.
-    if (compact && dur.includes('d')) return `${dur} left`;
+    if (compact) return dur.includes('d') ? `${dur} left` : `${dur} left`;
     return dur;
   }
   // Legacy: endAt string only (treat as active countdown to end).
@@ -6356,6 +6515,12 @@ function contestCountdownHTML(contestOrEndAt, opts) {
   if (ms <= 0) return 'Ended';
   const dur = formatContestCountdownMs(ms);
   return dur || 'Ended';
+}
+function contestLiveStatusLabel(contest) {
+  const phase = contestCountdownPhase(contest);
+  if (phase === 'ended') return 'Ended';
+  if (phase === 'scheduled') return 'Starts soon';
+  return 'Live';
 }
 function setContestArenaTab(tab) {
   contestArenaTab = tab === 'history' ? 'history' : 'live';
@@ -6391,19 +6556,22 @@ function syncContestStickyOffset() {
 function contestStickyBarHTML(c) {
   const standings = computeContestStandings(c);
   const place = contestMyPlace(c, standings);
-  const placeVal = c.status === 'scheduled' ? 'Soon' : contestPlaceLabel(place);
+  const phase = contestCountdownPhase(c);
+  const placeVal = phase === 'scheduled' ? 'Soon' : contestPlaceLabel(place);
   const modeLabel = contestModeLabel(c.mode);
   const leader = standings[0];
   const mascot = contestThemeIcon(c);
-  const liveLabel = c.status === 'scheduled' ? 'Soon' : 'Live';
+  const liveLabel = contestLiveStatusLabel(c);
   const metaBits = [
     modeLabel,
     contestStakeLabel(c),
-    leader ? `Lead: ${leader.repName}` : 'Track’s open',
+    phase === 'scheduled'
+      ? `Begins ${contestFormatWhen(c.startAt)}`
+      : (leader ? `Lead: ${leader.repName}` : 'Track’s open'),
   ].filter(Boolean).join(' · ');
   return `
     <div class="contest-sticky-bar ${contestThemeClass(c)}" data-contest-banner="${escapeAttr(c.id)}" data-view-contest="${escapeAttr(c.id)}" role="button" tabindex="0">
-      <span class="contest-sticky-live">${escapeHtml(liveLabel)}</span>
+      <span class="contest-sticky-live" data-contest-live="${escapeAttr(c.id)}">${escapeHtml(liveLabel)}</span>
       <span class="contest-sticky-mascot" aria-hidden="true">${escapeHtml(mascot)}</span>
       <div class="contest-sticky-copy">
         <h3 class="contest-sticky-name">${escapeHtml(c.name || 'Contest')}${c.isTest ? ' · Test' : ''}</h3>
@@ -7079,14 +7247,18 @@ function contestBoardHTML(contest) {
       <div class="meta-note" id="contestManualStatus" style="margin-top:6px;"></div>
     </div>` : '';
 
-  const livePill = contest.status === 'active'
-    ? '<span class="contest-live-pill">Live</span>'
-    : contest.status === 'ended'
+  const phase = contestCountdownPhase(contest);
+  const livePill = phase === 'active'
+    ? '<span class="contest-live-pill" data-contest-live="' + escapeAttr(contest.id) + '">Live</span>'
+    : phase === 'ended'
       ? '<span class="contest-chip"><strong>Final results</strong></span>'
-      : `<span class="contest-chip"><strong>${escapeHtml(contest.status)}</strong></span>`;
+      : '<span class="contest-chip" data-contest-live="' + escapeAttr(contest.id) + '"><strong>Scheduled</strong></span>';
 
-  const frozenNote = contest.status === 'ended' && Array.isArray(contest.finalStandings) && contest.finalStandings.length
+  const frozenNote = phase === 'ended' && Array.isArray(contest.finalStandings) && contest.finalStandings.length
     ? '<div class="meta-note" style="margin-top:8px;">Leaderboard frozen at contest end.</div>'
+    : '';
+  const scheduleNote = phase === 'scheduled'
+    ? `<div class="meta-note" style="margin-top:8px;">Begins ${escapeHtml(contestFormatWhen(contest.startAt))} CT · ends ${escapeHtml(contestFormatWhen(contest.endAt))} CT</div>`
     : '';
 
   return `
@@ -7110,14 +7282,15 @@ function contestBoardHTML(contest) {
         <span class="contest-chip hot"><strong>${escapeHtml(contestModeLabel(contest.mode))}</strong></span>
         <span class="contest-chip hot"><strong>${escapeHtml(contestUnitsLabel(contest.units))}</strong></span>
         <span class="contest-chip hot"><strong>${escapeHtml(contestStakeLabel(contest))}</strong></span>
-        <span class="contest-chip">Your place <strong>${escapeHtml(contest.status === 'scheduled' ? 'Soon' : contestPlaceLabel(myPlace))}</strong></span>
+        <span class="contest-chip">Your place <strong>${escapeHtml(phase === 'scheduled' ? 'Soon' : contestPlaceLabel(myPlace))}</strong></span>
         ${contest.raceGoal ? `<span class="contest-chip">Goal <strong>${fmt(contest.raceGoal, 1)}</strong></span>` : ''}
         ${mode === 'wheel' && contest.wheelSpin ? `<span class="contest-chip">Winner <strong>${escapeHtml(contest.wheelSpin.winner)}</strong></span>` : ''}
         ${mode === 'deal' && contestDealRankRows(contest)[0] ? `<span class="contest-chip">Best case <strong>$${fmt(contestDealRankRows(contest)[0].best, 0)}</strong></span>` : ''}
       </div>
       ${frozenNote}
+      ${scheduleNote}
     </div>
-    ${contest.status === 'ended' ? contestRecapBannerHTML(contest) : ''}
+    ${phase === 'ended' ? contestRecapBannerHTML(contest) : ''}
     ${boardBlock}
     ${coachPanel}`;
 }
@@ -7194,10 +7367,15 @@ function populateContestDealPickRepSelect() {
   sel.innerHTML = roster.map((r) => `<option value="${escapeAttr(r.display)}">${escapeHtml(r.display)}</option>`).join('');
 }
 function tickContestCountdowns() {
+  let phaseFlip = false;
   document.querySelectorAll('[data-contest-cd]').forEach((el) => {
     const id = el.getAttribute('data-contest-cd');
     const c = CONTEST_CACHE.find((x) => x.id === id);
     if (!c) return;
+    const prev = el.getAttribute('data-contest-phase') || '';
+    const phase = contestCountdownPhase(c);
+    if (prev && prev !== phase) phaseFlip = true;
+    el.setAttribute('data-contest-phase', phase);
     const compact = el.classList.contains('contest-sticky-cd');
     el.textContent = contestCountdownHTML(c, { compact });
   });
@@ -7206,6 +7384,31 @@ function tickContestCountdowns() {
     const c = CONTEST_CACHE.find((x) => x.id === id);
     if (c) el.textContent = contestCountdownLabel(c);
   });
+  document.querySelectorAll('[data-contest-live]').forEach((el) => {
+    const id = el.getAttribute('data-contest-live');
+    const c = CONTEST_CACHE.find((x) => x.id === id);
+    if (!c) return;
+    const phase = contestCountdownPhase(c);
+    const label = contestLiveStatusLabel(c);
+    if (el.classList.contains('contest-live-pill') || el.classList.contains('contest-sticky-live')) {
+      el.textContent = label === 'Starts soon' ? (el.classList.contains('contest-sticky-live') ? 'Soon' : 'Scheduled') : label;
+      if (phase === 'active' && el.classList.contains('contest-chip')) {
+        el.className = 'contest-live-pill';
+        el.removeAttribute('data-contest-live'); // will be restored on next full render
+        el.setAttribute('data-contest-live', id);
+        el.textContent = 'Live';
+      }
+    } else {
+      el.innerHTML = `<strong>${escapeHtml(phase === 'scheduled' ? 'Scheduled' : label)}</strong>`;
+    }
+  });
+  // When a contest flips scheduled → live, refresh board/banners once for status chrome.
+  if (phaseFlip) {
+    if (typeof renderContestPromoBanners === 'function') renderContestPromoBanners();
+    if (document.getElementById('contestOverlay')?.classList.contains('open') && typeof renderContestBoard === 'function') {
+      renderContestBoard();
+    }
+  }
 }
 async function maybeFreezeEndedContests() {
   const ended = (CONTEST_CACHE || []).filter((c) =>
@@ -7505,14 +7708,23 @@ function closeContestEditModal() {
   document.getElementById('contestEditBackdrop')?.classList.remove('open');
 }
 document.getElementById('contestEditDuration')?.addEventListener('change', () => {
-  if (contestEditId) return;
   const duration = document.getElementById('contestEditDuration')?.value || '1h';
   if (duration === 'custom') return;
-  const win = contestDurationWindow(duration);
-  document.getElementById('contestEditStart').value = contestIsoToLocalInput(win.startAt);
-  document.getElementById('contestEditEnd').value = contestIsoToLocalInput(win.endAt);
+  const startEl = document.getElementById('contestEditStart');
+  // Keep a future/custom start the user already set — only default to "now"
+  // when Start is empty (brand-new form).
+  if (!startEl?.value) {
+    const win = contestDurationWindow(duration);
+    startEl.value = contestIsoToLocalInput(win.startAt);
+    document.getElementById('contestEditEnd').value = contestIsoToLocalInput(win.endAt);
+  } else {
+    syncContestEndFromStartAndDuration();
+  }
   const isTestEl = document.getElementById('contestEditIsTest');
   if (isTestEl && (duration === '2m' || duration === '5m')) isTestEl.checked = true;
+});
+document.getElementById('contestEditStart')?.addEventListener('change', () => {
+  syncContestEndFromStartAndDuration();
 });
 document.getElementById('contestEditTheme')?.addEventListener('change', () => {
   const theme = document.getElementById('contestEditTheme')?.value || 'grand-prix';
@@ -7532,6 +7744,22 @@ document.getElementById('contestEditBackdrop')?.addEventListener('click', (e) =>
 });
 document.getElementById('contestEditSave')?.addEventListener('click', async () => {
   const status = document.getElementById('contestEditStatus');
+  const startAt = contestLocalInputToIso(document.getElementById('contestEditStart').value);
+  const endAt = contestLocalInputToIso(document.getElementById('contestEditEnd').value);
+  if (!startAt || !endAt || Number.isNaN(Date.parse(startAt)) || Number.isNaN(Date.parse(endAt))) {
+    if (status) {
+      status.textContent = 'Enter valid start and end times (Central Time).';
+      status.style.color = '#dc2626';
+    }
+    return;
+  }
+  if (Date.parse(endAt) <= Date.parse(startAt)) {
+    if (status) {
+      status.textContent = 'End must be after start.';
+      status.style.color = '#dc2626';
+    }
+    return;
+  }
   const payload = {
     id: contestEditId || undefined,
     name: document.getElementById('contestEditName').value,
@@ -7540,8 +7768,8 @@ document.getElementById('contestEditSave')?.addEventListener('click', async () =
     kind: document.getElementById('contestEditKind').value,
     mode: document.getElementById('contestEditMode').value,
     units: document.getElementById('contestEditUnits').value,
-    startAt: contestLocalInputToIso(document.getElementById('contestEditStart').value),
-    endAt: contestLocalInputToIso(document.getElementById('contestEditEnd').value),
+    startAt,
+    endAt,
     stakeType: document.getElementById('contestEditStakeType').value,
     stakeAmount: document.getElementById('contestEditStakeAmount').value,
     externalUrl: document.getElementById('contestEditExternalUrl').value,
