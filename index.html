@@ -3332,6 +3332,18 @@ function formatTeamYmdLabel(ymd) {
     day: 'numeric',
   }).format(probe);
 }
+/**
+ * Day used for daily engagement badges (Early Bird, Hat Trick, Rebound,
+ * Most X Today, Best Pace Day) and for streak/day-over-day "today".
+ * Always America/Chicago wall-clock — never ledger asOf, or yesterday's
+ * winners linger all morning until the first sale posts.
+ */
+function badgeTodayYmd(date) {
+  return teamTodayYmd(date);
+}
+function badgeYesterdayYmd(date) {
+  return shiftDateStr(badgeTodayYmd(date), -1);
+}
 
 // Goals and actuals are backed by real Netlify Functions + Blobs now (same
 // pattern as Manual Attribution/badges/roster above), not localStorage.
@@ -4713,7 +4725,8 @@ const IMPROVED_EMPTY_TEXT = 'No one widened their client book in this window yet
 let improvedBoardsCache = { yesterday: [], lastWeek: [], lastMonth: [] };
 
 function improvedWindowForPeriod(period) {
-  const asOf = loadActuals().asOf;
+  // Anchor Most Improved windows to Central calendar today (not ledger asOf).
+  const asOf = badgeTodayYmd();
   if (!asOf) return null;
   if (period === 'yesterday') {
     const yest = shiftDateStr(asOf, -1);
@@ -4778,11 +4791,10 @@ function computeMostImprovedDepth(period) {
 // the streak. Today with no sale yet is ignored (day still in progress) so
 // the badge doesn't false-reset every morning. Distinct from Steady / "On Pace".
 function computeCurrentStreak(repDisplay) {
-  const actuals = loadActuals();
-  const asOf = actuals.asOf;
-  if (!asOf) return 0;
-  const monthKey = String(asOf).slice(0, 7);
-  let cursor = asOf;
+  const today = badgeTodayYmd();
+  if (!today) return 0;
+  const monthKey = String(today).slice(0, 7);
+  let cursor = today;
   let streak = 0;
   let guard = 0;
   while (String(cursor).slice(0, 7) === monthKey && guard < 40) {
@@ -4795,7 +4807,7 @@ function computeCurrentStreak(repDisplay) {
     const sales = countPositiveSalesOnDate(repDisplay, cursor);
     if (sales <= 0) {
       // Today isn't over — don't break the streak until a prior working day misses.
-      if (cursor === asOf) {
+      if (cursor === today) {
         cursor = shiftDateStr(cursor, -1);
         continue;
       }
@@ -4810,12 +4822,12 @@ function computeCurrentStreak(repDisplay) {
 // Day-over-day composite % change (today vs yesterday) — shown in the landing
 // accordion (expanded row), not on the collapsed card.
 function dayOverDayDelta(repDisplay) {
-  const asOf = loadActuals().asOf;
-  if (!asOf) return null;
-  const today = compositePctAsOf(repDisplay, asOf);
-  const yest = compositePctAsOf(repDisplay, shiftDateStr(asOf, -1));
-  if (today === null || yest === null) return null;
-  return today - yest;
+  const today = badgeTodayYmd();
+  if (!today) return null;
+  const todayPct = compositePctAsOf(repDisplay, today);
+  const yest = compositePctAsOf(repDisplay, badgeYesterdayYmd());
+  if (todayPct === null || yest === null) return null;
+  return todayPct - yest;
 }
 
 // Units still needed on ONE metric to reach targetPct of that metric's goal
@@ -4884,17 +4896,17 @@ function detailPaceNeedHTML(repDisplay) {
     </div>`;
 }
 
-// First positive attribution of the current as-of day, team-wide (by occurredAt
+// First positive attribution of the Central calendar day, team-wide (by occurredAt
 // when the live feed provides it; otherwise first in chronological item order).
 function getEarlyBirdChampion() {
   const actuals = loadActuals();
-  const asOf = actuals.asOf;
-  if (!asOf) return null;
+  const today = badgeTodayYmd();
+  if (!today) return null;
   let best = null;
   getRoster().forEach((r, rIdx) => {
     const items = (actuals.perRep && actuals.perRep[r.display] && actuals.perRep[r.display].items) || [];
     items.forEach((it, idx) => {
-      if (!it || it.date !== asOf) return;
+      if (!it || it.date !== today) return;
       if ((Number(it.members) || 0) <= 0 && (Number(it.sessions) || 0) <= 0) return;
       const at = it.occurredAt || `${it.date}T${String(rIdx).padStart(3, '0')}${String(idx).padStart(5, '0')}`;
       if (!best || at < best.at) best = { name: r.display, at };
@@ -4913,7 +4925,7 @@ const COMEBACK_MIN_DELTA = 15;
 const COMEBACK_WAS_BEHIND_THRESHOLD = 80;
 function computeComebackCandidate() {
   const actuals = loadActuals();
-  const asOf = actuals.asOf;
+  const today = badgeTodayYmd();
   const results = getRoster().map(r => {
     const raw = (actuals.perRep && actuals.perRep[r.display]) || {};
     const items = raw.items || [];
@@ -4929,7 +4941,7 @@ function computeComebackCandidate() {
       const pct = compositePctAsOf(r.display, d);
       if (pct !== null && (minPct === null || pct < minPct)) minPct = pct;
     });
-    const currentPct = compositePctAsOf(r.display, asOf);
+    const currentPct = compositePctAsOf(r.display, today);
     if (minPct === null || currentPct === null) return null;
     if (minPct >= COMEBACK_WAS_BEHIND_THRESHOLD) return null; // wasn't really behind at any point
     const delta = currentPct - minPct;
@@ -5218,8 +5230,8 @@ function countPositiveSalesOnDate(repDisplay, dateStr) {
   return items.filter((it) => it && it.date === dateStr && ((Number(it.members) || 0) > 0 || (Number(it.sessions) || 0) > 0)).length;
 }
 function hasHatTrickToday(repDisplay) {
-  const asOf = loadActuals().asOf;
-  return !!asOf && countPositiveSalesOnDate(repDisplay, asOf) >= 3;
+  const today = badgeTodayYmd();
+  return !!today && countPositiveSalesOnDate(repDisplay, today) >= 3;
 }
 // Typical weekly schedule (Team workspace → Schedules). Used to skip Rebound
 // when yesterday is marked Off. Blank cells = unset (don't gate).
@@ -5262,19 +5274,18 @@ async function fetchTeamSchedules() {
 }
 
 function hasReboundToday(repDisplay) {
-  const asOf = loadActuals().asOf;
-  if (!asOf) return false;
-  const yest = shiftDateStr(asOf, -1);
+  const today = badgeTodayYmd();
+  if (!today) return false;
+  const yest = badgeYesterdayYmd();
   // Skip if their typical weekly schedule marks yesterday as Off.
   if (isRepScheduledOff(repDisplay, yest)) return false;
-  return countPositiveSalesOnDate(repDisplay, yest) === 0 && countPositiveSalesOnDate(repDisplay, asOf) > 0;
+  return countPositiveSalesOnDate(repDisplay, yest) === 0 && countPositiveSalesOnDate(repDisplay, today) > 0;
 }
 
-/** One winner: last positive sale on the prior calendar day (by occurredAt). */
+/** One winner: last positive sale on the prior Central calendar day (by occurredAt). */
 function getNightOwlChampion() {
-  const asOf = loadActuals().asOf;
-  if (!asOf) return null;
-  const yest = shiftDateStr(asOf, -1);
+  const yest = badgeYesterdayYmd();
+  if (!yest) return null;
   let best = null;
   let bestAt = '';
   getRoster().forEach((r, rIdx) => {
@@ -5294,11 +5305,11 @@ function getNightOwlChampion() {
 // Biggest single-day composite jump this month (day 8+ only). Badge if today's
 // jump is that personal best and positive.
 function hasBestPaceDay(repDisplay) {
-  const asOf = loadActuals().asOf;
-  if (!asOf) return false;
-  const dayNum = Number(String(asOf).slice(8, 10));
+  const today = badgeTodayYmd();
+  if (!today) return false;
+  const dayNum = Number(String(today).slice(8, 10));
   if (!(dayNum > 7)) return false;
-  const monthKey = String(asOf).slice(0, 7);
+  const monthKey = String(today).slice(0, 7);
   let bestJump = 0;
   let todayJump = null;
   for (let d = 8; d <= dayNum; d++) {
@@ -5308,7 +5319,7 @@ function hasBestPaceDay(repDisplay) {
     if (prev === null || cur === null) continue;
     const jump = cur - prev;
     if (jump > bestJump) bestJump = jump;
-    if (dateStr === asOf) todayJump = jump;
+    if (dateStr === today) todayJump = jump;
   }
   return todayJump !== null && bestJump > 0.05 && todayJump >= bestJump - 0.0001;
 }
@@ -5320,13 +5331,13 @@ function defaultAutoBadgeHoverTip(key, ctx) {
     personalBest: 'Projected to beat your best month ever, if this pace holds',
     consistency: 'On Track (80%+) or better every day this month — never once fell behind',
     firstTo100: 'First on the team to hit 100%+ pacing this month',
-    earlyBird: 'First positive attribution on the team today',
-    hatTrick: '3+ positive attributions today — resets tomorrow',
+    earlyBird: 'First positive attribution on the team today (Central calendar — resets at midnight CT)',
+    hatTrick: '3+ positive attributions today — resets at midnight CT',
     rebound: 'Sale today after a zero-sale day yesterday (skipped if yesterday was Off on the team schedule)',
-    nightOwl: 'Last positive sale on the team yesterday — one winner',
-    bestPaceDay: 'Biggest single-day pacing jump so far this month (after day 7)',
-    mostMembersToday: 'Most members sold on the team today — one winner',
-    mostSessionsToday: 'Most sessions sold on the team today — one winner',
+    nightOwl: 'Last positive sale on the team yesterday (Central) — one winner, refreshes each morning',
+    bestPaceDay: 'Biggest single-day pacing jump so far this month (after day 7) — must be earned again today',
+    mostMembersToday: 'Most members sold on the team today — resets at midnight CT',
+    mostSessionsToday: 'Most sessions sold on the team today — resets at midnight CT',
   };
   return tips[key] || '';
 }
@@ -5346,14 +5357,14 @@ function unitsSoldOnDate(repDisplay, dateStr, field) {
   return sum;
 }
 
-/** One winner: highest positive members or sessions sold today. Ties → first roster name. */
+/** One winner: highest positive members or sessions sold on the Central calendar day. Ties → first roster name. */
 function getMostUnitsTodayChampion(field) {
-  const asOf = loadActuals().asOf;
-  if (!asOf) return null;
+  const today = badgeTodayYmd();
+  if (!today) return null;
   let bestName = null;
   let bestVal = 0;
   getRoster().forEach((r) => {
-    const sum = unitsSoldOnDate(r.display, asOf, field);
+    const sum = unitsSoldOnDate(r.display, today, field);
     if (sum > bestVal) {
       bestVal = sum;
       bestName = r.display;
@@ -5416,12 +5427,11 @@ function repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampi
 // rotating context. computeWeeklyDigest() itself is unchanged; only where its
 // output gets rendered has moved.
 function computeWeeklyDigest() {
-  const actuals = loadActuals();
-  const asOf = actuals.asOf;
-  const weekAgo = shiftDateStr(asOf, -7);
+  const today = badgeTodayYmd();
+  const weekAgo = shiftDateStr(today, -7);
   const rows = getRoster().map(r => ({
     name: r.display,
-    nowPct: compositePctAsOf(r.display, asOf),
+    nowPct: compositePctAsOf(r.display, today),
     thenPct: compositePctAsOf(r.display, weekAgo),
   })).filter(r => r.nowPct !== null);
   if (!rows.length) return null;
