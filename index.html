@@ -293,9 +293,9 @@
   .live-metrics-side-content { margin-top: 8px; }
   .live-metrics-side-content.collapsed { display: none; }
   .pace-need-panel-head { display: none; } /* toggle lives in the section head */
-  /* Keep Still Needed title + toggle + chevron on one row (no wrap gap above the toggle). */
+  /* Still Needed: title + chevron on row 1; target toggle full-width under when open. */
   .metrics-side-section-head {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 8px;
   }
   .metrics-side-section-head .metrics-side-title {
@@ -307,26 +307,30 @@
     text-overflow: ellipsis;
   }
   .metrics-side-section-head .pace-need-target-toggle {
-    margin-left: 0;
-    margin-right: 0;
-    flex: none;
+    margin: 0;
+    flex: 1 1 100%;
+    order: 3;
   }
   /* Toggle only when Still Needed is expanded. */
   .metrics-side-section-head.is-collapsed .pace-need-target-toggle { display: none; }
-  .metrics-side-section-head .side-chevron { flex: none; }
+  .metrics-side-section-head .side-chevron { flex: none; margin-left: auto; }
   .pace-need-target-toggle {
-    display: inline-flex; border: 1px solid var(--card-border);
-    border-radius: 999px; overflow: hidden; background: var(--card-bg);
-    flex: none;
-    align-self: center;
+    display: inline-flex; gap: 3px; padding: 3px;
+    border: 1px solid var(--divider);
+    border-radius: 10px;
+    background: var(--metric-box-bg);
+    align-self: stretch;
   }
   .pace-need-target-toggle button {
-    border: 0; background: transparent; color: var(--text-muted);
-    font-size: 10.5px; font-weight: 700; padding: 3px 9px; cursor: pointer;
-    line-height: 1.2; margin-top: 0;
+    flex: 1; border: 0; background: transparent; color: var(--text-muted);
+    font-size: 11px; font-weight: 800; padding: 6px 10px; cursor: pointer;
+    line-height: 1.2; margin-top: 0; border-radius: 8px;
   }
+  .pace-need-target-toggle button:hover { color: var(--text); }
   .pace-need-target-toggle button.active {
-    background: var(--text); color: var(--card-bg);
+    background: linear-gradient(90deg, #38bdf8, #6366f1 70%);
+    color: #fff;
+    box-shadow: 0 1px 4px rgba(99, 102, 241, 0.28);
   }
   .pace-need-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
@@ -415,45 +419,7 @@
   }
   #doubleGoalBanner:empty { display: none; }
 
-  /* --- UX prototype: personal strip, next action, activity filters, view-as topbar --- */
-  .my-pace-strip {
-    display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
-    margin: 10px 0 4px; padding: 14px 16px; border-radius: 16px;
-    background:
-      linear-gradient(135deg, rgba(99,102,241,0.10), rgba(56,189,248,0.08)),
-      var(--card-bg);
-    border: 1px solid var(--card-border);
-    box-shadow: 0 2px 12px var(--shadow);
-  }
-  .my-pace-strip[hidden] { display: none !important; }
-  .my-pace-strip-main { min-width: 0; flex: 1; }
-  .my-pace-strip-kicker {
-    font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
-    color: var(--text-faint); margin-bottom: 4px;
-  }
-  .my-pace-strip-title {
-    font-size: 16px; font-weight: 800; color: var(--text); line-height: 1.25;
-  }
-  .my-pace-strip-meta {
-    margin-top: 4px; font-size: 12.5px; font-weight: 600; color: var(--text-muted);
-  }
-  .my-pace-strip-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .my-pace-strip-actions .theme-btn { margin-top: 0; }
-  .my-pace-strip-pct {
-    font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums;
-    min-width: 64px; text-align: right;
-  }
-
-  .pacer-next-action {
-    margin: 0 0 12px; padding: 12px 14px; border-radius: 14px;
-    background: var(--metric-box-bg); border: 1px solid var(--card-border);
-    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  }
-  .pacer-next-action[hidden] { display: none !important; }
-  .pacer-next-action-copy { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.35; }
-  .pacer-next-action-copy span { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
-  .pacer-next-action .theme-btn { margin-top: 0; }
-
+  /* --- UX: activity filters, view-as topbar --- */
   .activity-toolbar {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     margin: 0 0 12px;
@@ -675,16 +641,16 @@
   }
   .culture-hide-btn:hover { color: var(--text); }
   .culture-card {
-    margin-top: 10px; padding: 12px 14px; border-radius: 14px;
+    margin-top: 0; padding: 12px 14px; border-radius: 14px;
     background: var(--card-bg); border: 1px solid var(--card-border);
     box-shadow: 0 2px 10px var(--shadow);
   }
-  .landing-side-col > .culture-card:first-of-type,
-  .landing-side-col > .finish-line-card { margin-top: 0; }
-  /* Breathing room between Finish line and the leaderboard panel. */
-  .landing-side-col > .finish-line-card { margin-bottom: 28px; }
-  .landing-side-col > .leaderboard-panel { margin-top: 8px; }
-  .landing-side-col { display: flex; flex-direction: column; gap: 0; }
+  .landing-side-col {
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .landing-side-col > .finish-line-card,
+  .landing-side-col > .leaderboard-panel,
+  .landing-side-col > .culture-card { margin-top: 0; margin-bottom: 0; }
   .culture-card-title {
     font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
     color: var(--text-faint); margin: 0 0 8px;
@@ -891,7 +857,9 @@
       position: sticky;
       top: var(--sticky-top);
       align-self: start;
-      overflow: visible;
+      overflow-x: hidden;
+      overflow-y: auto;
+      max-height: calc(100vh - var(--sticky-top) - 24px);
     }
     body[data-layout="split-rail"] .landing-region-reps { grid-area: reps; min-width: 0; }
   }
@@ -915,7 +883,10 @@
       position: sticky;
       top: var(--sticky-top);
       align-self: start;
-      overflow: visible;
+      overflow-x: hidden;
+      overflow-y: auto;
+      /* Cap so sticky boards stop with the roster instead of spilling into the footer. */
+      max-height: calc(100vh - var(--sticky-top) - 24px);
     }
     body[data-layout="split-stack"] .landing-region-reps { grid-area: reps; min-width: 0; }
     body[data-layout="split-stack"].stack-boards-hidden .wrap {
@@ -1036,19 +1007,25 @@
   .schedule-grid .sched-name {
     font-weight: 800; padding: 8px 10px; border-radius: 8px; white-space: nowrap;
   }
-  .schedule-grid input.sched-cell {
+  .schedule-grid input.sched-cell,
+  .schedule-grid .sched-cell-ro {
     width: 100%; box-sizing: border-box; text-align: center;
     border: 1px solid transparent; border-radius: 8px; padding: 7px 4px;
     font-size: 11.5px; font-weight: 700; background: var(--sched-bg, var(--metric-box-bg));
     color: var(--text); min-width: 72px;
   }
+  .schedule-grid .sched-cell-ro {
+    display: block; line-height: 1.35; min-height: 1.35em;
+  }
   .schedule-grid input.sched-cell:focus {
     outline: 2px solid var(--text-faint); border-color: transparent;
   }
-  .schedule-grid input.sched-cell.is-off {
+  .schedule-grid input.sched-cell.is-off,
+  .schedule-grid .sched-cell-ro.is-off {
     background: #111; color: #f5f5f5; border-color: #111;
   }
-  body.dark .schedule-grid input.sched-cell.is-off {
+  body.dark .schedule-grid input.sched-cell.is-off,
+  body.dark .schedule-grid .sched-cell-ro.is-off {
     background: #000; color: #e5e5e5;
   }
   .schedule-grid tr.sched-summary td {
@@ -1518,6 +1495,13 @@
     display: none; position: fixed; inset: 0; z-index: 50; background: var(--bg); overflow-y: auto;
   }
   .detail-overlay.open { display: block; }
+  #clientDetailOverlay {
+    background:
+      radial-gradient(ellipse 90% 45% at 50% -8%, rgba(99,102,241,0.14), transparent 55%),
+      radial-gradient(ellipse 45% 35% at 100% 18%, rgba(56,189,248,0.10), transparent 52%),
+      radial-gradient(ellipse 40% 30% at 0% 40%, rgba(244,114,182,0.08), transparent 50%),
+      var(--bg);
+  }
   .detail-page { max-width: 1080px; margin: 0 auto; padding: 26px 20px 48px; }
   /* Client Detail gets extra width since it's the one page with a real sidebar
      column (Live Metrics + Bonus Payout) sitting alongside the top content —
@@ -1584,7 +1568,12 @@
   .detail-net-box .m-label { display: block; font-size: 11.5px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
   .detail-net-val { display: block; font-size: 28px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
   .detail-net-sub { display: block; font-size: 10.5px; color: var(--text-faint); margin-top: 4px; }
-  .detail-panel { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 14px 16px; box-shadow: 0 1px 3px var(--shadow); }
+  .detail-panel {
+    background:
+      linear-gradient(180deg, rgba(56,189,248,0.05), transparent 42%),
+      var(--card-bg);
+    border: 1px solid var(--card-border); border-radius: 14px; padding: 14px 16px; box-shadow: 0 1px 3px var(--shadow);
+  }
   .detail-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
   .detail-panel-title { font-size: 13px; font-weight: 800; }
   .detail-panel-count { font-size: 10.5px; font-weight: 700; color: var(--text-faint); background: var(--metric-box-bg); padding: 3px 11px; border-radius: 999px; }
@@ -1672,7 +1661,10 @@
      then stops there rather than trailing down past it. */
   .metrics-side-panel {
     position: sticky; top: 100px; z-index: 40;
-    background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px;
+    background:
+      linear-gradient(165deg, rgba(244,114,182,0.08), rgba(99,102,241,0.09) 45%, transparent 78%),
+      var(--card-bg);
+    border: 1px solid var(--card-border); border-radius: 16px;
     padding: 14px 16px; box-shadow: 0 4px 20px var(--shadow);
     max-height: calc(100vh - 130px); overflow-y: auto;
   }
@@ -2088,7 +2080,6 @@
       <div class="header-dropdown-menu" id="teamMenu">
         <button class="theme-btn" id="teamDetailsBtn" type="button">🗂️ Cancels &amp; attributions</button>
         <button class="theme-btn" id="teamPersonalGoalsBtn" type="button">🎯 Personal month goals</button>
-        <button class="theme-btn" id="teamScheduleBtn" type="button">📅 Weekly schedules</button>
       </div>
     </div>
     <div class="header-dropdown" id="adminMenuWrap" style="display:none;">
@@ -2099,6 +2090,8 @@
         <button class="theme-btn" id="footerSipBtn" type="button">Historical SIP</button>
       </div>
     </div>
+    <button class="theme-btn large" id="openMyPacerBtn" type="button" style="display:none;">🏃 Open My Individual Pacer</button>
+    <button class="theme-btn large" id="teamScheduleBtn" type="button" style="display:none;">📅 Weekly schedules</button>
     <button class="theme-btn large" id="shoutoutSendBtn" type="button">📣 Shoutout</button>
     <div class="header-dropdown" id="layoutToolsWrap" style="display:none;">
       <button class="theme-btn large" id="layoutToolsBtn" type="button">🧰 Tools ▾</button>
@@ -2118,7 +2111,6 @@
 
   <div class="landing-region landing-region-status" id="landingStatus">
   <div class="pill-row" id="banner"></div>
-  <div class="my-pace-strip" id="myPaceStrip" hidden></div>
   </div>
 
   <!-- Two-column grid ends at the bottom of the team card — the leaderboard
@@ -2235,7 +2227,6 @@
       <div class="detail-header-pace" id="detailHeaderPace"></div>
     </div>
     <div id="doubleGoalBanner"></div>
-    <div class="pacer-next-action" id="pacerNextAction" hidden></div>
     <div class="pacer-layout-tabs" id="pacerLayoutTabs" role="tablist" aria-label="Individual Pacer sections">
       <div class="pacer-tab-track">
         <button type="button" class="pacer-layout-tab active" role="tab" aria-selected="true" data-pacer-tab="current">Current</button>
@@ -2491,17 +2482,16 @@
   </div>
 </div>
 
-<!-- Team Details — admin/coach-visible (canViewTeamDetails()). Cancels are
-     computed client-side from actuals; Manual Attribution history comes from
-     /api/attributions/list (full team for admins/coaches). Cancel → attribution
-     conversion is full-admin write only. -->
+<!-- Team Details — cancels/goals/attributions are admin/coach-visible
+     (canViewTeamDetails()). Schedules are viewable by every signed-in teammate;
+     only admins/coaches can edit (canEditTeamSchedules()). -->
 <div class="detail-overlay" id="teamDetailsOverlay">
   <div class="detail-page">
     <div class="detail-header">
       <button class="theme-btn" id="teamDetailsBackBtn" type="button">← Back to dashboard</button>
       <h2>Team workspace</h2>
     </div>
-    <div class="meta-note" style="margin:-4px 0 12px;">Coach view for day-to-day team ops. Admin goal/SIP setup lives under <strong>Admin</strong> on the landing page.</div>
+    <div class="meta-note" id="teamWorkspaceIntro" style="margin:-4px 0 12px;">Coach view for day-to-day team ops. Admin goal/SIP setup lives under <strong>Admin</strong> on the landing page.</div>
     <div class="workspace-tabs" id="teamWorkspaceTabs">
       <button type="button" class="workspace-tab active" data-team-tab="cancels">Cancels</button>
       <button type="button" class="workspace-tab" data-team-tab="goals">Personal month goals</button>
@@ -2537,6 +2527,7 @@
       <div class="card">
         <h2>📅 Weekly team schedule</h2>
         <div class="meta-note" style="margin-top:0;">Typical weekly shifts (not a date-specific calendar). Mark days off as <b>Off</b> — Rebound won’t fire the day after an Off. Capacity counts anyone not Off.</div>
+        <div class="meta-note" id="teamScheduleReadOnlyNote" style="display:none;margin-top:0;">View only — ask a coach or admin if a shift needs updating.</div>
         <div class="schedule-wrap" id="teamScheduleWrap"></div>
         <div class="schedule-toolbar">
           <button type="button" class="theme-btn" id="saveTeamScheduleBtn">Save schedule</button>
@@ -2684,7 +2675,7 @@
           <div class="card">
             <div class="m-label" style="margin-bottom:8px;">Badge Bank — every badge, on/off + delete</div>
             <div id="badgeBankList" style="display:flex; flex-direction:column; gap:10px;"></div>
-            <div class="meta-note">Turning one off hides it everywhere but keeps it listed to re-enable. Delete removes it from this list.</div>
+            <div class="meta-note">Hover a badge emoji to preview its tip. Edit tip to change hover text site-wide. Turning one off hides it everywhere but keeps it listed to re-enable. Delete removes it from this list.</div>
           </div>
           <div class="card" style="margin-top:12px;">
             <div class="m-label" style="margin-bottom:8px;">Create your own badge</div>
@@ -2736,18 +2727,6 @@
         </div>
       </div>
 
-      <div class="admin-settings-block">
-        <div class="section-toggle" id="toggleTestingTools">▸ Testing tools</div>
-        <div class="section-body" id="testingToolsBody">
-          <div class="card">
-            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-              <button id="resetCelebrationPopupBtn" type="button">🔄 Un-mute celebration popup</button>
-              <span class="meta-note" style="margin:0;" id="resetCelebrationStatus"></span>
-            </div>
-            <div class="meta-note">Clears the permanent mute for the Double Goal celebration popup in this browser only.</div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </div>
@@ -3941,8 +3920,8 @@ function render() {
   renderImprovedBoards();
   renderGoalsForm(goals);
   renderCultureSide(repRows, teamComposite, expectedPct, actuals.asOf, monthName, d, dim);
-  renderMyPaceStrip(expectedPct, d, dim);
   syncLandingGridHeight();
+  syncLandingBoardsScrollCap();
   forceStackTeamExpanded();
   requestAnimationFrame(() => {
     fitLandingBadges();
@@ -3972,7 +3951,27 @@ function syncLandingGridHeight() {
   if (layout !== 'classic' || window.innerWidth <= 980) { grid.style.minHeight = ''; return; }
   grid.style.minHeight = sideCol.offsetHeight + 'px';
 }
-window.addEventListener('resize', () => { syncLandingGridHeight(); fitLandingBadges(); });
+/** Cap sticky boards column so it ends with the roster (lowest rep), not into the footer. */
+function syncLandingBoardsScrollCap() {
+  const boards = document.getElementById('landingBoards');
+  const reps = document.getElementById('landingReps');
+  if (!boards || !reps) return;
+  const layout = document.body.dataset.layout || 'classic';
+  if (layout === 'classic' || window.innerWidth < 1000) {
+    boards.style.maxHeight = '';
+    return;
+  }
+  const stickyRaw = getComputedStyle(document.documentElement).getPropertyValue('--sticky-top');
+  const stickyTop = parseFloat(stickyRaw) || 12;
+  const viewportCap = Math.max(160, window.innerHeight - stickyTop - 24);
+  const rosterCap = Math.max(160, reps.offsetHeight);
+  boards.style.maxHeight = Math.min(viewportCap, rosterCap) + 'px';
+}
+window.addEventListener('resize', () => {
+  syncLandingGridHeight();
+  syncLandingBoardsScrollCap();
+  fitLandingBadges();
+});
 
 // --- Sidebar leaderboards (Highest Pacers / Most Members Sold / Most Sessions
 // Sold) -----------------------------------------------------------------
@@ -4655,7 +4654,29 @@ const DEFAULT_BADGE_TOGGLES = {
   bestPaceDay: true,
 };
 let BADGE_TOGGLES_CACHE = Object.assign({}, DEFAULT_BADGE_TOGGLES);
+let BADGE_TIP_OVERRIDES_CACHE = {};
 function loadBadgeToggles() { return BADGE_TOGGLES_CACHE; }
+function badgeTipFor(key, fallback) {
+  const tip = BADGE_TIP_OVERRIDES_CACHE[key];
+  if (tip != null && String(tip).trim()) return String(tip).trim();
+  return fallback || '';
+}
+function escapeAttr(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+async function saveBadgeTip(key, tip) {
+  const data = await authedFetch('/api/badges/tip', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key, tip }),
+  });
+  BADGE_TIP_OVERRIDES_CACHE = data.tipOverrides || Object.assign({}, BADGE_TIP_OVERRIDES_CACHE, tip ? { [key]: tip } : {});
+  if (!tip) delete BADGE_TIP_OVERRIDES_CACHE[key];
+}
 // Deleted preset keys (see deletePresetBadge below) always read as disabled,
 // regardless of whatever's in BADGE_TOGGLES_CACHE for that key — a deleted
 // badge shouldn't come back just because its last-known toggle value was
@@ -4782,8 +4803,9 @@ function manualBadgesHTML(repDisplay) {
   return getManualBadges(repDisplay).map(b => {
     const opt = allBadgeOptions().find(o => o.key === b.key);
     if (!opt) return '';
-    const tip = opt.description ? `${opt.description} (Assigned by an admin/coach)` : 'Assigned by an admin/coach';
-    return `<span class="engagement-badge manual-badge has-tip" style="color:${opt.color}; background:${opt.color}22;" data-tip="${tip}">${opt.emoji} ${opt.label}</span>`;
+    const base = badgeTipFor(opt.key, opt.description || '');
+    const tip = base ? `${base} (Assigned by an admin/coach)` : 'Assigned by an admin/coach';
+    return `<span class="engagement-badge manual-badge has-tip" style="color:${opt.color}; background:${opt.color}22;" data-tip="${escapeAttr(tip)}">${opt.emoji} ${opt.label}</span>`;
   }).join('');
 }
 
@@ -5210,18 +5232,28 @@ function renderBadgeBank() {
   const el = document.getElementById('badgeBankList');
   if (!el) return;
   const toggles = loadBadgeToggles();
-  el.innerHTML = badgeBankEntries().map(b => `
-    <div class="shoutout-item" style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
-      <label style="display:flex; align-items:flex-start; gap:8px; flex:1; cursor:pointer;">
+  el.innerHTML = badgeBankEntries().map(b => {
+    const tip = badgeTipFor(b.key, b.description || '');
+    return `
+    <div class="shoutout-item" style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+      <label style="display:flex; align-items:flex-start; gap:8px; flex:1; min-width:220px; cursor:pointer;">
         <input type="checkbox" data-badge-toggle="${b.key}" style="margin-top:3px;" ${toggles[b.key] !== false ? 'checked' : ''}>
         <span>
-          <span style="font-size:13px; font-weight:700; color:var(--text);">${b.emoji} ${b.label}</span>
-          <span class="meta-note" style="display:block; margin-top:2px;">${b.description || ''}</span>
+          <span class="has-tip" data-tip="${escapeAttr(tip)}" style="font-size:13px; font-weight:700; color:var(--text); cursor:help;">${b.emoji} ${b.label}</span>
+          <span class="meta-note" style="display:block; margin-top:2px;">${tip || 'No tip yet — add one below.'}</span>
           <span class="meta-note" style="display:block; margin-top:2px; font-style:italic;">${b.kindLabel}</span>
         </span>
       </label>
-      <button type="button" class="shoutout-remove-btn" data-delete-badge="${b.key}" data-badge-kind="${b.kind}" title="Delete this badge">✕</button>
-    </div>`).join('');
+      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+        <button type="button" class="theme-btn" data-edit-badge-tip="${b.key}" style="margin-top:0;">Edit tip</button>
+        <button type="button" class="shoutout-remove-btn" data-delete-badge="${b.key}" data-badge-kind="${b.kind}" title="Delete this badge">✕</button>
+      </div>
+      <div class="badge-tip-edit" data-tip-edit-for="${b.key}" hidden style="flex:1 1 100%; display:none; gap:8px; align-items:center; flex-wrap:wrap;">
+        <input type="text" data-tip-input="${b.key}" value="${escapeAttr(tip)}" maxlength="280" placeholder="Hover tip text" style="flex:1; min-width:200px;">
+        <button type="button" class="theme-btn" data-save-badge-tip="${b.key}" style="margin-top:0;">Save tip</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 function renderManualBadgeAssignedList() {
   const el = document.getElementById('manualBadgeAssignedList');
@@ -5308,6 +5340,34 @@ document.getElementById('badgeBankList').addEventListener('change', async (e) =>
   }
 });
 document.getElementById('badgeBankList').addEventListener('click', async (e) => {
+  const editBtn = e.target.closest('[data-edit-badge-tip]');
+  if (editBtn) {
+    const key = editBtn.getAttribute('data-edit-badge-tip');
+    const row = document.querySelector(`[data-tip-edit-for="${key}"]`);
+    if (!row) return;
+    const open = row.style.display === 'flex';
+    row.hidden = open;
+    row.style.display = open ? 'none' : 'flex';
+    if (!open) row.querySelector('input')?.focus();
+    return;
+  }
+  const saveTipBtn = e.target.closest('[data-save-badge-tip]');
+  if (saveTipBtn) {
+    const key = saveTipBtn.getAttribute('data-save-badge-tip');
+    const input = document.querySelector(`[data-tip-input="${key}"]`);
+    const tip = input ? String(input.value || '').trim() : '';
+    saveTipBtn.disabled = true;
+    try {
+      await saveBadgeTip(key, tip);
+      renderBadgeBank();
+      render();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      saveTipBtn.disabled = false;
+    }
+    return;
+  }
   const btn = e.target.closest('[data-delete-badge]');
   if (!btn) return;
   const key = btn.getAttribute('data-delete-badge');
@@ -7002,11 +7062,6 @@ setupToggle('toggleAdmin', 'adminBody', 'Admin access', true);
 setupToggle('toggleLimitedAdmin', 'limitedAdminBody', 'Sales Coach access', true);
 setupToggle('toggleBadgeControls', 'badgeControlsBody', 'Badge Controls', true);
 setupToggle('toggleShoutoutLog', 'shoutoutLogBody', 'All Shoutouts', true);
-setupToggle('toggleTestingTools', 'testingToolsBody', 'Testing tools', false);
-document.getElementById('resetCelebrationPopupBtn').addEventListener('click', () => {
-  localStorage.removeItem(DOUBLE_GOAL_POPUP_MUTED_KEY);
-  document.getElementById('resetCelebrationStatus').textContent = 'Un-muted — the current champion\'s Individual Pacer page will show the popup again.';
-});
 
 document.getElementById('toggleAdvancedFields').addEventListener('click', () => {
   const wrap = document.getElementById('goalsFormWrap');
@@ -7345,108 +7400,6 @@ function detailEmptyRowHTML(msg) {
 let activityFilterMode = 'all'; // all | sold | refunds
 let activityFilterQuery = '';
 let activityFilterRep = '';
-let smartSidePanelAppliedFor = '';
-
-function renderMyPaceStrip(expectedPct, day, dim) {
-  const strip = document.getElementById('myPaceStrip');
-  if (!strip) return;
-  const me = ownRepDisplayName();
-  if (!me) {
-    strip.hidden = true;
-    strip.innerHTML = '';
-    return;
-  }
-  const pacing = computeRepPacing(me);
-  const need = paceNeedByMetric(me, 100);
-  const daysLeft = Math.max((dim || 0) - (day || 0), 0);
-  const pctLabel = pacing.goalIsZero || pacing.current == null ? '—' : fmt(pacing.current, 1) + '%';
-  let next = 'Open your Individual Pacer for the full breakdown.';
-  if (need && (!need.members.done || !need.sessions.done)) {
-    const parts = [];
-    if (!need.members.done) parts.push(need.members.need + ' more member' + (need.members.need === 1 ? '' : 's'));
-    if (!need.sessions.done) parts.push(need.sessions.need + ' more session' + (need.sessions.need === 1 ? '' : 's'));
-    next = 'Still needed to 100%: ' + parts.join(' · ') + '.';
-  } else if (need) {
-    next = 'Both metrics are at 100%+ — finish strong and protect the close.';
-  }
-  strip.hidden = false;
-  strip.innerHTML = `
-    <div class="my-pace-strip-main">
-      <div class="my-pace-strip-kicker">Your pace</div>
-      <div class="my-pace-strip-title">${me}</div>
-      <div class="my-pace-strip-meta">${daysLeft} day${daysLeft === 1 ? '' : 's'} left · expected ${fmt(expectedPct, 0)}% today · ${next}</div>
-    </div>
-    <div class="my-pace-strip-pct">${pctLabel}</div>
-    <div class="my-pace-strip-actions">
-      <button type="button" class="theme-btn large" id="myPaceOpenBtn">Open my Individual Pacer</button>
-    </div>`;
-  document.getElementById('myPaceOpenBtn')?.addEventListener('click', () => {
-    location.hash = 'individual-pacer=' + encodeURIComponent(me);
-  });
-}
-
-function renderPacerNextAction(repName) {
-  const el = document.getElementById('pacerNextAction');
-  if (!el) return;
-  const need = paceNeedByMetric(repName, 100);
-  const pacing = computeRepPacing(repName);
-  if (!need || pacing.goalIsZero) {
-    el.hidden = true;
-    el.innerHTML = '';
-    return;
-  }
-  const behind = !need.members.done || !need.sessions.done;
-  if (behind) {
-    const parts = [];
-    if (!need.members.done) parts.push(need.members.need + ' member' + (need.members.need === 1 ? '' : 's'));
-    if (!need.sessions.done) parts.push(need.sessions.need + ' session' + (need.sessions.need === 1 ? '' : 's'));
-    el.hidden = false;
-    el.innerHTML = `
-      <div class="pacer-next-action-copy">
-        Next up: close the gap to 100%
-        <span>${parts.join(' and ')} still needed.</span>
-      </div>
-      <button type="button" class="theme-btn" id="pacerNextActionNeedBtn">Show Still Needed</button>`;
-    document.getElementById('pacerNextActionNeedBtn')?.addEventListener('click', () => {
-      paceNeedSideCollapsed = false;
-      saveJSON(PACE_NEED_SIDE_COLLAPSED_KEY, false);
-      syncMetricsSidePanel(repName);
-      document.getElementById('paceNeedSideToggle')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
-  } else {
-    el.hidden = false;
-    el.innerHTML = `
-      <div class="pacer-next-action-copy">
-        You’re at 100% on Members and Sessions
-        <span>Check Bonus Payout and keep the finish clean.</span>
-      </div>
-      <button type="button" class="theme-btn" id="pacerNextActionBonusBtn">Show Bonus</button>`;
-    document.getElementById('pacerNextActionBonusBtn')?.addEventListener('click', () => {
-      bonusSideCollapsed = false;
-      saveJSON(BONUS_SIDE_COLLAPSED_KEY, false);
-      syncMetricsSidePanel(repName);
-      document.getElementById('bonusSideToggle')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
-  }
-}
-
-function applySmartSidePanelDefaults(repName) {
-  // Only auto-open the relevant section once per rep/session open — don't fight manual toggles.
-  if (smartSidePanelAppliedFor === repName) return;
-  smartSidePanelAppliedFor = repName;
-  const need = paceNeedByMetric(repName, 100);
-  if (!need) return;
-  const stillChasing = !need.members.done || !need.sessions.done;
-  if (stillChasing) {
-    paceNeedSideCollapsed = false;
-    bonusSideCollapsed = true;
-    rankSideCollapsed = true;
-  } else {
-    bonusSideCollapsed = false;
-    paceNeedSideCollapsed = true;
-    rankSideCollapsed = true;
-  }
-}
 
 /** Fill Activity stats + attribution/refund tables for an Individual Pacer. */
 function fillDetailActivity(repName) {
@@ -8168,11 +8121,8 @@ function renderClientDetail(opts) {
   if (!preserveScroll) {
     activityFilterMode = 'all';
     activityFilterQuery = '';
-    smartSidePanelAppliedFor = '';
   }
-  applySmartSidePanelDefaults(repName);
   fillDetailActivity(repName);
-  renderPacerNextAction(repName);
   try { syncLastMonthPacerTab(repName); } catch (e) { console.warn('Last Month tab sync failed:', e); }
   syncMetricsSidePanel(repName);
   syncViewAsTopbar();
@@ -8337,17 +8287,22 @@ function isTeamWorkspaceHash() {
 function renderTeamDetailsOverlay() {
   const overlay = document.getElementById('teamDetailsOverlay');
   if (isTeamWorkspaceHash()) {
-    if (denyHashIfUnauthorized(canViewTeamDetails())) {
+    const tab = teamWorkspaceHashTab();
+    const allowed = tab === 'schedule' ? canViewTeamSchedules() : canViewTeamDetails();
+    if (denyHashIfUnauthorized(allowed)) {
       overlay.classList.remove('open');
       syncOverlayBodyScroll();
       return;
     }
     overlay.classList.add('open');
     window.scrollTo(0, 0);
-    setTeamWorkspaceTab(teamWorkspaceHashTab());
-    renderTeamCancelsTable();
-    renderTeamPersonalGoalsTable();
-    refreshTeamAttributions();
+    syncTeamWorkspaceChrome();
+    setTeamWorkspaceTab(tab);
+    if (canViewTeamDetails()) {
+      renderTeamCancelsTable();
+      renderTeamPersonalGoalsTable();
+      refreshTeamAttributions();
+    }
   } else {
     overlay.classList.remove('open');
   }
@@ -8362,6 +8317,7 @@ document.getElementById('teamDetailsBackBtn').addEventListener('click', () => {
 document.querySelectorAll('#teamWorkspaceTabs .workspace-tab').forEach((btn) => {
   btn.addEventListener('click', () => {
     const tab = btn.getAttribute('data-team-tab');
+    if (tab !== 'schedule' && !canViewTeamDetails()) return;
     const hash = teamWorkspaceHashForTab(tab);
     if (location.hash === '#' + hash) {
       setTeamWorkspaceTab(tab);
@@ -8386,6 +8342,8 @@ function scheduleCapacityForDay(dayKey) {
 function renderTeamScheduleEditor() {
   const wrap = document.getElementById('teamScheduleWrap');
   if (!wrap) return;
+  const canEdit = canEditTeamSchedules();
+  syncTeamWorkspaceChrome();
   const goals = TEAM_SCHEDULES_CACHE.dailyGoals || {};
   const head = SCHEDULE_DAY_LABELS.map((lab) => `<th>${lab}</th>`).join('');
   const rows = getRoster().map((r, idx) => {
@@ -8394,6 +8352,10 @@ function renderTeamScheduleEditor() {
     const cells = SCHEDULE_DAY_KEYS.map((k) => {
       const val = saved[k] || '';
       const off = /^off$/i.test(String(val).trim());
+      const shown = String(val || '—').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+      if (!canEdit) {
+        return `<td><div class="sched-cell-ro${off ? ' is-off' : ''}" style="--sched-bg:${color};">${shown}</div></td>`;
+      }
       return `<td><input class="sched-cell${off ? ' is-off' : ''}" data-rep="${encodeURIComponent(r.display)}" data-day="${k}" value="${String(val).replace(/"/g, '&quot;')}" style="--sched-bg:${color};" placeholder="—" spellcheck="false"></td>`;
     }).join('');
     return `<tr>
@@ -8404,6 +8366,9 @@ function renderTeamScheduleEditor() {
   const capCells = SCHEDULE_DAY_KEYS.map((k) => `<td style="text-align:center;" data-cap="${k}">${scheduleCapacityForDay(k)}</td>`).join('');
   const goalCells = SCHEDULE_DAY_KEYS.map((k) => {
     const v = goals[k] != null ? goals[k] : '';
+    if (!canEdit) {
+      return `<td style="text-align:center;">${v === '' ? '—' : v}</td>`;
+    }
     return `<td style="text-align:center;"><input type="number" min="0" step="1" data-goal-day="${k}" value="${v}"></td>`;
   }).join('');
   wrap.innerHTML = `
@@ -8415,6 +8380,7 @@ function renderTeamScheduleEditor() {
         <tr class="sched-summary"><td>Daily goal</td>${goalCells}</tr>
       </tfoot>
     </table>`;
+  if (!canEdit) return;
   wrap.querySelectorAll('input.sched-cell').forEach((input) => {
     input.addEventListener('input', () => {
       const off = /^off$/i.test(String(input.value || '').trim());
@@ -8437,6 +8403,10 @@ async function saveTeamScheduleFromEditor() {
   const status = document.getElementById('teamScheduleStatus');
   const wrap = document.getElementById('teamScheduleWrap');
   if (!wrap) return;
+  if (!canEditTeamSchedules()) {
+    status.textContent = 'View only — coaches and admins can edit schedules.';
+    return;
+  }
   status.textContent = 'Saving…';
   const reps = {};
   getRoster().forEach((r) => { reps[r.display] = emptyScheduleRow(); });
@@ -8697,6 +8667,7 @@ async function fetchBadgesData() {
     CUSTOM_BADGES_CACHE = data.custom || [];
     MANUAL_BADGES_CACHE = data.assignments || {};
     DELETED_PRESET_KEYS_CACHE = data.deletedPresets || [];
+    BADGE_TIP_OVERRIDES_CACHE = data.tipOverrides || {};
   } catch (e) {
     console.warn('Could not load badges data', e);
   }
@@ -8815,6 +8786,8 @@ async function fetchDashboardData() {
     // depends on it), so these apply unconditionally rather than only-if-truthy.
     ADMIN_LIST_CACHE = data.admins || [];
     COACH_LIST_CACHE = data.coaches || [];
+    // Coach/admin lists gate View-as role chrome (e.g. Liz Weiss → Sales Coach Team menu).
+    if (typeof syncRoleChrome === 'function') syncRoleChrome();
     // Closed-out SIP months — shared via Blobs. Server is SSoT; localStorage is
     // only a one-time migrate source if the blob store is still empty.
     if (Array.isArray(data.sipExtra) && data.sipExtra.length) {
@@ -9292,16 +9265,40 @@ document.getElementById('rampCheckBackdrop').addEventListener('click', (e) => {
 });
 document.getElementById('teamPersonalGoalsBtn').addEventListener('click', () => { location.hash = 'team-goals'; });
 document.getElementById('teamScheduleBtn')?.addEventListener('click', () => { location.hash = 'team-schedule'; });
+document.getElementById('openMyPacerBtn')?.addEventListener('click', () => {
+  const me = ownRepDisplayName();
+  if (me) location.hash = 'individual-pacer=' + encodeURIComponent(me);
+});
 document.getElementById('detailSprintLink')?.addEventListener('click', () => openSprintBoards('sprintM'));
 
 // ---------- Role gates (signed-in email → admin-list / coach-list / rep email) ----------
 // ADMIN_EMAIL (Aaron) is always a full admin. Additional admins live in
 // ADMIN_LIST_CACHE (admin-list Blobs). Sales Coaches live in COACH_LIST_CACHE
-// (coach-list Blobs) — elevated read only, never writes / $ payouts.
+// (coach-list Blobs) — elevated team read + schedule edit; never admin writes / $ on others.
+//
+// "View as" must mirror that person's role chrome: viewing Liz Weiss (Sales Coach)
+// shows Team tools / all Individual Pacers / schedule edit — not a stripped rep-only UI.
 function currentUserEmail() {
   if (isUxPreviewMode()) return 'ux.preview@varsitytutors.com';
   const user = window.netlifyIdentity && netlifyIdentity.currentUser();
   return user && user.email ? String(user.email).toLowerCase() : null;
+}
+function emailForRepDisplay(repDisplay) {
+  if (!repDisplay) return null;
+  const g = loadGoals()[repDisplay];
+  return g && g.email ? String(g.email).toLowerCase() : null;
+}
+/** Email used for role chrome: viewed-as rep when impersonating, else signed-in user. */
+function effectiveRoleEmail() {
+  const viewAs = getViewAsRepRaw();
+  if (viewAs) return emailForRepDisplay(viewAs);
+  return currentUserEmail();
+}
+function roleLabelForEmail(email) {
+  if (!email) return '';
+  if (isAdminEmail(email)) return 'Full admin';
+  if (isLimitedAdminEmail(email)) return 'Sales Coach';
+  return 'Rep';
 }
 function isRealAdmin() {
   if (isUxPreviewMode()) return true;
@@ -9314,10 +9311,19 @@ function canViewAdminTools() {
   return isRealAdmin();
 }
 function canViewTeamDetails() {
-  if (getViewAsRepRaw()) return false;
-  const email = currentUserEmail();
+  const email = effectiveRoleEmail();
   if (!email) return false;
   return isAdminEmail(email) || isLimitedAdminEmail(email);
+}
+/** Every signed-in teammate (and View-as of any roster person) can open schedules. */
+function canViewTeamSchedules() {
+  if (isUxPreviewMode()) return true;
+  if (getViewAsRepRaw()) return true;
+  return !!currentUserEmail();
+}
+/** Admins + Sales Coaches can edit; regular reps (and View-as of a regular rep) are read-only. */
+function canEditTeamSchedules() {
+  return canViewTeamDetails();
 }
 function canViewClientDetail(repDisplay) {
   if (isUxPreviewMode()) return true;
@@ -9328,17 +9334,13 @@ function canViewClientDetail(repDisplay) {
   const viewAs = getViewAsRepRaw();
   if (viewAs) {
     if (viewAs === repDisplay) return true;
-    const goals = loadGoals();
-    const g = goals[viewAs];
-    const viewEmail = g && g.email ? String(g.email).toLowerCase() : null;
+    const viewEmail = emailForRepDisplay(viewAs);
     if (viewEmail && (isAdminEmail(viewEmail) || isLimitedAdminEmail(viewEmail))) return true;
     return false;
   }
   if (isRealAdmin()) return true;
   if (isLimitedAdminEmail(email)) return true; // Sales Coach: read access, no confidential $
-  const goals = loadGoals();
-  const g = goals[repDisplay];
-  const repEmail = g && g.email ? String(g.email).toLowerCase() : null;
+  const repEmail = emailForRepDisplay(repDisplay);
   return !!repEmail && repEmail === email;
 }
 
@@ -9353,9 +9355,7 @@ function canViewConfidentialPayout(repDisplay) {
   if (isRealAdmin() && !viewAs) return true;
   // View as: only what that person would see — their own page payout.
   if (viewAs) return viewAs === repDisplay;
-  const goals = loadGoals();
-  const g = goals[repDisplay];
-  const repEmail = g && g.email ? String(g.email).toLowerCase() : null;
+  const repEmail = emailForRepDisplay(repDisplay);
   if (repEmail && repEmail === email) return true; // own page, even if also a coach
   return false;
 }
@@ -9364,6 +9364,8 @@ function canViewConfidentialPayout(repDisplay) {
 function syncRoleChrome() {
   const admin = canViewAdminTools();
   const team = canViewTeamDetails();
+  const schedules = canViewTeamSchedules();
+  const myPacer = !!ownRepDisplayName();
   const teamMenu = document.getElementById('teamMenuWrap');
   if (teamMenu) teamMenu.style.display = team ? '' : 'none';
   const adminMenu = document.getElementById('adminMenuWrap');
@@ -9375,17 +9377,41 @@ function syncRoleChrome() {
   const toolsSip = document.getElementById('toolsSipBtn');
   if (toolsGoals) toolsGoals.style.display = admin ? '' : 'none';
   if (toolsSip) toolsSip.style.display = admin ? '' : 'none';
-  const toolsTeam = ['toolsTeamDetailsBtn', 'toolsTeamGoalsBtn', 'toolsTeamScheduleBtn'];
-  toolsTeam.forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = team ? '' : 'none';
-  });
+  const toolsTeamDetails = document.getElementById('toolsTeamDetailsBtn');
+  const toolsTeamGoals = document.getElementById('toolsTeamGoalsBtn');
+  const toolsTeamSchedule = document.getElementById('toolsTeamScheduleBtn');
+  if (toolsTeamDetails) toolsTeamDetails.style.display = team ? '' : 'none';
+  if (toolsTeamGoals) toolsTeamGoals.style.display = team ? '' : 'none';
+  if (toolsTeamSchedule) toolsTeamSchedule.style.display = schedules ? '' : 'none';
+  const schedBtn = document.getElementById('teamScheduleBtn');
+  if (schedBtn) schedBtn.style.display = schedules ? '' : 'none';
+  const myPacerBtn = document.getElementById('openMyPacerBtn');
+  if (myPacerBtn) myPacerBtn.style.display = myPacer ? '' : 'none';
   const hint = document.getElementById('landingMenuHint');
-  if (hint) hint.style.display = (team || admin) ? '' : 'none';
+  if (hint) hint.style.display = (team || admin || schedules) ? '' : 'none';
   const shoutHist = document.getElementById('viewShoutoutHistoryLink');
   if (shoutHist) shoutHist.style.display = admin ? '' : 'none';
+  syncTeamWorkspaceChrome();
   syncAttrRepSelect();
   syncViewAsChrome();
+}
+function syncTeamWorkspaceChrome() {
+  const team = canViewTeamDetails();
+  const canEdit = canEditTeamSchedules();
+  document.querySelectorAll('#teamWorkspaceTabs .workspace-tab').forEach((btn) => {
+    const tab = btn.getAttribute('data-team-tab');
+    btn.style.display = (tab === 'schedule' || team) ? '' : 'none';
+  });
+  const saveBtn = document.getElementById('saveTeamScheduleBtn');
+  if (saveBtn) saveBtn.style.display = canEdit ? '' : 'none';
+  const roNote = document.getElementById('teamScheduleReadOnlyNote');
+  if (roNote) roNote.style.display = canEdit ? 'none' : '';
+  const intro = document.getElementById('teamWorkspaceIntro');
+  if (intro) {
+    intro.innerHTML = team
+      ? 'Coach view for day-to-day team ops. Admin goal/SIP setup lives under <strong>Admin</strong> on the landing page.'
+      : 'Team schedules are visible to everyone. Only coaches and admins can edit shifts.';
+  }
 }
 
 const VIEW_AS_KEY = 'pace_dashboard_view_as_v1';
@@ -9400,10 +9426,15 @@ function setViewAsRep(repDisplay) {
   if (!name) localStorage.removeItem(VIEW_AS_KEY);
   else localStorage.setItem(VIEW_AS_KEY, name);
   syncRoleChrome();
-  // Re-render open Individual Pacer / landing so own-rep gates refresh.
+  // Re-render open Individual Pacer / landing / team workspace so role gates refresh
+  // (e.g. View as Liz Weiss → Sales Coach Team menu + schedule edit).
   if (typeof render === 'function') render();
   if (location.hash && /individual-pacer|client-detail/.test(location.hash) && typeof renderClientDetail === 'function') {
     renderClientDetail({ preserveScroll: true });
+  }
+  if (typeof renderTeamDetailsOverlay === 'function') renderTeamDetailsOverlay();
+  if (typeof renderManualAttroPage === 'function' && location.hash === '#manual-attribution') {
+    renderManualAttroPage();
   }
 }
 function realOwnRepDisplayName() {
@@ -9429,7 +9460,12 @@ function syncViewAsTopbar() {
   const viewAs = getViewAsRepRaw();
   if (viewAs && isRealAdmin()) {
     bar.hidden = false;
-    if (label) label.textContent = 'Viewing as ' + viewAs + ' — you have their access until you revert.';
+    if (label) {
+      const role = roleLabelForEmail(emailForRepDisplay(viewAs));
+      label.textContent = 'Viewing as ' + viewAs
+        + (role ? ' (' + role + ')' : '')
+        + ' — menus and Individual Pacer access match theirs until you revert.';
+    }
   } else {
     bar.hidden = true;
     if (label) label.textContent = '';
@@ -9453,7 +9489,8 @@ function syncViewAsChrome() {
   });
   document.querySelectorAll('[data-viewing-pill]').forEach((pill) => {
     if (viewAs) {
-      pill.textContent = 'Viewing as ' + viewAs;
+      const role = roleLabelForEmail(emailForRepDisplay(viewAs));
+      pill.textContent = 'Viewing as ' + viewAs + (role ? ' · ' + role : '');
       pill.classList.add('show');
     } else {
       pill.textContent = '';

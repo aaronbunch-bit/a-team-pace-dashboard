@@ -28,12 +28,14 @@ export default async (req: Request, context: Context) => {
   const customStore = getStore("custom-badges");
   const assignStore = getStore("badge-assignments");
   const deletedPresetsStore = getStore("badge-deleted-presets");
+  const tipOverridesStore = getStore("badge-tip-overrides");
 
-  const [togglesRaw, customList, assignList, deletedPresets] = await Promise.all([
+  const [togglesRaw, customList, assignList, deletedPresets, tipOverrides] = await Promise.all([
     togglesStore.get("settings", { type: "json" }),
     customStore.list().then(({ blobs }) => Promise.all(blobs.map((b) => customStore.get(b.key, { type: "json" })))),
     assignStore.list().then(({ blobs }) => Promise.all(blobs.map((b) => assignStore.get(b.key, { type: "json" })))),
     deletedPresetsStore.get("current", { type: "json" }),
+    tipOverridesStore.get("current", { type: "json" }),
   ]);
 
   const toggles = Object.assign({}, DEFAULT_TOGGLES, togglesRaw || {});
@@ -49,7 +51,13 @@ export default async (req: Request, context: Context) => {
     assignments[a.rep].push({ id: a.id, key: a.badgeKey });
   }
 
-  return new Response(JSON.stringify({ toggles, custom, assignments, deletedPresets: deletedPresets || [] }), {
+  return new Response(JSON.stringify({
+    toggles,
+    custom,
+    assignments,
+    deletedPresets: deletedPresets || [],
+    tipOverrides: tipOverrides || {},
+  }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
