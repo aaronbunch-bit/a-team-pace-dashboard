@@ -893,6 +893,7 @@
         "team team"
         "boards reps"
         "foot foot";
+      overflow-x: clip; /* kill accidental horizontal page scroll */
     }
     body[data-layout="split-stack"] .landing-region-left { display: contents; }
     body[data-layout="split-stack"] .landing-region-team { grid-area: team; }
@@ -905,9 +906,6 @@
          the hated side scroller. JS may set position:static if the column is
          taller than the viewport so nothing gets trapped below the fold. */
       overflow: visible;
-    }
-    body[data-layout="split-stack"] .wrap {
-      overflow-x: clip; /* kill accidental horizontal page scroll */
     }
     body[data-layout="split-stack"] .landing-region-reps { grid-area: reps; min-width: 0; }
     body[data-layout="split-stack"].stack-boards-hidden .wrap {
