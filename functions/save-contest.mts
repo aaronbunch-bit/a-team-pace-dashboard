@@ -5,9 +5,13 @@ import { resolveAccess } from "./_shared/access.mts";
 import {
   CONTEST_STORE,
   deriveContestStatus,
+  migrateContestMode,
   newContestId,
-  normalizeContestPatch,
+  normalizeDealCases,
+  normalizeDealPicks,
   publicContest,
+  shuffleDealValues,
+  normalizeContestPatch,
   validateContestFields,
   type ContestRecord,
 } from "./_shared/contest.mts";
@@ -113,6 +117,8 @@ export default async (req: Request, context: Context) => {
     wheelSpin: (patch.mode || existing?.mode) === "wheel"
       ? (existing?.wheelSpin ?? null)
       : null,
+    dealCases: null,
+    dealPicks: null,
     finalStandings: patch.finalStandings ?? existing?.finalStandings ?? null,
     manualEntries: Array.isArray(existing?.manualEntries) ? existing!.manualEntries : [],
     createdBy: existing?.createdBy || access.email,
@@ -121,6 +127,17 @@ export default async (req: Request, context: Context) => {
     endedAt: existing?.endedAt ?? null,
     endedBy: existing?.endedBy ?? null,
   };
+
+  const resolvedMode = migrateContestMode(record.mode);
+  record.mode = resolvedMode;
+  if (resolvedMode === "deal") {
+    // Freeze the shuffled case bank once; keep picks across edits.
+    record.dealCases = normalizeDealCases(existing?.dealCases) || shuffleDealValues();
+    record.dealPicks = normalizeDealPicks(existing?.dealPicks);
+  } else {
+    record.dealCases = null;
+    record.dealPicks = null;
+  }
 
   if (record.status !== "ended") {
     record.status = deriveContestStatus({ ...record, status: "scheduled" }, now);

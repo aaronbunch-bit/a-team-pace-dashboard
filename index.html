@@ -1571,6 +1571,57 @@
     display: block; height: 100%; background: linear-gradient(90deg, #0d9488, #0891b2); border-radius: inherit;
   }
 
+  .contest-deal-stage {
+    display: grid; gap: 14px;
+    padding: 16px; border-radius: 22px; border: 1px solid var(--card-border);
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 0%, rgba(250,204,21,0.18), transparent 55%),
+      linear-gradient(180deg, rgba(15,23,42,0.05), transparent);
+  }
+  .contest-deal-leader {
+    text-align: center; padding: 16px 14px; border-radius: 16px;
+    background: linear-gradient(160deg, rgba(250,204,21,0.2), rgba(255,255,255,0.55));
+    border: 1px solid rgba(234,179,8,0.35);
+  }
+  body.dark .contest-deal-leader {
+    background: linear-gradient(160deg, rgba(250,204,21,0.14), rgba(30,27,48,0.85));
+  }
+  .contest-deal-leader h3 { margin: 6px 0 2px; font-size: 24px; font-weight: 900; letter-spacing: -0.03em; }
+  .contest-deal-leader .deal-best {
+    font-size: 28px; font-weight: 900; letter-spacing: -0.03em; color: #a16207;
+  }
+  .contest-deal-cases {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px;
+  }
+  .contest-deal-case {
+    min-height: 78px; padding: 10px 8px; border-radius: 14px; text-align: center;
+    border: 1px solid var(--card-border); background: rgba(255,255,255,0.65);
+    display: flex; flex-direction: column; justify-content: center; gap: 4px;
+  }
+  body.dark .contest-deal-case { background: rgba(30,27,48,0.75); }
+  .contest-deal-case.is-open {
+    border-color: rgba(234,179,8,0.5);
+    background: linear-gradient(160deg, rgba(250,204,21,0.18), rgba(255,255,255,0.5));
+  }
+  .contest-deal-case .case-num {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint);
+  }
+  .contest-deal-case .case-val { font-size: 16px; font-weight: 900; letter-spacing: -0.02em; }
+  .contest-deal-case .case-owner { font-size: 11px; font-weight: 700; color: var(--text-muted); }
+  .contest-deal-case.is-sealed .case-val { color: var(--text-faint); }
+  .contest-deal-ranks { display: grid; gap: 8px; }
+  .contest-deal-rank {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center;
+    padding: 10px 12px; border-radius: 12px; border: 1px solid var(--card-border);
+    background: rgba(255,255,255,0.55);
+  }
+  body.dark .contest-deal-rank { background: rgba(30,27,48,0.7); }
+  .contest-deal-rank.is-me { border-color: rgba(14,165,233,0.45); }
+  .contest-deal-coach {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin-top: 4px;
+  }
+  .contest-deal-coach label { flex: 1 1 160px; min-width: 140px; }
+
   .contest-mode-picker {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 8px;
   }
@@ -4725,23 +4776,18 @@
       <label class="full">Custom tagline <span style="font-weight:600;text-transform:none;letter-spacing:0;">(optional)</span>
         <input type="text" id="contestEditTagline" maxlength="120" placeholder="One hour. Full send.">
       </label>
-      <label class="full">Contest theme
+      <label class="full">Theme pack
         <select id="contestEditTheme">
-          <option value="grand-prix">🏁 Grand Prix</option>
+          <option value="grand-prix">🏁 Racecar — Grand Prix</option>
+          <option value="arcade">👾 Arcade Run — Pac-Man vibes</option>
           <option value="neon-night">🌃 Neon Night</option>
-          <option value="space-race">🚀 Space Race</option>
-          <option value="desert-rally">🏜️ Desert Rally</option>
-          <option value="rainbow-road">🌈 Rainbow Road</option>
-          <option value="ice-circuit">❄️ Ice Circuit</option>
-          <option value="stadium">🏟️ Stadium</option>
           <option value="carnival">🎡 Carnival Wheel</option>
-          <option value="pirate">🏴‍☠️ Pirate Quest</option>
-          <option value="arcade">👾 Arcade Cup</option>
           <option value="blood-type-a">🅰️ Blood Type A</option>
           <option value="dragon-cup">🐉 Dragon Cup</option>
-          <option value="underwater">🐠 Underwater</option>
-          <option value="retro">📼 Retro Rally</option>
+          <option value="space-race">🚀 Space Race</option>
+          <option value="stadium">🏟️ Stadium</option>
         </select>
+        <span class="contest-field-hint">Look &amp; feel comes from the pack — cars, track, accents, mascot.</span>
       </label>
       <label>Duration
         <select id="contestEditDuration">
@@ -4786,11 +4832,11 @@
               <small>#1 sits in the spotlight. Steal the lead to take the seat.</small>
             </div>
           </button>
-          <button type="button" class="contest-mode-card" data-mode="bounty" role="option" aria-selected="false">
-            <div class="contest-mode-viz" aria-hidden="true">🎯📦📦</div>
+          <button type="button" class="contest-mode-card" data-mode="deal" role="option" aria-selected="false">
+            <div class="contest-mode-viz" aria-hidden="true">💼💰</div>
             <div class="mode-copy">
-              <strong>Bounty Board</strong>
-              <small>Milestone tiles to claim. First to each bounty owns it.</small>
+              <strong>Deal or No Deal</strong>
+              <small>Each sale opens a case. Highest case money wins the pot.</small>
             </div>
           </button>
           <button type="button" class="contest-mode-card" data-mode="vault" role="option" aria-selected="false">
@@ -4813,7 +4859,7 @@
           <option value="members">Members</option>
           <option value="both">Both</option>
         </select>
-        <span class="contest-field-hint">What counts as score (and wheel tickets).</span>
+        <span class="contest-field-hint">What counts as score, wheel tickets, or a Deal sale credit.</span>
       </label>
       <label>Start
         <input type="datetime-local" id="contestEditStart">
@@ -4835,148 +4881,27 @@
       </label>
 
       <div class="contest-form-section full" id="contestEditRaceOpts">
-        <div class="contest-form-section-title">✨ Customizations for this type</div>
-        <div class="meta-note" style="margin:0 0 8px;" id="contestEditCustomIntro">Only options that apply to the selected contest type are shown.</div>
+        <div class="contest-form-section-title">Game settings for this type</div>
+        <div class="meta-note" style="margin:0 0 8px;" id="contestEditCustomIntro">Theme pack handles the look. Only real game rules show here.</div>
+        <!-- Hidden fields kept so theme-pack defaults still save cleanly -->
+        <input type="hidden" id="contestEditVehicle" value="car">
+        <input type="hidden" id="contestEditTrack" value="asphalt">
+        <input type="hidden" id="contestEditHype" value="hype">
+        <input type="hidden" id="contestEditAccent" value="gold">
+        <input type="hidden" id="contestEditMascot" value="🏁">
+        <input type="hidden" id="contestEditEffects" value="confetti">
+        <input type="hidden" id="contestEditCheer" value="announcer">
+        <input type="hidden" id="contestEditBoardSize" value="hero">
+        <input type="hidden" id="contestEditCustomCheer" value="">
+        <input type="hidden" id="contestEditWheelSkin" value="classic">
+        <input type="checkbox" id="contestEditConfettiLead" checked style="display:none;">
+        <input type="checkbox" id="contestEditShowTicker" checked style="display:none;">
+        <input type="checkbox" id="contestEditShowLaneBoard" checked style="display:none;">
+        <input type="checkbox" id="contestEditAnnouncer" checked style="display:none;">
         <div class="contest-form-grid">
-          <label data-for-modes="race">Vehicle / runner
-            <select id="contestEditVehicle">
-              <option value="car">🏎️ Race car</option>
-              <option value="kart">🛵 Kart</option>
-              <option value="rocket">🚀 Rocket</option>
-              <option value="blood-a">🅰️ Blood Type A</option>
-              <option value="horse">🐴 Horse</option>
-              <option value="unicorn">🦄 Unicorn</option>
-              <option value="turtle">🐢 Turtle</option>
-              <option value="bolt">⚡ Lightning</option>
-              <option value="runner">🏃 Runner</option>
-              <option value="bike">🚲 Bike</option>
-              <option value="boat">🚤 Boat</option>
-              <option value="dragon">🐉 Dragon</option>
-              <option value="phoenix">🔥 Phoenix</option>
-              <option value="alien">👽 Alien</option>
-              <option value="ghost">👻 Ghost</option>
-              <option value="crown">👑 Crown</option>
-              <option value="pizza">🍕 Pizza</option>
-              <option value="hotdog">🌭 Hotdog</option>
-            </select>
-            <span class="contest-field-hint">What races down the speedway for each rep.</span>
-          </label>
-          <label data-for-modes="race">Track / world
-            <select id="contestEditTrack">
-              <option value="asphalt">Asphalt speedway</option>
-              <option value="neon">Neon night</option>
-              <option value="desert">Desert rally</option>
-              <option value="rainbow">Rainbow road</option>
-              <option value="ice">Ice circuit</option>
-              <option value="stadium">Stadium lights</option>
-              <option value="space">Deep space</option>
-              <option value="ocean">Ocean lane</option>
-              <option value="lava">Lava run</option>
-              <option value="pixel">Pixel world</option>
-            </select>
-            <span class="contest-field-hint">Speedway backdrop / world skin.</span>
-          </label>
-          <label data-for-modes="race,hotseat,bounty,vault">Hype level
-            <select id="contestEditHype">
-              <option value="chill">Chill</option>
-              <option value="hype">Hype</option>
-              <option value="max">Max chaos</option>
-            </select>
-            <span class="contest-field-hint">How intense motion and energy feel.</span>
-          </label>
-          <label data-for-modes="race,hotseat,bounty,vault,wheel">Accent color
-            <select id="contestEditAccent">
-              <option value="pink">Hot pink</option>
-              <option value="gold">Gold</option>
-              <option value="cyan">Cyan</option>
-              <option value="lime">Lime</option>
-              <option value="orange">Orange</option>
-              <option value="violet">Violet</option>
-              <option value="red">Racing red</option>
-              <option value="blood">Blood Type A</option>
-            </select>
-            <span class="contest-field-hint">Highlight color for the arena chrome.</span>
-          </label>
-          <label data-for-modes="race,hotseat,vault">Mascot
-            <select id="contestEditMascot">
-              <option value="🏁">🏁 Flag</option>
-              <option value="🅰️">🅰️ Blood Type A</option>
-              <option value="🚀">🚀 Rocket</option>
-              <option value="🐉">🐉 Dragon</option>
-              <option value="🦄">🦄 Unicorn</option>
-              <option value="🏟️">🏟️ Stadium</option>
-              <option value="🎡">🎡 Wheel</option>
-              <option value="👾">👾 Arcade</option>
-              <option value="🏴‍☠️">🏴‍☠️ Pirate</option>
-              <option value="❄️">❄️ Ice</option>
-              <option value="🌈">🌈 Rainbow</option>
-              <option value="🏆">🏆 Trophy</option>
-              <option value="🔥">🔥 Fire</option>
-              <option value="💰">💰 Vault</option>
-            </select>
-            <span class="contest-field-hint">Hero emoji on the board + sticky ticker.</span>
-          </label>
-          <label data-for-modes="race,hotseat,bounty">Effects
-            <select id="contestEditEffects">
-              <option value="none">None</option>
-              <option value="sparks">Sparks</option>
-              <option value="confetti">Confetti</option>
-              <option value="fireworks">Fireworks</option>
-              <option value="max">Max party</option>
-            </select>
-            <span class="contest-field-hint">Celebration particles when big moments hit.</span>
-          </label>
-          <label data-for-modes="race,hotseat">Cheer style
-            <select id="contestEditCheer">
-              <option value="announcer">Announcer</option>
-              <option value="hype-crew">Hype crew</option>
-              <option value="radio">Race radio</option>
-              <option value="silent">Silent</option>
-            </select>
-            <span class="contest-field-hint">Voice of lead-change callouts.</span>
-          </label>
-          <label data-for-modes="race">Board size
-            <select id="contestEditBoardSize">
-              <option value="hero">Hero (board focus)</option>
-              <option value="normal">Normal</option>
-            </select>
-            <span class="contest-field-hint">Hero makes the speedway dominate the page.</span>
-          </label>
-          <label class="full" data-for-modes="race,hotseat,vault">Custom cheer <span style="font-weight:600;text-transform:none;letter-spacing:0;">(optional)</span>
-            <input type="text" id="contestEditCustomCheer" maxlength="140" placeholder="LDOM is HERE — take the lead!">
-            <span class="contest-field-hint">Optional line in the callout feed.</span>
-          </label>
-          <label class="full" data-for-modes="race,hotseat" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;font-weight:700;">
-            <input type="checkbox" id="contestEditConfettiLead" checked style="width:auto;">
-            Confetti when the lead changes
-          </label>
-          <label class="full" data-for-modes="race,hotseat" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;font-weight:700;">
-            <input type="checkbox" id="contestEditShowTicker" checked style="width:auto;">
-            Show live moves ticker
-          </label>
-          <label data-for-modes="race,bounty,vault" id="contestEditRaceGoalLabel">Goal / top bounty <span style="font-weight:600;text-transform:none;letter-spacing:0;" id="contestEditRaceGoalOptional">(optional)</span>
+          <label data-for-modes="race,vault" id="contestEditRaceGoalLabel">Goal <span style="font-weight:600;text-transform:none;letter-spacing:0;" id="contestEditRaceGoalOptional">(optional)</span>
             <input type="number" id="contestEditRaceGoal" min="0" step="any" placeholder="e.g. 5">
-            <span class="contest-field-hint" id="contestEditRaceGoalHint">Speedway track length, Bounty top prize, or Vault fill target.</span>
-          </label>
-          <label class="full" data-for-modes="race" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;font-weight:700;">
-            <input type="checkbox" id="contestEditShowLaneBoard" checked style="width:auto;">
-            Show detail board under the track
-          </label>
-          <label class="full" data-for-modes="race,hotseat" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;font-weight:700;">
-            <input type="checkbox" id="contestEditAnnouncer" checked style="width:auto;">
-            Announcer callouts when the lead changes
-          </label>
-          <label data-for-modes="wheel">Wheel skin
-            <select id="contestEditWheelSkin">
-              <option value="classic">Classic</option>
-              <option value="neon">Neon</option>
-              <option value="candy">Candy</option>
-              <option value="midnight">Midnight</option>
-              <option value="gold">Gold rush</option>
-              <option value="blood">Blood Type A</option>
-              <option value="pixel">Pixel</option>
-            </select>
-            <span class="contest-field-hint">Wedge color palette. Names still label each slice.</span>
+            <span class="contest-field-hint" id="contestEditRaceGoalHint">Speedway finish line or Vault fill target.</span>
           </label>
         </div>
         <div class="meta-note" id="contestEditModeExtraNote" style="margin-top:8px;"></div>
@@ -10441,7 +10366,7 @@ function contestThemeClass(contest) {
 }
 function contestThemeMeta(theme) {
   const map = {
-    'grand-prix': { icon: '🏁', name: 'Grand Prix', tagline: 'Hit the track. Take the lead.', track: 'asphalt', vehicle: 'car', accent: 'gold', mascot: '🏁', effects: 'confetti', mode: 'race' },
+    'grand-prix': { icon: '🏁', name: 'Racecar', tagline: 'Hit the track. Take the lead.', track: 'asphalt', vehicle: 'car', accent: 'gold', mascot: '🏁', effects: 'confetti', mode: 'race' },
     'neon-night': { icon: '🌃', name: 'Neon Night', tagline: 'Lights out. Full send.', track: 'neon', vehicle: 'kart', accent: 'cyan', mascot: '🌃', effects: 'sparks', mode: 'race' },
     'space-race': { icon: '🚀', name: 'Space Race', tagline: 'Zero gravity. Maximum credits.', track: 'space', vehicle: 'rocket', accent: 'violet', mascot: '🚀', effects: 'max', mode: 'race' },
     'desert-rally': { icon: '🏜️', name: 'Desert Rally', tagline: 'Dust, grit, and early heat.', track: 'desert', vehicle: 'car', accent: 'orange', mascot: '🏜️', effects: 'sparks', mode: 'race' },
@@ -10450,7 +10375,7 @@ function contestThemeMeta(theme) {
     stadium: { icon: '🏟️', name: 'Stadium', tagline: 'Crowd on their feet.', track: 'stadium', vehicle: 'runner', accent: 'lime', mascot: '🏟️', effects: 'fireworks', mode: 'race' },
     carnival: { icon: '🎡', name: 'Carnival', tagline: 'Earn tickets. Spin for glory.', track: 'rainbow', vehicle: 'unicorn', accent: 'pink', mascot: '🎡', effects: 'confetti', mode: 'wheel', wheelSkin: 'candy' },
     pirate: { icon: '🏴‍☠️', name: 'Pirate Quest', tagline: 'Hunt credits. Claim the treasure.', track: 'ocean', vehicle: 'boat', accent: 'gold', mascot: '🏴‍☠️', effects: 'sparks', mode: 'race' },
-    arcade: { icon: '👾', name: 'Arcade Cup', tagline: 'Insert sale to continue.', track: 'pixel', vehicle: 'ghost', accent: 'violet', mascot: '👾', effects: 'max', mode: 'race' },
+    arcade: { icon: '👾', name: 'Arcade Run', tagline: 'Insert sale to continue.', track: 'pixel', vehicle: 'ghost', accent: 'violet', mascot: '👾', effects: 'max', mode: 'race' },
     'blood-type-a': { icon: '🅰️', name: 'Blood Type A', tagline: 'A-Team energy only.', track: 'lava', vehicle: 'blood-a', accent: 'blood', mascot: '🅰️', effects: 'max', mode: 'race' },
     'dragon-cup': { icon: '🐉', name: 'Dragon Cup', tagline: 'Breathe fire. Close deals.', track: 'lava', vehicle: 'dragon', accent: 'orange', mascot: '🐉', effects: 'fireworks', mode: 'race' },
     underwater: { icon: '🐠', name: 'Underwater', tagline: 'Dive deep. Surface first.', track: 'ocean', vehicle: 'boat', accent: 'cyan', mascot: '🐠', effects: 'sparks', mode: 'race' },
@@ -10843,17 +10768,17 @@ function contestSpeedwayHTML(contest, standings) {
 }
 function contestMigrateMode(mode) {
   const m = String(mode || 'race');
-  if (m === 'target') return 'bounty';
+  if (m === 'target' || m === 'bounty') return 'deal';
   if (m === 'crown') return 'hotseat';
   if (m === 'ladder') return 'vault';
-  if (['race', 'wheel', 'hotseat', 'bounty', 'vault'].includes(m)) return m;
+  if (['race', 'wheel', 'hotseat', 'deal', 'vault'].includes(m)) return m;
   return 'race';
 }
 function contestModeLabel(mode) {
   const m = contestMigrateMode(mode);
   if (m === 'wheel') return 'Prize Wheel';
   if (m === 'hotseat') return 'Hot Seat';
-  if (m === 'bounty') return 'Bounty Board';
+  if (m === 'deal') return 'Deal or No Deal';
   if (m === 'vault') return 'Vault Heist';
   return 'Speedway';
 }
@@ -10861,7 +10786,7 @@ function contestModeGuide(mode) {
   const m = contestMigrateMode(mode);
   if (m === 'wheel') return 'Earn tickets from Units, then spin. The official landing is saved — everyone sees the same winner.';
   if (m === 'hotseat') return 'One throne. Whoever leads sits in the Hot Seat; steal the lead and take the spotlight.';
-  if (m === 'bounty') return 'Milestone tiles unlock as scores climb. First to each bounty claims that tile forever (for this contest).';
+  if (m === 'deal') return 'Each sale opens the next case in time order. Highest case money wins the prize pot. Coaches can pick for anyone.';
   if (m === 'vault') return 'Team fills the vault toward a goal/pot. See each person’s share of the heist.';
   return 'Cars race by score on a live speedway — best for classic Power Hours.';
 }
@@ -10873,8 +10798,8 @@ function contestModePreviewHTML(mode) {
   if (m === 'hotseat') {
     return `<span class="preview-pill">🔥 Spotlight #1</span><span class="preview-pill">Gap to #2</span><span class="preview-pill">Challenger chips</span>`;
   }
-  if (m === 'bounty') {
-    return `<span class="preview-pill">🎯 Tile grid</span><span class="preview-pill">First-claim</span><span class="preview-pill">Milestone prizes</span>`;
+  if (m === 'deal') {
+    return `<span class="preview-pill">💼 Case bank</span><span class="preview-pill">Sale → pick</span><span class="preview-pill">Highest wins pot</span>`;
   }
   if (m === 'vault') {
     return `<span class="preview-pill">💰 Vault ring</span><span class="preview-pill">Team fill</span><span class="preview-pill">Share bars</span>`;
@@ -10933,28 +10858,161 @@ function contestHotseatBoardHTML(contest, standings) {
       </div>
     </div>`;
 }
-function contestBountyBoardHTML(contest, standings) {
-  const goal = Number(contest.raceGoal) > 0 ? Number(contest.raceGoal) : Math.max(4, ...standings.map((r) => r.score), 4);
-  const steps = [0.25, 0.5, 0.75, 1].map((p) => Math.round((goal * p) * 100) / 100);
-  const tiles = steps.map((need, i) => {
-    const labels = ['First spark', 'Halfway heat', 'Almost there', 'Top bounty'];
-    const claimant = standings.find((r) => r.score >= need) || null;
+function collectContestDealSales(contest) {
+  const sales = [];
+  const filter = Array.isArray(contest.repFilter) && contest.repFilter.length
+    ? new Set(contest.repFilter)
+    : null;
+  if (contest.kind !== 'promo') {
+    const actuals = typeof loadActuals === 'function' ? loadActuals() : null;
+    const perRep = (actuals && actuals.perRep) || {};
+    const start = contestYmdInCentral(new Date(contest.startAt));
+    const end = contestYmdInCentral(new Date(contest.endAt));
+    Object.keys(perRep).forEach((repName, rIdx) => {
+      if (filter && !filter.has(repName)) return;
+      const items = perRep[repName].items || [];
+      items.forEach((it, idx) => {
+        const sessions = Number(it.sessions) || 0;
+        const members = Number(it.members) || 0;
+        if (sessions <= 0 && members <= 0) return;
+        const d = String(it.date || '').slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || d < start || d > end) return;
+        const clientId = String(it.clientId || idx);
+        const at = it.occurredAt || `${d}T${String(rIdx).padStart(3, '0')}${String(idx).padStart(5, '0')}`;
+        sales.push({
+          saleKey: `${repName}|${clientId}|${d}|${sessions}|${members}`,
+          repName,
+          at,
+        });
+      });
+    });
+  }
+  (contest.manualEntries || []).forEach((entry) => {
+    if (!entry || !entry.repName) return;
+    if (filter && !filter.has(entry.repName)) return;
+    const sessions = Number(entry.sessions) || 0;
+    const members = Number(entry.members) || 0;
+    if (sessions <= 0 && members <= 0) return;
+    const at = entry.at || entry.createdAt || contest.startAt || new Date().toISOString();
+    sales.push({
+      saleKey: `manual-entry:${entry.id || `${entry.repName}|${at}`}`,
+      repName: entry.repName,
+      at,
+    });
+  });
+  sales.sort((a, b) => a.at.localeCompare(b.at) || a.saleKey.localeCompare(b.saleKey));
+  return sales;
+}
+function contestDealRankRows(contest) {
+  const picks = Array.isArray(contest.dealPicks) ? contest.dealPicks : [];
+  const byRep = new Map();
+  picks.forEach((p) => {
+    if (!p || !p.repName) return;
+    const row = byRep.get(p.repName) || { repName: p.repName, best: 0, cases: 0, total: 0, picks: [] };
+    row.cases += 1;
+    row.total += Number(p.value) || 0;
+    row.best = Math.max(row.best, Number(p.value) || 0);
+    row.picks.push(p);
+    byRep.set(p.repName, row);
+  });
+  const rows = Array.from(byRep.values());
+  rows.sort((a, b) => b.best - a.best || b.cases - a.cases || a.repName.localeCompare(b.repName));
+  rows.forEach((r, i) => { r.place = i + 1; });
+  return rows;
+}
+function contestDealStandingSnapRows(contest) {
+  return contestDealRankRows(contest).map((r) => ({
+    place: r.place,
+    repName: r.repName,
+    sessions: 0,
+    members: 0,
+    score: r.best,
+    tickets: r.best,
+    manual: r.picks.filter((p) => p.source === 'manual').length,
+  }));
+}
+async function syncContestDealPicks(contest, { quiet } = {}) {
+  if (!contest || contestMigrateMode(contest.mode) !== 'deal') return contest;
+  if (contest.status === 'ended') return contest;
+  const sales = collectContestDealSales(contest);
+  try {
+    const data = await authedFetch('/api/contests/deal-pick', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: contest.id, action: 'sync', sales }),
+    });
+    const next = data.contest || contest;
+    const idx = CONTEST_CACHE.findIndex((c) => c.id === next.id);
+    if (idx >= 0) CONTEST_CACHE[idx] = next;
+    else CONTEST_CACHE.push(next);
+    return next;
+  } catch (err) {
+    if (!quiet) console.warn('Deal sync failed', err);
+    return contest;
+  }
+}
+function contestDealBoardHTML(contest, standings) {
+  const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
+  const manage = contestCanManage();
+  const cases = Array.isArray(contest.dealCases) ? contest.dealCases : [];
+  const picks = Array.isArray(contest.dealPicks) ? contest.dealPicks : [];
+  const pickByCase = new Map(picks.map((p) => [p.caseId, p]));
+  const ranks = contestDealRankRows(contest);
+  const leader = ranks[0];
+  const pot = contest.stakeType === 'money' && contest.stakeAmount
+    ? `$${Number(contest.stakeAmount).toLocaleString('en-US')} pot`
+    : 'Bragging rights';
+  const caseTiles = cases.map((c, i) => {
+    const pick = pickByCase.get(c.id);
+    if (pick) {
+      return `
+        <div class="contest-deal-case is-open">
+          <div class="case-num">Case ${i + 1}</div>
+          <div class="case-val">$${fmt(pick.value, 0)}</div>
+          <div class="case-owner">${escapeHtml((pick.repName || '').split(' ')[0])}${pick.source === 'manual' ? ' · coach' : ''}</div>
+        </div>`;
+    }
     return `
-      <div class="contest-bounty-tile${claimant ? ' is-claimed' : ''}">
-        <div>
-          <div class="meta-note" style="margin:0;">${labels[i]}</div>
-          <div class="bounty-val">${fmt(need, 1)}</div>
-        </div>
-        ${claimant
-          ? `<div class="bounty-claim">Claimed by ${escapeHtml(claimant.repName.split(' ')[0])}</div>`
-          : `<div class="bounty-open">Unclaimed · first to ${fmt(need, 1)}</div>`}
+      <div class="contest-deal-case is-sealed">
+        <div class="case-num">Case ${i + 1}</div>
+        <div class="case-val">???</div>
+        <div class="case-owner">Sealed</div>
       </div>`;
   }).join('');
+  const rankRows = ranks.map((r) => `
+    <div class="contest-deal-rank${r.repName === me ? ' is-me' : ''}">
+      <div class="contest-race-rank" aria-label="Place ${r.place}">${r.place === 1 ? '🥇' : r.place === 2 ? '🥈' : r.place === 3 ? '🥉' : String(r.place)}</div>
+      <div>
+        <div class="contest-race-name">${escapeHtml(r.repName)}${r.repName === me ? ' · you' : ''}</div>
+        <div class="contest-race-sub">${r.cases} case${r.cases === 1 ? '' : 's'} opened</div>
+      </div>
+      <div class="contest-race-score">$${fmt(r.best, 0)}<span>best</span></div>
+    </div>`).join('');
+  const coachPick = manage && contest.status !== 'ended' ? `
+    <div class="contest-section-title" style="margin-top:8px;"><span>Coach pick</span><span>Assign next case</span></div>
+    <div class="contest-deal-coach">
+      <label>Teammate
+        <select id="contestDealPickRep"></select>
+      </label>
+      <button type="button" class="theme-btn" id="contestDealPickBtn">Open next case for them</button>
+    </div>
+    <div class="meta-note" id="contestDealPickStatus" style="margin-top:6px;">Sales auto-open cases in time order. Coaches can pick for anyone.</div>` : '';
   return `
-    <div class="contest-section-title"><span>🎯 Bounty Board</span><span>Top ${fmt(goal, 1)} ${escapeHtml(contestUnitsLabel(contest.units))}</span></div>
-    <div class="contest-bounty-grid">${tiles}</div>
-    <div class="contest-section-title" style="margin-top:14px;"><span>Live chase</span></div>
-    ${contestTicketBoardHTML(contest, standings, { title: '🏃 Live chase', unit: contestUnitsLabel(contest.units) })}`;
+    <div class="contest-section-title"><span>💼 Deal or No Deal</span><span>${picks.length}/${cases.length || 16} open · ${escapeHtml(pot)}</span></div>
+    <div class="contest-deal-stage">
+      <div class="contest-deal-leader">
+        <div class="meta-note" style="margin:0;font-weight:900;letter-spacing:0.06em;text-transform:uppercase;">Highest case</div>
+        <h3>${leader ? escapeHtml(leader.repName) : 'Waiting for the first sale…'}</h3>
+        <div class="deal-best">${leader ? '$' + fmt(leader.best, 0) : '—'}</div>
+        <div class="meta-note" style="margin:8px 0 0;">Highest case money wins the ${escapeHtml(pot)}.</div>
+      </div>
+      <div class="contest-deal-cases">${caseTiles || '<div class="meta-note">Case bank loading…</div>'}</div>
+      <div class="contest-section-title"><span>Case leaders</span></div>
+      <div class="contest-deal-ranks">${rankRows || '<div class="meta-note">No cases opened yet — first sale takes a briefcase.</div>'}</div>
+      ${coachPick}
+      <div class="contest-section-title" style="margin-top:8px;"><span>Sales chase</span></div>
+      ${contestTicketBoardHTML(contest, standings, { title: '🧾 Sales in window', unit: contestUnitsLabel(contest.units) })}
+    </div>`;
 }
 function contestVaultBoardHTML(contest, standings) {
   const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
@@ -10994,7 +11052,7 @@ function contestStandingsHTML(contest, standings) {
   const mode = contestMigrateMode(contest.mode);
   if (mode === 'race') return contestSpeedwayHTML(contest, standings);
   if (mode === 'hotseat') return contestHotseatBoardHTML(contest, standings);
-  if (mode === 'bounty') return contestBountyBoardHTML(contest, standings);
+  if (mode === 'deal') return contestDealBoardHTML(contest, standings);
   if (mode === 'vault') return contestVaultBoardHTML(contest, standings);
   if (mode === 'wheel') return contestTicketBoardHTML(contest, standings);
   return contestSpeedwayHTML(contest, standings);
@@ -11117,10 +11175,16 @@ function contestBoardHTML(contest) {
     </div>`;
   }
   const standings = computeContestStandings(contest);
-  const myPlace = contestMyPlace(contest, standings);
   const manage = contestCanManage();
   const theme = contestThemeClass(contest);
   const mode = contestMigrateMode(contest.mode);
+  const myPlace = mode === 'deal'
+    ? (() => {
+      const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
+      const hit = me ? contestDealRankRows(contest).find((r) => r.repName === me) : null;
+      return hit ? hit.place : null;
+    })()
+    : contestMyPlace(contest, standings);
   const boardBlock = mode === 'wheel'
     ? contestWheelStageHTML(contest, standings)
     : contestStandingsHTML(contest, standings);
@@ -11188,6 +11252,7 @@ function contestBoardHTML(contest) {
         <span class="contest-chip">Your place <strong>${escapeHtml(contest.status === 'scheduled' ? 'Soon' : contestPlaceLabel(myPlace))}</strong></span>
         ${contest.raceGoal ? `<span class="contest-chip">Goal <strong>${fmt(contest.raceGoal, 1)}</strong></span>` : ''}
         ${mode === 'wheel' && contest.wheelSpin ? `<span class="contest-chip">Winner <strong>${escapeHtml(contest.wheelSpin.winner)}</strong></span>` : ''}
+        ${mode === 'deal' && contestDealRankRows(contest)[0] ? `<span class="contest-chip">Best case <strong>$${fmt(contestDealRankRows(contest)[0].best, 0)}</strong></span>` : ''}
       </div>
       ${frozenNote}
     </div>
@@ -11239,12 +11304,32 @@ function renderContestBoard() {
   host.innerHTML = contestBoardHTML(contestArenaTab === 'history' ? null : contest);
   if (contestArenaTab === 'live') {
     populateContestManualRepSelect();
+    populateContestDealPickRepSelect();
     animateContestCars(host);
+    if (contest && contestMigrateMode(contest.mode) === 'deal' && contest.status !== 'ended') {
+      const syncId = contest.id;
+      syncContestDealPicks(contest, { quiet: true }).then((next) => {
+        if (!next || next.id !== syncId) return;
+        if (!document.getElementById('contestOverlay')?.classList.contains('open')) return;
+        if (contestViewId !== syncId) return;
+        const before = JSON.stringify(contest.dealPicks || []);
+        const after = JSON.stringify(next.dealPicks || []);
+        if (before !== after || !(contest.dealCases || []).length) {
+          renderContestBoard();
+        }
+      });
+    }
   }
   const emptyCreate = document.getElementById('contestEmptyCreate');
   if (emptyCreate) emptyCreate.addEventListener('click', () => openContestEditModal(null));
   const emptyTest = document.getElementById('contestEmptyTest');
   if (emptyTest) emptyTest.addEventListener('click', () => openContestEditModal(null, { test: true, duration: '2m', theme: 'blood-type-a' }));
+}
+function populateContestDealPickRepSelect() {
+  const sel = document.getElementById('contestDealPickRep');
+  if (!sel) return;
+  const roster = typeof getRoster === 'function' ? getRoster() : [];
+  sel.innerHTML = roster.map((r) => `<option value="${escapeAttr(r.display)}">${escapeHtml(r.display)}</option>`).join('');
 }
 function tickContestCountdowns() {
   document.querySelectorAll('[data-contest-cd]').forEach((el) => {
@@ -11261,16 +11346,18 @@ async function maybeFreezeEndedContests() {
   );
   for (const c of ended.slice(0, 3)) {
     contestFreezeAttempted.add(c.id);
-    const live = (() => {
-      const copy = Object.assign({}, c, { finalStandings: null, status: 'active' });
-      return computeContestStandings(copy);
-    })();
-    if (!live.length) continue;
+    const snap = contestMigrateMode(c.mode) === 'deal'
+      ? contestDealStandingSnapRows(c)
+      : (() => {
+        const copy = Object.assign({}, c, { finalStandings: null, status: 'active' });
+        return contestStandingSnapRows(computeContestStandings(copy));
+      })();
+    if (!snap.length) continue;
     try {
       const { contest } = await authedFetch('/api/contests/freeze-standings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: c.id, finalStandings: contestStandingSnapRows(live) }),
+        body: JSON.stringify({ id: c.id, finalStandings: snap }),
       });
       if (contest) {
         const idx = CONTEST_CACHE.findIndex((x) => x.id === contest.id);
@@ -11426,19 +11513,18 @@ function syncContestEditModeFields() {
   const goalOpt = document.getElementById('contestEditRaceGoalOptional');
   const goalHint = document.getElementById('contestEditRaceGoalHint');
   const extra = document.getElementById('contestEditModeExtraNote');
-  if (goalOpt) goalOpt.textContent = mode === 'bounty' ? '(required)' : (mode === 'vault' ? '(recommended)' : '(optional)');
+  if (goalOpt) goalOpt.textContent = mode === 'vault' ? '(recommended)' : '(optional)';
   if (goalHint) {
-    if (mode === 'bounty') goalHint.textContent = 'Required — top bounty. Tiles auto-split into 25/50/75/100%.';
-    else if (mode === 'vault') goalHint.textContent = 'Vault fill target. Defaults to pot $ or live team total if blank.';
+    if (mode === 'vault') goalHint.textContent = 'Vault fill target. Defaults to pot $ or live team total if blank.';
     else if (mode === 'race') goalHint.textContent = 'Optional finish line — track length vs this goal (or vs leader).';
     else goalHint.textContent = 'Optional goal number for this format.';
   }
   if (extra) {
     if (mode === 'wheel') extra.textContent = 'Tickets come from Units. Spin is saved on the server — every teammate sees the same landed winner.';
     else if (mode === 'hotseat') extra.textContent = 'Hot Seat is all about #1 — steal the lead and the spotlight moves with you.';
-    else if (mode === 'bounty') extra.textContent = 'Bounties are claimed by the first rep to reach each milestone — great for staggered prizes.';
+    else if (mode === 'deal') extra.textContent = 'Each sale opens the next case in time order. Highest case wins the pot. Coaches can assign a case to anyone.';
     else if (mode === 'vault') extra.textContent = 'Vault Heist shines with a money stake or a clear team fill goal.';
-    else extra.textContent = 'Speedway customizations change the cars, track, and callouts — not the scoring rules.';
+    else extra.textContent = 'Theme pack sets the cars, track, and chrome — scoring still comes from Units.';
   }
 }
 function syncContestEditEmoji() {
@@ -11447,12 +11533,11 @@ function syncContestEditEmoji() {
   const mode = contestMigrateMode(document.getElementById('contestEditMode')?.value || 'race');
   if (mode === 'wheel') { emoji.textContent = '🎡'; return; }
   if (mode === 'hotseat') { emoji.textContent = '🔥'; return; }
-  if (mode === 'bounty') { emoji.textContent = '🎯'; return; }
+  if (mode === 'deal') { emoji.textContent = '💼'; return; }
   if (mode === 'vault') { emoji.textContent = '💰'; return; }
-  const mascot = document.getElementById('contestEditMascot')?.value;
-  if (mascot) { emoji.textContent = mascot; return; }
-  const vehicle = document.getElementById('contestEditVehicle')?.value || 'car';
-  emoji.textContent = contestVehicleEmoji(vehicle);
+  const theme = document.getElementById('contestEditTheme')?.value || 'grand-prix';
+  const meta = contestThemeMeta(theme);
+  emoji.textContent = meta.mascot || meta.icon || '🏁';
 }
 function applyContestThemeDefaults(theme, { force } = {}) {
   const meta = contestThemeMeta(theme);
@@ -11500,6 +11585,14 @@ function openContestEditModal(id, opts) {
     : contestDurationWindow(duration);
   const setVal = (eid, v) => { const el = document.getElementById(eid); if (el) el.value = v == null ? '' : v; };
   const setChk = (eid, v) => { const el = document.getElementById(eid); if (el) el.checked = !!v; };
+  const themeSel = document.getElementById('contestEditTheme');
+  if (themeSel && theme && ![...themeSel.options].some((o) => o.value === theme)) {
+    const meta = contestThemeMeta(theme);
+    const opt = document.createElement('option');
+    opt.value = theme;
+    opt.textContent = `${meta.icon || '🏁'} ${meta.name || theme} (legacy pack)`;
+    themeSel.appendChild(opt);
+  }
   setVal('contestEditName', existing?.name || (isTestDefault ? 'Test Contest' : (contestThemeMeta(theme).name || '')));
   setVal('contestEditTagline', existing?.tagline || (isTestDefault ? 'Dry run — delete when done.' : ''));
   setVal('contestEditTheme', theme);
@@ -11731,7 +11824,9 @@ document.getElementById('contestBoardHost')?.addEventListener('click', async (e)
     const id = endBtn.getAttribute('data-contest-end');
     if (!id || !confirm('End this contest now? Standings will freeze into History.')) return;
     const contest = CONTEST_CACHE.find((c) => c.id === id);
-    const snap = contestStandingSnapRows(computeContestStandings(contest));
+    const snap = contest && contestMigrateMode(contest.mode) === 'deal'
+      ? contestDealStandingSnapRows(contest)
+      : contestStandingSnapRows(computeContestStandings(contest));
     try {
       await authedFetch('/api/contests/end', {
         method: 'POST',
@@ -11769,6 +11864,47 @@ document.getElementById('contestBoardHost')?.addEventListener('click', async (e)
     } catch (err) {
       if (status) {
         status.textContent = err.message || 'Could not add';
+        status.style.color = '#dc2626';
+      }
+    } finally {
+      e.target.disabled = false;
+    }
+    return;
+  }
+  if (e.target.id === 'contestDealPickBtn') {
+    const contest = CONTEST_CACHE.find((c) => c.id === contestViewId);
+    const status = document.getElementById('contestDealPickStatus');
+    const repName = document.getElementById('contestDealPickRep')?.value;
+    if (!contest || contestMigrateMode(contest.mode) !== 'deal') return;
+    if (!repName) {
+      if (status) status.textContent = 'Pick a teammate first.';
+      return;
+    }
+    e.target.disabled = true;
+    if (status) { status.textContent = 'Opening case…'; status.style.color = ''; }
+    try {
+      const data = await authedFetch('/api/contests/deal-pick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: contest.id, action: 'pick', repName }),
+      });
+      const next = data.contest || contest;
+      const idx = CONTEST_CACHE.findIndex((c) => c.id === next.id);
+      if (idx >= 0) CONTEST_CACHE[idx] = next;
+      else CONTEST_CACHE.push(next);
+      const pick = data.pick;
+      if (status) {
+        status.textContent = pick
+          ? `Opened $${fmt(pick.value, 0)} for ${pick.repName}.`
+          : 'Case assigned.';
+      }
+      if (typeof showPaceToast === 'function' && pick) {
+        showPaceToast('Case opened!', `${pick.repName} · $${fmt(pick.value, 0)}`);
+      }
+      renderContestBoard();
+    } catch (err) {
+      if (status) {
+        status.textContent = err.message || 'Could not open case';
         status.style.color = '#dc2626';
       }
     } finally {
