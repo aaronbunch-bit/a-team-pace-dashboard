@@ -281,23 +281,27 @@
   .metric-pill-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
   .rep-name { font-weight: 700; font-size: 14.5px; }
   .rep-tag { font-size: 10.5px; color: var(--text-faint); font-weight: 600; background: var(--metric-box-bg); padding: 1px 8px; border-radius: 999px; }
-  /* Engagement badges stay on the name row. If they'd wrap, they newscast-
-     scroll L→R inside this clip instead of dropping to a second line. */
+  /* Engagement badges stay on the name row. Carousel only when they overflow
+     the available slot on that view — otherwise they sit still. */
   .rep-badges-ticker {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
+    max-width: 100%;
     min-width: 0;
     overflow: hidden;
-    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 10px, #000 calc(100% - 14px), transparent);
-    mask-image: linear-gradient(90deg, transparent 0, #000 10px, #000 calc(100% - 14px), transparent);
-  }
-  .rep-badges-ticker:not(.is-scrolling) {
     -webkit-mask-image: none;
     mask-image: none;
+  }
+  .rep-badges-ticker.is-scrolling {
+    flex: 1 1 0%;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 10px, #000 calc(100% - 14px), transparent);
+    mask-image: linear-gradient(90deg, transparent 0, #000 10px, #000 calc(100% - 14px), transparent);
   }
   .rep-badges-track {
     display: flex;
     align-items: center;
     width: max-content;
+  }
+  .rep-badges-ticker.is-scrolling .rep-badges-track {
     will-change: transform;
   }
   .rep-badges-set {
@@ -305,6 +309,8 @@
     align-items: center;
     gap: 8px;
     flex: none;
+  }
+  .rep-badges-ticker.is-scrolling .rep-badges-set {
     padding-right: 8px;
   }
   .rep-badges-ticker.is-scrolling .rep-badges-track {
@@ -1520,12 +1526,14 @@
   .attr-approvals-empty {
     text-align: center;
     color: var(--text-faint);
-    padding: 48px 20px;
+    padding: 40px 20px;
     font-weight: 700;
     border: 1px dashed var(--card-border);
     border-radius: 16px;
     background: var(--card-bg);
   }
+  .attr-approvals-empty p { margin: 0 0 14px; }
+  .attr-approvals-empty .theme-btn { margin: 0; }
   .attr-approval-skeleton {
     border: 1px solid var(--card-border);
     border-radius: 16px;
@@ -1533,6 +1541,202 @@
     padding: 18px;
     display: grid;
     gap: 12px;
+  }
+  .attr-approval-card {
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.28s ease, opacity 0.28s ease, max-height 0.28s ease, margin 0.28s ease, padding 0.28s ease;
+  }
+  .attr-approval-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: transparent;
+  }
+  .attr-approval-card.age-fresh::before { background: #34d399; }
+  .attr-approval-card.age-aging::before { background: #f59e0b; }
+  .attr-approval-card.age-stale::before { background: #ef4444; }
+  .attr-approval-card.attr-card-exit {
+    opacity: 0;
+    transform: translateX(28px) scale(0.98);
+    max-height: 0;
+    margin: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+    pointer-events: none;
+  }
+  .attr-approval-card.density-compact .attr-approval-comments,
+  .attr-approval-card.density-compact .attr-timestamps,
+  .attr-approval-card.density-compact .attr-decision-audit,
+  .attr-approval-card.density-compact .attr-approval-meta-item:not(.attr-meta-url) {
+    display: none;
+  }
+  .attr-approval-card.density-compact { gap: 10px; padding: 12px 14px; }
+  .attr-approval-card.density-compact .attr-credit-chip { min-width: 70px; padding: 7px 9px; }
+  .attr-approval-card.density-compact .attr-credit-chip-val { font-size: 16px; }
+  .attr-link-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .attr-link-toolbar .attr-client-url { flex: 1 1 180px; min-width: 0; }
+  .attr-link-tools {
+    display: inline-flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .attr-link-tools .theme-btn {
+    margin: 0;
+    padding: 5px 9px;
+    font-size: 11.5px;
+  }
+  .attr-decision-audit {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--metric-box-bg);
+    border: 1px dashed var(--card-border);
+  }
+  .attr-decision-audit strong { color: var(--text); font-weight: 800; }
+  .attr-approvals-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin: 0 -18px -16px;
+    padding: 12px 18px;
+    background: linear-gradient(180deg, transparent, var(--card-bg) 28%);
+    border-top: 1px solid var(--divider);
+    backdrop-filter: blur(4px);
+  }
+  .attr-approval-card.density-compact .attr-approvals-actions {
+    margin: 0 -14px -12px;
+    padding: 10px 14px;
+  }
+  .attr-inline-decision {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 4px;
+  }
+  .attr-inline-decision textarea {
+    min-height: 72px;
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    padding: 8px 10px;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    background: var(--card-bg);
+    font-family: inherit;
+    resize: vertical;
+  }
+  .attr-inline-decision-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .attr-inline-decision-status {
+    font-size: 12px;
+    font-weight: 700;
+    color: #dc2626;
+  }
+  .attr-page-tab-count.attr-count-bump {
+    animation: attrCountBump 0.45s ease;
+  }
+  @keyframes attrCountBump {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.28); }
+    100% { transform: scale(1); }
+  }
+  .pace-toast.attr-undo-toast {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .pace-toast.attr-undo-toast button {
+    margin: 0;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 800;
+    border-radius: 8px;
+    border: 1px solid var(--card-border);
+    background: var(--metric-box-bg);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .detail-attr-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .detail-attr-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+    cursor: pointer;
+    color: var(--text);
+    font: inherit;
+  }
+  .detail-attr-row:hover {
+    border-color: var(--text-faint);
+    background: var(--metric-box-bg);
+  }
+  .detail-attr-row-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .detail-attr-reason {
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .detail-attr-credit {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .detail-attr-chevron {
+    flex-shrink: 0;
+    color: var(--text-faint);
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .detail-attr-empty {
+    text-align: center;
+    color: var(--text-faint);
+    padding: 18px 10px;
+    font-weight: 700;
+    border: 1px dashed var(--card-border);
+    border-radius: 12px;
+  }
+  #attrDetailBackdrop .celebration-modal {
+    max-width: min(560px, calc(100vw - 24px));
+    max-height: calc(100vh - 40px);
+    overflow: auto;
   }
   @media (max-width: 640px) {
     .attr-approval-meta { grid-template-columns: 1fr; }
@@ -2255,7 +2459,7 @@
   .detail-mini-header-badges {
     display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; overflow: hidden;
   }
-  .detail-mini-header-badges .rep-badges-ticker { flex: 1 1 auto; }
+  .detail-mini-header-badges .rep-badges-ticker.is-scrolling { flex: 1 1 0%; }
   .detail-mini-header-bar { flex: 1; min-width: 60px; margin-top: 0; }
   .detail-mini-header-num { font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums; flex: none; min-width: 44px; text-align: right; }
   @media (max-width: 900px) {
@@ -2998,12 +3202,8 @@
               <span class="detail-panel-title">📝 Manual Attributions</span>
               <span class="detail-panel-count" id="detailMyAttrCount"></span>
             </div>
-            <div class="sip-table-wrap detail-table-wrap">
-              <table class="sip-table detail-table">
-                <thead><tr><th>Client</th><th>Sessions</th><th>Members</th><th>Reason</th><th>Status</th></tr></thead>
-                <tbody id="detailMyAttrBody"></tbody>
-              </table>
-            </div>
+            <div class="meta-note" style="margin:0 0 8px;">This month’s requests — tap one for details.</div>
+            <div class="detail-attr-list" id="detailMyAttrList"></div>
             <div class="meta-note" id="detailMyAttrStatus" style="margin-top:6px;"></div>
           </div>
         </div>
@@ -3221,7 +3421,23 @@
             <h2 id="attrPendingHeading">Pending</h2>
             <div class="meta-note" style="margin:4px 0 0;" id="attrPendingNote">Open requests waiting for an admin decision.</div>
           </div>
-          <div class="meta-note" id="attrPendingStatus" style="margin:0;"></div>
+          <div class="attr-queue-filters">
+            <label>Sort
+              <select id="attrPendingSortSelect" class="attr-sort-select">
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="rep">Rep A–Z</option>
+                <option value="sessions">Sessions</option>
+              </select>
+            </label>
+            <label>Density
+              <select id="attrPendingDensitySelect" class="attr-density-select">
+                <option value="comfortable">Comfortable</option>
+                <option value="compact">Compact</option>
+              </select>
+            </label>
+            <div class="meta-note" id="attrPendingStatus" style="margin:0;"></div>
+          </div>
         </div>
         <div class="attr-approvals-list" id="attrPendingList"></div>
       </div>
@@ -3243,6 +3459,20 @@
             <label>Month
               <select id="attrMonthFilter"></select>
             </label>
+            <label>Sort
+              <select id="attrActionedSortSelect" class="attr-sort-select">
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="rep">Rep A–Z</option>
+                <option value="sessions">Sessions</option>
+              </select>
+            </label>
+            <label>Density
+              <select id="attrActionedDensitySelect" class="attr-density-select">
+                <option value="comfortable">Comfortable</option>
+                <option value="compact">Compact</option>
+              </select>
+            </label>
             <button type="button" class="theme-btn attr-export-btn" id="attrExportApprovedBtn" style="display:none;" title="Export approved requests for the selected month">Export approvals CSV</button>
           </div>
         </div>
@@ -3250,6 +3480,15 @@
         <div class="attr-approvals-list" id="attrActionedList"></div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Expanded Manual Attribution card (Individual Pacer tap-through). -->
+<div class="celebration-modal-backdrop" id="attrDetailBackdrop">
+  <div class="celebration-modal" style="text-align:left;">
+    <div class="celebration-modal-title" style="text-align:center; margin-bottom:10px;">Request details</div>
+    <div id="attrDetailCardHost"></div>
+    <button type="button" class="celebration-modal-mute" id="attrDetailClose" style="margin-top:12px;">Close</button>
   </div>
 </div>
 
@@ -5169,6 +5408,39 @@ function renderPaceWatch(repRows) {
   // invokes renderCultureSide with full context after team totals are known.
 }
 
+function badgeTickerIsMeasurable(ticker) {
+  if (!ticker || !ticker.isConnected) return false;
+  let el = ticker;
+  while (el) {
+    const cs = window.getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+    el = el.parentElement;
+  }
+  // Fixed/sticky hosts can have null offsetParent; width is the real signal.
+  return ticker.clientWidth >= 8;
+}
+
+/** Available width for badges in this ticker's row (name / status keep theirs). */
+function badgeTickerAvailableWidth(ticker) {
+  const row = ticker.parentElement;
+  if (!row) return ticker.clientWidth;
+  const rowStyle = window.getComputedStyle(row);
+  const gap = parseFloat(rowStyle.columnGap || rowStyle.gap || '0') || 0;
+  let siblingW = 0;
+  let siblingCount = 0;
+  Array.from(row.children).forEach((child) => {
+    if (child === ticker) return;
+    if (window.getComputedStyle(child).display === 'none') return;
+    siblingW += child.getBoundingClientRect().width;
+    siblingCount += 1;
+  });
+  const padL = parseFloat(rowStyle.paddingLeft || '0') || 0;
+  const padR = parseFloat(rowStyle.paddingRight || '0') || 0;
+  const gaps = gap * siblingCount;
+  const available = row.clientWidth - padL - padR - siblingW - gaps;
+  return Math.max(0, available);
+}
+
 function fitLandingBadges() {
   document.querySelectorAll('.rep-badges-ticker').forEach((ticker) => {
     const track = ticker.querySelector('.rep-badges-track');
@@ -5186,10 +5458,17 @@ function fitLandingBadges() {
     }
     ticker.style.display = '';
 
-    // Force layout, then decide whether a newscast scroll is needed.
+    // Hidden / not-yet-laid-out slots must stay static — never auto-enable scroll.
+    if (!badgeTickerIsMeasurable(ticker) || document.body.classList.contains('motion-static')) {
+      track.style.animation = '';
+      return;
+    }
+
+    // Force layout, then carousel only when badges clearly exceed this view's slot.
     void ticker.offsetWidth;
-    const overflow = set.scrollWidth > ticker.clientWidth + 1;
-    if (!overflow || document.body.classList.contains('motion-static')) {
+    const needed = set.scrollWidth;
+    const available = badgeTickerAvailableWidth(ticker);
+    if (needed <= available + 2) {
       track.style.animation = '';
       return;
     }
@@ -5206,6 +5485,18 @@ function fitLandingBadges() {
     track.style.animation = '';
     ticker.classList.add('is-scrolling');
   });
+}
+
+let badgeFitResizeTimer = 0;
+function scheduleFitLandingBadges() {
+  if (badgeFitResizeTimer) window.clearTimeout(badgeFitResizeTimer);
+  badgeFitResizeTimer = window.setTimeout(() => {
+    badgeFitResizeTimer = 0;
+    requestAnimationFrame(fitLandingBadges);
+  }, 80);
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', scheduleFitLandingBadges);
 }
 
 function leaderboardMedal(i) { return ['gold', 'silver', 'bronze', 'plain', 'plain'][i] || 'plain'; }
@@ -9763,9 +10054,10 @@ async function refreshTeamAttributions() {
     lastAttrRecords = records;
     lastAttrIsAdmin = !!isAdmin;
     lastAttrCanViewTeam = canViewTeam !== undefined ? !!canViewTeam : !!isAdmin;
-    const teamVisible = lastAttrCanViewTeam;
+    const visible = scopedAttrRecords(records);
+    const teamVisible = attrSeesTeamQueue();
     if (!teamVisible) status.textContent = 'Showing only your own requests — admin or Sales Coach access is required to see the whole team\'s.';
-    tbody.innerHTML = records.length ? records.map(r => `
+    tbody.innerHTML = visible.length ? visible.map(r => `
       <tr>
         <td>${r.repName || '—'}</td>
         <td>${attrLinkCell(r)}</td>
@@ -9781,44 +10073,73 @@ async function refreshTeamAttributions() {
       : 'Error: ' + err.message;
   }
 }
-// Client Detail's own "Pending Manual Attribution" panel — filters the SAME
-// /api/attributions/list response down to just THIS rep's PENDING requests
-// for the CURRENT live month, by repName (not repEmail), so it works
-// correctly whether the viewer is Aaron/admin/coach (sees every rep's records,
-// filtered here to just this one) or the rep themselves signed in on their
-// own page (server already only returns their own). Deliberately narrow on
-// purpose (Aaron, 2026-07-28): whoever's looking at a rep's Client Detail
-// should see only that rep's still-open requests for the active month.
+// Individual Pacer "Manual Attributions" panel — this rep's requests for the
+// live month (pending + approved + rejected). Simple rows; tap opens the full card.
 async function refreshDetailAttributions(repName) {
-  const tbody = document.getElementById('detailMyAttrBody');
+  const listEl = document.getElementById('detailMyAttrList');
   const countEl = document.getElementById('detailMyAttrCount');
   const statusEl = document.getElementById('detailMyAttrStatus');
-  if (!tbody) return;
-  tbody.innerHTML = skeletonRowsHTML(2, 5);
-  countEl.textContent = '';
-  statusEl.textContent = '';
+  if (!listEl) return;
+  listEl.innerHTML = `<div class="detail-attr-empty">Loading…</div>`;
+  if (countEl) countEl.textContent = '';
+  if (statusEl) statusEl.textContent = '';
   try {
     const { isAdmin, canViewTeam, records } = await authedFetch('/api/attributions/list');
     lastAttrRecords = records;
     lastAttrIsAdmin = !!isAdmin;
     lastAttrCanViewTeam = canViewTeam !== undefined ? !!canViewTeam : !!isAdmin;
     const liveMonth = liveMonthKey();
-    const mine = records.filter(r => r.repName === repName && r.status === 'pending' && attrMonthKey(r) === liveMonth);
-    countEl.textContent = mine.length ? mine.length + ' pending' : '';
-    tbody.innerHTML = mine.length ? mine.map(r => `
-      <tr>
-        <td>${attrLinkCell(r)}</td>
-        <td>${fmt(r.sessions,1)}</td>
-        <td>${fmt(r.members,1)}</td>
-        <td>${r.adjustmentReason || r.reason || '—'}</td>
-        <td>${attrStatusCellHTML(r)}</td>
-      </tr>`).join('') : `<tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:14px 0;">No pending requests this month.</td></tr>`;
+    const mine = sortAttrRecords(
+      (records || []).filter((r) => r.repName === repName && attrMonthKey(r) === liveMonth)
+    );
+    const pendingN = mine.filter((r) => r.status === 'pending').length;
+    const actionedN = mine.length - pendingN;
+    if (countEl) {
+      countEl.textContent = mine.length
+        ? `${mine.length} this month` + (pendingN ? ` · ${pendingN} pending` : '')
+        : '';
+    }
+    listEl.innerHTML = mine.length
+      ? mine.map(detailAttrRowHTML).join('')
+      : `<div class="detail-attr-empty">No Manual Attribution requests this month.</div>`;
+    if (statusEl && actionedN) {
+      statusEl.textContent = 'Approved and rejected stay here — tap a row for notes and links.';
+    }
   } catch (err) {
-    tbody.innerHTML = '';
-    statusEl.textContent = err.message === 'Not signed in'
-      ? 'Sign in to view pending manual attribution requests here.'
-      : 'Error: ' + err.message;
+    listEl.innerHTML = '';
+    if (statusEl) {
+      statusEl.textContent = err.message === 'Not signed in'
+        ? 'Sign in to view Manual Attribution requests here.'
+        : 'Error: ' + err.message;
+    }
   }
+}
+function detailAttrRowHTML(r) {
+  const reason = r.adjustmentReason || r.reason || 'Manual Attribution';
+  const status = r.status || 'pending';
+  return `
+    <button type="button" class="detail-attr-row" data-open-attr-detail="${escapeAttr(r.id)}">
+      <span class="detail-attr-row-main">
+        ${attrStatusPill(status, null)}
+        <span class="detail-attr-reason">${escapeHtml(reason)}</span>
+      </span>
+      <span class="detail-attr-credit">${fmt(r.sessions, 1)} sess · ${fmt(r.members, 1)} mem</span>
+      <span class="detail-attr-chevron" aria-hidden="true">›</span>
+    </button>`;
+}
+function openAttrDetailCard(id) {
+  const record = (lastAttrRecords || []).find((r) => r.id === id);
+  const host = document.getElementById('attrDetailCardHost');
+  const backdrop = document.getElementById('attrDetailBackdrop');
+  if (!record || !host || !backdrop) return;
+  const mode = record.status === 'pending' ? 'pending' : 'actioned';
+  host.innerHTML = attrRequestCardHTML(record, mode);
+  backdrop.classList.add('open');
+}
+function closeAttrDetailCard() {
+  document.getElementById('attrDetailBackdrop')?.classList.remove('open');
+  const host = document.getElementById('attrDetailCardHost');
+  if (host) host.innerHTML = '';
 }
 async function submitAttributionAsAdmin(payload) {
   const { record } = await authedFetch('/api/attributions/submit-admin', {
@@ -10116,11 +10437,11 @@ function canEditAttrClientLink(r) {
   if (canEditAttrRequest(r)) return false;
   return canOwnOrManageAttr(r);
 }
-/** Owner (self / on-behalf name) or admin/coach. */
+/** Owner (self / on-behalf name) or admin/coach (not while View-as-rep). */
 function canOwnOrManageAttr(r) {
   if (!r || !r.id) return false;
-  if (lastAttrCanViewTeam) return true;
-  const email = (currentUserEmail() || '').toLowerCase();
+  if (attrSeesTeamQueue()) return true;
+  const email = ((typeof effectiveRoleEmail === 'function' ? effectiveRoleEmail() : null) || currentUserEmail() || '').toLowerCase();
   if (email && String(r.repEmail || '').toLowerCase() === email) return true;
   const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
   if (me && String(r.repName || '') === me) return true;
@@ -10129,9 +10450,7 @@ function canOwnOrManageAttr(r) {
 /** Full edit: pending/rejected for owners+coaches+admins; approved for full admins only. */
 function canEditAttrRequest(r) {
   if (!r || !r.id) return false;
-  if (r.status === 'approved') {
-    return !!(lastAttrIsAdmin || (typeof isRealAdmin === 'function' && isRealAdmin()));
-  }
+  if (r.status === 'approved') return attrCanDecide();
   if (r.status !== 'pending' && r.status !== 'rejected') return false;
   return canOwnOrManageAttr(r);
 }
@@ -10183,6 +10502,39 @@ function attrStatusCellHTML(r) {
 let lastAttrRecords = [];
 let lastAttrCanViewTeam = false;
 let lastAttrIsAdmin = false;
+const ATTR_SORT_KEY = 'pace_attr_sort_v1';
+const ATTR_DENSITY_KEY = 'pace_attr_density_v1';
+let attrSortMode = 'newest';
+let attrDensityMode = 'comfortable';
+try {
+  attrSortMode = localStorage.getItem(ATTR_SORT_KEY) || 'newest';
+  attrDensityMode = localStorage.getItem(ATTR_DENSITY_KEY) || 'comfortable';
+} catch (_) {}
+
+/** Team-wide Manual Attro queues — false for reps and for View-as-rep. */
+function attrSeesTeamQueue() {
+  if (typeof getViewAsRepRaw === 'function' && getViewAsRepRaw()) {
+    return typeof canViewTeamDetails === 'function' && canViewTeamDetails();
+  }
+  return !!(lastAttrCanViewTeam || (typeof canViewTeamDetails === 'function' && canViewTeamDetails()));
+}
+/** Approve / reject / reopen — real admin only, never while View-as is active. */
+function attrCanDecide() {
+  if (typeof getViewAsRepRaw === 'function' && getViewAsRepRaw()) return false;
+  return !!(lastAttrIsAdmin || (typeof isRealAdmin === 'function' && isRealAdmin()));
+}
+/** Client-side scope so View-as-rep never shows the full team queue (API still uses real JWT). */
+function scopedAttrRecords(records) {
+  const all = Array.isArray(records) ? records : (lastAttrRecords || []);
+  if (attrSeesTeamQueue()) return all.slice();
+  const ownName = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
+  const ownEmail = (typeof effectiveRoleEmail === 'function' ? effectiveRoleEmail() : currentUserEmail() || '') || '';
+  return all.filter((r) => {
+    const byEmail = ownEmail && String(r.repEmail || '').toLowerCase() === String(ownEmail).toLowerCase();
+    const byName = ownName && String(r.repName || '') === ownName;
+    return byEmail || byName;
+  });
+}
 
 function attrLinkCell(r) {
   const link = r.clientLink
@@ -10215,22 +10567,64 @@ function skeletonRowsHTML(rowCount, colCount) {
   return row.repeat(rowCount);
 }
 
+function syncAttrToolbarControls() {
+  document.querySelectorAll('.attr-sort-select').forEach((sel) => { sel.value = attrSortMode; });
+  document.querySelectorAll('.attr-density-select').forEach((sel) => { sel.value = attrDensityMode; });
+}
+function sortAttrRecords(list) {
+  const arr = (list || []).slice();
+  const ts = (r) => {
+    const t = new Date(r.submittedAt || r.reviewedAt || 0).getTime();
+    return Number.isFinite(t) ? t : 0;
+  };
+  if (attrSortMode === 'oldest') arr.sort((a, b) => ts(a) - ts(b));
+  else if (attrSortMode === 'rep') {
+    arr.sort((a, b) => String(a.repName || '').localeCompare(String(b.repName || '')) || ts(b) - ts(a));
+  } else if (attrSortMode === 'sessions') {
+    arr.sort((a, b) => (Number(b.sessions) || 0) - (Number(a.sessions) || 0) || ts(b) - ts(a));
+  } else {
+    arr.sort((a, b) => ts(b) - ts(a));
+  }
+  return arr;
+}
+function attrBusinessDaysOld(iso) {
+  if (!iso) return 0;
+  const start = new Date(iso);
+  const end = new Date();
+  if (Number.isNaN(start.getTime())) return 0;
+  const d = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const e = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  let days = 0;
+  while (d < e) {
+    d.setDate(d.getDate() + 1);
+    const wd = d.getDay();
+    if (wd !== 0 && wd !== 6) days += 1;
+  }
+  return days;
+}
+function attrAgeTone(r) {
+  const days = attrBusinessDaysOld(r && (r.submittedAt || r.createdAt));
+  if (days >= 5) return 'stale';
+  if (days >= 3) return 'aging';
+  return 'fresh';
+}
+
 function pendingAttrRecords() {
-  return lastAttrRecords.filter((r) => r.status === 'pending');
+  return sortAttrRecords(scopedAttrRecords().filter((r) => r.status === 'pending'));
 }
 function actionedAttrRecords() {
   const statusFilter = document.getElementById('attrActionedStatusFilter')?.value || 'all';
   const monthFilter = document.getElementById('attrMonthFilter')?.value || 'all';
-  return lastAttrRecords.filter((r) => {
+  return sortAttrRecords(scopedAttrRecords().filter((r) => {
     if (r.status !== 'approved' && r.status !== 'rejected') return false;
     if (statusFilter !== 'all' && r.status !== statusFilter) return false;
     if (monthFilter !== 'all' && attrMonthKey(r) !== monthFilter) return false;
     return true;
-  });
+  }));
 }
 function syncAttrQueueCopy() {
-  const team = !!(lastAttrCanViewTeam || (typeof canViewTeamDetails === 'function' && canViewTeamDetails()));
-  const admin = !!(lastAttrIsAdmin || (typeof isRealAdmin === 'function' && isRealAdmin()));
+  const team = attrSeesTeamQueue();
+  const admin = attrCanDecide();
   const pendingNote = document.getElementById('attrPendingNote');
   const actionedNote = document.getElementById('attrActionedNote');
   const pendingHeading = document.getElementById('attrPendingHeading');
@@ -10259,14 +10653,31 @@ function syncAttrQueueCopy() {
       : 'Your approved and rejected requests. Rejected items can be edited and will return to Pending.';
   }
   if (exportBtn) exportBtn.style.display = team ? '' : 'none';
+  syncAttrToolbarControls();
+}
+function bumpAttrTabCount(el) {
+  if (!el) return;
+  el.classList.remove('attr-count-bump');
+  void el.offsetWidth;
+  el.classList.add('attr-count-bump');
+  window.setTimeout(() => el.classList.remove('attr-count-bump'), 480);
 }
 function syncAttrTabCounts() {
-  const pendingN = pendingAttrRecords().length;
-  const actionedN = lastAttrRecords.filter((r) => r.status === 'approved' || r.status === 'rejected').length;
+  const scoped = scopedAttrRecords();
+  const pendingN = scoped.filter((r) => r.status === 'pending').length;
+  const actionedN = scoped.filter((r) => r.status === 'approved' || r.status === 'rejected').length;
   const pendingCount = document.getElementById('attrPendingTabCount');
   const actionedCount = document.getElementById('attrActionedTabCount');
-  if (pendingCount) pendingCount.textContent = String(pendingN);
-  if (actionedCount) actionedCount.textContent = String(actionedN);
+  if (pendingCount) {
+    const prev = pendingCount.textContent;
+    pendingCount.textContent = String(pendingN);
+    if (prev != null && prev !== '' && prev !== String(pendingN)) bumpAttrTabCount(pendingCount);
+  }
+  if (actionedCount) {
+    const prev = actionedCount.textContent;
+    actionedCount.textContent = String(actionedN);
+    if (prev != null && prev !== '' && prev !== String(actionedN)) bumpAttrTabCount(actionedCount);
+  }
 }
 function attrApprovalsSkeletonHTML(count) {
   return Array.from({ length: count }, () => `
@@ -10287,15 +10698,33 @@ function attrSubmitterInfoHTML(r) {
 }
 function attrClientLinkHTML(r) {
   const url = String(r.clientLink || '').trim();
-  if (url) {
-    return `<a class="attr-client-url" href="${escapeAttr(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`;
+  if (!url) {
+    if (r.clientId) return escapeHtml(String(r.clientId));
+    return '—';
   }
-  if (r.clientId) return escapeHtml(String(r.clientId));
-  return '—';
+  return `
+    <div class="attr-link-toolbar">
+      <a class="attr-client-url" href="${escapeAttr(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>
+      <span class="attr-link-tools">
+        <a class="theme-btn" href="${escapeAttr(url)}" target="_blank" rel="noopener">Open</a>
+        <button type="button" class="theme-btn" data-copy-attr-url="${escapeAttr(url)}">Copy</button>
+      </span>
+    </div>`;
+}
+function attrDecisionAuditHTML(r) {
+  if (!r || (r.status !== 'approved' && r.status !== 'rejected')) return '';
+  const hist = Array.isArray(r.decisionHistory) ? r.decisionHistory : [];
+  const last = hist.length ? hist[hist.length - 1] : null;
+  if (last) {
+    return `<div class="attr-decision-audit"><strong>${escapeHtml(last.from || 'pending')}</strong> → <strong>${escapeHtml(last.to || r.status)}</strong>${last.by ? ` · ${escapeHtml(last.by)}` : ''}${last.at ? ` · ${escapeHtml(formatAttrTimestamp(last.at))}` : ''}</div>`;
+  }
+  if (r.reviewedAt) {
+    return `<div class="attr-decision-audit"><strong>pending</strong> → <strong>${escapeHtml(r.status)}</strong>${r.reviewedBy ? ` · ${escapeHtml(r.reviewedBy)}` : ''} · ${escapeHtml(formatAttrTimestamp(r.reviewedAt))}</div>`;
+  }
+  return '';
 }
 function attrDecisionActionsHTML(r, mode) {
-  const admin = !!(lastAttrIsAdmin || (typeof isRealAdmin === 'function' && isRealAdmin()));
-  if (!admin || !r || !r.id) return '';
+  if (!attrCanDecide() || !r || !r.id) return '';
   const id = escapeAttr(r.id);
   const status = r.status || 'pending';
   if (mode === 'pending' || status === 'pending') {
@@ -10318,6 +10747,8 @@ function attrDecisionActionsHTML(r, mode) {
 function attrRequestCardHTML(r, mode) {
   const reason = r.adjustmentReason || r.reason || 'Manual Attribution';
   const statusHtml = `<div class="attr-status-row">${attrStatusPill(r.status || 'pending', r.reviewComment)}</div>`;
+  const age = (mode === 'pending' || r.status === 'pending') ? attrAgeTone(r) : '';
+  const density = attrDensityMode === 'compact' ? 'density-compact' : '';
   const bucaLinkEdit = mode === 'actioned' && canEditAttrClientLink(r)
     ? `<button type="button" class="theme-btn attr-edit-link-btn" data-edit-attr-link="${escapeAttr(r.id)}" title="Update client page link">Update link</button>`
     : '';
@@ -10327,8 +10758,9 @@ function attrRequestCardHTML(r, mode) {
         <p class="attr-approval-comments-body">${escapeHtml(r.reviewComment)}</p>
       </div>`
     : '';
+  const audit = mode === 'actioned' ? attrDecisionAuditHTML(r) : '';
   return `
-    <article class="attr-approval-card" data-attr-id="${escapeAttr(r.id)}">
+    <article class="attr-approval-card ${age ? `age-${age}` : ''} ${density}" data-attr-id="${escapeAttr(r.id)}" data-attr-mode="${escapeAttr(mode)}">
       <div class="attr-approval-top">
         <div class="attr-approval-who">
           <div class="attr-rep-line">
@@ -10351,7 +10783,7 @@ function attrRequestCardHTML(r, mode) {
         </div>
       </div>
       <div class="attr-approval-meta">
-        <div class="attr-approval-meta-item" style="grid-column:1/-1;">
+        <div class="attr-approval-meta-item attr-meta-url" style="grid-column:1/-1;">
           <span class="attr-approval-meta-label">Client page</span>
           <div class="attr-approval-meta-val">${attrClientLinkHTML(r)}${bucaLinkEdit ? ` ${bucaLinkEdit}` : ''}</div>
         </div>
@@ -10365,12 +10797,25 @@ function attrRequestCardHTML(r, mode) {
         <p class="attr-approval-comments-body">${escapeHtml(r.comments || '—')}</p>
       </div>
       ${adminNote}
-      <div class="attr-approvals-actions">
+      ${audit}
+      <div class="attr-approvals-actions" data-attr-actions="${escapeAttr(r.id)}">
         ${attrDecisionActionsHTML(r, mode)}
         ${attrEditBtnHTML(r)}
         ${attrDeleteBtnHTML(r)}
       </div>
     </article>`;
+}
+function attrEmptyStateHTML(kind) {
+  if (kind === 'pending') {
+    return `<div class="attr-approvals-empty">
+      <p>Nothing pending — you’re caught up.</p>
+      <button type="button" class="theme-btn" data-attr-goto="actioned">View Actioned</button>
+    </div>`;
+  }
+  return `<div class="attr-approvals-empty">
+    <p>No actioned requests in this filter.</p>
+    <button type="button" class="theme-btn" data-attr-goto="pending">Back to Pending</button>
+  </div>`;
 }
 function renderPendingApprovalsTable() {
   const pendingBody = document.getElementById('attrPendingList');
@@ -10385,7 +10830,7 @@ function renderPendingApprovalsTable() {
       : '';
   }
   if (!pending.length) {
-    pendingBody.innerHTML = `<div class="attr-approvals-empty">Nothing pending — you’re caught up.</div>`;
+    pendingBody.innerHTML = attrEmptyStateHTML('pending');
     return;
   }
   pendingBody.innerHTML = pending.map((r) => attrRequestCardHTML(r, 'pending')).join('');
@@ -10401,7 +10846,7 @@ function renderActionedAttrQueue() {
     statusEl.textContent = rows.length ? `${rows.length} shown` : '';
   }
   if (!rows.length) {
-    list.innerHTML = `<div class="attr-approvals-empty">No actioned requests in this filter.</div>`;
+    list.innerHTML = attrEmptyStateHTML('actioned');
     return;
   }
   list.innerHTML = rows.map((r) => attrRequestCardHTML(r, 'actioned')).join('');
@@ -10443,7 +10888,7 @@ async function refreshMyAttributions() {
     lastAttrRecords = records;
     lastAttrIsAdmin = !!isAdmin;
     lastAttrCanViewTeam = canViewTeam !== undefined ? !!canViewTeam : !!isAdmin;
-    populateAttrMonthFilter(records);
+    populateAttrMonthFilter(scopedAttrRecords(records));
     renderMyAttributionsTable();
   } catch (e) {
     const msg = `<div class="attr-approvals-empty">${escapeHtml(e.message || 'Could not load requests.')}</div>`;
@@ -10456,6 +10901,29 @@ async function refreshMyAttributions() {
 
 document.getElementById('attrMonthFilter')?.addEventListener('change', renderActionedAttrQueue);
 document.getElementById('attrActionedStatusFilter')?.addEventListener('change', renderActionedAttrQueue);
+document.querySelectorAll('.attr-sort-select').forEach((sel) => {
+  sel.addEventListener('change', () => {
+    attrSortMode = sel.value || 'newest';
+    try { localStorage.setItem(ATTR_SORT_KEY, attrSortMode); } catch (_) {}
+    syncAttrToolbarControls();
+    renderMyAttributionsTable();
+  });
+});
+document.querySelectorAll('.attr-density-select').forEach((sel) => {
+  sel.addEventListener('change', () => {
+    attrDensityMode = sel.value === 'compact' ? 'compact' : 'comfortable';
+    try { localStorage.setItem(ATTR_DENSITY_KEY, attrDensityMode); } catch (_) {}
+    syncAttrToolbarControls();
+    renderMyAttributionsTable();
+  });
+});
+document.getElementById('attributionSignedInArea')?.addEventListener('click', (e) => {
+  const goto = e.target.closest('[data-attr-goto]');
+  if (!goto) return;
+  e.preventDefault();
+  const tab = goto.getAttribute('data-attr-goto');
+  if (tab) setAttrPageTab(tab, { syncHash: true });
+});
 
 /** Spreadsheet export labels mapped from in-app adjustment reasons. */
 const ATTR_EXPORT_REASON_MAP = {
@@ -10484,7 +10952,7 @@ function attrExportNotes(r) {
 }
 function approvedAttrRecordsForExport() {
   const monthFilter = document.getElementById('attrMonthFilter')?.value || 'all';
-  return (lastAttrRecords || []).filter((r) => {
+  return scopedAttrRecords().filter((r) => {
     if (!r || r.status !== 'approved') return false;
     if (monthFilter !== 'all' && attrMonthKey(r) !== monthFilter) return false;
     return true;
@@ -10516,7 +10984,7 @@ function buildApprovedAttrCsv(records) {
   return [headers, ...rows].map((row) => row.map(csvEscapeAttr).join(',')).join('\r\n') + '\r\n';
 }
 function downloadApprovedAttrCsv() {
-  const team = !!(lastAttrCanViewTeam || (typeof canViewTeamDetails === 'function' && canViewTeamDetails()));
+  const team = attrSeesTeamQueue();
   if (!team) {
     alert('Admin or Sales Coach access is required to export.');
     return;
@@ -10639,6 +11107,47 @@ document.addEventListener('click', (e) => {
 
 let attrRejectPendingId = '';
 let attrDecisionPendingAction = 'reject';
+let attrUndoTimer = null;
+let attrUndoPayload = null;
+
+function closeAttrInlineDecisions() {
+  document.querySelectorAll('.attr-inline-decision').forEach((el) => el.remove());
+  document.querySelectorAll('[data-attr-actions]').forEach((bar) => {
+    bar.style.display = '';
+  });
+}
+function openAttrInlineDecision(id, action) {
+  if (!attrCanDecide()) return;
+  closeAttrInlineDecisions();
+  const card = document.querySelector(`[data-attr-id="${CSS.escape(id)}"]`);
+  const actions = card?.querySelector(`[data-attr-actions="${CSS.escape(id)}"]`);
+  if (!card || !actions) {
+    openAttrDecisionModal(id, action);
+    return;
+  }
+  const needNote = action === 'approve' || action === 'reject';
+  const confirmLabel = action === 'approve' ? 'Approve request'
+    : action === 'reopen' ? 'Return to pending'
+    : 'Reject request';
+  const placeholder = action === 'approve'
+    ? 'What should Ops know? (required for export / audit)'
+    : action === 'reopen'
+      ? 'Optional note about why this is back in pending…'
+      : 'Why is this denied? So they can fix and resubmit…';
+  const panel = document.createElement('div');
+  panel.className = 'attr-inline-decision';
+  panel.innerHTML = `
+    <label class="attr-approval-meta-label" for="attrInlineNote-${escapeAttr(id)}">${needNote ? 'Decision note (required)' : 'Decision note (optional)'}</label>
+    <textarea id="attrInlineNote-${escapeAttr(id)}" placeholder="${escapeAttr(placeholder)}"></textarea>
+    <div class="attr-inline-decision-actions">
+      <button type="button" class="${action === 'reject' ? 'reject-btn' : 'approve-btn'}" data-inline-confirm="${escapeAttr(id)}" data-inline-action="${escapeAttr(action)}">${confirmLabel}</button>
+      <button type="button" class="theme-btn" data-inline-cancel>Cancel</button>
+      <span class="attr-inline-decision-status" data-inline-status hidden></span>
+    </div>`;
+  actions.style.display = 'none';
+  actions.insertAdjacentElement('afterend', panel);
+  panel.querySelector('textarea')?.focus();
+}
 function openAttrDecisionModal(id, action) {
   const record = lastAttrRecords.find((r) => r.id === id);
   attrRejectPendingId = id;
@@ -10692,7 +11201,76 @@ function closeAttrRejectModal() {
   attrDecisionPendingAction = 'reject';
   document.getElementById('attrRejectBackdrop')?.classList.remove('open');
 }
-async function reviewAttributionRequest(id, action, comment) {
+function clearAttrUndo() {
+  if (attrUndoTimer) {
+    clearTimeout(attrUndoTimer);
+    attrUndoTimer = null;
+  }
+  attrUndoPayload = null;
+  document.querySelectorAll('.pace-toast.attr-undo-toast').forEach((el) => el.remove());
+}
+function showAttrUndoToast(prevSnap, action) {
+  clearAttrUndo();
+  if (!prevSnap || !prevSnap.id) return;
+  const stack = document.getElementById('toastStack');
+  if (!stack) return;
+  const label = action === 'approve' ? 'Approved'
+    : action === 'reopen' ? 'Returned to pending'
+    : 'Rejected';
+  const el = document.createElement('div');
+  el.className = 'pace-toast attr-undo-toast';
+  el.innerHTML = `<span><strong>${label}</strong><span class="pace-toast-sub">Undo available for 10 seconds</span></span><button type="button" data-attr-undo>Undo</button>`;
+  stack.appendChild(el);
+  attrUndoPayload = { prev: prevSnap, action };
+  const undoBtn = el.querySelector('[data-attr-undo]');
+  undoBtn?.addEventListener('click', async () => {
+    const payload = attrUndoPayload;
+    clearAttrUndo();
+    if (!payload) return;
+    try {
+      await undoAttrDecision(payload.prev, payload.action);
+    } catch (err) {
+      alert(err.message || 'Could not undo decision');
+    }
+  });
+  attrUndoTimer = setTimeout(() => {
+    el.remove();
+    attrUndoPayload = null;
+    attrUndoTimer = null;
+  }, 10000);
+}
+async function undoAttrDecision(prev, action) {
+  if (!prev || !prev.id) return;
+  const prevStatus = prev.status || 'pending';
+  let undoAction = 'reopen';
+  let note = 'Undone within 10s';
+  if (prevStatus === 'approved') {
+    undoAction = 'approve';
+    note = 'Undo — restored approved';
+  } else if (prevStatus === 'rejected') {
+    undoAction = 'reject';
+    note = 'Undo — restored rejected';
+  } else {
+    undoAction = 'reopen';
+    note = 'Undo — restored to pending';
+  }
+  // If we just reopened, restore prior settled status.
+  if (action === 'reopen' && (prevStatus === 'approved' || prevStatus === 'rejected')) {
+    undoAction = prevStatus === 'approved' ? 'approve' : 'reject';
+    note = prev.reviewComment || note;
+  }
+  await reviewAttributionRequest(prev.id, undoAction, note, { skipUndo: true, skipExitAnim: true });
+}
+async function reviewAttributionRequest(id, action, comment, opts) {
+  const options = opts || {};
+  const prev = lastAttrRecords.find((r) => r.id === id);
+  const prevSnap = prev ? JSON.parse(JSON.stringify(prev)) : null;
+  const card = document.querySelector(`#attrPendingList [data-attr-id="${CSS.escape(id)}"], #attrActionedList [data-attr-id="${CSS.escape(id)}"]`);
+  const leavingPending = !options.skipExitAnim && card && card.closest('#attrPendingList') && (action === 'approve' || action === 'reject');
+  if (leavingPending) {
+    card.classList.add('attr-card-exit');
+    await new Promise((r) => setTimeout(r, 280));
+  }
   const { record } = await authedFetch('/api/attributions/review', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -10708,9 +11286,15 @@ async function reviewAttributionRequest(id, action, comment) {
       if (comment) hit.reviewComment = comment;
     }
   }
+  closeAttrInlineDecisions();
   renderMyAttributionsTable();
+  if (!options.skipUndo && prevSnap) showAttrUndoToast(prevSnap, action);
   APPROVED_TOTALS = await fetchApprovedTotals();
   if (typeof render === 'function') render();
+  if (document.getElementById('clientDetailOverlay')?.classList.contains('open')) {
+    const rep = currentBonusRep || activityFilterRep;
+    if (rep) refreshDetailAttributions(rep).catch(() => {});
+  }
   // Background reconcile with server list (don't block UI).
   refreshMyAttributions().catch(() => {});
   return record;
@@ -10724,10 +11308,52 @@ async function handleAttrReviewClick(e) {
   const id = btn.getAttribute('data-review');
   const action = btn.getAttribute('data-action');
   if (!id || !action) return;
-  openAttrDecisionModal(id, action);
+  openAttrInlineDecision(id, action);
+}
+async function handleAttrInlineDecisionClick(e) {
+  const cancel = e.target.closest('[data-inline-cancel]');
+  if (cancel) {
+    e.preventDefault();
+    closeAttrInlineDecisions();
+    return;
+  }
+  const confirm = e.target.closest('[data-inline-confirm]');
+  if (!confirm) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const id = confirm.getAttribute('data-inline-confirm');
+  const action = confirm.getAttribute('data-inline-action');
+  const panel = confirm.closest('.attr-inline-decision');
+  const status = panel?.querySelector('[data-inline-status]');
+  const comment = (panel?.querySelector('textarea')?.value || '').trim();
+  if (!id || !action) return;
+  if ((action === 'approve' || action === 'reject') && !comment) {
+    if (status) {
+      status.hidden = false;
+      status.textContent = action === 'approve'
+        ? 'Add a short approval note for the record / export.'
+        : 'Add a short comment so the rep knows what to fix.';
+    }
+    panel?.querySelector('textarea')?.focus();
+    return;
+  }
+  confirm.disabled = true;
+  try {
+    await reviewAttributionRequest(id, action, comment);
+  } catch (err) {
+    if (status) {
+      status.hidden = false;
+      status.textContent = err.message || 'Could not update decision';
+    }
+    confirm.disabled = false;
+  }
 }
 document.getElementById('attrPendingList')?.addEventListener('click', handleAttrReviewClick);
 document.getElementById('attrActionedList')?.addEventListener('click', handleAttrReviewClick);
+document.getElementById('attrPendingList')?.addEventListener('click', handleAttrInlineDecisionClick);
+document.getElementById('attrActionedList')?.addEventListener('click', handleAttrInlineDecisionClick);
+document.getElementById('attrDetailCardHost')?.addEventListener('click', handleAttrReviewClick);
+document.getElementById('attrDetailCardHost')?.addEventListener('click', handleAttrInlineDecisionClick);
 document.getElementById('attributionSignedInArea')?.addEventListener('click', (e) => {
   const info = e.target.closest('.attr-info-btn');
   if (!info) return;
@@ -10735,6 +11361,40 @@ document.getElementById('attributionSignedInArea')?.addEventListener('click', (e
   e.stopPropagation();
   const tip = info.getAttribute('data-tip') || info.getAttribute('title') || '';
   if (tip) alert(tip);
+});
+document.addEventListener('click', async (e) => {
+  const copyBtn = e.target.closest('[data-copy-attr-url]');
+  if (copyBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = copyBtn.getAttribute('data-copy-attr-url') || '';
+    if (!url) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(url);
+      else {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      copyBtn.textContent = 'Copied';
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1400);
+    } catch (_) {
+      alert('Could not copy link');
+    }
+    return;
+  }
+  const openDetail = e.target.closest('[data-open-attr-detail]');
+  if (openDetail) {
+    e.preventDefault();
+    openAttrDetailCard(openDetail.getAttribute('data-open-attr-detail'));
+  }
+});
+document.getElementById('attrDetailClose')?.addEventListener('click', closeAttrDetailCard);
+document.getElementById('attrDetailBackdrop')?.addEventListener('click', (e) => {
+  if (e.target.id === 'attrDetailBackdrop') closeAttrDetailCard();
 });
 
 document.getElementById('attrRejectConfirm')?.addEventListener('click', async () => {
@@ -12081,7 +12741,7 @@ function dismissTourBlockingPopups() {
     'celebrationModalBackdrop', 'shoutoutCelebrationBackdrop',
     'personalGoalGateBackdrop', 'lwomPaceBackdrop', 'rampCheckBackdrop',
     'shoutoutSendBackdrop', 'attrRejectBackdrop', 'attrEditBackdrop',
-    'cancelConvertBackdrop',
+    'attrDetailBackdrop', 'cancelConvertBackdrop',
   ].forEach((id) => document.getElementById(id)?.classList.remove('open'));
   document.querySelectorAll('.header-dropdown-menu.open').forEach((m) => m.classList.remove('open'));
 }
@@ -12093,6 +12753,7 @@ function closeAllTourOverlays() {
   ].forEach((id) => document.getElementById(id)?.classList.remove('open'));
   document.getElementById('attrRejectBackdrop')?.classList.remove('open');
   document.getElementById('attrEditBackdrop')?.classList.remove('open');
+  document.getElementById('attrDetailBackdrop')?.classList.remove('open');
   if (typeof syncOverlayBodyScroll === 'function') syncOverlayBodyScroll();
 }
 async function waitForQuietUi(timeoutMs) {
