@@ -1217,20 +1217,163 @@
   .st-gold { background: linear-gradient(90deg,#fbbf24,#f59e0b); }
 
   .sip-table-wrap { max-height: 340px; overflow-y: auto; }
-  /* Pending approvals page — page scroll only, no nested box scrollbar. */
-  .attr-approvals-table-wrap {
-    max-height: none; overflow: visible;
-    margin-top: 8px;
-    border: 1px solid var(--card-border);
-    border-radius: 14px;
-    background: var(--card-bg);
+  /* Pending approvals — card queue (matches Manual Attro edit modal language). */
+  .attr-approvals-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 4px;
   }
-  .attr-approvals-table-wrap .sip-table th { position: sticky; top: 0; z-index: 1; }
+  .attr-approval-card {
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    background: var(--card-bg);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .attr-approval-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px 16px;
+  }
+  .attr-approval-who {
+    min-width: 0;
+  }
+  .attr-approval-rep {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .attr-approval-reason {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 800;
+    color: var(--text-muted);
+    background: var(--metric-box-bg);
+    border: 1px solid var(--card-border);
+  }
+  .attr-approval-credit {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .attr-credit-chip {
+    min-width: 88px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--metric-box-bg);
+    border: 1px solid var(--card-border);
+    text-align: center;
+  }
+  .attr-credit-chip-label {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 800;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .attr-credit-chip-val {
+    display: block;
+    margin-top: 2px;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .attr-approval-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 14px;
+  }
+  .attr-approval-meta-item {
+    min-width: 0;
+  }
+  .attr-approval-meta-label {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 800;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+  .attr-approval-meta-val {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text);
+    word-break: break-word;
+  }
+  .attr-approval-meta-val a { font-weight: 800; }
+  .attr-approval-comments {
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--metric-box-bg);
+    border: 1px solid var(--card-border);
+  }
+  .attr-approval-comments .attr-approval-meta-label { margin-bottom: 6px; }
+  .attr-approval-comments-body {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.45;
+    white-space: pre-wrap;
+  }
   .attr-approvals-actions {
-    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    padding-top: 2px;
+    border-top: 1px solid var(--divider);
+  }
+  .attr-approvals-actions .approve-btn {
+    margin: 0;
+    min-width: 110px;
+  }
+  .attr-approvals-actions .reject-btn {
+    margin: 0;
+    min-width: 96px;
+  }
+  .attr-approvals-actions .attr-edit-btn {
+    margin: 0;
+    padding: 8px 12px;
+    font-size: 12.5px;
+  }
+  .attr-approvals-actions .attr-delete-btn {
+    margin-left: auto;
+    padding: 8px 10px;
   }
   .attr-approvals-empty {
-    text-align: center; color: var(--text-faint); padding: 36px 16px; font-weight: 600;
+    text-align: center;
+    color: var(--text-faint);
+    padding: 48px 20px;
+    font-weight: 700;
+    border: 1px dashed var(--card-border);
+    border-radius: 16px;
+    background: var(--card-bg);
+  }
+  .attr-approval-skeleton {
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    background: var(--card-bg);
+    padding: 18px;
+    display: grid;
+    gap: 12px;
+  }
+  @media (max-width: 640px) {
+    .attr-approval-meta { grid-template-columns: 1fr; }
+    .attr-approvals-actions .attr-delete-btn { margin-left: 0; }
   }
   .attr-review-comment {
     display: block; margin-top: 4px; font-size: 11px; font-weight: 600;
@@ -1347,7 +1490,7 @@
   }
   .attr-seg {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 6px;
   }
   .attr-seg-btn {
@@ -2837,7 +2980,7 @@
     <div id="attributionSignedInArea" style="display:none;">
       <div class="card">
         <h2>New request</h2>
-        <div class="meta-note" style="margin:-2px 0 12px;">Ask for credit the system missed. Fill the sale details, choose sessions and/or members, then submit for approval.</div>
+        <div class="meta-note" style="margin:-2px 0 12px;">Ask for credit the system missed. Client page, phone/email, members, reason, and comments are required.</div>
         <div class="attr-form">
           <div class="attr-field attr-rep-wrap" id="attrRepSelectWrap" style="display:none;">
             <span class="attr-field-label">Submit for</span>
@@ -2850,25 +2993,24 @@
               <input type="url" id="attrClientLink" placeholder="https://www.varsitytutors.com/clients/...">
             </label>
             <label class="attr-field" id="attrContactLabel">
-              <span class="attr-field-label"><span class="has-tip" data-tip="From the page you had the conversation on">Phone or email</span></span>
-              <input type="text" id="attrContact" placeholder="Optional contact">
+              <span class="attr-field-label">Phone or email <span class="attr-req" aria-hidden="true">*</span></span>
+              <input type="text" id="attrContact" placeholder="From the page you had the conversation on">
             </label>
           </div>
           <div class="attr-credit-row" id="attrUnitsPair">
             <p class="attr-credit-title">Credit requested</p>
-            <p class="attr-credit-sub">Enter sessions, members, or both. Members can only be <b>0.5</b> or <b>1</b>.</p>
+            <p class="attr-credit-sub">Members is required (<b>0.5</b> or <b>1</b>). Add sessions too when that credit applies.</p>
             <label class="attr-field" id="attrSessionsLabel">
               <span class="attr-field-label">Sessions</span>
               <input type="number" step="any" min="0" id="attrSessions" placeholder="e.g. 8" inputmode="decimal">
             </label>
             <div class="attr-field" id="attrMembersLabel">
-              <span class="attr-field-label">Members</span>
+              <span class="attr-field-label">Members <span class="attr-req" aria-hidden="true">*</span></span>
               <div class="attr-seg" role="group" aria-label="Members requested">
-                <button type="button" class="attr-seg-btn active" data-attr-members-for="attrMembers" data-attr-members="0">None</button>
                 <button type="button" class="attr-seg-btn" data-attr-members-for="attrMembers" data-attr-members="0.5">0.5</button>
                 <button type="button" class="attr-seg-btn" data-attr-members-for="attrMembers" data-attr-members="1">1</button>
               </div>
-              <input type="hidden" id="attrMembers" value="0">
+              <input type="hidden" id="attrMembers" value="">
             </div>
           </div>
           <label class="attr-field" id="attrReasonLabel">
@@ -2918,41 +3060,25 @@
             <tbody id="myAttributionsBody"></tbody>
           </table>
         </div>
-        <div class="meta-note">Edit pending or rejected requests anytime (rejected edits go back to pending). Admins can also edit approved requests — credit totals update automatically. BUCA owners can still update just the client page link after approval. 🗑️ deletes a request you own (or any request for admins/coaches).</div>
+        <div class="meta-note">Edit pending or rejected requests anytime (rejected edits go back to pending). Admins can also edit approved requests — credit totals update automatically. BUCA owners can still update just the client page link after approval. Members credit is <b>0.5</b> or <b>1</b>. 🗑️ deletes a request you own (or any request for admins/coaches).</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Pending Manual Attribution approvals — full-page admin view (not nested in a scroll box). -->
+<!-- Pending Manual Attribution approvals — full-page admin review queue. -->
 <div class="detail-overlay" id="attrApprovalsOverlay">
   <div class="detail-page">
     <div class="detail-header">
       <button class="theme-btn" id="attrApprovalsBackBtn" type="button">← Back</button>
-      <h2>Pending Manual Attribution approvals</h2>
-      <button class="theme-btn" id="attrApprovalsToSubmitBtn" type="button">📝 New request</button>
+      <h2>Pending approvals</h2>
+      <button class="theme-btn" id="attrApprovalsToSubmitBtn" type="button">New request</button>
     </div>
     <div class="meta-note" id="attrApprovalsPageNote" style="margin:-4px 0 10px;">
-      Approve or reject open requests for the whole team. Rejecting requires a short comment the rep can see. This page uses normal page scroll — the table isn’t trapped in a small box.
+      Review each request, then approve or reject. Rejecting needs a short comment the rep can see.
     </div>
-    <div class="meta-note" id="attrApprovalsStatus" style="margin:0 0 8px;"></div>
-    <div class="attr-approvals-table-wrap">
-      <table class="sip-table">
-        <thead>
-          <tr>
-            <th>Rep</th>
-            <th>Client Page</th>
-            <th>Contact</th>
-            <th>Sessions</th>
-            <th>Members</th>
-            <th>Reason</th>
-            <th>Submitter comments</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="pendingApprovalsBody"></tbody>
-      </table>
-    </div>
+    <div class="meta-note" id="attrApprovalsStatus" style="margin:0 0 12px;"></div>
+    <div class="attr-approvals-list" id="pendingApprovalsBody"></div>
   </div>
 </div>
 
@@ -2986,25 +3112,24 @@
           <input type="url" id="attrEditClientLink" placeholder="https://www.varsitytutors.com/clients/...">
         </label>
         <label class="attr-field" id="attrEditContactLabel">
-          <span class="attr-field-label">Phone or email</span>
-          <input type="text" id="attrEditContact" placeholder="Optional contact">
+          <span class="attr-field-label">Phone or email <span class="attr-req" aria-hidden="true">*</span></span>
+          <input type="text" id="attrEditContact" placeholder="From the page you had the conversation on">
         </label>
       </div>
       <div class="attr-credit-row" id="attrEditUnitsPair">
         <p class="attr-credit-title">Credit requested</p>
-        <p class="attr-credit-sub">Sessions, members, or both. Members can only be <b>0.5</b> or <b>1</b>.</p>
+        <p class="attr-credit-sub">Members is required (<b>0.5</b> or <b>1</b>). Add sessions too when that credit applies.</p>
         <label class="attr-field" id="attrEditSessionsLabel">
           <span class="attr-field-label">Sessions</span>
           <input type="number" step="any" min="0" id="attrEditSessions" placeholder="e.g. 8" inputmode="decimal">
         </label>
         <div class="attr-field" id="attrEditMembersLabel">
-          <span class="attr-field-label">Members</span>
+          <span class="attr-field-label">Members <span class="attr-req" aria-hidden="true">*</span></span>
           <div class="attr-seg" role="group" aria-label="Members requested">
-            <button type="button" class="attr-seg-btn" data-attr-members-for="attrEditMembers" data-attr-members="0">None</button>
             <button type="button" class="attr-seg-btn" data-attr-members-for="attrEditMembers" data-attr-members="0.5">0.5</button>
             <button type="button" class="attr-seg-btn" data-attr-members-for="attrEditMembers" data-attr-members="1">1</button>
           </div>
-          <input type="hidden" id="attrEditMembers" value="0">
+          <input type="hidden" id="attrEditMembers" value="">
         </div>
       </div>
       <label class="attr-field" id="attrEditReasonLabel">
@@ -9343,9 +9468,11 @@ document.getElementById('teamCancelsBody').addEventListener('click', (e) => {
   // Pre-fill the REVERSAL of the cancel (a -1 member cancel becomes a +1
   // members-requested correction) — this is what "moving a cancel into Manual
   // Attribution" means: requesting the cancel be credited back.
-  // Members credit is only 0 / 0.5 / 1 on Manual Attribution requests.
-  document.getElementById('cancelConvertMembers').value = String(snapAttrMembers(Math.abs(members)));
-  document.getElementById('cancelConvertSessions').value = Math.abs(sessions);
+  // Cancel conversion may still reverse sessions-only cancels (members = 0).
+  const absMembers = Math.abs(members);
+  const memSel = absMembers === 0.5 || absMembers === 1 ? String(absMembers) : (absMembers > 0 ? (absMembers > 0.75 ? '1' : '0.5') : '0');
+  document.getElementById('cancelConvertMembers').value = memSel;
+  document.getElementById('cancelConvertSessions').value = Math.abs(sessions) || '';
   document.getElementById('cancelConvertReason').value = 'Cancellation Error';
   document.getElementById('cancelConvertComments').value = '';
   document.getElementById('cancelConvertStatus').textContent = '';
@@ -9363,14 +9490,14 @@ document.getElementById('cancelConvertSubmit').addEventListener('click', async (
   const comments = document.getElementById('cancelConvertComments').value.trim();
   if (!comments) { status.textContent = 'Comments are required.'; return; }
   const membersVal = document.getElementById('cancelConvertMembers').value;
-  if (typeof isAllowedAttrMembers === 'function' && !isAllowedAttrMembers(membersVal)) {
+  const membersNum = Math.round((parseFloat(membersVal) || 0) * 100) / 100;
+  if (!(membersNum === 0 || membersNum === 0.5 || membersNum === 1)) {
     status.textContent = 'Members must be 0, 0.5, or 1.';
     return;
   }
-  const members = typeof snapAttrMembers === 'function'
-    ? snapAttrMembers(membersVal)
-    : (parseFloat(membersVal) || 0);
-  const sessions = parseFloat(document.getElementById('cancelConvertSessions').value) || 0;
+  const members = membersNum;
+  const sessionsRaw = String(document.getElementById('cancelConvertSessions').value || '').trim();
+  const sessions = sessionsRaw === '' ? 0 : (parseFloat(sessionsRaw) || 0);
   if (!(members || sessions)) {
     status.textContent = 'Sessions and/or members are required.';
     return;
@@ -9701,17 +9828,18 @@ function attrStatusPill(status, reviewComment) {
 function isBucaAttrReason(r) {
   return /buca/i.test(String((r && (r.adjustmentReason || r.reason)) || ''));
 }
-/** Membership units allowed on Manual Attribution: 0, 0.5, or 1. */
+/** Membership units allowed on Manual Attribution submit/edit: 0.5 or 1. */
 function snapAttrMembers(value) {
+  if (value == null || value === '') return '';
   const n = Math.round((Number(value) || 0) * 100) / 100;
-  if (n === 0.5 || n === 1 || n === 0) return n;
+  if (n === 0.5 || n === 1) return n;
   if (n > 0.75) return 1;
   if (n > 0) return 0.5;
-  return 0;
+  return '';
 }
 function isAllowedAttrMembers(value) {
   const n = Math.round((Number(value) || 0) * 100) / 100;
-  return n === 0 || n === 0.5 || n === 1;
+  return n === 0.5 || n === 1;
 }
 function canEditAttrClientLink(r) {
   // Approved BUCA rows: client-link-only edit for owners/coaches.
@@ -9740,14 +9868,15 @@ function canEditAttrRequest(r) {
   return canOwnOrManageAttr(r);
 }
 function setAttrMembersValue(inputId, value) {
-  const snapped = String(snapAttrMembers(value));
+  const snapped = snapAttrMembers(value);
+  const snappedStr = snapped === '' ? '' : String(snapped);
   const input = document.getElementById(inputId);
   if (input) {
-    input.value = snapped;
+    input.value = snappedStr;
     input.dispatchEvent(new Event('change', { bubbles: true }));
   }
   document.querySelectorAll(`[data-attr-members-for="${inputId}"]`).forEach((btn) => {
-    btn.classList.toggle('active', String(btn.getAttribute('data-attr-members')) === snapped);
+    btn.classList.toggle('active', snappedStr !== '' && String(btn.getAttribute('data-attr-members')) === snappedStr);
   });
 }
 /** Empty number fields start blank; focusing a leftover 0 selects it so typing replaces it. */
@@ -9855,6 +9984,15 @@ function syncAttrApprovalsLaunchCard() {
     ? `${n} request${n === 1 ? '' : 's'} waiting for review.`
     : 'No pending requests right now.';
 }
+function attrApprovalsSkeletonHTML(count) {
+  return Array.from({ length: count }, () => `
+    <div class="attr-approval-skeleton" aria-hidden="true">
+      <div class="skeleton-bar" style="width:42%; height:16px;"></div>
+      <div class="skeleton-bar" style="width:28%; height:12px;"></div>
+      <div class="skeleton-bar" style="width:90%; height:40px;"></div>
+      <div class="skeleton-bar" style="width:70%; height:12px;"></div>
+    </div>`).join('');
+}
 function renderPendingApprovalsTable() {
   const pendingBody = document.getElementById('pendingApprovalsBody');
   const statusEl = document.getElementById('attrApprovalsStatus');
@@ -9862,27 +10000,58 @@ function renderPendingApprovalsTable() {
   const pending = pendingAttrRecords();
   if (statusEl) {
     statusEl.textContent = pending.length
-      ? `${pending.length} pending · approve applies immediately; reject asks for a comment.`
+      ? `${pending.length} waiting for review`
       : '';
   }
-  pendingBody.innerHTML = pending.length ? pending.map((r) => `
-    <tr data-attr-id="${escapeAttr(r.id)}">
-      <td>${escapeHtml(r.repName || '—')}</td>
-      <td>${attrLinkCell(r)}</td>
-      <td>${escapeHtml(r.contact || '—')}</td>
-      <td>${fmt(r.sessions, 1)}</td>
-      <td>${fmt(r.members, 1)}</td>
-      <td>${escapeHtml(r.adjustmentReason || r.reason || '—')}</td>
-      <td style="max-width:260px; white-space:normal; text-align:left; font-weight:600;">${escapeHtml(r.comments || '')}</td>
-      <td>
-        <div class="attr-approvals-actions">
-          <button class="approve-btn" data-review="${escapeAttr(r.id)}" data-action="approve" type="button">Approve</button>
-          <button class="reject-btn" data-review="${escapeAttr(r.id)}" data-action="reject" type="button">Reject</button>
-          ${attrEditBtnHTML(r)}
-          ${attrDeleteBtnHTML(r)}
+  if (!pending.length) {
+    pendingBody.innerHTML = `<div class="attr-approvals-empty">Nothing pending — you’re caught up.</div>`;
+    return;
+  }
+  pendingBody.innerHTML = pending.map((r) => {
+    const reason = r.adjustmentReason || r.reason || 'Manual Attribution';
+    const linkHtml = r.clientLink
+      ? `<a href="${escapeAttr(r.clientLink)}" target="_blank" rel="noopener">View client page</a>`
+      : escapeHtml(r.clientId || 'No client page link');
+    return `
+    <article class="attr-approval-card" data-attr-id="${escapeAttr(r.id)}">
+      <div class="attr-approval-top">
+        <div class="attr-approval-who">
+          <h3 class="attr-approval-rep">${escapeHtml(r.repName || 'Rep')}</h3>
+          <span class="attr-approval-reason">${escapeHtml(reason)}</span>
         </div>
-      </td>
-    </tr>`).join('') : `<tr><td colspan="8" class="attr-approvals-empty">Nothing pending 🎉</td></tr>`;
+        <div class="attr-approval-credit">
+          <div class="attr-credit-chip">
+            <span class="attr-credit-chip-label">Sessions</span>
+            <span class="attr-credit-chip-val">${fmt(r.sessions, 1)}</span>
+          </div>
+          <div class="attr-credit-chip">
+            <span class="attr-credit-chip-label">Members</span>
+            <span class="attr-credit-chip-val">${fmt(r.members, 1)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="attr-approval-meta">
+        <div class="attr-approval-meta-item">
+          <span class="attr-approval-meta-label">Client page</span>
+          <div class="attr-approval-meta-val">${linkHtml}</div>
+        </div>
+        <div class="attr-approval-meta-item">
+          <span class="attr-approval-meta-label">Phone or email</span>
+          <div class="attr-approval-meta-val">${escapeHtml(r.contact || '—')}</div>
+        </div>
+      </div>
+      <div class="attr-approval-comments">
+        <span class="attr-approval-meta-label">Submitter comments</span>
+        <p class="attr-approval-comments-body">${escapeHtml(r.comments || '—')}</p>
+      </div>
+      <div class="attr-approvals-actions">
+        <button class="approve-btn" data-review="${escapeAttr(r.id)}" data-action="approve" type="button">Approve</button>
+        <button class="reject-btn" data-review="${escapeAttr(r.id)}" data-action="reject" type="button">Reject</button>
+        ${attrEditBtnHTML(r)}
+        ${attrDeleteBtnHTML(r)}
+      </div>
+    </article>`;
+  }).join('');
 }
 function applyAttrRecordLocally(record) {
   if (!record || !record.id) return;
@@ -9895,10 +10064,10 @@ async function refreshPendingApprovals() {
   const statusEl = document.getElementById('attrApprovalsStatus');
   if (!pendingBody) return;
   if (!isRealAdmin()) {
-    pendingBody.innerHTML = `<tr><td colspan="8" class="attr-approvals-empty">Full admin access required.</td></tr>`;
+    pendingBody.innerHTML = `<div class="attr-approvals-empty">Full admin access required.</div>`;
     return;
   }
-  pendingBody.innerHTML = skeletonRowsHTML(3, 8);
+  pendingBody.innerHTML = attrApprovalsSkeletonHTML(2);
   if (statusEl) statusEl.textContent = 'Loading…';
   try {
     const { isAdmin, canViewTeam, records } = await authedFetch('/api/attributions/list');
@@ -9908,8 +10077,8 @@ async function refreshPendingApprovals() {
     renderPendingApprovalsTable();
     syncAttrApprovalsLaunchCard();
   } catch (e) {
-    pendingBody.innerHTML = '';
-    if (statusEl) statusEl.textContent = e.message || 'Could not load pending approvals.';
+    pendingBody.innerHTML = `<div class="attr-approvals-empty">${escapeHtml(e.message || 'Could not load pending approvals.')}</div>`;
+    if (statusEl) statusEl.textContent = '';
   }
 }
 async function refreshMyAttributions() {
@@ -10175,13 +10344,15 @@ function validateManualAttrFields(opts) {
     allowEmptyClientLink,
   } = opts;
 
+  const contactLabelId = opts.contactLabelId;
   clearAttrFieldHighlights(rootSelector);
   const clientLink = document.getElementById(clientLinkId).value.trim();
   const contact = document.getElementById(contactId).value.trim();
   const sessionsRaw = String(document.getElementById(sessionsId).value || '').trim();
   const sessions = sessionsRaw === '' ? 0 : (parseFloat(sessionsRaw) || 0);
   const membersRaw = document.getElementById(membersId).value;
-  const members = snapAttrMembers(membersRaw);
+  const membersSnapped = snapAttrMembers(membersRaw);
+  const members = membersSnapped === '' ? 0 : membersSnapped;
   const adjustmentReason = document.getElementById(reasonId).value;
   const comments = document.getElementById(commentsId).value.trim();
   const selectedRep = requireRep ? (document.getElementById(repSelectId).value || '') : '';
@@ -10195,12 +10366,16 @@ function validateManualAttrFields(opts) {
     markAttrFieldMissing(document.getElementById(clientLinkLabelId));
     missing.push('client page link');
   }
+  if (!contact) {
+    markAttrFieldMissing(
+      document.getElementById(contactLabelId) ||
+      document.getElementById(contactId)?.closest('.attr-field')
+    );
+    missing.push('phone or email');
+  }
   if (!isAllowedAttrMembers(membersRaw)) {
     markAttrFieldMissing(document.getElementById(unitsPairId));
-    missing.push('members (0, 0.5, or 1)');
-  } else if (!(members || sessions)) {
-    markAttrFieldMissing(document.getElementById(unitsPairId));
-    missing.push('sessions and/or members');
+    missing.push('members (0.5 or 1)');
   }
   if (!adjustmentReason) {
     markAttrFieldMissing(document.getElementById(reasonLabelId));
@@ -10246,6 +10421,7 @@ function validateManualAttrSubmit() {
     commentsId: 'attrComments',
     unitsPairId: 'attrUnitsPair',
     clientLinkLabelId: 'attrClientLinkLabel',
+    contactLabelId: 'attrContactLabel',
     reasonLabelId: 'attrReasonLabel',
     commentsLabelId: 'attrCommentsLabel',
     statusEl,
@@ -10260,7 +10436,7 @@ function resetManualAttrForm() {
   document.getElementById('attrClientLink').value = '';
   document.getElementById('attrContact').value = '';
   document.getElementById('attrSessions').value = '';
-  setAttrMembersValue('attrMembers', 0);
+  setAttrMembersValue('attrMembers', '');
   document.getElementById('attrReasonSelect').value = '';
   document.getElementById('attrComments').value = '';
   const hint = document.getElementById('attrBucaEditHint');
@@ -10382,6 +10558,7 @@ function validateManualAttrEdit() {
     commentsId: 'attrEditComments',
     unitsPairId: 'attrEditUnitsPair',
     clientLinkLabelId: 'attrEditClientLinkLabel',
+    contactLabelId: 'attrEditContactLabel',
     reasonLabelId: 'attrEditReasonLabel',
     commentsLabelId: 'attrEditCommentsLabel',
     statusEl: document.getElementById('attrEditStatus'),

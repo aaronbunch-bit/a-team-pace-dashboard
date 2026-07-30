@@ -37,14 +37,15 @@ export default async (req: Request, context: Context) => {
   const { clientLink, contact, members, sessions, adjustmentReason, comments } = body || {};
   const membersNum = normalizeAttrMembers(members);
   const sessionsNum = Number(sessions) || 0;
+  const contactStr = contact != null ? String(contact).trim() : "";
   const membersErr = membersValidationError(members);
   if (membersErr) {
     return new Response(JSON.stringify({ error: membersErr }), { status: 400 });
   }
-  if (!clientLink || (!membersNum && !sessionsNum) || !adjustmentReason || !comments) {
+  if (!clientLink || !contactStr || !membersNum || !adjustmentReason || !comments) {
     return new Response(
       JSON.stringify({
-        error: "Missing required fields (clientLink, members or sessions, adjustmentReason, comments)",
+        error: "Missing required fields (clientLink, contact, members, adjustmentReason, comments)",
       }),
       { status: 400 }
     );
@@ -55,7 +56,7 @@ export default async (req: Request, context: Context) => {
     repEmail: email,
     repName,
     clientLink: String(clientLink).trim(),
-    contact: contact ? String(contact).trim() : "",
+    contact: contactStr,
     members: membersNum,
     sessions: sessionsNum,
     adjustmentReason: String(adjustmentReason).trim(),
