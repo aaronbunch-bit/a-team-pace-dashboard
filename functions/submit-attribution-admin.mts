@@ -3,6 +3,7 @@ import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
 import { resolveAccess } from "./_shared/access.mts";
 import { loadValidRepDisplays, resolveEmailFromRepDisplay } from "./_shared/roster.mts";
+import { teamTodayYmd } from "./_shared/time.mts";
 
 // Two elevated submit paths share this endpoint:
 //   1) source: "cancel-conversion" — full admins only (Team Details cancel move)
@@ -97,7 +98,7 @@ export default async (req: Request, context: Context) => {
       sessions: sessionsNum,
       adjustmentReason: String(adjustmentReason).trim(),
       comments: String(comments).trim(),
-      saleDate: new Date().toISOString().slice(0, 10),
+      saleDate: teamTodayYmd(),
       status: "pending",
       submittedAt: new Date().toISOString(),
       reviewedAt: null as string | null,
