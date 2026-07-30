@@ -366,6 +366,8 @@
   .rebound-badge { color: #0891b2; background: rgba(8,145,178,0.14); }
   .night-owl-badge { color: #4f46e5; background: rgba(79,70,229,0.14); }
   .best-pace-day-badge { color: #c026d3; background: rgba(192,38,211,0.14); }
+  .most-members-today-badge { color: #15803d; background: rgba(22,163,74,0.14); }
+  .most-sessions-today-badge { color: #1d4ed8; background: rgba(37,99,235,0.14); }
   /* ---------- Structural layouts (Layout menu). Classic = untouched OG. ---------- */
   /* Classic: region wrappers dissolve so the original CSS still owns the page. */
   body[data-layout="classic"] .landing-region,
@@ -876,8 +878,7 @@
       top: var(--sticky-top);
       align-self: start;
       overflow-x: hidden;
-      overflow-y: auto;
-      max-height: calc(100vh - var(--sticky-top) - 24px);
+      overflow-y: hidden; /* inner scroll only if boards taller than roster (JS) */
     }
     body[data-layout="split-rail"] .landing-region-reps { grid-area: reps; min-width: 0; }
   }
@@ -902,10 +903,10 @@
       top: var(--sticky-top);
       align-self: start;
       overflow-x: hidden;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      /* JS syncLandingBoardsScrollCap() tightens this to the roster / footer. */
-      max-height: calc(100vh - var(--sticky-top) - 24px);
+      /* Like Individual Pacer side panel: stick with the main column; no second
+         scrollbar unless boards content is taller than the roster (JS sets
+         max-height to roster height and may flip overflow-y to auto). */
+      overflow-y: hidden;
     }
     body[data-layout="split-stack"] .landing-region-reps { grid-area: reps; min-width: 0; }
     body[data-layout="split-stack"].stack-boards-hidden .wrap {
@@ -2175,7 +2176,7 @@
   <button type="button" class="split-panel-toggle" id="splitPanelToggle" aria-expanded="true">Hide boards</button>
   <div class="layout-boards-switch" id="layoutBoardsSwitch">
     <button type="button" class="theme-btn active" data-board-surface="leaders">Leaderboards</button>
-    <button type="button" class="theme-btn" data-board-surface="improved">Most Improved</button>
+    <button type="button" class="theme-btn" data-board-surface="improved">Depth</button>
   </div>
   <div class="landing-grid">
     <div class="landing-region landing-region-team" id="landingTeam">
@@ -2204,22 +2205,12 @@
         <div class="leaderboard-list" id="lbActiveList"></div>
       </div>
 
-      <!-- Most Improved — a compact, single-winner companion to the leaderboard
-           above it. Reuses its tab/panel styling but deliberately NOT its list
-           layout or reveal animation: showing only #1 (not top 3) with no
-           reserved list height means this stays short and rectangular instead
-           of stretching the sidebar column taller than the team card next to
-           it (which was leaving dead space below the team card — see
-           .improved-list below). -->
+      <!-- Depth — biggest gain in distinct clients sold this week vs prior week
+           (breadth of book). Replaces pacing-based Most Improved. Single winner,
+           compact companion to the leaderboard above. -->
       <div class="leaderboard-panel improved-panel">
-        <div class="leaderboard-title improved-fixed-title">🏆 Most Improved</div>
-        <div class="leaderboard-tabs" id="improvedTabs">
-          <button type="button" class="leaderboard-tab has-tip" data-board="yesterday" data-tip="Most Improved vs Yesterday">📈</button>
-          <button type="button" class="leaderboard-tab has-tip" data-board="l7" data-tip="Most Improved vs Last 7 Days">🗓️</button>
-          <button type="button" class="leaderboard-tab has-tip" data-board="lastmonth" data-tip="Most Improved vs Last Month">📆</button>
-          <button type="button" class="leaderboard-tab has-tip" data-board="comeback" data-tip="Biggest Comeback This Month">💪</button>
-        </div>
-        <div class="improved-sublabel" id="improvedActiveTitle"></div>
+        <div class="leaderboard-title improved-fixed-title">📚 Depth</div>
+        <div class="improved-sublabel" id="improvedActiveTitle">Distinct clients vs prior 7 days</div>
         <div class="leaderboard-list improved-list" id="improvedActiveList"></div>
       </div>
       <div class="culture-card" id="shoutoutWallCard">
@@ -3900,6 +3891,8 @@ function render() {
   const firstTo100Champion = isBadgeEnabled('firstTo100') ? getFirstTo100Champion() : null;
   const earlyBirdChampion = isBadgeEnabled('earlyBird') ? getEarlyBirdChampion() : null;
   const nightOwlChampion = isBadgeEnabled('nightOwl') ? getNightOwlChampion() : null;
+  const mostMembersTodayChampion = isBadgeEnabled('mostMembersToday') ? getMostUnitsTodayChampion('members') : null;
+  const mostSessionsTodayChampion = isBadgeEnabled('mostSessionsToday') ? getMostUnitsTodayChampion('sessions') : null;
   // Accordion: only one rep row open at a time. Scoped to this render() call
   // (not persisted across re-renders, since repList is rebuilt from scratch
   // every time anyway) — reset here, then tracked by each row's own click
@@ -3910,7 +3903,7 @@ function render() {
   sortedRepRows.forEach((row, order) => {
     const st = row.composite.nowSt;
     const uid = 'rep-' + order;
-    const badgesHTML = repEngagementBadgesHTML(row.rep.display, firstTo100Champion, earlyBirdChampion, nightOwlChampion);
+    const badgesHTML = repEngagementBadgesHTML(row.rep.display, firstTo100Champion, earlyBirdChampion, nightOwlChampion, mostMembersTodayChampion, mostSessionsTodayChampion);
     const card = document.createElement('div');
     card.className = 'card'
       + (newlyGoalMet.has(row.rep.display) ? ' goal-met-pulse' : '')
@@ -4010,43 +4003,39 @@ function syncLandingGridHeight() {
   if (layout !== 'classic' || window.innerWidth <= 980) { grid.style.minHeight = ''; return; }
   grid.style.minHeight = sideCol.offsetHeight + 'px';
 }
-/** Cap sticky boards so they stop with the lowest rep / footer — never spill under. */
+/**
+ * Stack/Rail boards sticky — mirror Individual Pacer side panel behavior:
+ * stick beside the roster, and end when the last rep ends. Cap boards height
+ * to the roster so the grid row can't grow past the team list (which would
+ * let sticky spill into the footer). Prefer page scroll only; enable an inner
+ * scrollbar only when boards content is actually taller than the roster.
+ */
 function syncLandingBoardsScrollCap() {
   const boards = document.getElementById('landingBoards');
   const reps = document.getElementById('landingReps');
-  const foot = document.getElementById('landingFoot');
   if (!boards || !reps) return;
   const layout = document.body.dataset.layout || 'classic';
   if (layout === 'classic' || window.innerWidth < 1000) {
     boards.style.maxHeight = '';
+    boards.style.overflowY = '';
     return;
   }
-  const stickyRaw = getComputedStyle(document.documentElement).getPropertyValue('--sticky-top');
-  const stickyTop = parseFloat(stickyRaw) || 12;
-  const viewportCap = Math.max(160, window.innerHeight - stickyTop - 24);
-  const rosterCap = Math.max(160, reps.offsetHeight);
-  // Shrink as the footer approaches so sticky boards can't overlap session bar.
-  const boardsRect = boards.getBoundingClientRect();
-  const repsRect = reps.getBoundingClientRect();
-  const footTop = foot ? foot.getBoundingClientRect().top : repsRect.bottom;
-  const hardBottom = Math.min(repsRect.bottom, footTop) - 8;
-  const effectiveTop = Math.min(Math.max(boardsRect.top, stickyTop), hardBottom);
-  const spaceAboveFoot = Math.max(160, hardBottom - effectiveTop);
-  boards.style.maxHeight = Math.min(viewportCap, rosterCap, spaceAboveFoot) + 'px';
+  const rosterH = Math.max(1, reps.offsetHeight);
+  boards.style.maxHeight = rosterH + 'px';
+  // After the cap applies, only unlock inner scroll if content overflows it.
+  const needsInner = boards.scrollHeight > rosterH + 2;
+  boards.style.overflowY = needsInner ? 'auto' : 'hidden';
 }
 window.addEventListener('resize', () => {
   syncLandingGridHeight();
   syncLandingBoardsScrollCap();
   fitLandingBadges();
 });
-window.addEventListener('scroll', () => { syncLandingBoardsScrollCap(); }, { passive: true });
 if (typeof ResizeObserver !== 'undefined') {
   const ro = new ResizeObserver(() => syncLandingBoardsScrollCap());
   const watchBoardsCap = () => {
     const reps = document.getElementById('landingReps');
-    const boards = document.getElementById('landingBoards');
     if (reps) ro.observe(reps);
-    if (boards) ro.observe(boards);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchBoardsCap);
   else watchBoardsCap();
@@ -4371,46 +4360,9 @@ function animateLeaderboard(listId, items, boardKey) {
   showNext();
 }
 
-// --- Most Improved (second sidebar panel, below the main leaderboard) ------
-// Ranked by the SAME "overall pace" metric as the Highest Pacers tab above —
-// composite % = average of Members/Sessions actual-vs-goal — but by the
-// CHANGE in that number over a window instead of its current value.
-//
-// There's no separate daily-snapshot mechanism for this: the last ledger CSV
-// paste already carries a dated line item per client transaction (see
-// computeActualsFromCSV's `items` array, each with a `date`), so a rep's
-// composite % as of any earlier date THIS MONTH can be reconstructed by
-// summing only the items dated on/before that cutoff. That's what
-// compositePctAsOf() does. Deliberately ledger-only (no manual attribution
-// approvals folded in, unlike the live dashboard cards elsewhere) since
-// approvals have no per-day timestamp to reconstruct a fair historical
-// baseline — every point compared here is measured the same way.
-//
-// "Last month" instead compares today's live composite % to last month's
-// FINAL composite % from SIP_HISTORY (there's no day-25-equivalent snapshot
-// for prior months, only the completed total).
-const IMPROVED_TAB_KEY = 'pace_dashboard_improved_tab_v1';
-let improvedTab = loadJSON(IMPROVED_TAB_KEY, 'yesterday');
-// Short, single-line sublabels only — the panel title above the tabs already
-// says "Most Improved" once, so repeating it here (as the old per-tab titles
-// did) was redundant and, at this width, wrapped to a second line. "pts" =
-// change in composite pacing % (average of Members % and Sessions % vs goal),
-// same number shown everywhere else on the dashboard — see the tooltip on
-// the value itself (item.tip below) for that spelled out on hover.
-const IMPROVED_META = {
-  yesterday: { sublabel: 'vs Yesterday' },
-  l7: { sublabel: 'vs Last 7 Days' },
-  lastmonth: { sublabel: "vs Last Month's Final" },
-  // Not a fixed-point delta like the other three (see computeComebackCandidate) —
-  // it's this month's low point vs. today, so it's the one tab that can
-  // legitimately have NO story some months (nobody's had a real dip to climb
-  // out of yet). That's handled via COMEBACK_EMPTY_TEXT below, not treated as
-  // a data-loading failure.
-  comeback: { sublabel: 'Biggest Comeback' },
-};
-const COMEBACK_EMPTY_TEXT = 'No comeback story yet this month';
-let improvedBoardsCache = { yesterday: [], l7: [], lastmonth: [], comeback: [] };
-
+// --- Depth (second sidebar panel, below the main leaderboard) -------------
+// Ranked by gain in DISTINCT clients with a positive sale this week vs the
+// prior week — breadth of book, not pacing %. Ledger clientId on each item.
 function cumulativeActualsAsOf(repDisplay, cutoffDateStr) {
   const actuals = loadActuals();
   const raw = (actuals.perRep && actuals.perRep[repDisplay]) || {};
@@ -4437,53 +4389,77 @@ function shiftDateStr(dateStr, n) {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
 }
 
-function computeMostImprovedTop3(period) {
-  const actuals = loadActuals();
-  const asOf = actuals.asOf;
-  const results = getRoster().map(r => {
-    let fromPct, toPct;
-    if (period === 'lastmonth') {
-      const lastMonth = SIP_HISTORY[SIP_HISTORY.length - 1];
-      if (!lastMonth) return null;
-      fromPct = repMonthAttainment(lastMonth, r.csv).compositePct;
-      toPct = compositePctAsOf(r.display, asOf);
-    } else {
-      const cutoff = shiftDateStr(asOf, period === 'yesterday' ? -1 : -7);
-      fromPct = compositePctAsOf(r.display, cutoff);
-      toPct = compositePctAsOf(r.display, asOf);
-    }
-    if (fromPct === null || toPct === null) return null;
-    return { name: r.display, val: toPct - fromPct, fromPct, toPct };
-  }).filter(Boolean);
-  results.sort((a, b) => b.val - a.val);
-  // Only #1 — this panel is a compact single-winner companion to the main
-  // leaderboard above it, not a second top-3 board (keeps it short and
-  // rectangular instead of adding page length next to the team card).
-  return results.slice(0, 1);
+function distinctClientIdsInRange(repDisplay, startYmd, endYmd) {
+  const items = ((loadActuals().perRep || {})[repDisplay] || {}).items || [];
+  const ids = new Set();
+  items.forEach((it) => {
+    if (!it || !it.date || it.date < startYmd || it.date > endYmd) return;
+    if ((Number(it.members) || 0) <= 0 && (Number(it.sessions) || 0) <= 0) return;
+    const id = String(it.clientId || '').trim();
+    if (id) ids.add(id);
+  });
+  return ids;
 }
+
+/** Top depth gainer: +distinct clients this 7 days vs prior 7 days. */
+function computeDepthTop() {
+  const asOf = loadActuals().asOf;
+  if (!asOf) return [];
+  const thisStart = shiftDateStr(asOf, -6);
+  const priorEnd = shiftDateStr(asOf, -7);
+  const priorStart = shiftDateStr(asOf, -13);
+  const results = getRoster().map((r) => {
+    const thisWeek = distinctClientIdsInRange(r.display, thisStart, asOf).size;
+    const priorWeek = distinctClientIdsInRange(r.display, priorStart, priorEnd).size;
+    return {
+      name: r.display,
+      val: thisWeek - priorWeek,
+      thisWeek,
+      priorWeek,
+    };
+  }).filter((r) => r.thisWeek > 0 || r.priorWeek > 0);
+  results.sort((a, b) => b.val - a.val || b.thisWeek - a.thisWeek);
+  const top = results[0];
+  if (!top || top.val <= 0) return [];
+  return [top];
+}
+const DEPTH_EMPTY_TEXT = 'No one widened their client book vs the prior 7 days yet';
+let depthBoardCache = [];
 
 // --- Engagement extras: streak, comeback, personal best -------------------
 // All three deliberately follow the same "quiet until it matters" principle
 // as the glow/banner/popup above: none of them add permanent UI weight, they
 // only appear when a rep actually earns them.
 
-// Consecutive calendar days (current month) where the rep's composite % is at
-// or above that day's expected pace — i.e. pacing toward a 100%+ month end.
-// Distinct from Goal Met (already at 100% of goal) and from First to 100%.
+// Sales streak: consecutive working days (current month) with a positive
+// attribution. Days marked Off on Team Schedules are skipped — they neither
+// add to the count nor break the run. A prior working day with no sale ends
+// the streak. Today with no sale yet is ignored (day still in progress) so
+// the badge doesn't false-reset every morning. Distinct from Steady / "On Pace".
 function computeCurrentStreak(repDisplay) {
-  const g = loadGoals()[repDisplay] || { sessions: 0, members: 0 };
-  if (!(g.members > 0) && !(g.sessions > 0)) return 0;
   const actuals = loadActuals();
   const asOf = actuals.asOf;
   if (!asOf) return 0;
   const monthKey = String(asOf).slice(0, 7);
   let cursor = asOf;
   let streak = 0;
-  while (String(cursor).slice(0, 7) === monthKey) {
-    const [y, m, d] = cursor.split('-').map(Number);
-    const expected = (d / daysInMonth(y, m)) * 100;
-    const pct = compositePctAsOf(repDisplay, cursor);
-    if (pct === null || pct < expected) break;
+  let guard = 0;
+  while (String(cursor).slice(0, 7) === monthKey && guard < 40) {
+    guard += 1;
+    // Off days (and "—" / "-") pause the calendar without resetting.
+    if (isRepScheduledOff(repDisplay, cursor)) {
+      cursor = shiftDateStr(cursor, -1);
+      continue;
+    }
+    const sales = countPositiveSalesOnDate(repDisplay, cursor);
+    if (sales <= 0) {
+      // Today isn't over — don't break the streak until a prior working day misses.
+      if (cursor === asOf) {
+        cursor = shiftDateStr(cursor, -1);
+        continue;
+      }
+      break;
+    }
     streak += 1;
     cursor = shiftDateStr(cursor, -1);
   }
@@ -4730,6 +4706,8 @@ const DEFAULT_BADGE_TOGGLES = {
   rebound: true,
   nightOwl: true,
   bestPaceDay: true,
+  mostMembersToday: true,
+  mostSessionsToday: true,
 };
 let BADGE_TOGGLES_CACHE = Object.assign({}, DEFAULT_BADGE_TOGGLES);
 let BADGE_TIP_OVERRIDES_CACHE = {};
@@ -4997,7 +4975,7 @@ function hasBestPaceDay(repDisplay) {
 /** Default landing/Individual Pacer hover text for automatic badges (overridable in Badge Bank). */
 function defaultAutoBadgeHoverTip(key, ctx) {
   const tips = {
-    streak: `${(ctx && ctx.streakDays) || 0} days in a row at or above expected pace`,
+    streak: `${(ctx && ctx.streakDays) || 0} working days in a row with a sale (Off days skipped)`,
     personalBest: 'Projected to beat your best month ever, if this pace holds',
     consistency: 'On Track (80%+) or better every day this month — never once fell behind',
     firstTo100: 'First on the team to hit 100%+ pacing this month',
@@ -5006,6 +4984,8 @@ function defaultAutoBadgeHoverTip(key, ctx) {
     rebound: 'Sale today after a zero-sale day yesterday (skipped if yesterday was Off on the team schedule)',
     nightOwl: 'Last positive sale on the team yesterday — one winner',
     bestPaceDay: 'Biggest single-day pacing jump so far this month (after day 7)',
+    mostMembersToday: 'Most members sold on the team today — one winner',
+    mostSessionsToday: 'Most sessions sold on the team today — one winner',
   };
   return tips[key] || '';
 }
@@ -5013,11 +4993,39 @@ function autoBadgeHoverTip(key, ctx) {
   return badgeTipFor(key, defaultAutoBadgeHoverTip(key, ctx));
 }
 
-function repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampion, nightOwlChampion) {
+/** Sum positive units of one metric for a rep on asOf day. */
+function unitsSoldOnDate(repDisplay, dateStr, field) {
+  const items = ((loadActuals().perRep || {})[repDisplay] || {}).items || [];
+  let sum = 0;
+  items.forEach((it) => {
+    if (!it || it.date !== dateStr) return;
+    const v = Number(it[field]) || 0;
+    if (v > 0) sum += v;
+  });
+  return sum;
+}
+
+/** One winner: highest positive members or sessions sold today. Ties → first roster name. */
+function getMostUnitsTodayChampion(field) {
+  const asOf = loadActuals().asOf;
+  if (!asOf) return null;
+  let bestName = null;
+  let bestVal = 0;
+  getRoster().forEach((r) => {
+    const sum = unitsSoldOnDate(r.display, asOf, field);
+    if (sum > bestVal) {
+      bestVal = sum;
+      bestName = r.display;
+    }
+  });
+  return bestVal > 0 ? bestName : null;
+}
+
+function repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampion, nightOwlChampion, mostMembersTodayChampion, mostSessionsTodayChampion) {
   const streakDays = computeCurrentStreak(repDisplay);
   const streakCtx = { streakDays };
   const streakBadge = (isBadgeEnabled('streak') && streakDays >= 3)
-    ? `<span class="engagement-badge streak-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('streak', streakCtx))}">🔥 ${streakDays}d On Pace</span>`
+    ? `<span class="engagement-badge streak-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('streak', streakCtx))}">🔥 ${streakDays}d streak</span>`
     : '';
   const personalBestBadge = (isBadgeEnabled('personalBest') && computePersonalBestFlag(repDisplay))
     ? `<span class="engagement-badge personal-best-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('personalBest'))}">🌟 Personal Best Pace</span>`
@@ -5043,7 +5051,13 @@ function repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampi
   const bestPaceDayBadge = (isBadgeEnabled('bestPaceDay') && hasBestPaceDay(repDisplay))
     ? `<span class="engagement-badge best-pace-day-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('bestPaceDay'))}">⚡ Best Pace Day</span>`
     : '';
-  return `${streakBadge}${personalBestBadge}${consistencyBadge}${firstTo100Badge}${earlyBirdBadge}${hatTrickBadge}${reboundBadge}${nightOwlBadge}${bestPaceDayBadge}${manualBadgesHTML(repDisplay)}`;
+  const mostMembersBadge = (isBadgeEnabled('mostMembersToday') && repDisplay === mostMembersTodayChampion)
+    ? `<span class="engagement-badge most-members-today-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('mostMembersToday'))}">👥 Most Members Today</span>`
+    : '';
+  const mostSessionsBadge = (isBadgeEnabled('mostSessionsToday') && repDisplay === mostSessionsTodayChampion)
+    ? `<span class="engagement-badge most-sessions-today-badge has-tip" data-tip="${escapeAttr(autoBadgeHoverTip('mostSessionsToday'))}">📅 Most Sessions Today</span>`
+    : '';
+  return `${streakBadge}${personalBestBadge}${consistencyBadge}${firstTo100Badge}${earlyBirdBadge}${hatTrickBadge}${reboundBadge}${nightOwlBadge}${bestPaceDayBadge}${mostMembersBadge}${mostSessionsBadge}${manualBadgesHTML(repDisplay)}`;
 }
 
 // --- Weekly digest & other team-scale rotating header messages ------------
@@ -5117,13 +5131,11 @@ function firstTo100MiniHTML() {
   return `<span>🥇 <b>${champion}</b> was first to 100%+ this month</span>`;
 }
 
-// Reuses the same "most improved vs. yesterday" computation behind the
-// sidebar panel, phrased as a before→after sentence instead of "points" —
-// same fix Aaron asked for on the sidebar card itself.
+// Depth leader for the mini-header — distinct-client breadth, not pacing %.
 function mostImprovedMiniHTML() {
-  const item = computeMostImprovedTop3('yesterday')[0];
+  const item = computeDepthTop()[0];
   if (!item || item.val <= 0) return null;
-  return `<span>📈 <b>${item.name}</b> up to ${fmt(item.toPct,0)}% (from ${fmt(item.fromPct,0)}%) vs yesterday</span>`;
+  return `<span>📚 <b>${item.name}</b> widened their book — ${item.priorWeek} → ${item.thisWeek} distinct clients this week</span>`;
 }
 
 // Always available (never null) — a safety net so the rotation never comes
@@ -5299,7 +5311,7 @@ function renderMasterShoutoutLog() {
 // assignment list, both on Edit Monthly Goals. See BADGE_TOGGLES_CACHE /
 // MANUAL_BADGES_CACHE above.
 const BADGE_TOGGLE_META = [
-  { key: 'streak', emoji: '🔥', label: 'On Pace (3+ days)', hoverTip: 'Days in a row at or above expected pace', description: "Short badge: “🔥 Nd On Pace.” Fires once a rep has been at or above expected daily pace for 3 calendar days in a row this month. Resets the first day they fall behind expected pace." },
+  { key: 'streak', emoji: '🔥', label: 'Sales streak (3+ sale days)', hoverTip: 'Working days in a row with a sale (Off days skipped)', description: "Short badge: “🔥 Nd streak.” Counts consecutive days with a positive attribution. Days marked Off on Team Schedules are skipped (don’t break the run). Resets on the first working day with no sale. Distinct from Steady / status On Pace." },
   { key: 'personalBest', emoji: '🌟', label: 'Personal Best Pace', hoverTip: 'Projected to beat your best month ever, if this pace holds', description: "Awarded the moment a rep's current pace tops their own best month ever — always compared against themselves, never a teammate." },
   { key: 'consistency', emoji: '🛡️', label: 'Steady (consistency)', hoverTip: 'On Track (80%+) or better every day this month — never once fell behind', description: 'Recognizes a rep who has stayed at or above the consistency threshold every single tracked day this month — no dips, however small.' },
   { key: 'firstTo100', emoji: '🥇', label: 'First to 100%', hoverTip: 'First on the team to hit 100%+ pacing this month', description: "Goes to whoever's blended pacing crossed 100%+ earliest this month, team-wide. One winner, and it resets fresh at the start of each month." },
@@ -5308,6 +5320,8 @@ const BADGE_TOGGLE_META = [
   { key: 'rebound', emoji: '🏀', label: 'Rebound', hoverTip: 'Sale today after a zero-sale day yesterday (skipped if yesterday was Off on the team schedule)', description: 'Sale today after a zero-sale day yesterday — skipped when yesterday is marked Off on Team Schedules.' },
   { key: 'nightOwl', emoji: '🦉', label: 'Night Owl', hoverTip: 'Last positive sale on the team yesterday — one winner', description: 'One winner: whoever logged the team’s last positive sale on the prior calendar day (by ledger time).' },
   { key: 'bestPaceDay', emoji: '⚡', label: 'Best Pace Day', hoverTip: 'Biggest single-day pacing jump so far this month (after day 7)', description: "Today is this rep's biggest single-day composite jump so far this month. Does not apply in the first 7 days of the month." },
+  { key: 'mostMembersToday', emoji: '👥', label: 'Most Members Today', hoverTip: 'Most members sold on the team today — one winner', description: 'Goes to whoever sold the most membership units today (positive ledger lines only). One winner; refreshes each morning.' },
+  { key: 'mostSessionsToday', emoji: '📅', label: 'Most Sessions Today', hoverTip: 'Most sessions sold on the team today — one winner', description: 'Goes to whoever sold the most session units today (positive ledger lines only). One winner; refreshes each morning.' },
 ];
 // Single unified "Badge Bank" — every badge the dashboard knows about, one
 // place: the 4 automatic ones (computed from pacing, can't be assigned to
@@ -5550,47 +5564,23 @@ function maybeShowShoutoutCelebration(repName) {
   saveJSON(SHOUTOUT_POPUP_SEEN_KEY, seen);
 }
 
-// valLabel shows a plain "before → after" attainment reading (e.g. "78% →
-// 96%") instead of an unlabeled point delta ("+17.5 pts") — reps already see
-// their own attainment % everywhere else on the dashboard, so anchoring the
-// number to that familiar concept reads clearly at a glance, where a bare
-// "pts" figure requires a mental translation every time.
 function renderImprovedBoards() {
-  ['yesterday', 'l7', 'lastmonth'].forEach(period => {
-    improvedBoardsCache[period] = computeMostImprovedTop3(period)
-      .map(item => ({
-        ...item,
-        valLabel: `${fmt(item.fromPct,0)}% → ${fmt(item.toPct,0)}%`,
-        compact: true,
-        tip: `Attainment ${IMPROVED_META[period].sublabel.toLowerCase()}: was ${fmt(item.fromPct,0)}%, now ${fmt(item.toPct,0)}% — average of Members % and Sessions % vs. goal.`,
-      }));
-  });
-  improvedBoardsCache.comeback = computeComebackCandidate()
-    .map(item => ({
-      ...item,
-      valLabel: `${fmt(item.fromPct,0)}% → ${fmt(item.toPct,0)}%`,
-      compact: true,
-      tip: `Attainment was as low as ${fmt(item.fromPct,0)}% this month — now back up to ${fmt(item.toPct,0)}%.`,
-    }));
-  syncImprovedTabButtons();
+  depthBoardCache = computeDepthTop().map((item) => ({
+    ...item,
+    valLabel: item.priorWeek === 0
+      ? `${item.thisWeek} clients`
+      : `${item.priorWeek} → ${item.thisWeek}`,
+    compact: true,
+    tip: `Distinct clients with a sale: ${item.thisWeek} in the last 7 days vs ${item.priorWeek} in the prior 7 — breadth of book, not pacing %.`,
+  }));
   displayImprovedTab();
 }
 
-function syncImprovedTabButtons() {
-  document.querySelectorAll('#improvedTabs .leaderboard-tab').forEach(b => {
-    b.classList.toggle('active', b.getAttribute('data-board') === improvedTab);
-  });
-}
-
-// Static, immediate render (no reveal cascade) — that slow build-to-the-winner
-// animation exists to make a *ranking* of 3 people land one at a time; with
-// only a single winner shown here there's no ranking to build toward, so it
-// just settles straight into place via the same leaderboardStaticHTML() the
-// 3-item board falls back to once ITS animation finishes.
 function displayImprovedTab() {
-  document.getElementById('improvedActiveTitle').textContent = IMPROVED_META[improvedTab].sublabel;
-  const emptyText = improvedTab === 'comeback' ? COMEBACK_EMPTY_TEXT : undefined;
-  document.getElementById('improvedActiveList').innerHTML = leaderboardStaticHTML(improvedBoardsCache[improvedTab], emptyText);
+  const titleEl = document.getElementById('improvedActiveTitle');
+  if (titleEl) titleEl.textContent = 'Distinct clients vs prior 7 days';
+  const listEl = document.getElementById('improvedActiveList');
+  if (listEl) listEl.innerHTML = leaderboardStaticHTML(depthBoardCache, DEPTH_EMPTY_TEXT);
 }
 
 // --- Double Goal champion (landing-page glow + Client Detail congrats) -----
@@ -6909,16 +6899,6 @@ document.getElementById('leaderboardTabs').addEventListener('click', (e) => {
   displayLeaderboardTab();
 });
 
-document.getElementById('improvedTabs').addEventListener('click', (e) => {
-  const btn = e.target.closest('.leaderboard-tab');
-  if (!btn) return;
-  const board = btn.getAttribute('data-board');
-  if (board === improvedTab) return;
-  improvedTab = board;
-  saveJSON(IMPROVED_TAB_KEY, improvedTab);
-  syncImprovedTabButtons();
-  displayImprovedTab();
-});
 
 // ---------- Lookback presets (3/6/12 Mo, YTD, All Time) — shared by both the
 // team and per-rep Historical Performance sections. Always resolves against
@@ -8054,7 +8034,9 @@ function detailRepMiniCardHTML(repDisplay) {
   const firstTo100Champion = isBadgeEnabled('firstTo100') ? getFirstTo100Champion() : null;
   const earlyBirdChampion = isBadgeEnabled('earlyBird') ? getEarlyBirdChampion() : null;
   const nightOwlChampion = isBadgeEnabled('nightOwl') ? getNightOwlChampion() : null;
-  const badgesHTML = repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampion, nightOwlChampion);
+  const mostMembersTodayChampion = isBadgeEnabled('mostMembersToday') ? getMostUnitsTodayChampion('members') : null;
+  const mostSessionsTodayChampion = isBadgeEnabled('mostSessionsToday') ? getMostUnitsTodayChampion('sessions') : null;
+  const badgesHTML = repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampion, nightOwlChampion, mostMembersTodayChampion, mostSessionsTodayChampion);
   const isChampion = repDisplay === getDoubleGoalChampion();
   // One-line row — same language as the landing collapsed rep card.
   return `
@@ -8112,7 +8094,9 @@ function detailMiniHeaderHTML(repDisplay) {
   const firstTo100Champion = isBadgeEnabled('firstTo100') ? getFirstTo100Champion() : null;
   const earlyBirdChampion = isBadgeEnabled('earlyBird') ? getEarlyBirdChampion() : null;
   const nightOwlChampion = isBadgeEnabled('nightOwl') ? getNightOwlChampion() : null;
-  const badgesHTML = repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampion, nightOwlChampion);
+  const mostMembersTodayChampion = isBadgeEnabled('mostMembersToday') ? getMostUnitsTodayChampion('members') : null;
+  const mostSessionsTodayChampion = isBadgeEnabled('mostSessionsToday') ? getMostUnitsTodayChampion('sessions') : null;
+  const badgesHTML = repEngagementBadgesHTML(repDisplay, firstTo100Champion, earlyBirdChampion, nightOwlChampion, mostMembersTodayChampion, mostSessionsTodayChampion);
   const barWidth = c.current === null ? 0 : Math.min(c.current, 100);
   return `
     <div class="detail-mini-header-avatar" style="background:${grad};">${initials(repDisplay)}</div>
