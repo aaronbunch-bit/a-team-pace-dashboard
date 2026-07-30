@@ -61,14 +61,20 @@
     animation: none !important;
     transition: none !important;
   }
-  /* Static motion mode — keep gradient colors, stop moving backgrounds. */
+  /* Static / Freeze — pause every looping gradient / glow motion.
+     Open My Individual Pacer (.my-pacer-btn) was missing and kept shimmering. */
   body.motion-static .header-aura,
   body.motion-static .title-blood-badge,
   body.motion-static .manual-attro-btn,
+  body.motion-static .my-pacer-btn,
   body.motion-static .bar-shimmer,
+  body.motion-static .skeleton-bar,
   body.motion-static .double-goal-glow,
   body.motion-static .double-goal-glow-subtle,
-  body.motion-static .goal-met-pulse {
+  body.motion-static .goal-met-pulse,
+  body.motion-static .shoutout-modal-glow,
+  body.motion-static .shoutout-modal-glow::before,
+  body.motion-static .rep-badges-ticker.is-scrolling .rep-badges-track {
     animation: none !important;
   }
   body.motion-static .header-aura { transform: translateY(-50%); }
