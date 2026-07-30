@@ -1237,24 +1237,156 @@
     color: var(--text-muted); white-space: normal; max-width: 280px;
   }
   /* Manual Attribution submit/edit validation — highlight missing required fields. */
-  #attributionSignedInArea label.attr-field-missing,
-  #attributionSignedInArea .attr-units-pair.attr-field-missing,
-  #attrEditFormArea label.attr-field-missing,
-  #attrEditFormArea .attr-units-pair.attr-field-missing {
+  #attributionSignedInArea .attr-field.attr-field-missing,
+  #attributionSignedInArea .attr-credit-row.attr-field-missing,
+  #attrEditFormArea .attr-field.attr-field-missing,
+  #attrEditFormArea .attr-credit-row.attr-field-missing {
     outline: 2px solid rgba(220, 38, 38, 0.55);
-    outline-offset: 3px;
-    border-radius: 10px;
+    outline-offset: 2px;
+    border-radius: 12px;
     background: rgba(220, 38, 38, 0.06);
   }
-  #attributionSignedInArea label.attr-field-missing input,
-  #attributionSignedInArea label.attr-field-missing select,
-  #attributionSignedInArea label.attr-field-missing textarea,
-  #attrEditFormArea label.attr-field-missing input,
-  #attrEditFormArea label.attr-field-missing select,
-  #attrEditFormArea label.attr-field-missing textarea {
+  #attributionSignedInArea .attr-field.attr-field-missing input,
+  #attributionSignedInArea .attr-field.attr-field-missing select,
+  #attributionSignedInArea .attr-field.attr-field-missing textarea,
+  #attrEditFormArea .attr-field.attr-field-missing input,
+  #attrEditFormArea .attr-field.attr-field-missing select,
+  #attrEditFormArea .attr-field.attr-field-missing textarea {
     border-color: #dc2626 !important;
     box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.25);
   }
+  .attr-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .attr-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .attr-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  .attr-field-label {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .attr-field-label .attr-req {
+    color: #dc2626;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .attr-field-hint {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--text-faint);
+    text-transform: none;
+    letter-spacing: 0;
+    opacity: 0.9;
+  }
+  .attr-field input,
+  .attr-field select,
+  .attr-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text);
+    padding: 10px 12px;
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    background: var(--card-bg);
+    font-family: inherit;
+  }
+  .attr-field textarea { min-height: 84px; resize: vertical; font-weight: 500; }
+  .attr-field input::placeholder,
+  .attr-field textarea::placeholder {
+    color: var(--text-faint);
+    font-weight: 500;
+    opacity: 0.85;
+  }
+  /* Sessions + Members as one clear “credit” block */
+  .attr-credit-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding: 14px;
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    background: var(--metric-box-bg);
+  }
+  .attr-credit-title {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 11.5px;
+    font-weight: 800;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .attr-credit-sub {
+    grid-column: 1 / -1;
+    margin: -8px 0 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-faint);
+    line-height: 1.4;
+  }
+  .attr-seg {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .attr-seg-btn {
+    margin: 0;
+    padding: 10px 8px;
+    font-size: 13px;
+    font-weight: 800;
+    border-radius: 10px;
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .attr-seg-btn:hover { border-color: var(--text-faint); color: var(--text); }
+  .attr-seg-btn.active {
+    color: #fff;
+    border-color: transparent;
+    background: linear-gradient(135deg, #7c3aed, #6366f1);
+  }
+  .attr-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 2px;
+  }
+  .attr-form-actions #submitAttribution,
+  .attr-form-actions #attrEditSave {
+    margin-top: 0;
+    min-width: 160px;
+  }
+  #attrSubmitStatus, #attrEditStatus { margin: 0; flex: 1 1 180px; }
+  .attr-rep-wrap { margin: 0; }
+  .attr-rep-wrap .meta-note { margin: 2px 0 0; }
+  @media (max-width: 640px) {
+    .attr-form-row,
+    .attr-credit-row { grid-template-columns: 1fr; }
+  }
+  /* Legacy grid used by cancel-convert modal */
   .attr-units-pair {
     grid-column: 1 / -1;
     display: grid;
@@ -1586,11 +1718,11 @@
   .meta-note { font-size: 11.5px; color: var(--text-faint); margin-top: 8px; line-height: 1.5; }
 
   .attribution-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
-  .attribution-form-grid label, #attributionSignedInArea > .card > label {
+  .attribution-form-grid label {
     display: flex; flex-direction: column; gap: 5px; font-size: 11.5px; font-weight: 700;
     color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em;
   }
-  .attribution-form-grid input, .attribution-form-grid select, #attributionSignedInArea input, #attributionSignedInArea select, #attributionSignedInArea textarea {
+  .attribution-form-grid input, .attribution-form-grid select, .attribution-form-grid textarea {
     font-size: 13px; font-weight: 400; text-transform: none; letter-spacing: normal; color: var(--text);
     padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 8px; background: var(--card-bg);
     font-family: inherit;
@@ -2705,25 +2837,42 @@
     <div id="attributionSignedInArea" style="display:none;">
       <div class="card">
         <h2>New request</h2>
-        <label id="attrRepSelectWrap" style="display:none; margin-bottom:10px;">
-          Submit for
-          <select id="attrRepSelect"></select>
-          <div class="meta-note" style="margin:6px 0 0;">Admins and Sales Coaches can submit on behalf of any rep. The request still goes through normal pending → approval.</div>
-        </label>
-        <div class="attribution-form-grid">
-          <label id="attrClientLinkLabel">Client Page Link <span style="color:#dc2626;">(required)</span><input type="url" id="attrClientLink" placeholder="https://www.varsitytutors.com/clients/..."></label>
-          <label id="attrContactLabel"><span class="has-tip" data-tip="From the page you had the conversation on">Phone Number / Email</span><input type="text" id="attrContact" placeholder="e.g. jane@company.com"></label>
-          <div class="attr-units-pair" id="attrUnitsPair">
-            <label id="attrSessionsLabel">Sessions requested<input type="number" step="0.01" id="attrSessions" value="0"></label>
-            <label id="attrMembersLabel">Members requested <span class="has-tip" data-tip="Membership credit is only 0.5 or 1 per request (or none if sessions-only).">(?)</span>
-              <select id="attrMembers">
-                <option value="0">None (0)</option>
-                <option value="0.5">0.5</option>
-                <option value="1">1</option>
-              </select>
+        <div class="meta-note" style="margin:-2px 0 12px;">Ask for credit the system missed. Fill the sale details, choose sessions and/or members, then submit for approval.</div>
+        <div class="attr-form">
+          <div class="attr-field attr-rep-wrap" id="attrRepSelectWrap" style="display:none;">
+            <span class="attr-field-label">Submit for</span>
+            <select id="attrRepSelect"></select>
+            <div class="meta-note">Admins and Sales Coaches can submit for any rep. It still needs approval.</div>
+          </div>
+          <div class="attr-form-row">
+            <label class="attr-field" id="attrClientLinkLabel">
+              <span class="attr-field-label">Client page link <span class="attr-req" aria-hidden="true">*</span></span>
+              <input type="url" id="attrClientLink" placeholder="https://www.varsitytutors.com/clients/...">
+            </label>
+            <label class="attr-field" id="attrContactLabel">
+              <span class="attr-field-label"><span class="has-tip" data-tip="From the page you had the conversation on">Phone or email</span></span>
+              <input type="text" id="attrContact" placeholder="Optional contact">
             </label>
           </div>
-          <label id="attrReasonLabel">Adjustment Reason <span style="color:#dc2626;">(required)</span>
+          <div class="attr-credit-row" id="attrUnitsPair">
+            <p class="attr-credit-title">Credit requested</p>
+            <p class="attr-credit-sub">Enter sessions, members, or both. Members can only be <b>0.5</b> or <b>1</b>.</p>
+            <label class="attr-field" id="attrSessionsLabel">
+              <span class="attr-field-label">Sessions</span>
+              <input type="number" step="any" min="0" id="attrSessions" placeholder="e.g. 8" inputmode="decimal">
+            </label>
+            <div class="attr-field" id="attrMembersLabel">
+              <span class="attr-field-label">Members</span>
+              <div class="attr-seg" role="group" aria-label="Members requested">
+                <button type="button" class="attr-seg-btn active" data-attr-members-for="attrMembers" data-attr-members="0">None</button>
+                <button type="button" class="attr-seg-btn" data-attr-members-for="attrMembers" data-attr-members="0.5">0.5</button>
+                <button type="button" class="attr-seg-btn" data-attr-members-for="attrMembers" data-attr-members="1">1</button>
+              </div>
+              <input type="hidden" id="attrMembers" value="0">
+            </div>
+          </div>
+          <label class="attr-field" id="attrReasonLabel">
+            <span class="attr-field-label">Adjustment reason <span class="attr-req" aria-hidden="true">*</span></span>
             <select id="attrReasonSelect">
               <option value="">Select a reason…</option>
               <option>BUCA / Class Wallet</option>
@@ -2733,23 +2882,26 @@
               <option>Cancellation Error</option>
             </select>
           </label>
+          <label class="attr-field" id="attrCommentsLabel">
+            <span class="attr-field-label">Comments <span class="attr-req" aria-hidden="true">*</span></span>
+            <textarea id="attrComments" placeholder="What happened? Include anything an admin needs to approve this."></textarea>
+          </label>
+          <div class="meta-note" id="attrBucaEditHint" style="display:none; margin:0;">
+            BUCA / Class Wallet: you can update the client page link later from <b>My requests</b> once you have the final URL.
+          </div>
+          <div class="attr-form-actions">
+            <button type="button" id="submitAttribution">Submit request</button>
+            <div class="meta-note" id="attrSubmitStatus"></div>
+          </div>
         </div>
-        <label id="attrCommentsLabel" style="display:block; margin-top:10px;">Comments <span style="color:#dc2626;">(required)</span>
-          <textarea id="attrComments" style="height:70px;" placeholder="Explain what happened — required for every request."></textarea>
-        </label>
-        <div class="meta-note" id="attrBucaEditHint" style="display:none; margin-top:8px;">
-          BUCA / Class Wallet tip: you can update the client page link later from <b>My requests</b> once you have the final URL.
-        </div>
-        <button id="submitAttribution">Submit request</button>
-        <div class="meta-note" id="attrSubmitStatus"></div>
       </div>
       <div class="card" id="attrApprovalsLaunchCard" style="display:none;">
         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
           <div>
             <h2 style="margin:0 0 4px;">Pending approvals</h2>
-            <div class="meta-note" style="margin:0;" id="attrApprovalsLaunchNote">Review team Manual Attribution requests on a dedicated page — no cramped scroll box.</div>
+            <div class="meta-note" style="margin:0;" id="attrApprovalsLaunchNote">Review open Manual Attribution requests.</div>
           </div>
-          <button type="button" class="theme-btn" id="openAttrApprovalsBtn">⏳ Open pending approvals</button>
+          <button type="button" class="theme-btn" id="openAttrApprovalsBtn">Open pending approvals</button>
         </div>
       </div>
       <div class="card">
@@ -2766,7 +2918,7 @@
             <tbody id="myAttributionsBody"></tbody>
           </table>
         </div>
-        <div class="meta-note">Reps see only their own requests here; admins see every rep's — filter by month to look back on any past period. Use <b>Edit</b> on pending or rejected requests to change details (rejected edits go back to pending for re-review). <b>BUCA / Class Wallet</b> approved requests still allow updating just the client page link. Use 🗑️ to delete a request you own (or any request if you’re an admin/coach). Members credit is only <b>0.5</b> or <b>1</b>.</div>
+        <div class="meta-note">Edit pending or rejected requests anytime (rejected edits go back to pending). Admins can also edit approved requests — credit totals update automatically. BUCA owners can still update just the client page link after approval. 🗑️ deletes a request you own (or any request for admins/coaches).</div>
       </div>
     </div>
   </div>
@@ -2826,43 +2978,55 @@
     <div class="celebration-modal-title" style="text-align:center;">Edit adjustment request</div>
     <div class="celebration-modal-body" id="attrEditSummary" style="margin-bottom:10px;"></div>
     <div class="meta-note" id="attrEditResubmitNote" style="display:none; margin:0 0 10px;">This request was rejected. Saving will send it back to <b>pending</b> for admin re-review.</div>
-    <div id="attrEditFormArea">
-      <div class="attribution-form-grid">
-        <label id="attrEditClientLinkLabel">Client Page Link <span style="color:#dc2626;">(required)</span>
+    <div class="meta-note" id="attrEditApprovedNote" style="display:none; margin:0 0 10px;">This request is already <b>approved</b>. Saving updates the credited sessions/members immediately.</div>
+    <div id="attrEditFormArea" class="attr-form">
+      <div class="attr-form-row">
+        <label class="attr-field" id="attrEditClientLinkLabel">
+          <span class="attr-field-label">Client page link <span class="attr-req" aria-hidden="true">*</span></span>
           <input type="url" id="attrEditClientLink" placeholder="https://www.varsitytutors.com/clients/...">
         </label>
-        <label id="attrEditContactLabel">Phone Number / Email
-          <input type="text" id="attrEditContact" placeholder="e.g. jane@company.com">
-        </label>
-        <div class="attr-units-pair" id="attrEditUnitsPair">
-          <label id="attrEditSessionsLabel">Sessions requested
-            <input type="number" step="0.01" id="attrEditSessions" value="0">
-          </label>
-          <label id="attrEditMembersLabel">Members requested
-            <select id="attrEditMembers">
-              <option value="0">None (0)</option>
-              <option value="0.5">0.5</option>
-              <option value="1">1</option>
-            </select>
-          </label>
-        </div>
-        <label id="attrEditReasonLabel">Adjustment Reason <span style="color:#dc2626;">(required)</span>
-          <select id="attrEditReasonSelect">
-            <option value="">Select a reason…</option>
-            <option>BUCA / Class Wallet</option>
-            <option>Duplicate Lead Page</option>
-            <option>No Attro Given in Flex</option>
-            <option>Shifting Attro Between Reps</option>
-            <option>Cancellation Error</option>
-          </select>
+        <label class="attr-field" id="attrEditContactLabel">
+          <span class="attr-field-label">Phone or email</span>
+          <input type="text" id="attrEditContact" placeholder="Optional contact">
         </label>
       </div>
-      <label id="attrEditCommentsLabel" style="display:block; margin-top:10px;">Comments <span style="color:#dc2626;">(required)</span>
-        <textarea id="attrEditComments" style="height:70px;" placeholder="Explain what happened — required for every request."></textarea>
+      <div class="attr-credit-row" id="attrEditUnitsPair">
+        <p class="attr-credit-title">Credit requested</p>
+        <p class="attr-credit-sub">Sessions, members, or both. Members can only be <b>0.5</b> or <b>1</b>.</p>
+        <label class="attr-field" id="attrEditSessionsLabel">
+          <span class="attr-field-label">Sessions</span>
+          <input type="number" step="any" min="0" id="attrEditSessions" placeholder="e.g. 8" inputmode="decimal">
+        </label>
+        <div class="attr-field" id="attrEditMembersLabel">
+          <span class="attr-field-label">Members</span>
+          <div class="attr-seg" role="group" aria-label="Members requested">
+            <button type="button" class="attr-seg-btn" data-attr-members-for="attrEditMembers" data-attr-members="0">None</button>
+            <button type="button" class="attr-seg-btn" data-attr-members-for="attrEditMembers" data-attr-members="0.5">0.5</button>
+            <button type="button" class="attr-seg-btn" data-attr-members-for="attrEditMembers" data-attr-members="1">1</button>
+          </div>
+          <input type="hidden" id="attrEditMembers" value="0">
+        </div>
+      </div>
+      <label class="attr-field" id="attrEditReasonLabel">
+        <span class="attr-field-label">Adjustment reason <span class="attr-req" aria-hidden="true">*</span></span>
+        <select id="attrEditReasonSelect">
+          <option value="">Select a reason…</option>
+          <option>BUCA / Class Wallet</option>
+          <option>Duplicate Lead Page</option>
+          <option>No Attro Given in Flex</option>
+          <option>Shifting Attro Between Reps</option>
+          <option>Cancellation Error</option>
+        </select>
+      </label>
+      <label class="attr-field" id="attrEditCommentsLabel">
+        <span class="attr-field-label">Comments <span class="attr-req" aria-hidden="true">*</span></span>
+        <textarea id="attrEditComments" placeholder="What happened? Include anything an admin needs to approve this."></textarea>
       </label>
     </div>
-    <div class="meta-note" id="attrEditStatus" style="margin-top:8px;"></div>
-    <button type="button" class="celebration-modal-close" id="attrEditSave" style="margin-top:14px; width:100%;">Save changes</button>
+    <div class="attr-form-actions" style="margin-top:12px;">
+      <button type="button" class="celebration-modal-close" id="attrEditSave">Save changes</button>
+      <div class="meta-note" id="attrEditStatus"></div>
+    </div>
     <button type="button" class="celebration-modal-mute" id="attrEditCancel">Cancel</button>
   </div>
 </div>
@@ -2947,10 +3111,10 @@
       <label>Rep <input type="text" id="cancelConvertRep" disabled></label>
       <label>Client ID <input type="text" id="cancelConvertClientId" disabled></label>
       <label>Sale Date <input type="date" id="cancelConvertDate" disabled></label>
-      <label>Sessions requested <input type="number" step="0.01" id="cancelConvertSessions"></label>
+      <label>Sessions requested <input type="number" step="any" min="0" id="cancelConvertSessions" placeholder="e.g. 8" inputmode="decimal"></label>
       <label>Members requested
         <select id="cancelConvertMembers">
-          <option value="0">None (0)</option>
+          <option value="0">None</option>
           <option value="0.5">0.5</option>
           <option value="1">1</option>
         </select>
@@ -9550,8 +9714,10 @@ function isAllowedAttrMembers(value) {
   return n === 0 || n === 0.5 || n === 1;
 }
 function canEditAttrClientLink(r) {
-  // Approved BUCA rows: client-link-only edit. Pending/rejected use full Edit.
+  // Approved BUCA rows: client-link-only edit for owners/coaches.
+  // Full admins use the full Edit control instead (including approved).
   if (!r || !isBucaAttrReason(r) || r.status !== 'approved') return false;
+  if (canEditAttrRequest(r)) return false;
   return canOwnOrManageAttr(r);
 }
 /** Owner (self / on-behalf name) or admin/coach. */
@@ -9564,10 +9730,40 @@ function canOwnOrManageAttr(r) {
   if (me && String(r.repName || '') === me) return true;
   return false;
 }
-/** Full edit for pending/rejected adjustment requests. */
+/** Full edit: pending/rejected for owners+coaches+admins; approved for full admins only. */
 function canEditAttrRequest(r) {
-  if (!canOwnOrManageAttr(r)) return false;
-  return r.status === 'pending' || r.status === 'rejected';
+  if (!r || !r.id) return false;
+  if (r.status === 'approved') {
+    return !!(lastAttrIsAdmin || (typeof isRealAdmin === 'function' && isRealAdmin()));
+  }
+  if (r.status !== 'pending' && r.status !== 'rejected') return false;
+  return canOwnOrManageAttr(r);
+}
+function setAttrMembersValue(inputId, value) {
+  const snapped = String(snapAttrMembers(value));
+  const input = document.getElementById(inputId);
+  if (input) {
+    input.value = snapped;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  document.querySelectorAll(`[data-attr-members-for="${inputId}"]`).forEach((btn) => {
+    btn.classList.toggle('active', String(btn.getAttribute('data-attr-members')) === snapped);
+  });
+}
+/** Empty number fields start blank; focusing a leftover 0 selects it so typing replaces it. */
+function wireAttrSessionsInput(input) {
+  if (!input || input.dataset.attrSessionsWired === '1') return;
+  input.dataset.attrSessionsWired = '1';
+  input.addEventListener('focus', () => {
+    const v = String(input.value || '').trim();
+    if (v === '0' || v === '0.0' || v === '0.00') input.select();
+  });
+  input.addEventListener('keydown', (e) => {
+    const v = String(input.value || '').trim();
+    if ((v === '0' || v === '0.0' || v === '0.00') && e.key >= '0' && e.key <= '9') {
+      input.value = '';
+    }
+  });
 }
 /** Rep owns the row (self-submit or on-behalf under their name); admins/coaches delete any. */
 function canDeleteAttr(r) {
@@ -9656,8 +9852,8 @@ function syncAttrApprovalsLaunchCard() {
   if (!show || !note) return;
   const n = pendingAttrRecords().length;
   note.textContent = n
-    ? `${n} request${n === 1 ? '' : 's'} waiting for review — open the dedicated approvals page (full page scroll, no nested box).`
-    : 'No pending requests right now. Open the approvals page anytime to check.';
+    ? `${n} request${n === 1 ? '' : 's'} waiting for review.`
+    : 'No pending requests right now.';
 }
 function renderPendingApprovalsTable() {
   const pendingBody = document.getElementById('pendingApprovalsBody');
@@ -9953,6 +10149,12 @@ function clearAttrSubmitHighlights() {
 function markAttrFieldMissing(el) {
   if (el) el.classList.add('attr-field-missing');
 }
+function clearAttrFieldHighlightFor(el) {
+  if (!el) return;
+  el.closest('.attr-field')?.classList.remove('attr-field-missing');
+  el.closest('.attr-credit-row')?.classList.remove('attr-field-missing');
+  el.closest('.attr-rep-wrap')?.classList.remove('attr-field-missing');
+}
 function validateManualAttrFields(opts) {
   const {
     rootSelector,
@@ -9970,12 +10172,14 @@ function validateManualAttrFields(opts) {
     requireRep,
     repSelectId,
     repWrapId,
+    allowEmptyClientLink,
   } = opts;
 
   clearAttrFieldHighlights(rootSelector);
   const clientLink = document.getElementById(clientLinkId).value.trim();
   const contact = document.getElementById(contactId).value.trim();
-  const sessions = parseFloat(document.getElementById(sessionsId).value) || 0;
+  const sessionsRaw = String(document.getElementById(sessionsId).value || '').trim();
+  const sessions = sessionsRaw === '' ? 0 : (parseFloat(sessionsRaw) || 0);
   const membersRaw = document.getElementById(membersId).value;
   const members = snapAttrMembers(membersRaw);
   const adjustmentReason = document.getElementById(reasonId).value;
@@ -9987,7 +10191,7 @@ function validateManualAttrFields(opts) {
     markAttrFieldMissing(document.getElementById(repWrapId));
     missing.push('which rep this is for');
   }
-  if (!clientLink) {
+  if (!clientLink && !allowEmptyClientLink) {
     markAttrFieldMissing(document.getElementById(clientLinkLabelId));
     missing.push('client page link');
   }
@@ -10010,7 +10214,7 @@ function validateManualAttrFields(opts) {
   if (missing.length) {
     const first = document.querySelector(`${rootSelector} .attr-field-missing`);
     first?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    const focusable = first?.querySelector('input, select, textarea');
+    const focusable = first?.querySelector('input:not([type="hidden"]), select, textarea, .attr-seg-btn');
     focusable?.focus();
     if (statusEl) {
       statusEl.textContent = 'Please complete: ' + missing.join(', ') + '.';
@@ -10052,11 +10256,22 @@ function validateManualAttrSubmit() {
   if (!validated) return null;
   return { ...validated, onBehalf };
 }
+function resetManualAttrForm() {
+  document.getElementById('attrClientLink').value = '';
+  document.getElementById('attrContact').value = '';
+  document.getElementById('attrSessions').value = '';
+  setAttrMembersValue('attrMembers', 0);
+  document.getElementById('attrReasonSelect').value = '';
+  document.getElementById('attrComments').value = '';
+  const hint = document.getElementById('attrBucaEditHint');
+  if (hint) hint.style.display = 'none';
+  clearAttrSubmitHighlights();
+}
 ['attrClientLink', 'attrContact', 'attrSessions', 'attrMembers', 'attrReasonSelect', 'attrComments', 'attrRepSelect'].forEach((id) => {
   const el = document.getElementById(id);
   if (!el) return;
   const clear = () => {
-    el.closest('label')?.classList.remove('attr-field-missing');
+    clearAttrFieldHighlightFor(el);
     if (id === 'attrSessions' || id === 'attrMembers') {
       document.getElementById('attrUnitsPair')?.classList.remove('attr-field-missing');
     }
@@ -10066,6 +10281,17 @@ function validateManualAttrSubmit() {
   };
   el.addEventListener('input', clear);
   el.addEventListener('change', clear);
+});
+wireAttrSessionsInput(document.getElementById('attrSessions'));
+wireAttrSessionsInput(document.getElementById('attrEditSessions'));
+wireAttrSessionsInput(document.getElementById('cancelConvertSessions'));
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-attr-members-for]');
+  if (!btn) return;
+  e.preventDefault();
+  const inputId = btn.getAttribute('data-attr-members-for');
+  const value = btn.getAttribute('data-attr-members');
+  if (inputId) setAttrMembersValue(inputId, value);
 });
 
 document.getElementById('submitAttribution').addEventListener('click', async () => {
@@ -10090,13 +10316,7 @@ document.getElementById('submitAttribution').addEventListener('click', async () 
       statusEl.textContent = 'Request submitted — pending admin approval.';
     }
     statusEl.style.color = '#16a34a';
-    clearAttrSubmitHighlights();
-    document.getElementById('attrClientLink').value = '';
-    document.getElementById('attrContact').value = '';
-    document.getElementById('attrSessions').value = 0;
-    document.getElementById('attrMembers').value = '0';
-    document.getElementById('attrReasonSelect').value = '';
-    document.getElementById('attrComments').value = '';
+    resetManualAttrForm();
     refreshMyAttributions();
   } catch (e) {
     statusEl.textContent = 'Error: ' + e.message;
@@ -10115,15 +10335,18 @@ function openAttrEditModal(id) {
   const backdrop = document.getElementById('attrEditBackdrop');
   const summary = document.getElementById('attrEditSummary');
   const resubmitNote = document.getElementById('attrEditResubmitNote');
+  const approvedNote = document.getElementById('attrEditApprovedNote');
   const status = document.getElementById('attrEditStatus');
   if (summary) {
     summary.textContent = `${record.repName || 'Rep'} · currently ${record.status || 'pending'}`;
   }
   if (resubmitNote) resubmitNote.style.display = record.status === 'rejected' ? '' : 'none';
+  if (approvedNote) approvedNote.style.display = record.status === 'approved' ? '' : 'none';
   document.getElementById('attrEditClientLink').value = record.clientLink || '';
   document.getElementById('attrEditContact').value = record.contact || '';
-  document.getElementById('attrEditSessions').value = Number(record.sessions) || 0;
-  document.getElementById('attrEditMembers').value = String(snapAttrMembers(record.members));
+  const sessionsNum = Number(record.sessions) || 0;
+  document.getElementById('attrEditSessions').value = sessionsNum ? String(sessionsNum) : '';
+  setAttrMembersValue('attrEditMembers', record.members);
   const reason = record.adjustmentReason || record.reason || '';
   const reasonSel = document.getElementById('attrEditReasonSelect');
   if (reasonSel) {
@@ -10147,6 +10370,8 @@ function closeAttrEditModal() {
   document.getElementById('attrEditBackdrop')?.classList.remove('open');
 }
 function validateManualAttrEdit() {
+  const editing = lastAttrRecords.find((r) => r.id === attrEditPendingId);
+  const allowEmptyClientLink = !!(editing && editing.clientId && !editing.clientLink);
   return validateManualAttrFields({
     rootSelector: '#attrEditFormArea',
     clientLinkId: 'attrEditClientLink',
@@ -10161,13 +10386,14 @@ function validateManualAttrEdit() {
     commentsLabelId: 'attrEditCommentsLabel',
     statusEl: document.getElementById('attrEditStatus'),
     requireRep: false,
+    allowEmptyClientLink,
   });
 }
 ['attrEditClientLink', 'attrEditContact', 'attrEditSessions', 'attrEditMembers', 'attrEditReasonSelect', 'attrEditComments'].forEach((id) => {
   const el = document.getElementById(id);
   if (!el) return;
   const clear = () => {
-    el.closest('label')?.classList.remove('attr-field-missing');
+    clearAttrFieldHighlightFor(el);
     if (id === 'attrEditSessions' || id === 'attrEditMembers') {
       document.getElementById('attrEditUnitsPair')?.classList.remove('attr-field-missing');
     }
@@ -10182,7 +10408,7 @@ document.getElementById('attrEditSave')?.addEventListener('click', async () => {
   const btn = document.getElementById('attrEditSave');
   if (btn) btn.disabled = true;
   try {
-    const { record } = await authedFetch('/api/attributions/update', {
+    const { record, approvedEdited } = await authedFetch('/api/attributions/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: attrEditPendingId, ...validated }),
@@ -10200,6 +10426,10 @@ document.getElementById('attrEditSave')?.addEventListener('click', async () => {
     if (document.getElementById('clientDetailOverlay')?.classList.contains('open')) {
       const rep = currentBonusRep || activityFilterRep;
       if (rep) await refreshDetailAttributions(rep);
+    }
+    if (approvedEdited || record?.status === 'approved') {
+      APPROVED_TOTALS = await fetchApprovedTotals();
+      if (typeof render === 'function') render();
     }
     // Background refresh in case Blob list lags.
     refreshMyAttributions();
