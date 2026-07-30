@@ -1217,7 +1217,116 @@
   .st-gold { background: linear-gradient(90deg,#fbbf24,#f59e0b); }
 
   .sip-table-wrap { max-height: 340px; overflow-y: auto; }
-  /* Pending approvals — card queue (matches Manual Attro edit modal language). */
+  /* Manual Attribution page tabs + card queues */
+  .attr-page-shell { display: flex; flex-direction: column; gap: 14px; }
+  .attr-page-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 6px;
+    border-radius: 16px;
+    background: var(--metric-box-bg);
+    border: 1px solid var(--card-border);
+  }
+  .attr-page-tab {
+    margin: 0;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 800;
+    padding: 10px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .attr-page-tab:hover { color: var(--text); background: var(--card-bg); }
+  .attr-page-tab.active {
+    color: #fff;
+    background: linear-gradient(135deg, #7c3aed, #6366f1);
+    border-color: transparent;
+  }
+  .attr-page-tab-count {
+    min-width: 22px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    background: rgba(255,255,255,0.18);
+    color: inherit;
+  }
+  .attr-page-tab:not(.active) .attr-page-tab-count {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-muted);
+  }
+  .attr-page-panel { display: none; }
+  .attr-page-panel.active { display: block; }
+  .attr-queue-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .attr-queue-toolbar h2 { margin: 0; }
+  .attr-queue-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .attr-queue-filters label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .attr-queue-filters select {
+    text-transform: none;
+    font-weight: 600;
+    font-size: 12.5px;
+    padding: 5px 8px;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text);
+  }
+  .attr-submit-card {
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    background: var(--card-bg);
+    padding: 18px 18px 16px;
+  }
+  .attr-submit-card h2 { margin: 0 0 6px; }
+  .attr-onbehalf-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: var(--metric-box-bg);
+    border: 1px solid var(--card-border);
+  }
+  .attr-status-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  /* Pending / actioned card queues */
   .attr-approvals-list {
     display: flex;
     flex-direction: column;
@@ -2972,113 +3081,120 @@
   <div class="detail-page">
     <div class="detail-header">
       <button class="theme-btn" id="attroBackBtn" type="button">← Back to dashboard</button>
-      <h2>Request Manual Attribution</h2>
+      <h2 id="attroPageTitle">Manual Attribution</h2>
     </div>
     <div class="card" id="attributionSignedOutNote">
       <div class="meta-note" style="margin-top:0;">Sign in with your company Google account to request credit for a sale the system didn't auto-attribute to you.</div>
     </div>
-    <div id="attributionSignedInArea" style="display:none;">
-      <div class="card">
-        <h2>New request</h2>
-        <div class="meta-note" style="margin:-2px 0 12px;">Ask for credit the system missed. Client page, phone/email, members, reason, and comments are required.</div>
-        <div class="attr-form">
-          <div class="attr-field attr-rep-wrap" id="attrRepSelectWrap" style="display:none;">
-            <span class="attr-field-label">Submit for</span>
-            <select id="attrRepSelect"></select>
-            <div class="meta-note">Admins and Sales Coaches can submit for any rep. It still needs approval.</div>
+    <div id="attributionSignedInArea" class="attr-page-shell" style="display:none;">
+      <div class="attr-page-tabs" id="attrPageTabs" role="tablist" aria-label="Manual Attribution sections">
+        <button type="button" class="attr-page-tab active" data-attr-tab="submit" role="tab" aria-selected="true">New request</button>
+        <button type="button" class="attr-page-tab" data-attr-tab="pending" role="tab" aria-selected="false">
+          Pending <span class="attr-page-tab-count" id="attrPendingTabCount">0</span>
+        </button>
+        <button type="button" class="attr-page-tab" data-attr-tab="actioned" role="tab" aria-selected="false">
+          Actioned <span class="attr-page-tab-count" id="attrActionedTabCount">0</span>
+        </button>
+      </div>
+
+      <div class="attr-page-panel active" data-attr-panel="submit" role="tabpanel">
+        <div class="attr-submit-card">
+          <h2>New request</h2>
+          <div class="meta-note" style="margin:0 0 14px;" id="attrSubmitIntro">
+            Ask for credit the system missed. Requests are logged under the rep who should receive credit — even when a coach or admin submits for them.
           </div>
-          <div class="attr-form-row">
-            <label class="attr-field" id="attrClientLinkLabel">
-              <span class="attr-field-label">Client page link <span class="attr-req" aria-hidden="true">*</span></span>
-              <input type="url" id="attrClientLink" placeholder="https://www.varsitytutors.com/clients/...">
-            </label>
-            <label class="attr-field" id="attrContactLabel">
-              <span class="attr-field-label">Phone or email <span class="attr-req" aria-hidden="true">*</span></span>
-              <input type="text" id="attrContact" placeholder="From the page you had the conversation on">
-            </label>
-          </div>
-          <div class="attr-credit-row" id="attrUnitsPair">
-            <p class="attr-credit-title">Credit requested</p>
-            <p class="attr-credit-sub">Members is required (<b>0.5</b> or <b>1</b>). Add sessions too when that credit applies.</p>
-            <label class="attr-field" id="attrSessionsLabel">
-              <span class="attr-field-label">Sessions</span>
-              <input type="number" step="any" min="0" id="attrSessions" placeholder="e.g. 8" inputmode="decimal">
-            </label>
-            <div class="attr-field" id="attrMembersLabel">
-              <span class="attr-field-label">Members <span class="attr-req" aria-hidden="true">*</span></span>
-              <div class="attr-seg" role="group" aria-label="Members requested">
-                <button type="button" class="attr-seg-btn" data-attr-members-for="attrMembers" data-attr-members="0.5">0.5</button>
-                <button type="button" class="attr-seg-btn" data-attr-members-for="attrMembers" data-attr-members="1">1</button>
+          <div class="attr-form">
+            <div class="attr-field attr-rep-wrap" id="attrRepSelectWrap" style="display:none;">
+              <span class="attr-field-label">Credit this request to</span>
+              <select id="attrRepSelect"></select>
+              <div class="meta-note">The request appears in that rep’s Pending / Actioned queues. It still needs admin approval.</div>
+            </div>
+            <div class="attr-form-row">
+              <label class="attr-field" id="attrClientLinkLabel">
+                <span class="attr-field-label">Client page link <span class="attr-req" aria-hidden="true">*</span></span>
+                <input type="url" id="attrClientLink" placeholder="https://www.varsitytutors.com/clients/...">
+              </label>
+              <label class="attr-field" id="attrContactLabel">
+                <span class="attr-field-label">Phone or email <span class="attr-req" aria-hidden="true">*</span></span>
+                <input type="text" id="attrContact" placeholder="From the page you had the conversation on">
+              </label>
+            </div>
+            <div class="attr-credit-row" id="attrUnitsPair">
+              <p class="attr-credit-title">Credit requested</p>
+              <p class="attr-credit-sub">Members is required (<b>0.5</b> or <b>1</b>). Add sessions too when that credit applies.</p>
+              <label class="attr-field" id="attrSessionsLabel">
+                <span class="attr-field-label">Sessions</span>
+                <input type="number" step="any" min="0" id="attrSessions" placeholder="e.g. 8" inputmode="decimal">
+              </label>
+              <div class="attr-field" id="attrMembersLabel">
+                <span class="attr-field-label">Members <span class="attr-req" aria-hidden="true">*</span></span>
+                <div class="attr-seg" role="group" aria-label="Members requested">
+                  <button type="button" class="attr-seg-btn" data-attr-members-for="attrMembers" data-attr-members="0.5">0.5</button>
+                  <button type="button" class="attr-seg-btn" data-attr-members-for="attrMembers" data-attr-members="1">1</button>
+                </div>
+                <input type="hidden" id="attrMembers" value="">
               </div>
-              <input type="hidden" id="attrMembers" value="">
+            </div>
+            <label class="attr-field" id="attrReasonLabel">
+              <span class="attr-field-label">Adjustment reason <span class="attr-req" aria-hidden="true">*</span></span>
+              <select id="attrReasonSelect">
+                <option value="">Select a reason…</option>
+                <option>BUCA / Class Wallet</option>
+                <option>Duplicate Lead Page</option>
+                <option>No Attro Given in Flex</option>
+                <option>Shifting Attro Between Reps</option>
+                <option>Cancellation Error</option>
+              </select>
+            </label>
+            <label class="attr-field" id="attrCommentsLabel">
+              <span class="attr-field-label">Comments <span class="attr-req" aria-hidden="true">*</span></span>
+              <textarea id="attrComments" placeholder="What happened? Include anything an admin needs to approve this."></textarea>
+            </label>
+            <div class="meta-note" id="attrBucaEditHint" style="display:none; margin:0;">
+              BUCA / Class Wallet: after approval you can still update the client page link from the Actioned queue once you have the final URL.
+            </div>
+            <div class="attr-form-actions">
+              <button type="button" id="submitAttribution">Submit request</button>
+              <div class="meta-note" id="attrSubmitStatus"></div>
             </div>
           </div>
-          <label class="attr-field" id="attrReasonLabel">
-            <span class="attr-field-label">Adjustment reason <span class="attr-req" aria-hidden="true">*</span></span>
-            <select id="attrReasonSelect">
-              <option value="">Select a reason…</option>
-              <option>BUCA / Class Wallet</option>
-              <option>Duplicate Lead Page</option>
-              <option>No Attro Given in Flex</option>
-              <option>Shifting Attro Between Reps</option>
-              <option>Cancellation Error</option>
-            </select>
-          </label>
-          <label class="attr-field" id="attrCommentsLabel">
-            <span class="attr-field-label">Comments <span class="attr-req" aria-hidden="true">*</span></span>
-            <textarea id="attrComments" placeholder="What happened? Include anything an admin needs to approve this."></textarea>
-          </label>
-          <div class="meta-note" id="attrBucaEditHint" style="display:none; margin:0;">
-            BUCA / Class Wallet: you can update the client page link later from <b>My requests</b> once you have the final URL.
-          </div>
-          <div class="attr-form-actions">
-            <button type="button" id="submitAttribution">Submit request</button>
-            <div class="meta-note" id="attrSubmitStatus"></div>
-          </div>
         </div>
       </div>
-      <div class="card" id="attrApprovalsLaunchCard" style="display:none;">
-        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-          <div>
-            <h2 style="margin:0 0 4px;">Pending approvals</h2>
-            <div class="meta-note" style="margin:0;" id="attrApprovalsLaunchNote">Review open Manual Attribution requests.</div>
-          </div>
-          <button type="button" class="theme-btn" id="openAttrApprovalsBtn">Open pending approvals</button>
-        </div>
-      </div>
-      <div class="card">
-        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:2px;">
-          <h2 style="margin:0;">My requests</h2>
-          <label style="display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.03em;">
-            Month
-            <select id="attrMonthFilter" style="text-transform:none; font-weight:600; font-size:12.5px; padding:5px 8px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg); color:var(--text);"></select>
-          </label>
-        </div>
-        <div class="sip-table-wrap">
-          <table class="sip-table">
-            <thead id="myAttributionsHead"><tr><th>Client Page</th><th>Contact</th><th>Sessions</th><th>Members</th><th>Reason</th><th>Status</th></tr></thead>
-            <tbody id="myAttributionsBody"></tbody>
-          </table>
-        </div>
-        <div class="meta-note">Edit pending or rejected requests anytime (rejected edits go back to pending). Admins can also edit approved requests — credit totals update automatically. BUCA owners can still update just the client page link after approval. Members credit is <b>0.5</b> or <b>1</b>. 🗑️ deletes a request you own (or any request for admins/coaches).</div>
-      </div>
-    </div>
-  </div>
-</div>
 
-<!-- Pending Manual Attribution approvals — full-page admin review queue. -->
-<div class="detail-overlay" id="attrApprovalsOverlay">
-  <div class="detail-page">
-    <div class="detail-header">
-      <button class="theme-btn" id="attrApprovalsBackBtn" type="button">← Back</button>
-      <h2>Pending approvals</h2>
-      <button class="theme-btn" id="attrApprovalsToSubmitBtn" type="button">New request</button>
+      <div class="attr-page-panel" data-attr-panel="pending" role="tabpanel">
+        <div class="attr-queue-toolbar">
+          <div>
+            <h2 id="attrPendingHeading">Pending</h2>
+            <div class="meta-note" style="margin:4px 0 0;" id="attrPendingNote">Open requests waiting for an admin decision.</div>
+          </div>
+          <div class="meta-note" id="attrPendingStatus" style="margin:0;"></div>
+        </div>
+        <div class="attr-approvals-list" id="attrPendingList"></div>
+      </div>
+
+      <div class="attr-page-panel" data-attr-panel="actioned" role="tabpanel">
+        <div class="attr-queue-toolbar">
+          <div>
+            <h2 id="attrActionedHeading">Actioned</h2>
+            <div class="meta-note" style="margin:4px 0 0;" id="attrActionedNote">Approved and rejected requests.</div>
+          </div>
+          <div class="attr-queue-filters">
+            <label>Status
+              <select id="attrActionedStatusFilter">
+                <option value="all">All actioned</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </label>
+            <label>Month
+              <select id="attrMonthFilter"></select>
+            </label>
+          </div>
+        </div>
+        <div class="meta-note" id="attrActionedStatus" style="margin:0 0 10px;"></div>
+        <div class="attr-approvals-list" id="attrActionedList"></div>
+      </div>
     </div>
-    <div class="meta-note" id="attrApprovalsPageNote" style="margin:-4px 0 10px;">
-      Review each request, then approve or reject. Rejecting needs a short comment the rep can see.
-    </div>
-    <div class="meta-note" id="attrApprovalsStatus" style="margin:0 0 12px;"></div>
-    <div class="attr-approvals-list" id="pendingApprovalsBody"></div>
   </div>
 </div>
 
@@ -7967,7 +8083,11 @@ setupHeaderPopover('layoutToolsBtn', 'layoutToolsMenu');
       else location.hash = action;
     });
   };
-  bind('toolsManualAttroBtn', 'manual-attribution');
+  bind('toolsManualAttroBtn', () => {
+    location.hash = (typeof isRealAdmin === 'function' && isRealAdmin())
+      ? 'manual-attribution-pending'
+      : 'manual-attribution';
+  });
   bind('toolsTeamDetailsBtn', 'team-details');
   bind('toolsTeamGoalsBtn', 'team-goals');
   bind('toolsTeamScheduleBtn', 'team-schedule');
@@ -7993,7 +8113,7 @@ document.getElementById('toggleAdvancedFields').addEventListener('click', () => 
 // the Edit Monthly Goals overlay but auto-expands the All Shoutouts section.
 // Every full-page overlay is `.detail-overlay`: lock body scroll while any is open.
 function syncOverlayBodyScroll() {
-  const anyOpen = ['clientDetailOverlay', 'manualAttroOverlay', 'attrApprovalsOverlay', 'goalsOverlay', 'adminSettingsOverlay', 'sipOverlay', 'teamDetailsOverlay']
+  const anyOpen = ['clientDetailOverlay', 'manualAttroOverlay', 'goalsOverlay', 'adminSettingsOverlay', 'sipOverlay', 'teamDetailsOverlay']
     .some(id => {
       const el = document.getElementById(id);
       return el && el.classList.contains('open');
@@ -9159,13 +9279,66 @@ document.getElementById('repList').addEventListener('click', (e) => {
 });
 
 // ---------- Manual Attribution full-page overlay routing ----------
-// #manual-attribution → submit + my requests
-// #manual-attribution-approvals → admin pending queue (dedicated page, no nested scroll box)
+// Tabs live on one page:
+//   #manual-attribution           → New request
+//   #manual-attribution-pending   → Pending queue
+//   #manual-attribution-actioned  → Actioned queue
+// Legacy: #manual-attribution-approvals → pending
+function attrHashTab() {
+  const h = location.hash || '';
+  if (h === '#manual-attribution-pending' || h === '#manual-attribution-approvals') return 'pending';
+  if (h === '#manual-attribution-actioned') return 'actioned';
+  if (h === '#manual-attribution') return 'submit';
+  return null;
+}
+function attrHashForTab(tab) {
+  if (tab === 'pending') return 'manual-attribution-pending';
+  if (tab === 'actioned') return 'manual-attribution-actioned';
+  return 'manual-attribution';
+}
+function isManualAttroHash() {
+  return !!attrHashTab();
+}
+function setAttrPageTab(tab, opts) {
+  const allowed = ['submit', 'pending', 'actioned'];
+  const next = allowed.includes(tab) ? tab : 'submit';
+  // Full admins land on queues — they don't get a "my requests" dump.
+  // Submit stays available for on-behalf creates.
+  document.querySelectorAll('#attrPageTabs .attr-page-tab').forEach((btn) => {
+    const on = btn.getAttribute('data-attr-tab') === next;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  document.querySelectorAll('#attributionSignedInArea .attr-page-panel').forEach((panel) => {
+    panel.classList.toggle('active', panel.getAttribute('data-attr-panel') === next);
+  });
+  const title = document.getElementById('attroPageTitle');
+  if (title) {
+    title.textContent = next === 'pending' ? 'Pending attributions'
+      : next === 'actioned' ? 'Actioned attributions'
+      : 'Manual Attribution';
+  }
+  if (opts && opts.syncHash) {
+    const want = '#' + attrHashForTab(next);
+    if (location.hash !== want) {
+      if (opts.replaceHash) history.replaceState(null, '', want);
+      else location.hash = attrHashForTab(next);
+    }
+  }
+  if (typeof syncAttrQueueCopy === 'function') syncAttrQueueCopy();
+}
 function renderManualAttroPage() {
   const overlay = document.getElementById('manualAttroOverlay');
-  if (location.hash === '#manual-attribution') {
+  const tab = attrHashTab();
+  if (tab) {
+    // Legacy approvals URL → pending tab for admins; everyone else to submit.
+    if (location.hash === '#manual-attribution-approvals' && !isRealAdmin()) {
+      location.hash = 'manual-attribution';
+      return;
+    }
     overlay.classList.add('open');
     window.scrollTo(0, 0);
+    setAttrPageTab(tab);
     if (typeof refreshMyAttributions === 'function') refreshMyAttributions();
   } else {
     overlay.classList.remove('open');
@@ -9173,40 +9346,30 @@ function renderManualAttroPage() {
   syncOverlayBodyScroll();
 }
 function renderAttrApprovalsPage() {
-  const overlay = document.getElementById('attrApprovalsOverlay');
-  if (!overlay) return;
-  if (location.hash === '#manual-attribution-approvals') {
-    if (!isRealAdmin()) {
-      if (typeof denyHashIfUnauthorized === 'function') denyHashIfUnauthorized(false);
-      else location.hash = 'manual-attribution';
-      overlay.classList.remove('open');
-      syncOverlayBodyScroll();
-      return;
-    }
-    overlay.classList.add('open');
-    window.scrollTo(0, 0);
-    if (typeof refreshPendingApprovals === 'function') refreshPendingApprovals();
-  } else {
-    overlay.classList.remove('open');
-  }
-  syncOverlayBodyScroll();
+  // Kept as a no-op alias — pending queue now lives on the main Manual Attro page.
+  if (location.hash === '#manual-attribution-approvals') renderManualAttroPage();
 }
 window.addEventListener('hashchange', renderManualAttroPage);
 window.addEventListener('hashchange', renderAttrApprovalsPage);
-document.getElementById('manualAttroBtn').addEventListener('click', () => { location.hash = 'manual-attribution'; });
-document.getElementById('detailManualAttroBtn')?.addEventListener('click', () => { location.hash = 'manual-attribution'; });
+document.getElementById('manualAttroBtn').addEventListener('click', () => {
+  location.hash = (typeof isRealAdmin === 'function' && isRealAdmin())
+    ? 'manual-attribution-pending'
+    : 'manual-attribution';
+});
+document.getElementById('detailManualAttroBtn')?.addEventListener('click', () => {
+  location.hash = (typeof isRealAdmin === 'function' && isRealAdmin())
+    ? 'manual-attribution-pending'
+    : 'manual-attribution';
+});
 document.getElementById('attroBackBtn').addEventListener('click', () => {
   if (location.hash) history.back(); else { document.getElementById('manualAttroOverlay').classList.remove('open'); syncOverlayBodyScroll(); }
 });
-document.getElementById('openAttrApprovalsBtn')?.addEventListener('click', () => {
-  location.hash = 'manual-attribution-approvals';
-});
-document.getElementById('attrApprovalsBackBtn')?.addEventListener('click', () => {
-  if (location.hash) history.back();
-  else { document.getElementById('attrApprovalsOverlay')?.classList.remove('open'); syncOverlayBodyScroll(); }
-});
-document.getElementById('attrApprovalsToSubmitBtn')?.addEventListener('click', () => {
-  location.hash = 'manual-attribution';
+document.getElementById('attrPageTabs')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-attr-tab]');
+  if (!btn) return;
+  const tab = btn.getAttribute('data-attr-tab');
+  if (!tab) return;
+  setAttrPageTab(tab, { syncHash: true });
 });
 
 // ---------- Team workspace overlay (#team-details / #team-goals / #team-schedule / #team-attr) ----------
@@ -9911,9 +10074,7 @@ function attrStatusCellHTML(r) {
 }
 
 // Cached from the last successful /api/attributions/list fetch, so the month
-// filter can re-render instantly without a re-fetch. canViewTeam drives whether
-// we got everyone's records (and show the Rep column); isAdmin (full admins)
-// drives the Pending approvals card.
+// / status filters can re-render instantly without a re-fetch.
 let lastAttrRecords = [];
 let lastAttrCanViewTeam = false;
 let lastAttrIsAdmin = false;
@@ -9935,32 +10096,12 @@ function attrMonthLabel(key) {
 
 function populateAttrMonthFilter(records) {
   const sel = document.getElementById('attrMonthFilter');
+  if (!sel) return;
   const prevVal = sel.value;
   const months = Array.from(new Set(records.map(attrMonthKey).filter(Boolean))).sort().reverse();
   sel.innerHTML = '<option value="all">All time</option>' +
     months.map(k => `<option value="${k}">${attrMonthLabel(k)}</option>`).join('');
   sel.value = (prevVal && (prevVal === 'all' || months.includes(prevVal))) ? prevVal : 'all';
-}
-
-function renderMyAttributionsTable() {
-  const tbody = document.getElementById('myAttributionsBody');
-  const head = document.getElementById('myAttributionsHead');
-  const filterVal = document.getElementById('attrMonthFilter').value || 'all';
-  const records = lastAttrRecords.filter(r => filterVal === 'all' || attrMonthKey(r) === filterVal);
-  head.innerHTML = lastAttrCanViewTeam
-    ? '<tr><th>Rep</th><th>Client Page</th><th>Contact</th><th>Sessions</th><th>Members</th><th>Reason</th><th>Status</th></tr>'
-    : '<tr><th>Client Page</th><th>Contact</th><th>Sessions</th><th>Members</th><th>Reason</th><th>Status</th></tr>';
-  const colspan = lastAttrCanViewTeam ? 7 : 6;
-  tbody.innerHTML = records.length ? records.map(r => `
-    <tr>
-      ${lastAttrCanViewTeam ? `<td>${r.repName || '—'}</td>` : ''}
-      <td>${attrLinkCell(r)}</td>
-      <td>${r.contact || '—'}</td>
-      <td>${fmt(r.sessions,1)}</td>
-      <td>${fmt(r.members,1)}</td>
-      <td>${r.adjustmentReason || r.reason || '—'}</td>
-      <td>${attrStatusCellHTML(r)}</td>
-    </tr>`).join('') : `<tr><td colspan="${colspan}" style="text-align:center; color:var(--text-faint); padding:16px 0;">No requests ${filterVal === 'all' ? 'yet' : 'for that month'}.</td></tr>`;
 }
 
 // Skeleton placeholder rows for a table mid-fetch — see .skeleton-bar.
@@ -9972,17 +10113,45 @@ function skeletonRowsHTML(rowCount, colCount) {
 function pendingAttrRecords() {
   return lastAttrRecords.filter((r) => r.status === 'pending');
 }
-function syncAttrApprovalsLaunchCard() {
-  const launch = document.getElementById('attrApprovalsLaunchCard');
-  const note = document.getElementById('attrApprovalsLaunchNote');
-  if (!launch) return;
-  const show = !!(lastAttrIsAdmin || isRealAdmin());
-  launch.style.display = show ? '' : 'none';
-  if (!show || !note) return;
-  const n = pendingAttrRecords().length;
-  note.textContent = n
-    ? `${n} request${n === 1 ? '' : 's'} waiting for review.`
-    : 'No pending requests right now.';
+function actionedAttrRecords() {
+  const statusFilter = document.getElementById('attrActionedStatusFilter')?.value || 'all';
+  const monthFilter = document.getElementById('attrMonthFilter')?.value || 'all';
+  return lastAttrRecords.filter((r) => {
+    if (r.status !== 'approved' && r.status !== 'rejected') return false;
+    if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+    if (monthFilter !== 'all' && attrMonthKey(r) !== monthFilter) return false;
+    return true;
+  });
+}
+function syncAttrQueueCopy() {
+  const team = !!(lastAttrCanViewTeam || (typeof canViewTeamDetails === 'function' && canViewTeamDetails()));
+  const admin = !!(lastAttrIsAdmin || (typeof isRealAdmin === 'function' && isRealAdmin()));
+  const pendingNote = document.getElementById('attrPendingNote');
+  const actionedNote = document.getElementById('attrActionedNote');
+  const pendingHeading = document.getElementById('attrPendingHeading');
+  const actionedHeading = document.getElementById('attrActionedHeading');
+  if (pendingHeading) pendingHeading.textContent = team ? 'Pending' : 'Your pending';
+  if (actionedHeading) actionedHeading.textContent = team ? 'Actioned' : 'Your actioned';
+  if (pendingNote) {
+    pendingNote.textContent = admin
+      ? 'Team requests waiting for your decision. Approve or reject below — reject needs a short comment.'
+      : team
+        ? 'Open team requests. Admins approve or reject; you can still edit or delete when allowed.'
+        : 'Your open requests waiting for an admin decision. Edit anytime before they’re reviewed.';
+  }
+  if (actionedNote) {
+    actionedNote.textContent = team
+      ? 'Approved and rejected team requests. Admins can still edit approved credit.'
+      : 'Your approved and rejected requests. Rejected items can be edited and will return to Pending.';
+  }
+}
+function syncAttrTabCounts() {
+  const pendingN = pendingAttrRecords().length;
+  const actionedN = lastAttrRecords.filter((r) => r.status === 'approved' || r.status === 'rejected').length;
+  const pendingCount = document.getElementById('attrPendingTabCount');
+  const actionedCount = document.getElementById('attrActionedTabCount');
+  if (pendingCount) pendingCount.textContent = String(pendingN);
+  if (actionedCount) actionedCount.textContent = String(actionedN);
 }
 function attrApprovalsSkeletonHTML(count) {
   return Array.from({ length: count }, () => `
@@ -9993,31 +10162,39 @@ function attrApprovalsSkeletonHTML(count) {
       <div class="skeleton-bar" style="width:70%; height:12px;"></div>
     </div>`).join('');
 }
-function renderPendingApprovalsTable() {
-  const pendingBody = document.getElementById('pendingApprovalsBody');
-  const statusEl = document.getElementById('attrApprovalsStatus');
-  if (!pendingBody) return;
-  const pending = pendingAttrRecords();
-  if (statusEl) {
-    statusEl.textContent = pending.length
-      ? `${pending.length} waiting for review`
-      : '';
-  }
-  if (!pending.length) {
-    pendingBody.innerHTML = `<div class="attr-approvals-empty">Nothing pending — you’re caught up.</div>`;
-    return;
-  }
-  pendingBody.innerHTML = pending.map((r) => {
-    const reason = r.adjustmentReason || r.reason || 'Manual Attribution';
-    const linkHtml = r.clientLink
-      ? `<a href="${escapeAttr(r.clientLink)}" target="_blank" rel="noopener">View client page</a>`
-      : escapeHtml(r.clientId || 'No client page link');
-    return `
+function attrOnBehalfNoteHTML(r) {
+  const initiated = String(r.initiatedBy || '').trim();
+  const repEmail = String(r.repEmail || '').trim().toLowerCase();
+  if (!initiated) return '';
+  if (!r.submittedOnBehalf && initiated.toLowerCase() === repEmail) return '';
+  return `<span class="attr-onbehalf-note">Submitted by ${escapeHtml(initiated)} on their behalf</span>`;
+}
+function attrRequestCardHTML(r, mode) {
+  const reason = r.adjustmentReason || r.reason || 'Manual Attribution';
+  const linkHtml = r.clientLink
+    ? `<a href="${escapeAttr(r.clientLink)}" target="_blank" rel="noopener">View client page</a>`
+    : escapeHtml(r.clientId || 'No client page link');
+  const showReviewActions = mode === 'pending' && !!(lastAttrIsAdmin || (typeof isRealAdmin === 'function' && isRealAdmin()));
+  const statusHtml = mode === 'actioned'
+    ? `<div class="attr-status-row">${attrStatusPill(r.status, r.reviewComment)}</div>`
+    : '';
+  const reviewMeta = (mode === 'actioned' && r.reviewedBy)
+    ? `<div class="attr-approval-meta-item">
+        <span class="attr-approval-meta-label">Reviewed by</span>
+        <div class="attr-approval-meta-val">${escapeHtml(r.reviewedBy)}${r.reviewedAt ? ` · ${escapeHtml(String(r.reviewedAt).slice(0, 10))}` : ''}</div>
+      </div>`
+    : '';
+  const bucaLinkEdit = mode === 'actioned' && canEditAttrClientLink(r)
+    ? `<button type="button" class="theme-btn attr-edit-link-btn" data-edit-attr-link="${escapeAttr(r.id)}" title="Update client page link">Update link</button>`
+    : '';
+  return `
     <article class="attr-approval-card" data-attr-id="${escapeAttr(r.id)}">
       <div class="attr-approval-top">
         <div class="attr-approval-who">
           <h3 class="attr-approval-rep">${escapeHtml(r.repName || 'Rep')}</h3>
           <span class="attr-approval-reason">${escapeHtml(reason)}</span>
+          ${attrOnBehalfNoteHTML(r)}
+          ${statusHtml}
         </div>
         <div class="attr-approval-credit">
           <div class="attr-credit-chip">
@@ -10033,25 +10210,66 @@ function renderPendingApprovalsTable() {
       <div class="attr-approval-meta">
         <div class="attr-approval-meta-item">
           <span class="attr-approval-meta-label">Client page</span>
-          <div class="attr-approval-meta-val">${linkHtml}</div>
+          <div class="attr-approval-meta-val">${linkHtml}${bucaLinkEdit ? ` ${bucaLinkEdit}` : ''}</div>
         </div>
         <div class="attr-approval-meta-item">
           <span class="attr-approval-meta-label">Phone or email</span>
           <div class="attr-approval-meta-val">${escapeHtml(r.contact || '—')}</div>
         </div>
+        ${reviewMeta}
       </div>
       <div class="attr-approval-comments">
         <span class="attr-approval-meta-label">Submitter comments</span>
         <p class="attr-approval-comments-body">${escapeHtml(r.comments || '—')}</p>
       </div>
       <div class="attr-approvals-actions">
-        <button class="approve-btn" data-review="${escapeAttr(r.id)}" data-action="approve" type="button">Approve</button>
-        <button class="reject-btn" data-review="${escapeAttr(r.id)}" data-action="reject" type="button">Reject</button>
+        ${showReviewActions ? `
+          <button class="approve-btn" data-review="${escapeAttr(r.id)}" data-action="approve" type="button">Approve</button>
+          <button class="reject-btn" data-review="${escapeAttr(r.id)}" data-action="reject" type="button">Reject</button>
+        ` : ''}
         ${attrEditBtnHTML(r)}
         ${attrDeleteBtnHTML(r)}
       </div>
     </article>`;
-  }).join('');
+}
+function renderPendingApprovalsTable() {
+  const pendingBody = document.getElementById('attrPendingList');
+  const statusEl = document.getElementById('attrPendingStatus');
+  if (!pendingBody) return;
+  const pending = pendingAttrRecords();
+  syncAttrTabCounts();
+  syncAttrQueueCopy();
+  if (statusEl) {
+    statusEl.textContent = pending.length
+      ? `${pending.length} waiting`
+      : '';
+  }
+  if (!pending.length) {
+    pendingBody.innerHTML = `<div class="attr-approvals-empty">Nothing pending — you’re caught up.</div>`;
+    return;
+  }
+  pendingBody.innerHTML = pending.map((r) => attrRequestCardHTML(r, 'pending')).join('');
+}
+function renderActionedAttrQueue() {
+  const list = document.getElementById('attrActionedList');
+  const statusEl = document.getElementById('attrActionedStatus');
+  if (!list) return;
+  const rows = actionedAttrRecords();
+  syncAttrTabCounts();
+  syncAttrQueueCopy();
+  if (statusEl) {
+    statusEl.textContent = rows.length ? `${rows.length} shown` : '';
+  }
+  if (!rows.length) {
+    list.innerHTML = `<div class="attr-approvals-empty">No actioned requests in this filter.</div>`;
+    return;
+  }
+  list.innerHTML = rows.map((r) => attrRequestCardHTML(r, 'actioned')).join('');
+}
+function renderMyAttributionsTable() {
+  // Legacy name — both queues now use shared cards.
+  renderPendingApprovalsTable();
+  renderActionedAttrQueue();
 }
 function applyAttrRecordLocally(record) {
   if (!record || !record.id) return;
@@ -10060,38 +10278,25 @@ function applyAttrRecordLocally(record) {
   else lastAttrRecords.unshift(record);
 }
 async function refreshPendingApprovals() {
-  const pendingBody = document.getElementById('pendingApprovalsBody');
-  const statusEl = document.getElementById('attrApprovalsStatus');
-  if (!pendingBody) return;
-  if (!isRealAdmin()) {
-    pendingBody.innerHTML = `<div class="attr-approvals-empty">Full admin access required.</div>`;
-    return;
-  }
-  pendingBody.innerHTML = attrApprovalsSkeletonHTML(2);
-  if (statusEl) statusEl.textContent = 'Loading…';
-  try {
-    const { isAdmin, canViewTeam, records } = await authedFetch('/api/attributions/list');
-    lastAttrRecords = records;
-    lastAttrIsAdmin = !!isAdmin;
-    lastAttrCanViewTeam = canViewTeam !== undefined ? !!canViewTeam : !!isAdmin;
-    renderPendingApprovalsTable();
-    syncAttrApprovalsLaunchCard();
-  } catch (e) {
-    pendingBody.innerHTML = `<div class="attr-approvals-empty">${escapeHtml(e.message || 'Could not load pending approvals.')}</div>`;
-    if (statusEl) statusEl.textContent = '';
-  }
+  return refreshMyAttributions();
 }
 async function refreshMyAttributions() {
   const user = window.netlifyIdentity && netlifyIdentity.currentUser();
-  const tbody = document.getElementById('myAttributionsBody');
-  const launch = document.getElementById('attrApprovalsLaunchCard');
+  const pendingList = document.getElementById('attrPendingList');
+  const actionedList = document.getElementById('attrActionedList');
   if (!user) {
-    if (tbody) tbody.innerHTML = '';
-    if (launch) launch.style.display = 'none';
+    if (pendingList) pendingList.innerHTML = '';
+    if (actionedList) actionedList.innerHTML = '';
+    syncAttrTabCounts();
     return;
   }
 
-  if (tbody) tbody.innerHTML = skeletonRowsHTML(3, lastAttrCanViewTeam ? 7 : 6);
+  if (pendingList) pendingList.innerHTML = attrApprovalsSkeletonHTML(2);
+  if (actionedList) actionedList.innerHTML = attrApprovalsSkeletonHTML(2);
+  const pendingStatus = document.getElementById('attrPendingStatus');
+  const actionedStatus = document.getElementById('attrActionedStatus');
+  if (pendingStatus) pendingStatus.textContent = 'Loading…';
+  if (actionedStatus) actionedStatus.textContent = 'Loading…';
 
   try {
     const { isAdmin, canViewTeam, records } = await authedFetch('/api/attributions/list');
@@ -10100,18 +10305,17 @@ async function refreshMyAttributions() {
     lastAttrCanViewTeam = canViewTeam !== undefined ? !!canViewTeam : !!isAdmin;
     populateAttrMonthFilter(records);
     renderMyAttributionsTable();
-    syncAttrApprovalsLaunchCard();
-    if (document.getElementById('attrApprovalsOverlay')?.classList.contains('open')) {
-      renderPendingApprovalsTable();
-    }
   } catch (e) {
-    if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-faint); padding:16px 0;">${escapeHtml(e.message)}</td></tr>`;
-    }
+    const msg = `<div class="attr-approvals-empty">${escapeHtml(e.message || 'Could not load requests.')}</div>`;
+    if (pendingList) pendingList.innerHTML = msg;
+    if (actionedList) actionedList.innerHTML = msg;
+    if (pendingStatus) pendingStatus.textContent = '';
+    if (actionedStatus) actionedStatus.textContent = '';
   }
 }
 
-document.getElementById('attrMonthFilter').addEventListener('change', renderMyAttributionsTable);
+document.getElementById('attrMonthFilter')?.addEventListener('change', renderActionedAttrQueue);
+document.getElementById('attrActionedStatusFilter')?.addEventListener('change', renderActionedAttrQueue);
 
 document.getElementById('attrReasonSelect')?.addEventListener('change', () => {
   const hint = document.getElementById('attrBucaEditHint');
@@ -10244,9 +10448,7 @@ async function reviewAttributionRequest(id, action, comment) {
     const hit = lastAttrRecords.find((r) => r.id === id);
     if (hit) hit.status = action === 'approve' ? 'approved' : 'rejected';
   }
-  renderPendingApprovalsTable();
   renderMyAttributionsTable();
-  syncAttrApprovalsLaunchCard();
   APPROVED_TOTALS = await fetchApprovedTotals();
   if (typeof render === 'function') render();
   // Background reconcile with server list (don't block UI).
@@ -10254,7 +10456,7 @@ async function reviewAttributionRequest(id, action, comment) {
   return record;
 }
 
-document.getElementById('pendingApprovalsBody')?.addEventListener('click', async (e) => {
+document.getElementById('attrPendingList')?.addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-review]');
   if (!btn) return;
   e.preventDefault();
@@ -10493,7 +10695,9 @@ document.getElementById('submitAttribution').addEventListener('click', async () 
     }
     statusEl.style.color = '#16a34a';
     resetManualAttrForm();
-    refreshMyAttributions();
+    await refreshMyAttributions();
+    // Show the request where it landed — under that rep’s Pending queue.
+    setAttrPageTab('pending', { syncHash: true });
   } catch (e) {
     statusEl.textContent = 'Error: ' + e.message;
     statusEl.style.color = '#dc2626';
@@ -10593,10 +10797,6 @@ document.getElementById('attrEditSave')?.addEventListener('click', async () => {
     applyAttrRecordLocally(record);
     closeAttrEditModal();
     renderMyAttributionsTable();
-    syncAttrApprovalsLaunchCard();
-    if (document.getElementById('attrApprovalsOverlay')?.classList.contains('open')) {
-      renderPendingApprovalsTable();
-    }
     if (document.getElementById('teamDetailsOverlay')?.classList.contains('open')) {
       await refreshTeamAttributions();
     }
@@ -11048,7 +11248,7 @@ function setViewAsRep(repDisplay) {
     renderClientDetail({ preserveScroll: true });
   }
   if (typeof renderTeamDetailsOverlay === 'function') renderTeamDetailsOverlay();
-  if (typeof renderManualAttroPage === 'function' && location.hash === '#manual-attribution') {
+  if (typeof renderManualAttroPage === 'function' && typeof isManualAttroHash === 'function' && isManualAttroHash()) {
     renderManualAttroPage();
   }
 }
@@ -11492,7 +11692,6 @@ async function boot() {
   renderClientDetail();
   renderTeamDetailsOverlay();
   if (typeof renderManualAttroPage === 'function') renderManualAttroPage();
-  if (typeof renderAttrApprovalsPage === 'function') renderAttrApprovalsPage();
   if (!isUxPreviewMode()) startLiveActualsPolling();
   startTeamCalendarWatch();
   maybeStartGuidedTour();
@@ -11547,7 +11746,7 @@ function dismissTourBlockingPopups() {
 function closeAllTourOverlays() {
   dismissTourBlockingPopups();
   [
-    'clientDetailOverlay', 'manualAttroOverlay', 'attrApprovalsOverlay', 'goalsOverlay',
+    'clientDetailOverlay', 'manualAttroOverlay', 'goalsOverlay',
     'adminSettingsOverlay', 'sipOverlay', 'teamDetailsOverlay',
   ].forEach((id) => document.getElementById(id)?.classList.remove('open'));
   document.getElementById('attrRejectBackdrop')?.classList.remove('open');
@@ -11693,12 +11892,12 @@ function guidedTourSteps() {
     },
     {
       id: 'manualAttroMine',
-      title: 'Your requests',
-      body: 'Track pending, approved, and rejected requests here. Filter by month anytime.',
-      selector: '#myAttributionsBody',
-      fallbackSelector: '#attrMonthFilter',
+      title: 'Pending & actioned',
+      body: 'Use the Pending and Actioned tabs to track open requests and what’s already been reviewed. Filter actioned by status or month anytime.',
+      selector: '#attrPageTabs',
+      fallbackSelector: '#attrPendingList',
       surface: 'manual',
-      maxSpotlightHeight: 180,
+      maxSpotlightHeight: 120,
     },
     {
       id: 'openMyPacer',
