@@ -1,9 +1,9 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
+import { requireSignedIn } from "./_shared/identity.mts";
 
-// Deliberately PUBLIC / no auth check, same reasoning as approved-totals.mts
-// and get-badges-data.mts — every viewer needs the roster/goals/actuals to
-// render the dashboard at all, not just whoever's signed in.
+// Identity-gated (@varsitytutors.com). Roster / goals / actuals / access lists
+// are team-internal — never serve them to anonymous callers with the URL.
 //
 // Each of these stores holds ONE blob under the key "current" — roster,
 // goals, and actuals (and the derived prelim-snapshot record) are each a
@@ -18,10 +18,11 @@ import { getStore } from "@netlify/blobs";
 // keeping two copies in sync across two files/languages. Instead, a `null`
 // field here means "nothing saved yet" and the front end's own cache just
 // keeps showing its baked-in default until the first real write happens
-// (Save Goals / Add Person / Update Actuals) — see fetchDashboardData() in
-// team-pace-dashboard.html. From that point on every browser reads the real
-// shared value instead of its own local default.
+// (Save Goals / Add Person / Update Actuals) — see fetchDashboardData().
 export default async (req: Request, context: Context) => {
+  const auth = await requireSignedIn(req, context);
+  if (auth.response) return auth.response;
+
   const rosterStore = getStore("roster");
   const goalsStore = getStore("goals");
   const actualsStore = getStore("actuals");
@@ -57,7 +58,10 @@ export default async (req: Request, context: Context) => {
       // Empty array (not null) when nothing has been closed out yet.
       sipExtra: Array.isArray(sipExtra) ? sipExtra : [],
     }),
-    { status: 200, headers: { "Content-Type": "application/json" } }
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    }
   );
 };
 

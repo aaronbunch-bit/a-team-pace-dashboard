@@ -1,12 +1,13 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
+import { requireSignedIn } from "./_shared/identity.mts";
 
-// Deliberately PUBLIC / no auth check, matching the front end's current
-// behavior (see the "not-yet-access-restricted" comment above
-// renderMasterShoutoutLog() in team-pace-dashboard.html) — shoutout text isn't
-// confidential the way payout figures are, and a rep's own Client Detail page
-// already shows them their shoutouts with no sign-in required today.
+// Identity-gated (@varsitytutors.com). Shoutouts are internal team culture —
+// not a public feed.
 export default async (req: Request, context: Context) => {
+  const auth = await requireSignedIn(req, context);
+  if (auth.response) return auth.response;
+
   const store = getStore("shoutouts");
   const { blobs } = await store.list();
   const records = (await Promise.all(blobs.map((b) => store.get(b.key, { type: "json" })))).filter(Boolean) as any[];
@@ -35,7 +36,7 @@ export default async (req: Request, context: Context) => {
 
   return new Response(JSON.stringify({ shoutouts }), {
     status: 200,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 };
 

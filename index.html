@@ -5272,9 +5272,7 @@ function isRepScheduledOff(repDisplay, dateStr) {
 }
 async function fetchTeamSchedules() {
   try {
-    const res = await fetch('/api/team-schedules', { cache: 'no-store' });
-    if (!res.ok) return;
-    const data = await res.json();
+    const data = await authedFetch('/api/team-schedules', { cache: 'no-store' });
     TEAM_SCHEDULES_CACHE = {
       reps: (data && data.reps) || {},
       dailyGoals: (data && data.dailyGoals) || {},
@@ -9126,9 +9124,7 @@ let APPROVED_TOTALS = {};
 
 async function fetchApprovedTotals() {
   try {
-    const res = await fetch('/api/attributions/approved-totals');
-    if (!res.ok) return {};
-    const data = await res.json();
+    const data = await authedFetch('/api/attributions/approved-totals', { cache: 'no-store' });
     return data.totals || {};
   } catch (e) {
     console.warn('Could not load approved manual attribution totals', e);
@@ -9139,17 +9135,13 @@ async function fetchApprovedTotals() {
 // ---------- Badges + shoutouts (same Netlify Functions + Blobs pattern) ----------
 // Populates BADGE_TOGGLES_CACHE/CUSTOM_BADGES_CACHE/MANUAL_BADGES_CACHE/
 // SHOUTOUTS_CACHE (declared up near their respective read/write functions
-// earlier in this file) — public, unauthenticated GETs, same reasoning as
-// fetchApprovedTotals() above: every viewer needs these to render badges and
-// shoutouts, not just whoever's signed in. Falls back to the same empty/
-// default shape those caches already start with if the fetch fails, so a
-// network hiccup degrades to "no badges/shoutouts yet" instead of breaking
-// the page.
+// earlier in this file). All reads go through authedFetch — Netlify Identity
+// (@varsitytutors.com Google) required server-side. Falls back to empty/
+// default caches if the fetch fails so a network hiccup degrades to
+// "no badges/shoutouts yet" instead of breaking the page.
 async function fetchBadgesData() {
   try {
-    const res = await fetch('/api/badges/data');
-    if (!res.ok) return;
-    const data = await res.json();
+    const data = await authedFetch('/api/badges/data', { cache: 'no-store' });
     BADGE_TOGGLES_CACHE = Object.assign({}, DEFAULT_BADGE_TOGGLES, data.toggles || {});
     CUSTOM_BADGES_CACHE = data.custom || [];
     MANUAL_BADGES_CACHE = data.assignments || {};
@@ -9162,9 +9154,7 @@ async function fetchBadgesData() {
 
 async function fetchShoutouts() {
   try {
-    const res = await fetch('/api/shoutouts/list');
-    if (!res.ok) return;
-    const data = await res.json();
+    const data = await authedFetch('/api/shoutouts/list', { cache: 'no-store' });
     SHOUTOUTS_CACHE = data.shoutouts || {};
   } catch (e) {
     console.warn('Could not load shoutouts', e);
@@ -9173,14 +9163,11 @@ async function fetchShoutouts() {
 
 // ---------- Roster + goals + actuals (same Netlify Functions + Blobs pattern) ----------
 // Populates ROSTER_CACHE/GOALS_CACHE/ACTUALS_CACHE/PRELIM_CACHE (declared up
-// near their respective read/write functions earlier in this file) — public,
-// unauthenticated GET, same reasoning as fetchApprovedTotals()/
-// fetchBadgesData() above. Each field only overwrites its cache if the
-// server actually has real saved data (see get-dashboard-data.mts's comment
-// on why it doesn't self-seed) — a null field just means "nobody's ever
-// saved this from any browser yet," so the baked-in default this cache
-// already started with keeps showing, exactly like a single-browser
-// localStorage setup would look on day one.
+// near their respective read/write functions earlier in this file). Reads use
+// authedFetch (Netlify Identity / @varsitytutors.com). Each field only
+// overwrites its cache if the server actually has real saved data (see
+// get-dashboard-data.mts) — a null field means "nothing saved yet," so the
+// baked-in default keeps showing until the first real write.
 // Live MTD actuals from Supabase (acquisition-call-center ledger). Preferred
 // over Blobs/CSV when available; Manual Attribution approved totals stay additive.
 const LIVE_ACTUALS_POLL_MS = 45000;
@@ -9214,17 +9201,7 @@ async function fetchLiveActuals() {
   const statusEl = document.getElementById('liveActualsStatus');
   const prevDigest = actualsDigest(ACTUALS_CACHE);
   try {
-    const res = await fetch('/api/actuals/live', { cache: 'no-store' });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      lastLiveActualsOk = false;
-      if (statusEl) {
-        statusEl.textContent = 'Live Supabase feed unavailable — showing last Blobs/CSV actuals. ' +
-          (data.error || ('HTTP ' + res.status));
-        statusEl.style.color = '#b45309';
-      }
-      return 'error';
-    }
+    const data = await authedFetch('/api/actuals/live', { cache: 'no-store' });
     if (!data.actuals || !data.actuals.perRep) {
       lastLiveActualsOk = false;
       return 'error';
@@ -9243,7 +9220,8 @@ async function fetchLiveActuals() {
     lastLiveActualsOk = false;
     console.warn('Could not load live Supabase actuals', e);
     if (statusEl) {
-      statusEl.textContent = 'Live Supabase feed error — showing last Blobs/CSV actuals.';
+      statusEl.textContent = 'Live Supabase feed unavailable — showing last Blobs/CSV actuals. ' +
+        ((e && e.message) || 'Sign-in required');
       statusEl.style.color = '#b45309';
     }
     return 'error';
@@ -9288,9 +9266,7 @@ function startTeamCalendarWatch() {
 
 async function fetchDashboardData() {
   try {
-    const res = await fetch('/api/dashboard/data');
-    if (!res.ok) return;
-    const data = await res.json();
+    const data = await authedFetch('/api/dashboard/data', { cache: 'no-store' });
     if (data.roster) ROSTER_CACHE = data.roster;
     if (data.goals) GOALS_CACHE = data.goals;
     // Prefer whatever Blobs has until/unless live Supabase overwrites in boot().
@@ -9675,9 +9651,7 @@ function getPersonalGoal(repDisplay) {
 async function fetchPersonalGoals() {
   try {
     const month = liveMonthKey();
-    const res = await fetch('/api/personal-goals?month=' + encodeURIComponent(month), { cache: 'no-store' });
-    if (!res.ok) return;
-    const data = await res.json();
+    const data = await authedFetch('/api/personal-goals?month=' + encodeURIComponent(month), { cache: 'no-store' });
     PERSONAL_GOALS_MONTH = data.month || month;
     PERSONAL_GOALS_CACHE = data.goals || {};
   } catch (e) {
