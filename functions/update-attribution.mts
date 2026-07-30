@@ -15,9 +15,10 @@ function looksLikeUrl(value: string): boolean {
 }
 
 /**
- * Edit a Manual Attribution adjustment request (pending or rejected).
- * Owners, full admins, and Sales Coaches may edit. Rejected requests return
- * to pending so admins can re-review after the fix.
+ * Edit a Manual Attribution adjustment request.
+ *  - Pending / rejected: owner, full admin, or Sales Coach
+ *  - Approved: full admins only (credit totals recompute from the updated record)
+ * Rejected requests return to pending so they can be re-reviewed.
  */
 export default async (req: Request, context: Context) => {
   if (req.method !== "POST") {
@@ -70,12 +71,6 @@ export default async (req: Request, context: Context) => {
     });
   }
 
-  if (!clientLink || !looksLikeUrl(clientLink)) {
-    return new Response(JSON.stringify({ error: "Client page link must be a valid http(s) URL" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
   if (!(membersNum || sessionsNum)) {
     return new Response(
       JSON.stringify({ error: "Sessions and/or members are required" }),
@@ -104,16 +99,12 @@ export default async (req: Request, context: Context) => {
     });
   }
 
-  if (record.status === "approved") {
-    return new Response(
-      JSON.stringify({
-        error: "Approved requests can't be fully edited. Delete and resubmit, or update the BUCA client link if applicable.",
-      }),
-      { status: 403, headers: { "Content-Type": "application/json" } }
-    );
-  }
-  if (record.status !== "pending" && record.status !== "rejected") {
-    return new Response(JSON.stringify({ error: `Can't edit a request with status ${record.status}` }), {
+  const status = String(record.status || "");
+  const isApproved = status === "approved";
+  const isPendingOrRejected = status === "pending" || status === "rejected";
+
+  if (!isApproved && !isPendingOrRejected) {
+    return new Response(JSON.stringify({ error: `Can't edit a request with status ${status || "unknown"}` }), {
       status: 403,
       headers: { "Content-Type": "application/json" },
     });
@@ -125,16 +116,39 @@ export default async (req: Request, context: Context) => {
     String(record.repEmail || "").toLowerCase() === email ||
     (!!ownName && String(record.repName || "") === ownName);
 
-  if (!access.canViewTeam && !isOwner) {
+  if (isApproved) {
+    if (!access.isFullAdmin) {
+      return new Response(
+        JSON.stringify({ error: "Only admins can edit approved Manual Attribution requests" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  } else if (!access.canViewTeam && !isOwner) {
     return new Response(
       JSON.stringify({ error: "You can only edit your own Manual Attribution requests" }),
       { status: 403, headers: { "Content-Type": "application/json" } }
     );
   }
 
-  const wasRejected = record.status === "rejected";
+  // Cancel-conversion rows may only have a clientId; keep that path usable.
+  const hasClientId = !!String(record.clientId || "").trim();
+  if (clientLink) {
+    if (!looksLikeUrl(clientLink)) {
+      return new Response(JSON.stringify({ error: "Client page link must be a valid http(s) URL" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    record.clientLink = clientLink;
+  } else if (!hasClientId) {
+    return new Response(JSON.stringify({ error: "Client page link is required" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
-  record.clientLink = clientLink;
+  const wasRejected = status === "rejected";
+
   record.contact = contact;
   record.members = membersNum;
   record.sessions = sessionsNum;
@@ -158,10 +172,18 @@ export default async (req: Request, context: Context) => {
 
   await store.setJSON(id, record);
 
-  return new Response(JSON.stringify({ ok: true, record, resubmitted: wasRejected }), {
-    status: 200,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-  });
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      record,
+      resubmitted: wasRejected,
+      approvedEdited: isApproved,
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    }
+  );
 };
 
 export const config: Config = {
