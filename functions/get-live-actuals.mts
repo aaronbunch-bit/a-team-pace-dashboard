@@ -13,6 +13,8 @@ type LedgerRow = {
   occurred_at: string;
   members: number;
   sessions: number;
+  ledger_id?: string;
+  attribution_id?: string;
 };
 
 type PerRep = {
@@ -20,7 +22,16 @@ type PerRep = {
   sessions: number;
   membersCancels: number;
   sessionsCancels: number;
-  items: { clientId: string; members: number; sessions: number; date: string; occurredAt?: string }[];
+  items: {
+    clientId: string;
+    members: number;
+    sessions: number;
+    date: string;
+    occurredAt?: string;
+    /** Stable ledger row id when available (Deal or No Deal sale keys). */
+    ledgerId?: string;
+    attributionId?: string;
+  }[];
 };
 
 function safeEmail(email: string): string | null {
@@ -87,12 +98,16 @@ function buildActuals(
     if (m < 0) bucket.membersCancels += m;
     if (s < 0) bucket.sessionsCancels += s;
     const occurredAt = String(row.occurred_at || "").trim();
+    const ledgerId = String(row.ledger_id || "").trim();
+    const attributionId = String(row.attribution_id || "").trim();
     bucket.items.push({
       clientId: String(row.client_id || "").trim(),
       members: m,
       sessions: s,
       date: d,
       ...(occurredAt ? { occurredAt } : {}),
+      ...(ledgerId ? { ledgerId } : {}),
+      ...(attributionId ? { attributionId } : {}),
     });
   }
 
@@ -190,6 +205,8 @@ select
   lower(f.email) as email,
   f.name as manager_name,
   a.client_id,
+  l.id::text as ledger_id,
+  a.id::text as attribution_id,
   (a.occurred_at at time zone '${tz}')::date::text as attribution_date,
   (a.occurred_at at time zone '${tz}')::text as occurred_at,
   l.net_client_credit_amount::float8 as members,
