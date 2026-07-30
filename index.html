@@ -2903,7 +2903,9 @@ function openShoutoutForRep(repDisplay) {
 let recognitionWallRotateTimer = 0;
 let recognitionWallRotateIdx = 0;
 let recognitionWallItemsCache = [];
-const RECOGNITION_WALL_ROTATE_MS = 5500;
+let recognitionWallAnimToken = 0;
+const RECOGNITION_WALL_ROTATE_MS = 6000;
+const RECOGNITION_WALL_FLIP_MS = 420;
 function stopRecognitionWallRotation() {
   if (recognitionWallRotateTimer) {
     window.clearInterval(recognitionWallRotateTimer);
@@ -2919,12 +2921,13 @@ function recognitionSplitEmoji(text, type) {
   if (!m) return { emoji: recognitionTypeEmoji(type), label: raw };
   return { emoji: m[1], label: (m[2] || '').trim() };
 }
-function recognitionSpotlightHTML(it, idx, total) {
+function recognitionSpotlightCardHTML(it, idx, total) {
   if (!it) return '';
   const typeCls = it.type === 'badge' ? 'is-badge' : 'is-shoutout';
   const split = recognitionSplitEmoji(it.text, it.type);
   const emoji = split.emoji || recognitionTypeEmoji(it.type);
   const label = split.label || it.text || '';
+  const fullText = String(it.text || '').trim();
   const fromBit = it.type === 'shoutout' && it.from
     ? `<div class="recognition-wall-from">${escapeHtml(it.from)}</div>`
     : '';
@@ -2934,37 +2937,91 @@ function recognitionSpotlightHTML(it, idx, total) {
       ).join('')}</div>`
     : '';
   return `
-    <div class="recognition-wall-spotlight ${typeCls}" data-recog-idx="${idx}">
-      <div class="recognition-wall-aurora" aria-hidden="true"></div>
-      <span class="recognition-wall-spark s1" aria-hidden="true"></span>
-      <span class="recognition-wall-spark s2" aria-hidden="true"></span>
-      <span class="recognition-wall-spark s3" aria-hidden="true"></span>
+    <div class="recognition-wall-card ${typeCls}" data-recog-idx="${idx}">
       <div class="recognition-wall-emoji" aria-hidden="true">${escapeHtml(emoji)}</div>
       <div class="recognition-wall-name">${escapeHtml(it.rep || '')}</div>
-      ${label ? `<div class="recognition-wall-text">${escapeHtml(label)}</div>` : ''}
+      ${label ? `<button type="button" class="recognition-wall-text" data-recog-open="1" title="Read full shoutout">${escapeHtml(label)}</button>` : ''}
       ${fromBit}
       ${dots}
-      <div class="recognition-wall-progress" aria-hidden="true"><span></span></div>
+      <span class="recognition-wall-fulltext" hidden>${escapeHtml(fullText)}</span>
     </div>`;
 }
-function paintRecognitionSpotlight(opts) {
+function openRecognitionDetail(it) {
+  if (!it) return;
+  const split = recognitionSplitEmoji(it.text, it.type);
+  const emoji = split.emoji || recognitionTypeEmoji(it.type);
+  const lines = [String(it.text || '').trim()];
+  if (it.from) lines.push(`From ${it.from}`);
+  appAlert(lines.filter(Boolean).join('\n\n'), {
+    title: it.rep || 'Recognition',
+    emoji,
+    okLabel: 'Close',
+  });
+}
+function recognitionStep(delta) {
+  const items = recognitionWallItemsCache;
+  if (items.length <= 1) return;
+  const dir = delta < 0 ? 'prev' : 'next';
+  recognitionWallRotateIdx = (recognitionWallRotateIdx + delta + items.length) % items.length;
+  paintRecognitionSpotlight({ direction: dir });
+  startRecognitionWallRotation();
+}
+function bindRecognitionWallStage() {
   const stage = document.getElementById('recognitionWallStage');
-  if (!stage) return;
+  if (!stage || stage.dataset.bound === '1') return;
+  stage.dataset.bound = '1';
+  stage.addEventListener('click', (e) => {
+    const openBtn = e.target.closest('[data-recog-open]');
+    if (openBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      openRecognitionDetail(recognitionWallItemsCache[recognitionWallRotateIdx]);
+      return;
+    }
+    const nav = e.target.closest('[data-recog-nav]');
+    if (!nav) return;
+    e.preventDefault();
+    recognitionStep(nav.getAttribute('data-recog-nav') === 'prev' ? -1 : 1);
+  });
+}
+function paintRecognitionSpotlight(opts) {
+  const host = document.getElementById('recognitionWallSlideHost');
+  if (!host) return;
   const items = recognitionWallItemsCache;
   if (!items.length) return;
   const idx = ((recognitionWallRotateIdx % items.length) + items.length) % items.length;
   const animate = !(opts && opts.instant) && !document.body.classList.contains('motion-static');
-  stage.innerHTML = recognitionSpotlightHTML(items[idx], idx, items.length);
-  const next = stage.querySelector('.recognition-wall-spotlight');
-  if (next && animate) next.classList.add('is-entering');
-  // Restart progress fill so each turn reads as timed / alive.
-  const bar = next?.querySelector('.recognition-wall-progress > span');
-  if (bar && animate && items.length > 1) {
-    bar.style.animation = 'none';
-    // Force reflow so the progress animation restarts cleanly each slide.
-    void bar.offsetWidth;
-    bar.style.animation = '';
+  const direction = (opts && opts.direction) === 'prev' ? 'prev' : 'next';
+  const html = recognitionSpotlightCardHTML(items[idx], idx, items.length);
+  if (!animate) {
+    host.innerHTML = html;
+    return;
   }
+  const token = ++recognitionWallAnimToken;
+  const prev = host.querySelector('.recognition-wall-card');
+  if (prev) {
+    prev.classList.remove('is-enter-next', 'is-enter-prev');
+    prev.classList.add(direction === 'prev' ? 'is-leave-prev' : 'is-leave-next');
+  }
+  const wrap = document.createElement('div');
+  wrap.innerHTML = html;
+  const next = wrap.firstElementChild;
+  if (!next) return;
+  next.classList.add(direction === 'prev' ? 'is-enter-prev' : 'is-enter-next');
+  host.appendChild(next);
+  // Force style so enter transition runs after leave class is painted.
+  void next.offsetWidth;
+  requestAnimationFrame(() => {
+    if (token !== recognitionWallAnimToken) return;
+    next.classList.add('is-in');
+  });
+  window.setTimeout(() => {
+    if (token !== recognitionWallAnimToken) return;
+    [...host.querySelectorAll('.recognition-wall-card')].forEach((el) => {
+      if (el !== next) el.remove();
+    });
+    next.classList.remove('is-enter-next', 'is-enter-prev', 'is-in');
+  }, RECOGNITION_WALL_FLIP_MS);
 }
 function startRecognitionWallRotation() {
   stopRecognitionWallRotation();
@@ -2976,7 +3033,7 @@ function startRecognitionWallRotation() {
       return;
     }
     recognitionWallRotateIdx = (recognitionWallRotateIdx + 1) % recognitionWallItemsCache.length;
-    paintRecognitionSpotlight();
+    paintRecognitionSpotlight({ direction: 'next' });
   }, RECOGNITION_WALL_ROTATE_MS);
 }
 function recognitionWallShoutoutCtaHTML() {
@@ -2989,10 +3046,25 @@ function bindRecognitionWallShoutBtn() {
   const btn = document.getElementById('recognitionWallShoutBtn');
   if (!btn) return;
   btn.addEventListener('click', () => {
-    const spotlight = recognitionWallItemsCache[recognitionWallRotateIdx];
-    if (spotlight && spotlight.rep) openShoutoutForRep(spotlight.rep);
-    else document.getElementById('shoutoutSendBtn')?.click();
+    document.getElementById('shoutoutSendBtn')?.click();
   });
+}
+function recognitionWallStageShellHTML() {
+  const multi = recognitionWallItemsCache.length > 1;
+  return `
+    <div class="recognition-wall-stage${multi ? '' : ' is-solo'}" id="recognitionWallStage" aria-live="polite">
+      <div class="recognition-wall-ground">
+        <div class="recognition-wall-aurora" aria-hidden="true"></div>
+        <span class="recognition-wall-spark s1" aria-hidden="true"></span>
+        <span class="recognition-wall-spark s2" aria-hidden="true"></span>
+        <span class="recognition-wall-spark s3" aria-hidden="true"></span>
+        ${multi ? `
+          <button type="button" class="recognition-wall-nav is-prev" data-recog-nav="prev" aria-label="Previous recognition"></button>
+          <button type="button" class="recognition-wall-nav is-next" data-recog-nav="next" aria-label="Next recognition"></button>
+        ` : ''}
+        <div class="recognition-wall-slide-host" id="recognitionWallSlideHost"></div>
+      </div>
+    </div>`;
 }
 function renderRecognitionWall() {
   const host = document.getElementById('recognitionWallBody');
@@ -3007,7 +3079,8 @@ function renderRecognitionWall() {
     recognitionWallRotateIdx = 0;
     host.innerHTML = `
       <div class="recognition-wall-empty">
-        <p>No congratulations yet today. Be the first to send one.</p>
+        <div class="recognition-wall-emoji" aria-hidden="true">📣</div>
+        <p>Quiet so far today.</p>
       </div>
       ${recognitionWallShoutoutCtaHTML()}`;
     bindRecognitionWallShoutBtn();
@@ -3015,9 +3088,8 @@ function renderRecognitionWall() {
   }
   const keepIdx = prevKey ? items.findIndex((it) => recognitionItemKey(it) === prevKey) : -1;
   recognitionWallRotateIdx = keepIdx >= 0 ? keepIdx : 0;
-  host.innerHTML = `
-    <div class="recognition-wall-stage" id="recognitionWallStage" aria-live="polite"></div>
-    ${recognitionWallShoutoutCtaHTML()}`;
+  host.innerHTML = `${recognitionWallStageShellHTML()}${recognitionWallShoutoutCtaHTML()}`;
+  bindRecognitionWallStage();
   paintRecognitionSpotlight({ instant: true });
   bindRecognitionWallShoutBtn();
   startRecognitionWallRotation();
