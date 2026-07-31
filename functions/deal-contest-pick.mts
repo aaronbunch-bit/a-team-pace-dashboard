@@ -85,12 +85,14 @@ export default async (req: Request, context: Context) => {
   }
 
   let cases = normalizeDealCases(record.dealCases);
+  let casesCreated = false;
   if (!cases || !cases.length) {
     cases = shuffleDealValues();
-    record.dealCases = cases;
+    casesCreated = true;
   }
 
   const nowIso = new Date().toISOString();
+  const picksBefore = JSON.stringify(normalizeDealPicks(record.dealPicks));
   let picks = normalizeDealPicks(record.dealPicks);
   let assignedPick = null as ReturnType<typeof assignManualDealPick>["pick"];
 
@@ -109,6 +111,23 @@ export default async (req: Request, context: Context) => {
     picks = mergeDealPicksFromSales(cases, picks, normalizeSales(body?.sales));
   }
 
+  const picksAfter = JSON.stringify(normalizeDealPicks(picks));
+  const unchanged = action !== "pick" && !casesCreated && picksBefore === picksAfter;
+  if (unchanged) {
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        unchanged: true,
+        contest: publicContest(record),
+        pick: null,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+      },
+    );
+  }
+
   record.dealCases = cases;
   record.dealPicks = picks;
   record.updatedAt = nowIso;
@@ -117,6 +136,7 @@ export default async (req: Request, context: Context) => {
   return new Response(
     JSON.stringify({
       ok: true,
+      unchanged: false,
       contest: publicContest(record),
       pick: assignedPick,
     }),

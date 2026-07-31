@@ -5,6 +5,10 @@ import { runSupabaseSql, supabaseConfig } from "./_shared/supabase.mts";
 import { FALLBACK_ROSTER_EMAILS } from "./_shared/roster.mts";
 import { TEAM_TIME_ZONE, clampAsOfToTeamToday, teamTodayYmd } from "./_shared/time.mts";
 
+/** Shared warm cache so N open tabs don't each hit Supabase every poll. */
+const LIVE_CACHE_TTL_MS = 20_000;
+const LIVE_CACHE_KEY = "live-response-v1";
+
 type LedgerRow = {
   email: string;
   manager_name: string;
@@ -32,6 +36,11 @@ type PerRep = {
     ledgerId?: string;
     attributionId?: string;
   }[];
+};
+
+type LiveCacheDoc = {
+  fetchedAtMs: number;
+  payload: Record<string, unknown>;
 };
 
 function safeEmail(email: string): string | null {
@@ -129,6 +138,7 @@ async function maybeFreezePrelimAndCache(actuals: { asOf: string; perRep: Record
   const newMonth = String(actuals.asOf || "").slice(0, 7);
 
   let prelim: any = null;
+  let prelimChanged = false;
   if (oldMonth && newMonth && oldMonth !== newMonth && existing?.perRep) {
     prelim = (await prelimStore.get("current", { type: "json" })) || {};
     let goals: any = null;
@@ -145,6 +155,7 @@ async function maybeFreezePrelimAndCache(actuals: { asOf: string; perRep: Record
       source: "supabase-live-rollover",
     };
     await prelimStore.setJSON("current", prelim);
+    prelimChanged = true;
   }
 
   // Keep Blobs actuals fresh as a fallback when Supabase is unreachable.
@@ -160,14 +171,22 @@ async function maybeFreezePrelimAndCache(actuals: { asOf: string; perRep: Record
   if (digest(existing) !== digest(actuals)) {
     await actualsStore.setJSON("current", actuals);
   }
-  if (!prelim) {
-    try {
-      prelim = (await prelimStore.get("current", { type: "json" })) || {};
-    } catch {
-      prelim = {};
-    }
-  }
+  // Only load/return prelim when the month rolled — poll payloads stay smaller.
+  if (!prelimChanged) return null;
   return prelim || {};
+}
+
+function stripItemsForCompact(actuals: { asOf: string; perRep: Record<string, PerRep> }) {
+  const perRep: Record<string, Omit<PerRep, "items"> & { items?: never }> = {};
+  for (const [name, row] of Object.entries(actuals.perRep || {})) {
+    perRep[name] = {
+      members: row.members,
+      sessions: row.sessions,
+      membersCancels: row.membersCancels,
+      sessionsCancels: row.sessionsCancels,
+    };
+  }
+  return { asOf: actuals.asOf, perRep };
 }
 
 export default async (req: Request, context: Context) => {
@@ -188,7 +207,37 @@ export default async (req: Request, context: Context) => {
     );
   }
 
+  const url = new URL(req.url);
+  const compact = url.searchParams.get("compact") === "1";
+  const bypassCache = url.searchParams.get("fresh") === "1";
+
   try {
+    const cacheStore = getStore("actuals");
+    if (!bypassCache) {
+      try {
+        const cached = (await cacheStore.get(LIVE_CACHE_KEY, { type: "json" })) as LiveCacheDoc | null;
+        if (cached?.payload && Number(cached.fetchedAtMs) > 0) {
+          const age = Date.now() - Number(cached.fetchedAtMs);
+          if (age >= 0 && age < LIVE_CACHE_TTL_MS) {
+            const payload = { ...cached.payload, cacheHit: true, cacheAgeMs: age };
+            if (compact && payload.actuals) {
+              payload.actuals = stripItemsForCompact(payload.actuals as any);
+              delete payload.prelim;
+            }
+            return new Response(JSON.stringify(payload), {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+                "Cache-Control": "private, max-age=15",
+              },
+            });
+          }
+        }
+      } catch {
+        // Fall through to live query.
+      }
+    }
+
     const emailToDisplay = await loadEmailToDisplay();
     const emails = Object.keys(emailToDisplay);
     if (!emails.length) {
@@ -230,26 +279,41 @@ order by a.occurred_at asc, l.id asc;
     const actuals = { asOf: built.asOf, perRep: built.perRep };
     const prelim = await maybeFreezePrelimAndCache(actuals);
 
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        source: "supabase",
-        project: process.env.SUPABASE_PROJECT_REF || "oervjdxjjkhkyledsqag",
-        rowCount: rows.length,
-        matchedRows: built.matchedRows,
-        unmatchedManagers: built.unmatchedManagers,
-        actuals,
-        prelim,
-        fetchedAt: new Date().toISOString(),
-      }),
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      }
-    );
+    const fullPayload: Record<string, unknown> = {
+      ok: true,
+      source: "supabase",
+      project: process.env.SUPABASE_PROJECT_REF || "oervjdxjjkhkyledsqag",
+      rowCount: rows.length,
+      matchedRows: built.matchedRows,
+      unmatchedManagers: built.unmatchedManagers,
+      actuals,
+      fetchedAt: new Date().toISOString(),
+      cacheHit: false,
+    };
+    if (prelim) fullPayload.prelim = prelim;
+
+    try {
+      await cacheStore.setJSON(LIVE_CACHE_KEY, {
+        fetchedAtMs: Date.now(),
+        payload: fullPayload,
+      } satisfies LiveCacheDoc);
+    } catch {
+      // Cache write is best-effort.
+    }
+
+    const responsePayload = { ...fullPayload };
+    if (compact) {
+      responsePayload.actuals = stripItemsForCompact(actuals);
+      delete responsePayload.prelim;
+    }
+
+    return new Response(JSON.stringify(responsePayload), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "private, max-age=15",
+      },
+    });
   } catch (err: any) {
     console.error("get-live-actuals failed", err);
     return new Response(

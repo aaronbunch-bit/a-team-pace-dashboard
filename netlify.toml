@@ -5,3 +5,14 @@
 # Optional hardening: set JWT_SECRET (or NETLIFY_IDENTITY_JWT_SECRET) in the
 # site env to the Identity JWT secret so Bearer tokens are HMAC-verified
 # even when /.netlify/identity/user is briefly unreachable.
+
+# Static assets can be cached; HTML stays revalidated so deploys show up quickly.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, stale-while-revalidate=604800"
+
+[[headers]]
+  for = "/favicon.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, stale-while-revalidate=604800"

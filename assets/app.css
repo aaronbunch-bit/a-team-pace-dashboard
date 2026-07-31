@@ -72,7 +72,34 @@
   body.motion-static .rep-badges-ticker.is-scrolling .rep-badges-track {
     animation: none !important;
   }
-  body.motion-static .header-aura { transform: translateY(-50%); }
+  /* Prefer reduced motion OS setting even before JS applies .motion-static */
+  @media (prefers-reduced-motion: reduce) {
+    .header-aura,
+    .title-blood-badge,
+    .manual-attro-btn,
+    .my-pacer-btn,
+    .bar-shimmer,
+    .skeleton-bar,
+    .double-goal-glow,
+    .double-goal-glow-subtle,
+    .goal-met-pulse,
+    .shoutout-modal-glow,
+    .shoutout-modal-glow::before,
+    .rep-badges-ticker.is-scrolling .rep-badges-track,
+    .contest-party-glow,
+    .contest-party-beam,
+    .contest-party-spot,
+    .contest-party-confetti i,
+    .contest-atmosphere-aura,
+    .contest-atmosphere-beam,
+    .contest-atmosphere-mark,
+    .recognition-wall-aurora,
+    .recognition-wall-rings,
+    .recognition-wall-halo,
+    .recognition-wall-spark {
+      animation: none !important;
+    }
+  }
 
   .landing-title-row {
     position: relative;
