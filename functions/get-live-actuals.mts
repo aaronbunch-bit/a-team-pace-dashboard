@@ -19,7 +19,7 @@ const LIVE_CACHE_KEY = LIVE_ACTUALS_CACHE_KEY;
  * Four rewrites in a row all read the same -86.5 on screen, and there was no way
  * to tell a rule that had not worked from a build that had not shipped yet.
  */
-const LEDGER_RULE_VERSION = "created_at+scoring+lifetime-v1";
+const LEDGER_RULE_VERSION = "created_at+scoring+live-attro+lifetime-v2";
 
 type LedgerRow = {
   email: string;
@@ -67,7 +67,7 @@ type SuppressedRow = {
   members: number;
   sessions: number;
   date: string;
-  reason: "admin-excluded" | "duplicate-period-line";
+  reason: "admin-excluded" | "duplicate-period-line" | "orphan-cancel";
 };
 
 /**
@@ -301,26 +301,23 @@ export function netLedgerJournal(
     const creditLines = classified.filter((r) => r.kind !== "cancel");
     let cancelLines = classified.filter((r) => r.kind === "cancel");
 
-    // Drop period-transfer duplicates.
+    // Drop bookkeeping cancels that push a journal below zero over all time.
     //
-    // Cancelling a prior-month sale takes two lines: one unwinding the credit in
-    // the month it was booked, one charging the month the cancel landed in. Both
-    // are written now, so a window on write time sees both and the rep is
-    // charged twice — the July tiles read -86.5 against an export's -50.5, and
-    // the gap was exactly the prior-month cancels, counted a second time.
-    //
-    // The tell is arithmetic, not a date: summed over all time an attribution
-    // cannot lose more than it was ever credited. Across 5,956 complete journals
-    // in the July export, not one nets below zero. So when lifetime totals go
-    // negative, that overshoot is bookkeeping, and the cancel lines that fit
-    // inside it are dropped oldest-first — never more than the overshoot, so a
-    // genuine cancel of a prior-month sale (lifetime nets to zero) is untouched.
+    // A genuine cancel of a prior-month sale nets to zero (the credit still
+    // exists outside this window). An orphan cancel — a negative line with no
+    // credit for this manager anywhere — nets below zero, and so does a
+    // period-transfer duplicate. Drop cancel lines that fit inside that
+    // overshoot, oldest first, even when the journal only has one cancel: the
+    // single-line guard used to preserve orphans that the July export never
+    // counted (Amanda/Jordan SPIFF cancels against sales credited to other
+    // reps; ~-5.5 members of the -90.5 tile).
     const lifetimeMembers = Number(classified[0].lifetime_members);
     const lifetimeSessions = Number(classified[0].lifetime_sessions);
     let overMembers = Number.isFinite(lifetimeMembers) ? Math.max(0, -lifetimeMembers) : 0;
     let overSessions = Number.isFinite(lifetimeSessions) ? Math.max(0, -lifetimeSessions) : 0;
-    if (cancelLines.length > 1 && (overMembers > EPSILON || overSessions > EPSILON)) {
+    if (overMembers > EPSILON || overSessions > EPSILON) {
       const surviving: LedgerRow[] = [];
+      const cancelCountBefore = cancelLines.length;
       for (const row of cancelLines) {
         const lostMembers = -(Number(row.members) || 0);
         const lostSessions = -(Number(row.sessions) || 0);
@@ -339,7 +336,9 @@ export function netLedgerJournal(
             members: Number(row.members) || 0,
             sessions: Number(row.sessions) || 0,
             date: String(row.attribution_date || "").slice(0, 10),
-            reason: "duplicate-period-line",
+            // One cancel and a negative lifetime: no credit for this manager
+            // anywhere (orphan). Several cancels overshooting: period duplicate.
+            reason: cancelCountBefore === 1 ? "orphan-cancel" : "duplicate-period-line",
           });
           continue;
         }
@@ -746,18 +745,20 @@ export default async (req: Request, context: Context) => {
 
     // Current calendar month in America/Chicago (CST/CDT) — team business day.
     //
-    // Two conditions, matching the July rep-scores export (-50.5 / -336 cancels)
-    // and the manual pacer's refunds (51.5 / 326):
+    // Matched against a live dump of the cancel tile (109 lines / -90.5 members)
+    // diffed against the July rep-scores export:
     //
-    // 1. Month key is l.created_at — the export's attribution_date. A cancel of a
-    //    June sale written in July belongs to July.
-    // 2. The sale (a.occurred_at) is still in scoring range: this month or the
-    //    one before. Without (2), July also charges cancels of much older sales
-    //    and the tiles overshoot to -86.5. Without (1), keying on occurred_at
-    //    alone only finds cancels of *this* month's sales (-14).
+    // 1. Month key is l.created_at — the export's attribution_date.
+    // 2. The sale (a.occurred_at) is this month or the prior one (scoring range).
+    // 3. a.deleted_at IS NULL — the export only lists live attributions.
+    //    Without (3), 41 June-sale cancels whose clients appear nowhere in the
+    //    July export (soft-deleted upstream, -34.5 members) inflate the tile.
+    //    We previously removed this filter thinking it hid real cancels; the
+    //    dump proves those "hidden" lines are exactly the ones the export omits.
     //
-    // Soft-deleted attributions stay in: cancelled rows are often soft-deleted
-    // upstream while their negative ledger lines (and the export) remain live.
+    // Orphan cancels (negative lifetime, no credit for this manager) are dropped
+    // in netLedgerJournal — another ~-5.5 members of SPIFF cancels against sales
+    // credited to other reps that the export never counted.
     const tz = TEAM_TIME_ZONE.replace(/'/g, "''");
     const monthYmd = teamTodayYmd().slice(0, 7);
     const sql = `
@@ -788,6 +789,7 @@ win as (
    and f.deleted_at is null
   cross join bounds b
   where l.deleted_at is null
+    and a.deleted_at is null
     and l.created_at >= b.month_start
     and l.created_at <  b.month_end
     and a.occurred_at >= b.scoring_start
@@ -863,6 +865,7 @@ join sales_attribution.flex_team_members f
  and f.deleted_at is null
 cross join bounds b
 where l.deleted_at is null
+  and a.deleted_at is null
   and l.created_at >= b.month_start
   and l.created_at <  b.month_end
   and a.occurred_at >= b.scoring_start
@@ -920,7 +923,7 @@ order by l.created_at asc, l.id asc;
           rawRows: rawRows.length,
           duplicateRows: reconciled.duplicateRows,
           periodDuplicatesDropped: reconciled.suppressed.filter(
-            (s) => s.reason === "duplicate-period-line"
+            (s) => s.reason === "duplicate-period-line" || s.reason === "orphan-cancel"
           ).length,
           lifetimeAvailable,
           deletedAttribution,
