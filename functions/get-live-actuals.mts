@@ -194,6 +194,7 @@ export function netLedgerJournal(
   suppressed: SuppressedRow[];
   flagged: FlaggedPair[];
   netted: NettedAttribution[];
+  duplicateRows: number;
 } {
   const suppressed: SuppressedRow[] = [];
   const displayFor = (row: LedgerRow) => {
@@ -201,8 +202,27 @@ export function netLedgerJournal(
     return (email && emailToDisplay[email]) || String(row.manager_name || "Unknown rep");
   };
 
-  const afterExclusions: LedgerRow[] = [];
+  // One row per ledger id. A rep with two live flex_team_members records fans
+  // the join out and the same ledger line arrives twice, which silently doubles
+  // that rep's cancels.
+  const seenLedgerIds = new Set<string>();
+  const deduped: LedgerRow[] = [];
+  let duplicateRows = 0;
   for (const row of rows) {
+    const ledgerId = String(row.ledger_id || "").trim();
+    if (ledgerId) {
+      const key = `${ledgerId}|${String(row.manager_id || "").trim()}`;
+      if (seenLedgerIds.has(key)) {
+        duplicateRows++;
+        continue;
+      }
+      seenLedgerIds.add(key);
+    }
+    deduped.push(row);
+  }
+
+  const afterExclusions: LedgerRow[] = [];
+  for (const row of deduped) {
     const ledgerId = String(row.ledger_id || "").trim();
     if (ledgerId && exclusions.has(ledgerId)) {
       suppressed.push({
@@ -335,7 +355,36 @@ export function netLedgerJournal(
     });
   }
 
-  return { rows: kept, suppressed, flagged, netted };
+  return { rows: kept, suppressed, flagged, netted, duplicateRows };
+}
+
+/**
+ * Every negative line behind the cancel tiles, itemised.
+ *
+ * The tiles used to be a server-side sum the browser could not check, so when
+ * they read -86.5 against an export's -50.5 there was no way to see which lines
+ * were counted. Shipping the lines themselves — they are tens of rows, not
+ * thousands — lets the browser total them and lets a human read them.
+ */
+export function cancelLineItems(
+  rows: LedgerRow[],
+  emailToDisplay: Record<string, string>
+) {
+  return rows
+    .filter((row) => row.kind === "cancel")
+    .map((row) => {
+      const email = safeEmail(row.email);
+      return {
+        rep: (email && emailToDisplay[email]) || String(row.manager_name || "Unknown rep"),
+        clientId: String(row.client_id || "").trim(),
+        date: String(row.attribution_date || "").slice(0, 10),
+        members: Math.min(Number(row.members) || 0, 0),
+        sessions: Math.min(Number(row.sessions) || 0, 0),
+        saleMonth: String(row.sale_occurred_at || "").slice(0, 7),
+        ledgerId: String(row.ledger_id || "").trim(),
+      };
+    })
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 }
 
 type RowSummary = { rows: number; members: number; sessions: number };
@@ -676,6 +725,7 @@ order by l.created_at asc, l.id asc;
     const rows = reconciled.rows;
     const built = buildActuals(rows, emailToDisplay);
     const actuals = { asOf: built.asOf, perRep: built.perRep };
+    const cancelItems = cancelLineItems(rows, emailToDisplay);
     const prelim = await maybeFreezePrelimAndCache(actuals);
 
     const fullPayload: Record<string, unknown> = {
@@ -697,11 +747,16 @@ order by l.created_at asc, l.id asc;
           monthKeyColumn: "created_at",
           scoringRange: "current_and_prior_month",
           month: monthYmd,
+          rawRows: rawRows.length,
+          duplicateRows: reconciled.duplicateRows,
           deletedAttribution,
           cancelsBySaleMonth: summarizeCancelsBySaleMonth(rows, monthYmd),
         },
       },
       actuals,
+      // Small enough to ship on every poll, and the only way the tiles and the
+      // Cancels list can be checked against each other.
+      cancelItems,
       fetchedAt: new Date().toISOString(),
       cacheHit: false,
     };

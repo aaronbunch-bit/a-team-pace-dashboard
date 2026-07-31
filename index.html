@@ -2417,7 +2417,15 @@ function render() {
     // Fold in Aaron-approved manual attribution requests (see Manual Attribution
     // section below) — additive on top of live Supabase / ledger totals, never replacing them.
     const approved = APPROVED_TOTALS[r.display] || { members: 0, sessions: 0 };
-    const a = { ...raw, members: raw.members + approved.members, sessions: raw.sessions + approved.sessions };
+    // Cancels come from the itemised lines when the server shipped them, so a
+    // tile can never claim more attrition than the Cancels list can show.
+    const cancels = (cancelTotalsByRep() || {})[r.display];
+    const a = {
+      ...raw,
+      members: raw.members + approved.members,
+      sessions: raw.sessions + approved.sessions,
+      ...(cancels || {}),
+    };
     const memMetric = computeMetric(a.members, g.members, elapsedFrac);
     const sesMetric = computeMetric(a.sessions, g.sessions, elapsedFrac);
     const composite = compositeOf(memMetric, sesMetric);
@@ -10340,6 +10348,8 @@ document.getElementById('saveTeamScheduleBtn')?.addEventListener('click', saveTe
 // net positive) is only flagged, because that shape is also a legitimate second
 // purchase or a cancel/rebook pair. Admins resolve those by excluding a row.
 let LEDGER_INTEGRITY = { suppressed: [], flagged: [], netted: [], excludedIds: [], window: null };
+/** Itemised cancel lines behind the cancel tiles (see cancelLineItems server-side). */
+let CANCEL_ITEMS = [];
 
 function ledgerIntegrityCounts(payload) {
   const data = payload && typeof payload === 'object' ? payload : LEDGER_INTEGRITY;
@@ -10535,6 +10545,21 @@ document.getElementById('ledgerExcludeSubmit')?.addEventListener('click', async 
 });
 
 function computeTeamCancels() {
+  const onRoster = new Set(getRoster().map(r => r.display));
+  // Server-itemised cancel lines are authoritative: the tiles are totalled from
+  // this same list, so a number on a tile can always be traced to rows here.
+  if (Array.isArray(CANCEL_ITEMS) && CANCEL_ITEMS.length) {
+    return CANCEL_ITEMS
+      .filter(it => onRoster.has(it.rep))
+      .map(it => ({
+        rep: it.rep,
+        clientId: it.clientId || '',
+        date: it.date || '',
+        members: Number(it.members) || 0,
+        sessions: Number(it.sessions) || 0,
+      }))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }
   const actuals = loadActuals();
   const rows = [];
   getRoster().forEach(r => {
@@ -10550,6 +10575,18 @@ function computeTeamCancels() {
   });
   rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   return rows;
+}
+
+/** Per-rep cancel totals from the itemised lines, so tiles match the list. */
+function cancelTotalsByRep() {
+  const totals = {};
+  if (!Array.isArray(CANCEL_ITEMS) || !CANCEL_ITEMS.length) return null;
+  for (const it of CANCEL_ITEMS) {
+    const bucket = (totals[it.rep] ||= { membersCancels: 0, sessionsCancels: 0 });
+    bucket.membersCancels += Number(it.members) || 0;
+    bucket.sessionsCancels += Number(it.sessions) || 0;
+  }
+  return totals;
 }
 // Cancels converted this session — client-side only, just to stop an obvious
 // accidental double-submit of the same line item in one sitting. Doesn't
@@ -10571,11 +10608,18 @@ function renderCancelsWindowNote() {
   if (!w || !w.cancelsBySaleMonth) { note.hidden = true; return; }
   const lost = (b) => `${fmt(Math.abs((b && b.members) || 0), 1)} members / ${fmt(Math.abs((b && b.sessions) || 0), 1)} sessions`;
   const c = w.cancelsBySaleMonth;
+  const rows = computeTeamCancels();
+  const listed = rows.reduce((acc, r) => ({
+    members: acc.members + (Number(r.members) || 0),
+    sessions: acc.sessions + (Number(r.sessions) || 0),
+  }), { members: 0, sessions: 0 });
   const parts = [
-    `Cancels of this month's sales: ${lost(c.thisMonthSale)}`,
-    `of last month's: ${lost(c.priorMonthSale)}`,
+    `${rows.length} cancel lines totalling ${lost(listed)}`,
+    `this month's sales: ${lost(c.thisMonthSale)}`,
+    `last month's: ${lost(c.priorMonthSale)}`,
   ];
   if (c.olderSale && c.olderSale.rows) parts.push(`older (should be 0): ${lost(c.olderSale)}`);
+  if (w.duplicateRows) parts.push(`${w.duplicateRows} duplicate ledger rows collapsed`);
   const soft = (w.deletedAttribution && w.deletedAttribution.rows) || 0;
   if (soft) parts.push(`${soft} line${soft === 1 ? '' : 's'} on soft-deleted attributions`);
   note.textContent = parts.join(' · ') + '.';
@@ -11077,6 +11121,7 @@ function writeSharedLiveActuals(data, wantFull) {
       fetchedAtMs: Date.now(),
       etag: liveActualsEtag || '',
       actuals,
+      cancelItems: Array.isArray(data.cancelItems) ? data.cancelItems : [],
       prelim: data.prelim || null,
       ledgerIntegrity: data.ledgerIntegrity || null,
       matchedRows: data.matchedRows,
@@ -11110,6 +11155,7 @@ function applyLiveActualsPayload(data, wantFull, prevDigest) {
   }
   ACTUALS_CACHE = wantFull ? data.actuals : mergeLiveActualsPreserveItems(data.actuals);
   if (data.prelim) PRELIM_CACHE = data.prelim;
+  if (Array.isArray(data.cancelItems)) CANCEL_ITEMS = data.cancelItems;
   if (data.ledgerIntegrity && !data.ledgerIntegrity.compact) {
     LEDGER_INTEGRITY = data.ledgerIntegrity;
   } else if (data.ledgerIntegrity && data.ledgerIntegrity.window) {

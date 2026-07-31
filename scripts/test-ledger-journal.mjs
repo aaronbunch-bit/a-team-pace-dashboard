@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import {
   netLedgerJournal,
   lineInLiveMonth,
+  cancelLineItems,
 } from "../functions/get-live-actuals.mts";
 
 const EMAIL = "becky.ruffer@varsitytutors.com";
@@ -105,4 +106,34 @@ assert.equal(inMonth("2026-06", "2026-06"), false, "June-dated line stays in Jun
 assert.equal(inMonth("2026-07", "2026-05"), false, "May sale cancel no longer scores");
 assert.equal(inMonth("2026-07", "2026-04"), false, "older cancels stay out");
 
-console.log("ok — journal rows, cancel classification, month window");
+// ---- Duplicate ledger rows -------------------------------------------------
+// A rep with two live flex_team_members records fans the join out and the same
+// ledger line arrives twice. Counting it twice is how a -50.5 export becomes an
+// -86.5 tile, so identical ledger ids collapse to one row.
+const fannedOut = netLedgerJournal(
+  [
+    line({ ledgerId: 666899, attributionId: 77803, members: -1, sessions: -8, date: "2026-07-02" }),
+    line({ ledgerId: 666899, attributionId: 77803, members: -1, sessions: -8, date: "2026-07-02" }),
+  ],
+  DISPLAY,
+  new Set()
+);
+assert.equal(fannedOut.duplicateRows, 1, "the repeated ledger id is dropped");
+assert.equal(totals(fannedOut.rows).cancelMembers, -1, "and counted once");
+
+// ---- Cancel line items -----------------------------------------------------
+// The tiles are totalled from these rows in the browser, so every number on a
+// cancel tile can be traced to a line a human can read.
+const items = cancelLineItems(fullCancel, DISPLAY);
+assert.equal(items.length, 1, "only the cancel is itemised, not the sale");
+assert.equal(items[0].rep, "Becky Ruffer");
+assert.equal(items[0].clientId, "8568597");
+assert.equal(items[0].members, -1);
+assert.equal(items[0].sessions, -8);
+assert.equal(
+  items.reduce((s, r) => s + r.members, 0),
+  totals(fullCancel).cancelMembers,
+  "itemised total equals the tile total"
+);
+
+console.log("ok — journal rows, cancel classification, month window, dedupe, line items");
