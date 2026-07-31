@@ -7358,6 +7358,9 @@ function contestBoardHTML(contest) {
   const manage = contestCanManage();
   const theme = contestThemeClass(contest);
   const mode = contestMigrateMode(contest.mode);
+  const momentumStandings = mode === 'deal'
+    ? contestDealStandingSnapRows(contest)
+    : standings;
   const myPlace = mode === 'deal'
     ? (() => {
       const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
@@ -7445,7 +7448,7 @@ function contestBoardHTML(contest) {
           ${frozenNote}
           ${scheduleNote}
         </div>
-        ${contestMomentumHTML(contest, standings, phase)}
+        ${contestMomentumHTML(contest, momentumStandings, phase)}
         ${phase === 'ended' ? contestRecapBannerHTML(contest) : ''}
         <div class="contest-main-stage">${boardBlock}</div>
         ${coachPanel}
