@@ -5610,7 +5610,8 @@ function incomeLevelTracking(repDisplay, windowSize, includeMtd) {
   return {
     periods, csvKey, aggregate, targetLevel, threshold, composite, pointsGap,
     sessionsNeeded, membersNeeded,
-    meets: composite !== null && composite >= threshold,
+    hasFullWindow: periods.length >= windowSize,
+    meets: periods.length >= windowSize && composite !== null && composite >= threshold,
   };
 }
 
@@ -5690,7 +5691,9 @@ function incomePlanningHTML(repDisplay) {
   const currentMeta = compLevelMeta(normalizeGoalRecord(loadGoals()[repDisplay]).level);
   const pct = tracking.composite;
   const progress = pct === null ? 0 : Math.min(100, pct / tracking.threshold * 100);
-  const status = tracking.meets
+  const status = !tracking.hasFullWindow
+    ? `Building ${targetMeta.label} history · ${months} of ${state.window} periods`
+    : tracking.meets
     ? `At the ${targetMeta.label} performance threshold`
     : pct === null
       ? 'Not enough goal data yet'
@@ -9510,7 +9513,7 @@ function bonusPayoutHTML(repDisplay) {
       <div class="bonus-level-toggle" role="group" aria-label="Compensation level scenario">${levelButtons}</div>
     </div>
     <div class="bonus-hero">
-      <div class="bonus-level-context">${b.levelMeta.label} · ${money(b.levelMeta.salary)} salary · ${money(b.ote)} monthly OTE</div>
+      <div class="bonus-level-context">${b.levelMeta.label} · $${b.levelMeta.salary.toLocaleString('en-US')} salary · ${money(b.ote)} monthly OTE</div>
       <div class="bonus-hero-label">Projected Payout</div>
       <div class="bonus-hero-num" style="${heroStyle}">${money(b.withSpiffProj)}</div>
       ${b.cappedProj ? `<div class="meta-note" style="margin-top:4px; font-size:10.5px;">Capped at 200% of OTE</div>` : ''}
