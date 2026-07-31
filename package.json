@@ -4,7 +4,7 @@
   "description": "A-Team pace dashboard — static site + Netlify Functions (Identity + Blobs)",
   "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node scripts/test-ledger-journal.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "10.7.10"
