@@ -10421,7 +10421,11 @@ function renderLedgerSuppressedTable() {
   if (empty) empty.style.display = 'none';
   body.innerHTML = suppressed.map((row) => {
     const isAdminExcluded = row.reason === 'admin-excluded';
-    const why = isAdminExcluded ? 'Excluded by an admin' : (row.reason || 'Removed before totalling');
+    const why = isAdminExcluded
+      ? 'Excluded by an admin'
+      : row.reason === 'duplicate-period-line'
+        ? 'Duplicate — same cancel already charged to the month it hit'
+        : (row.reason || 'Removed before totalling');
     const action = isAdminExcluded && canEdit
       ? `<button type="button" class="theme-btn" style="margin-top:0;" data-restore-ledger="${escapeAttr(row.ledgerId || '')}">Restore</button>`
       : '<span class="ops-list-v muted">—</span>';
