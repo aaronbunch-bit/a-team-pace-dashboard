@@ -4268,7 +4268,7 @@
   border: none !important; color: #fff !important;
 }
 
-/* —— Contest Arena: event-night theme takeover —— */
+/* —— Contest Arena: themed card + party-room page —— */
 #contestOverlay,
 .contest-experience {
   --arena-a: #ec4899;
@@ -4297,39 +4297,219 @@
 #contestOverlay.theme-underwater, .contest-experience.theme-underwater { --arena-a:#22d3ee; --arena-b:#0284c7; --arena-c:#2dd4bf; --arena-night:#02131b; --arena-deep:#052d3c; }
 #contestOverlay.theme-retro, .contest-experience.theme-retro { --arena-a:#fbbf24; --arena-b:#ec4899; --arena-c:#a78bfa; --arena-night:#190e08; --arena-deep:#332014; }
 
-#contestOverlay[class*="theme-"] {
-  color: var(--arena-ink);
+/* Page chrome = party room. Strong theme lives on .contest-experience only. */
+#contestOverlay {
   background:
-    radial-gradient(ellipse 90% 58% at 0% -8%, color-mix(in srgb, var(--arena-a) 22%, transparent), transparent 58%),
-    radial-gradient(ellipse 75% 50% at 100% 0%, color-mix(in srgb, var(--arena-b) 20%, transparent), transparent 55%),
-    radial-gradient(ellipse 70% 42% at 50% 110%, color-mix(in srgb, var(--arena-c) 13%, transparent), transparent 60%),
-    var(--arena-night);
+    radial-gradient(ellipse 88% 55% at 8% -6%, color-mix(in srgb, var(--arena-a) 28%, transparent), transparent 58%),
+    radial-gradient(ellipse 78% 48% at 96% 4%, color-mix(in srgb, var(--arena-b) 24%, transparent), transparent 56%),
+    radial-gradient(ellipse 70% 42% at 50% 108%, color-mix(in srgb, var(--arena-c) 18%, transparent), transparent 60%),
+    radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--arena-a) 8%, transparent), transparent 55%),
+    var(--bg);
 }
-#contestOverlay[class*="theme-"] .detail-page { max-width: 1120px; position:relative; z-index:1; }
-#contestOverlay[class*="theme-"] .detail-header {
+#contestOverlay .detail-page { max-width: 1120px; position:relative; z-index:1; }
+#contestOverlay .detail-header {
+  position: relative;
+  z-index: 1;
   padding: 10px 14px;
-  border: 1px solid var(--arena-line);
+  border: 1px solid color-mix(in srgb, var(--arena-b) 18%, var(--card-border));
   border-radius: 16px;
-  background: rgba(10,8,18,0.56);
-  color: var(--arena-ink);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 12px 36px rgba(0,0,0,0.18);
+  background: color-mix(in srgb, var(--card-bg) 86%, transparent);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 36px color-mix(in srgb, var(--arena-b) 12%, transparent);
 }
-#contestOverlay[class*="theme-"] .detail-header .theme-btn {
-  color: var(--arena-ink);
-  border-color: var(--arena-line);
-  background: rgba(255,255,255,0.08);
+#contestOverlay .contest-tabs {
+  position: relative;
+  z-index: 1;
+  border-color: color-mix(in srgb, var(--arena-b) 16%, var(--card-border));
+  background: color-mix(in srgb, var(--card-bg) 78%, transparent);
+  backdrop-filter: blur(12px);
 }
-#contestOverlay[class*="theme-"] .contest-tabs {
-  border-color: var(--arena-line);
-  background: rgba(0,0,0,0.2);
+#contestOverlay .contest-tab.is-active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--arena-a), var(--arena-b) 58%, var(--arena-c));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--arena-b) 28%, transparent);
 }
-#contestOverlay[class*="theme-"] .contest-tab { color: var(--arena-muted); }
-#contestOverlay[class*="theme-"] .contest-tab.is-active {
-  color:#fff;
-  background: linear-gradient(135deg,var(--arena-a),var(--arena-b) 58%,var(--arena-c));
-  box-shadow:0 8px 24px color-mix(in srgb,var(--arena-b) 30%,transparent);
+
+/* Party ambient — confetti + disco on page bg (outside the contest card) */
+.contest-party-room {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
 }
+.contest-party-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: 0.55;
+}
+.contest-party-glow.glow-a {
+  width: min(52vw, 520px);
+  height: min(52vw, 520px);
+  left: -8%;
+  top: 8%;
+  background: color-mix(in srgb, var(--arena-a) 55%, transparent);
+}
+.contest-party-glow.glow-b {
+  width: min(48vw, 480px);
+  height: min(48vw, 480px);
+  right: -10%;
+  top: 28%;
+  background: color-mix(in srgb, var(--arena-b) 50%, transparent);
+}
+.contest-party-glow.glow-c {
+  width: min(42vw, 420px);
+  height: min(42vw, 420px);
+  left: 28%;
+  bottom: -6%;
+  background: color-mix(in srgb, var(--arena-c) 45%, transparent);
+}
+body:not(.motion-static) .contest-party-glow.glow-a { animation: contestPartyGlowA 10s ease-in-out infinite alternate; }
+body:not(.motion-static) .contest-party-glow.glow-b { animation: contestPartyGlowB 12s ease-in-out infinite alternate; }
+body:not(.motion-static) .contest-party-glow.glow-c { animation: contestPartyGlowC 9s ease-in-out infinite alternate; }
+@keyframes contestPartyGlowA { to { transform: translate(6%, 4%) scale(1.08); opacity: 0.72; } }
+@keyframes contestPartyGlowB { to { transform: translate(-5%, -3%) scale(1.1); opacity: 0.7; } }
+@keyframes contestPartyGlowC { to { transform: translate(4%, -5%) scale(1.06); opacity: 0.68; } }
+
+.contest-party-disco {
+  position: absolute;
+  left: 50%;
+  top: -8%;
+  width: 140%;
+  height: 70%;
+  transform: translateX(-50%);
+  opacity: 0.42;
+  mix-blend-mode: soft-light;
+}
+.contest-party-beam {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 28%;
+  height: 100%;
+  transform-origin: 50% 0%;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--arena-a) 55%, transparent), transparent 78%);
+  filter: blur(8px);
+  clip-path: polygon(42% 0, 58% 0, 100% 100%, 0 100%);
+  opacity: 0.7;
+}
+.contest-party-beam.beam-1 { transform: translateX(-50%) rotate(-28deg); background: linear-gradient(180deg, color-mix(in srgb, var(--arena-a) 60%, transparent), transparent 78%); }
+.contest-party-beam.beam-2 { transform: translateX(-50%) rotate(4deg); width: 34%; background: linear-gradient(180deg, color-mix(in srgb, var(--arena-b) 55%, transparent), transparent 78%); opacity: 0.55; }
+.contest-party-beam.beam-3 { transform: translateX(-50%) rotate(32deg); background: linear-gradient(180deg, color-mix(in srgb, var(--arena-c) 58%, transparent), transparent 78%); }
+body:not(.motion-static) .contest-party-beam.beam-1 { animation: contestDiscoSweep1 7.5s ease-in-out infinite alternate; }
+body:not(.motion-static) .contest-party-beam.beam-2 { animation: contestDiscoSweep2 9s ease-in-out infinite alternate; }
+body:not(.motion-static) .contest-party-beam.beam-3 { animation: contestDiscoSweep3 8.2s ease-in-out infinite alternate; }
+@keyframes contestDiscoSweep1 { to { transform: translateX(-50%) rotate(-8deg); opacity: 0.9; } }
+@keyframes contestDiscoSweep2 { to { transform: translateX(-50%) rotate(-12deg); opacity: 0.75; } }
+@keyframes contestDiscoSweep3 { to { transform: translateX(-50%) rotate(12deg); opacity: 0.88; } }
+
+.contest-party-spots { position: absolute; inset: 0; }
+.contest-party-spot {
+  position: absolute;
+  width: 18vmin;
+  height: 18vmin;
+  border-radius: 50%;
+  filter: blur(18px);
+  opacity: 0.45;
+  mix-blend-mode: screen;
+}
+.contest-party-spot.s1 { left: 10%; top: 18%; background: color-mix(in srgb, var(--arena-a) 70%, #fff); }
+.contest-party-spot.s2 { right: 12%; top: 12%; background: color-mix(in srgb, var(--arena-b) 70%, #fff); width: 22vmin; height: 22vmin; }
+.contest-party-spot.s3 { left: 42%; top: 52%; background: color-mix(in srgb, var(--arena-c) 65%, #fff); width: 14vmin; height: 14vmin; }
+.contest-party-spot.s4 { right: 22%; bottom: 16%; background: color-mix(in srgb, var(--arena-a) 40%, var(--arena-c)); width: 16vmin; height: 16vmin; }
+body:not(.motion-static) .contest-party-spot.s1 { animation: contestSpotPulse 5.5s ease-in-out infinite alternate; }
+body:not(.motion-static) .contest-party-spot.s2 { animation: contestSpotPulse 6.5s ease-in-out infinite alternate-reverse; }
+body:not(.motion-static) .contest-party-spot.s3 { animation: contestSpotDrift 8s ease-in-out infinite alternate; }
+body:not(.motion-static) .contest-party-spot.s4 { animation: contestSpotDrift 7s ease-in-out infinite alternate-reverse; }
+@keyframes contestSpotPulse { from { opacity: 0.28; transform: scale(0.92); } to { opacity: 0.62; transform: scale(1.12); } }
+@keyframes contestSpotDrift { to { transform: translate(8%, -10%) scale(1.15); opacity: 0.6; } }
+
+.contest-party-confetti { position: absolute; inset: 0; }
+.contest-party-confetti i {
+  position: absolute;
+  top: -4%;
+  width: 7px;
+  height: 11px;
+  border-radius: 1px;
+  opacity: 0.82;
+  background: var(--arena-a);
+  left: var(--x, 10%);
+  transform: rotate(var(--rot, 12deg));
+}
+.contest-party-confetti i:nth-child(3n) { width: 9px; height: 9px; border-radius: 50%; }
+.contest-party-confetti i:nth-child(4n) { width: 5px; height: 14px; border-radius: 1px; }
+.contest-party-confetti i:nth-child(5n) { background: var(--arena-b); }
+.contest-party-confetti i:nth-child(5n+1) { background: var(--arena-c); }
+.contest-party-confetti i:nth-child(5n+2) { background: #fbbf24; }
+.contest-party-confetti i:nth-child(5n+3) { background: #fb7185; }
+.contest-party-confetti i:nth-child(5n+4) { background: #a78bfa; }
+.contest-party-confetti i:nth-child(1)  { --x: 3%;  --rot: 18deg;  --dur: 7.2s; --delay: 0s; }
+.contest-party-confetti i:nth-child(2)  { --x: 8%;  --rot: -24deg; --dur: 8.1s; --delay: 1.1s; }
+.contest-party-confetti i:nth-child(3)  { --x: 14%; --rot: 40deg;  --dur: 6.4s; --delay: 0.4s; }
+.contest-party-confetti i:nth-child(4)  { --x: 19%; --rot: -12deg; --dur: 9s;   --delay: 2.2s; }
+.contest-party-confetti i:nth-child(5)  { --x: 24%; --rot: 55deg;  --dur: 7.8s; --delay: 0.8s; }
+.contest-party-confetti i:nth-child(6)  { --x: 30%; --rot: -35deg; --dur: 6.9s; --delay: 1.6s; }
+.contest-party-confetti i:nth-child(7)  { --x: 36%; --rot: 22deg;  --dur: 8.6s; --delay: 0.2s; }
+.contest-party-confetti i:nth-child(8)  { --x: 41%; --rot: -48deg; --dur: 7s;   --delay: 2.8s; }
+.contest-party-confetti i:nth-child(9)  { --x: 47%; --rot: 10deg;  --dur: 9.4s; --delay: 1.3s; }
+.contest-party-confetti i:nth-child(10) { --x: 52%; --rot: -18deg; --dur: 6.7s; --delay: 0.6s; }
+.contest-party-confetti i:nth-child(11) { --x: 57%; --rot: 33deg;  --dur: 8.3s; --delay: 2s; }
+.contest-party-confetti i:nth-child(12) { --x: 62%; --rot: -28deg; --dur: 7.5s; --delay: 1.8s; }
+.contest-party-confetti i:nth-child(13) { --x: 68%; --rot: 45deg;  --dur: 9.1s; --delay: 0.3s; }
+.contest-party-confetti i:nth-child(14) { --x: 73%; --rot: -8deg;  --dur: 6.5s; --delay: 2.4s; }
+.contest-party-confetti i:nth-child(15) { --x: 78%; --rot: 27deg;  --dur: 8.8s; --delay: 1s; }
+.contest-party-confetti i:nth-child(16) { --x: 83%; --rot: -42deg; --dur: 7.3s; --delay: 0.7s; }
+.contest-party-confetti i:nth-child(17) { --x: 88%; --rot: 14deg;  --dur: 9.6s; --delay: 1.9s; }
+.contest-party-confetti i:nth-child(18) { --x: 93%; --rot: -30deg; --dur: 6.8s; --delay: 2.6s; }
+.contest-party-confetti i:nth-child(19) { --x: 11%; --rot: 50deg;  --dur: 8s;   --delay: 3.1s; }
+.contest-party-confetti i:nth-child(20) { --x: 27%; --rot: -16deg; --dur: 7.7s; --delay: 3.4s; }
+.contest-party-confetti i:nth-child(21) { --x: 44%; --rot: 36deg;  --dur: 8.4s; --delay: 2.9s; }
+.contest-party-confetti i:nth-child(22) { --x: 59%; --rot: -52deg; --dur: 6.6s; --delay: 3.6s; }
+.contest-party-confetti i:nth-child(23) { --x: 74%; --rot: 8deg;   --dur: 9.2s; --delay: 3.2s; }
+.contest-party-confetti i:nth-child(24) { --x: 90%; --rot: -22deg; --dur: 7.1s; --delay: 3.8s; }
+
+body:not(.motion-static) .contest-party-confetti i {
+  animation: contestPartyFall var(--dur, 8s) linear var(--delay, 0s) infinite;
+}
+@keyframes contestPartyFall {
+  0%   { transform: translate3d(0, -4vh, 0) rotate(var(--rot, 0deg)); opacity: 0; }
+  8%   { opacity: 0.9; }
+  100% { transform: translate3d(var(--drift, 18px), 108vh, 0) rotate(calc(var(--rot, 0deg) + 360deg)); opacity: 0.15; }
+}
+.contest-party-confetti i:nth-child(odd) { --drift: 22px; }
+.contest-party-confetti i:nth-child(even) { --drift: -18px; }
+
+/* Freeze: still festive, no movement */
+body.motion-static .contest-party-confetti i {
+  animation: none;
+  top: var(--park-y, 20%);
+  opacity: 0.7;
+}
+body.motion-static .contest-party-confetti i:nth-child(1)  { --park-y: 12%; }
+body.motion-static .contest-party-confetti i:nth-child(2)  { --park-y: 28%; }
+body.motion-static .contest-party-confetti i:nth-child(3)  { --park-y: 44%; }
+body.motion-static .contest-party-confetti i:nth-child(4)  { --park-y: 61%; }
+body.motion-static .contest-party-confetti i:nth-child(5)  { --park-y: 18%; }
+body.motion-static .contest-party-confetti i:nth-child(6)  { --park-y: 36%; }
+body.motion-static .contest-party-confetti i:nth-child(7)  { --park-y: 52%; }
+body.motion-static .contest-party-confetti i:nth-child(8)  { --park-y: 70%; }
+body.motion-static .contest-party-confetti i:nth-child(9)  { --park-y: 22%; }
+body.motion-static .contest-party-confetti i:nth-child(10) { --park-y: 40%; }
+body.motion-static .contest-party-confetti i:nth-child(11) { --park-y: 58%; }
+body.motion-static .contest-party-confetti i:nth-child(12) { --park-y: 74%; }
+body.motion-static .contest-party-confetti i:nth-child(13) { --park-y: 16%; }
+body.motion-static .contest-party-confetti i:nth-child(14) { --park-y: 33%; }
+body.motion-static .contest-party-confetti i:nth-child(15) { --park-y: 49%; }
+body.motion-static .contest-party-confetti i:nth-child(16) { --park-y: 66%; }
+body.motion-static .contest-party-confetti i:nth-child(17) { --park-y: 25%; }
+body.motion-static .contest-party-confetti i:nth-child(18) { --park-y: 55%; }
+body.motion-static .contest-party-confetti i:nth-child(19) { --park-y: 78%; }
+body.motion-static .contest-party-confetti i:nth-child(20) { --park-y: 14%; }
+body.motion-static .contest-party-confetti i:nth-child(21) { --park-y: 46%; }
+body.motion-static .contest-party-confetti i:nth-child(22) { --park-y: 62%; }
+body.motion-static .contest-party-confetti i:nth-child(23) { --park-y: 31%; }
+body.motion-static .contest-party-confetti i:nth-child(24) { --park-y: 72%; }
 
 .contest-experience {
   position: relative;
