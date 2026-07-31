@@ -293,6 +293,7 @@
         <button type="button" class="pacer-layout-tab active" role="tab" aria-selected="true" data-pacer-tab="current">Current</button>
         <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="lastmonth" id="pacerTabLastMonthBtn" hidden>Last Month</button>
         <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="historical">Historical</button>
+        <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="income">Income Planning</button>
       </div>
     </div>
 
@@ -409,6 +410,10 @@
         </div>
       </div>
     </div>
+
+    <section class="income-planning-pane" id="incomePlanningPane" aria-label="Income Planning">
+      <div id="incomePlanningContent"></div>
+    </section>
 
     <div class="detail-history-block pacer-tab-more" id="clientDetailHistoryBlock">
       <div class="history-collapse-toggle" id="historyCollapseToggle" role="button" tabindex="0" aria-expanded="false">
@@ -1046,7 +1051,7 @@
     </div>
     <div class="ops-page-intro">
       <span class="ops-intro-mark">Roster &amp; targets</span>
-      <p>Set sessions, members, and OTE for the month. Access lists and badges live under Access, badges &amp; tools.</p>
+      <p>Set monthly goals and each rep's current compensation level. Level selects the standard OTE; admins can override OTE when needed.</p>
     </div>
     <div class="ops-subtabs" id="goalsSubtabs" role="tablist">
       <button type="button" class="ops-subtab active" data-goals-tab="roster" role="tab" aria-selected="true">Active roster<small>Goals grid</small></button>
@@ -1065,13 +1070,13 @@
         <div class="meta-note" id="addPersonStatus"></div>
       </div>
       <div class="card ops-panel-shell goal-grid-compact" id="goalsFormWrap">
-        <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Individual Pacer access)</div><div>Cap bonus @ 200%</div></div>
+        <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Level</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Individual Pacer access)</div><div>Cap bonus @ 200%</div></div>
         <div id="goalsForm"></div>
         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px;">
           <button id="saveGoals">Save goals</button>
           <span class="field-toggle-tag" id="toggleAdvancedFields">+ Tag / Email / Cap</span>
         </div>
-        <div class="meta-note">Sessions &amp; Members update monthly. Tag / Email / Cap are set-once. ✕ removes someone (restorable in Removed).</div>
+        <div class="meta-note">L1: $41,600 salary / $1,000 OTE · L2: $50,000 / $1,333 · L3: $60,000 / $1,667. Changing Level fills the standard OTE; OTE remains editable. ✕ removes someone (restorable in Removed).</div>
       </div>
     </div>
     <div class="ops-subpanel" data-goals-panel="removed" id="removedBody">
@@ -1621,6 +1626,42 @@ function badgeYesterdayYmd(date) {
   return shiftDateStr(badgeTodayYmd(date), -1);
 }
 
+const COMP_LEVELS = Object.freeze({
+  1: Object.freeze({ level: 1, label: 'L1', salary: 41600, ote: 1000, threshold: 100 }),
+  2: Object.freeze({ level: 2, label: 'L2', salary: 50000, ote: 1333, threshold: 115 }),
+  3: Object.freeze({ level: 3, label: 'L3', salary: 60000, ote: 1667, threshold: 150 }),
+});
+function normalizeCompLevel(value) {
+  const n = Number(value);
+  return n === 2 || n === 3 ? n : 1;
+}
+function compLevelMeta(value) {
+  return COMP_LEVELS[normalizeCompLevel(value)];
+}
+function normalizeGoalRecord(raw) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const level = normalizeCompLevel(source.level);
+  const savedOte = Number(source.ote);
+  return {
+    ...source,
+    sessions: Math.max(0, Number(source.sessions) || 0),
+    members: Math.max(0, Number(source.members) || 0),
+    level,
+    // Existing zero/missing OTE records migrate to the L1 standard.
+    ote: Number.isFinite(savedOte) && savedOte > 0 ? savedOte : compLevelMeta(level).ote,
+    tag: String(source.tag || ''),
+    email: String(source.email || ''),
+    capAt200: !!source.capAt200,
+  };
+}
+function normalizeGoalsDoc(doc) {
+  const out = {};
+  Object.entries(doc && typeof doc === 'object' ? doc : {}).forEach(([name, goal]) => {
+    out[name] = normalizeGoalRecord(goal);
+  });
+  return out;
+}
+
 // Goals and actuals are backed by real Netlify Functions + Blobs now (same
 // pattern as Manual Attribution/badges/roster above), not localStorage.
 // GOALS_CACHE/ACTUALS_CACHE/PRELIM_CACHE start out as the baked-in defaults
@@ -1628,16 +1669,17 @@ function badgeYesterdayYmd(date) {
 // near the bottom of this file if the server has real shared data — see that
 // function's comment for why the server doesn't try to seed itself with
 // these defaults.
-let GOALS_CACHE = Object.assign({}, DEFAULT_GOALS);
+let GOALS_CACHE = normalizeGoalsDoc(DEFAULT_GOALS);
 let ACTUALS_CACHE = Object.assign({}, DEFAULT_ACTUALS);
 function loadGoals() { return GOALS_CACHE; }
 async function saveGoals(g) {
+  const normalized = normalizeGoalsDoc(g);
   await authedFetch('/api/goals/update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ goals: g }),
+    body: JSON.stringify({ goals: normalized }),
   });
-  GOALS_CACHE = g;
+  GOALS_CACHE = normalized;
 }
 function loadActuals() {
   if (ACTUALS_CACHE && ACTUALS_CACHE.asOf) {
@@ -1797,6 +1839,7 @@ function normalizePacerChrome(v) {
 function normalizePacerTab(v) {
   if (v === 'historical' || v === 'more') return 'historical';
   if (v === 'lastmonth') return 'lastmonth';
+  if (v === 'income') return 'income';
   return 'current';
 }
 function resolveSavedLayout() {
@@ -4950,13 +4993,18 @@ function renderGoalsForm(goals) {
   // since removal works via the `active` flag in ROSTER_CACHE rather than only
   // being able to delete added entries.
   getRoster().forEach(r => {
-    const g = goals[r.display] || { sessions: 0, members: 0, tag: '', ote: 0, capAt200: false, email: '' };
+    const g = normalizeGoalRecord(goals[r.display]);
     const row = document.createElement('div');
     row.className = 'goal-grid';
     row.innerHTML = `
       <div>${r.display} <button type="button" class="remove-person-btn" data-remove-person="${encodeURIComponent(r.display)}" title="Remove person">✕</button></div>
       <div><input type="number" step="0.01" data-name="${r.display}" data-field="sessions" value="${g.sessions}"></div>
       <div><input type="number" step="0.01" data-name="${r.display}" data-field="members" value="${g.members}"></div>
+      <div><select data-name="${r.display}" data-field="level" aria-label="${r.display} compensation level">
+        <option value="1"${g.level === 1 ? ' selected' : ''}>L1</option>
+        <option value="2"${g.level === 2 ? ' selected' : ''}>L2</option>
+        <option value="3"${g.level === 3 ? ' selected' : ''}>L3</option>
+      </select></div>
       <div><input type="number" step="1" data-name="${r.display}" data-field="ote" value="${g.ote || 0}"></div>
       <div><input type="text" data-name="${r.display}" data-field="tag" value="${g.tag || ''}"></div>
       <div><input type="email" data-name="${r.display}" data-field="email" placeholder="name@varsitytutors.com" value="${g.email || ''}"></div>
@@ -5025,12 +5073,13 @@ function renderRemovedRosterList() {
 
 document.getElementById('saveGoals').addEventListener('click', async (e) => {
   const goals = Object.assign({}, loadGoals());
-  document.querySelectorAll('#goalsForm input').forEach(input => {
+  document.querySelectorAll('#goalsForm input, #goalsForm select').forEach(input => {
     const name = input.getAttribute('data-name');
     const field = input.getAttribute('data-field');
-    if (!goals[name]) goals[name] = { sessions: 0, members: 0, tag: '', ote: 0, capAt200: false, email: '' };
+    if (!goals[name]) goals[name] = normalizeGoalRecord({});
     if (field === 'tag' || field === 'email') goals[name][field] = input.value.trim();
     else if (field === 'capAt200') goals[name][field] = input.checked;
+    else if (field === 'level') goals[name][field] = normalizeCompLevel(input.value);
     else goals[name][field] = parseFloat(input.value) || 0;
   });
   const btn = e.currentTarget;
@@ -5043,6 +5092,14 @@ document.getElementById('saveGoals').addEventListener('click', async (e) => {
   } finally {
     btn.disabled = false;
   }
+});
+
+document.getElementById('goalsForm').addEventListener('change', (e) => {
+  const levelSelect = e.target.closest('select[data-field="level"]');
+  if (!levelSelect) return;
+  const name = levelSelect.getAttribute('data-name');
+  const oteInput = document.querySelector(`#goalsForm input[data-field="ote"][data-name="${CSS.escape(name)}"]`);
+  if (oteInput) oteInput.value = compLevelMeta(levelSelect.value).ote;
 });
 
 document.getElementById('addPersonBtn').addEventListener('click', async (e) => {
@@ -5486,6 +5543,215 @@ function repAggregateMonths(months, csvKey) {
   const parts = [sessionsPct, membersPct].filter(v => v !== null);
   const compositePct = parts.length ? parts.reduce((s, v) => s + v, 0) / parts.length : null;
   return { totalSA, totalSG, totalMA, totalMG, sessionsPct, membersPct, compositePct };
+}
+
+const incomePlanningStateByRep = Object.create(null);
+function getIncomePlanningState(repDisplay) {
+  const currentLevel = normalizeGoalRecord(loadGoals()[repDisplay]).level;
+  const state = incomePlanningStateByRep[repDisplay] || {
+    window: 6,
+    includeMtd: true,
+    level: currentLevel,
+  };
+  state.window = state.window === 12 ? 12 : 6;
+  state.includeMtd = state.includeMtd !== false;
+  state.level = Math.max(currentLevel, normalizeCompLevel(state.level));
+  incomePlanningStateByRep[repDisplay] = state;
+  return state;
+}
+
+function currentMtdIncomePeriod(repDisplay, csvKey) {
+  const cal = teamCalendarParts();
+  const key = `${cal.y}-${String(cal.m).padStart(2, '0')}`;
+  const actuals = loadActuals();
+  const raw = (actuals.perRep && actuals.perRep[repDisplay]) || { sessions: 0, members: 0 };
+  const approved = APPROVED_TOTALS[repDisplay] || { sessions: 0, members: 0 };
+  const goal = normalizeGoalRecord(loadGoals()[repDisplay]);
+  return {
+    k: key,
+    l: `${cal.monthName} MTD`,
+    isMtd: true,
+    reps: [{
+      name: csvKey,
+      sA: Number(raw.sessions || 0) + Number(approved.sessions || 0),
+      sG: goal.sessions,
+      mA: Number(raw.members || 0) + Number(approved.members || 0),
+      mG: goal.members,
+    }],
+  };
+}
+
+function incomePlanningPeriods(repDisplay, windowSize, includeMtd) {
+  const rosterEntry = getRoster().find((r) => r.display === repDisplay);
+  const csvKey = rosterEntry ? rosterEntry.csv : String(repDisplay || '').toLowerCase();
+  const mtd = currentMtdIncomePeriod(repDisplay, csvKey);
+  const closed = SIP_HISTORY
+    .filter((month) => month.k < mtd.k && repMonthEntry(month, csvKey))
+    .sort((a, b) => a.k.localeCompare(b.k));
+  const closedCount = Math.max(0, windowSize - (includeMtd ? 1 : 0));
+  const periods = closed.slice(-closedCount);
+  if (includeMtd) periods.push(mtd);
+  return { periods, csvKey, mtd };
+}
+
+function incomeLevelTracking(repDisplay, windowSize, includeMtd) {
+  const { periods, csvKey } = incomePlanningPeriods(repDisplay, windowSize, includeMtd);
+  const aggregate = repAggregateMonths(periods, csvKey);
+  const targetLevel = windowSize === 12 ? 3 : 2;
+  const threshold = compLevelMeta(targetLevel).threshold;
+  const composite = aggregate.compositePct;
+  const pointsGap = composite === null ? null : Math.max(0, threshold - composite);
+  const sessionsNeeded = aggregate.totalSG > 0
+    ? Math.max(0, aggregate.totalSG * threshold / 100 - aggregate.totalSA)
+    : null;
+  const membersNeeded = aggregate.totalMG > 0
+    ? Math.max(0, aggregate.totalMG * threshold / 100 - aggregate.totalMA)
+    : null;
+  return {
+    periods, csvKey, aggregate, targetLevel, threshold, composite, pointsGap,
+    sessionsNeeded, membersNeeded,
+    meets: composite !== null && composite >= threshold,
+  };
+}
+
+function incomeMoney(value, digits = 0) {
+  return '$' + Number(value || 0).toLocaleString('en-US', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
+function incomePeriodRowHTML(period, csvKey) {
+  const a = repMonthAttainment(period, csvKey);
+  const pct = a.compositePct;
+  const tone = pct === null ? 'neutral' : pct >= 150 ? 'l3' : pct >= 115 ? 'l2' : pct >= 100 ? 'goal' : 'building';
+  return `
+    <div class="income-month-row ${tone}">
+      <div class="income-month-name">${escapeHtml(period.l)}${period.isMtd ? '<span>Live</span>' : ''}</div>
+      <div><small>Sessions</small><strong>${fmt(a.sA, 1)} <em>/ ${fmt(a.sG, 1)}</em></strong></div>
+      <div><small>Members</small><strong>${fmt(a.mA, 1)} <em>/ ${fmt(a.mG, 1)}</em></strong></div>
+      <div class="income-month-pct"><strong>${pct === null ? '—' : fmt(pct, 1) + '%'}</strong><small>blended</small></div>
+    </div>`;
+}
+
+function incomeConfidentialHTML(repDisplay, tracking, state) {
+  if (!canViewConfidentialPayout(repDisplay)) {
+    return `
+      <div class="income-locked">
+        <div class="income-lock-icon">🔒</div>
+        <div>
+          <strong>Income planning is confidential</strong>
+          <p>Dollar projections are visible to admins and ${escapeHtml(repDisplay.split(' ')[0])} only. Level progress and trailing attainment remain visible above.</p>
+        </div>
+      </div>`;
+  }
+  const goal = normalizeGoalRecord(loadGoals()[repDisplay]);
+  const allowedLevels = [1, 2, 3].filter((level) => level >= goal.level);
+  const level = Math.max(goal.level, normalizeCompLevel(state.level));
+  const meta = compLevelMeta(level);
+  const ote = level === goal.level ? goal.ote : meta.ote;
+  const attainment = tracking.composite === null ? 0 : tracking.composite / 100;
+  const payoutRaw = payoutTier(attainment);
+  const payoutPct = goal.capAt200 ? Math.min(payoutRaw, 2) : payoutRaw;
+  const monthlyVariable = ote * payoutPct;
+  const annualVariable = monthlyVariable * 12;
+  const annualTotal = meta.salary + annualVariable;
+  const buttons = allowedLevels.map((value) => `
+    <button type="button" data-income-level="${value}" class="${value === level ? 'active' : ''}">
+      <span>L${value}</span><small>${incomeMoney(compLevelMeta(value).salary)} salary</small>
+    </button>`).join('');
+  return `
+    <div class="income-pay-card">
+      <div class="income-section-head">
+        <div><span class="income-eyebrow">Income scenario</span><h3>What this pace could pay</h3></div>
+        <div class="income-level-picker" role="group" aria-label="Income planning level">${buttons}</div>
+      </div>
+      <div class="income-pay-hero">
+        <span>Estimated annual compensation</span>
+        <strong>${incomeMoney(annualTotal)}</strong>
+        <small>If the selected trailing ${state.window}-month blended pace repeated for 12 months</small>
+      </div>
+      <div class="income-pay-breakdown">
+        <div><span>Base salary</span><strong>${incomeMoney(meta.salary)}</strong></div>
+        <div><span>Estimated annual SIP</span><strong>${incomeMoney(annualVariable)}</strong></div>
+        <div><span>Monthly SIP at this pace</span><strong>${incomeMoney(monthlyVariable, 2)}</strong></div>
+        <div><span>Monthly OTE used</span><strong>${incomeMoney(ote)}</strong></div>
+      </div>
+      ${goal.capAt200 && payoutRaw > 2 ? '<div class="income-cap-note">Payout capped at 200% of OTE.</div>' : ''}
+      <div class="income-estimate-note">Estimate only. Excludes SPIFFs and yearly extras; Finance calculates and approves final compensation.</div>
+    </div>`;
+}
+
+function incomePlanningHTML(repDisplay) {
+  const state = getIncomePlanningState(repDisplay);
+  const tracking = incomeLevelTracking(repDisplay, state.window, state.includeMtd);
+  const a = tracking.aggregate;
+  const targetMeta = compLevelMeta(tracking.targetLevel);
+  const currentMeta = compLevelMeta(normalizeGoalRecord(loadGoals()[repDisplay]).level);
+  const pct = tracking.composite;
+  const progress = pct === null ? 0 : Math.min(100, pct / tracking.threshold * 100);
+  const status = tracking.meets
+    ? `At the ${targetMeta.label} performance threshold`
+    : pct === null
+      ? 'Not enough goal data yet'
+      : `${fmt(tracking.pointsGap, 1)} points from ${targetMeta.label}`;
+  const months = tracking.periods.length;
+  return `
+    <div class="income-planning-shell">
+      <div class="income-planning-hero">
+        <div>
+          <span class="income-eyebrow">Current compensation · ${currentMeta.label}</span>
+          <h2>Income Planning</h2>
+          <p>See how your trailing performance tracks toward the next level—and what that pace could mean for income.</p>
+        </div>
+        <div class="income-controls">
+          <div class="income-window-toggle" role="group" aria-label="Level tracking window">
+            <button type="button" data-income-window="6" class="${state.window === 6 ? 'active' : ''}"><strong>6 months</strong><small>Track to L2 · 115%</small></button>
+            <button type="button" data-income-window="12" class="${state.window === 12 ? 'active' : ''}"><strong>12 months</strong><small>Track to L3 · 150%</small></button>
+          </div>
+          <label class="income-mtd-toggle">
+            <input type="checkbox" data-income-mtd ${state.includeMtd ? 'checked' : ''}>
+            <span><b>Include this month</b><small>Use live MTD actuals</small></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="income-progress-card ${tracking.meets ? 'meets' : ''}">
+        <div class="income-progress-summary">
+          <span class="income-level-badge">${targetMeta.label}</span>
+          <div><span class="income-eyebrow">${months} of ${state.window} periods available</span><h3>${escapeHtml(status)}</h3></div>
+          <strong class="income-blended">${pct === null ? '—' : fmt(pct, 1) + '%'}<small>blended average</small></strong>
+        </div>
+        <div class="income-track"><span style="width:${progress}%"></span><i style="left:100%"></i></div>
+        <div class="income-metric-grid">
+          <div><span>Sessions attainment</span><strong>${a.sessionsPct === null ? '—' : fmt(a.sessionsPct, 1) + '%'}</strong><small>${fmt(a.totalSA, 1)} / ${fmt(a.totalSG, 1)}</small></div>
+          <div><span>Members attainment</span><strong>${a.membersPct === null ? '—' : fmt(a.membersPct, 1) + '%'}</strong><small>${fmt(a.totalMA, 1)} / ${fmt(a.totalMG, 1)}</small></div>
+          <div><span>${targetMeta.label} threshold</span><strong>${tracking.threshold}%</strong><small>${state.window}-month blended</small></div>
+          <div><span>Balanced path</span><strong>${tracking.meets ? 'Cleared' : `+${fmt(tracking.sessionsNeeded || 0, 1)} / +${fmt(tracking.membersNeeded || 0, 1)}`}</strong><small>${tracking.meets ? 'Performance threshold met' : 'sessions / members to each hit target'}</small></div>
+        </div>
+        <div class="income-qualification-note">
+          <span>Performance is one part of level eligibility.</span>
+          <b>Also required: No Active Warnings · Hitting ESCVR Expectations (27% for HS)</b>
+        </div>
+      </div>
+
+      ${incomeConfidentialHTML(repDisplay, tracking, state)}
+
+      <div class="income-months-card">
+        <div class="income-section-head">
+          <div><span class="income-eyebrow">Calculation detail</span><h3>Months in this view</h3></div>
+          <span class="income-formula">Blended = (aggregate sessions % + aggregate members %) ÷ 2</span>
+        </div>
+        <div class="income-month-list">
+          ${tracking.periods.length ? tracking.periods.map((period) => incomePeriodRowHTML(period, tracking.csvKey)).join('') : '<div class="income-empty">No completed SIP history is available for this rep yet.</div>'}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderIncomePlanning(repDisplay) {
+  const host = document.getElementById('incomePlanningContent');
+  if (host) host.innerHTML = incomePlanningHTML(repDisplay);
 }
 
 // Earnings for one historical month, run through the exact same verified
@@ -6168,6 +6434,9 @@ document.querySelectorAll('#pacerLayoutTabs .pacer-layout-tab').forEach((btn) =>
     applyLayout(document.body.dataset.layout || 'split-stack');
     if (pacerTab === 'historical' && typeof setHistoryCollapsed === 'function') {
       setHistoryCollapsed(false);
+    }
+    if (pacerTab === 'income' && currentBonusRep && typeof renderIncomePlanning === 'function') {
+      renderIncomePlanning(currentBonusRep);
     }
   });
 });
@@ -9148,11 +9417,16 @@ function setBonusInput(repDisplay, field, value) {
 
 // Full bonus breakdown for a rep, mirroring the sheet's two rows (Current
 // Achievement % and Projected EOM Achievement) side by side.
-function computeBonusForRep(repDisplay) {
+function computeBonusForRep(repDisplay, planningLevel) {
   const pacing = computeRepPacing(repDisplay);
   const goals = loadGoals();
-  const ote = (goals[repDisplay] && goals[repDisplay].ote) || 0;
-  const capAt200 = !!(goals[repDisplay] && goals[repDisplay].capAt200);
+  const goal = normalizeGoalRecord(goals[repDisplay]);
+  const currentLevel = goal.level;
+  const level = Math.max(currentLevel, normalizeCompLevel(planningLevel || currentLevel));
+  const levelMeta = compLevelMeta(level);
+  // Current band honors the admin override; higher-band what-ifs use standard OTE.
+  const ote = level === currentLevel ? goal.ote : levelMeta.ote;
+  const capAt200 = !!goal.capAt200;
   const cal = teamCalendarParts();
   const workingHours = workingHoursInMonth(cal.y, cal.m);
   const inputs = getBonusInputs(repDisplay);
@@ -9192,6 +9466,7 @@ function computeBonusForRep(repDisplay) {
   const overallProjPct = 0.5 * (memProjFrac ?? 0) * 100 + 0.5 * (sesProjFrac ?? 0) * 100;
 
   return {
+    level, currentLevel, levelMeta,
     ote, proratedOte, workingHours, loaHours, spiff, pacing,
     memPayoutCur, memPayoutProj, sesPayoutCur, sesPayoutProj,
     payoutPctCur, payoutPctProj, commissionCur, commissionProj,
@@ -9215,14 +9490,27 @@ function bonusPayoutHTML(repDisplay) {
   if (!canViewConfidentialPayout(repDisplay)) {
     return `<div class="meta-note" style="margin:0;">🔒 Bonus Payout is confidential — visible to admins and ${repDisplay.split(' ')[0]} only. Attainment % is still shown above in Live Metrics and the pacing card.</div>`;
   }
-  const b = computeBonusForRep(repDisplay);
+  const goal = normalizeGoalRecord(loadGoals()[repDisplay]);
+  const savedLevel = normalizeCompLevel(bonusPlanningLevelByRep[repDisplay] || goal.level);
+  const planningLevel = Math.max(goal.level, savedLevel);
+  bonusPlanningLevelByRep[repDisplay] = planningLevel;
+  const b = computeBonusForRep(repDisplay, planningLevel);
   const money = (x) => '$' + fmt(x, 2);
   const noOte = !b.ote;
   const st = tier(b.overallProjPct, b.overallGoalIsZero);
   const heroStyle = b.overallGoalIsZero ? 'color:#c7c5d6;' : `background:${st.barGrad}; -webkit-background-clip:text; background-clip:text; color:transparent;`;
+  const levelButtons = [1, 2, 3]
+    .filter((level) => level >= b.currentLevel)
+    .map((level) => `<button type="button" data-bonus-level="${level}" class="${level === b.level ? 'active' : ''}">L${level}</button>`)
+    .join('');
   return `
     ${noOte ? `<div class="meta-note" style="margin-top:0; color:#dc2626; font-size:10.5px;">No Monthly OTE set yet — add one on <a href="#edit-goals">Edit Monthly Goals</a>.</div>` : ''}
+    <div class="bonus-level-planner">
+      <span>Plan at</span>
+      <div class="bonus-level-toggle" role="group" aria-label="Compensation level scenario">${levelButtons}</div>
+    </div>
     <div class="bonus-hero">
+      <div class="bonus-level-context">${b.levelMeta.label} · ${money(b.levelMeta.salary)} salary · ${money(b.ote)} monthly OTE</div>
       <div class="bonus-hero-label">Projected Payout</div>
       <div class="bonus-hero-num" style="${heroStyle}">${money(b.withSpiffProj)}</div>
       ${b.cappedProj ? `<div class="meta-note" style="margin-top:4px; font-size:10.5px;">Capped at 200% of OTE</div>` : ''}
@@ -9245,7 +9533,7 @@ function bonusPayoutHTML(repDisplay) {
           SPIFF this month ($)
           <input type="number" step="1" min="0" id="bonusSpiffInput" value="${b.spiff}">
         </label>
-        <div class="meta-note" style="margin:0; font-size:10.5px;">OTE: ${money(b.ote)} · Prorated: ${money(b.proratedOte)}</div>
+        <div class="meta-note" style="margin:0; font-size:10.5px;">${b.levelMeta.label} OTE: ${money(b.ote)} · Prorated: ${money(b.proratedOte)}</div>
       </div>
     </details>
     <div class="bonus-disclaimer">⚠️ Estimate only — not your actual bonus check. Final payouts are calculated and approved by Finance; Aaron will share confirmed numbers after that review.</div>`;
@@ -9350,6 +9638,7 @@ function detailMiniHeaderHTML(repDisplay) {
 // handlers know who to render/save against without re-parsing the URL hash on
 // every keystroke.
 let currentBonusRep = null;
+const bonusPlanningLevelByRep = Object.create(null);
 // Collapsed by default (it was crowding the page when it opened expanded every
 // time) — but once someone expands or collapses it, that preference persists
 // across reps and page loads until they change it again.
@@ -9377,7 +9666,7 @@ function renderClientDetail(opts) {
 
   const allowed = canViewClientDetail(repName);
   const restrictedNote = document.getElementById('detailRestrictedNote');
-  const bodyEls = ['detailPacingRow', 'doubleGoalBanner', 'metricsStyleToggleWrap', 'detailSummary', 'detailNetActuals', 'detailContent', 'pacerTabPace', 'clientDetailHistoryBlock']
+  const bodyEls = ['detailPacingRow', 'doubleGoalBanner', 'metricsStyleToggleWrap', 'detailSummary', 'detailNetActuals', 'detailContent', 'pacerTabPace', 'clientDetailHistoryBlock', 'incomePlanningPane']
     .map(id => document.getElementById(id)).filter(Boolean);
   if (!allowed) {
     restrictedNote.style.display = '';
@@ -9457,6 +9746,7 @@ function renderClientDetail(opts) {
   fillDetailActivity(repName);
   try { syncLastMonthPacerTab(repName); } catch (e) { console.warn('Last Month tab sync failed:', e); }
   syncMetricsSidePanel(repName);
+  renderIncomePlanning(repName);
   syncViewAsTopbar();
   // Confidentiality gate for the chart's $ view — hide the option entirely for
   // a viewer who shouldn't see payout, and if they were somehow left on
@@ -9558,6 +9848,31 @@ document.getElementById('bonusSideContent').addEventListener('change', (e) => {
     return;
   }
   document.getElementById('bonusSideContent').innerHTML = bonusPayoutHTML(currentBonusRep);
+});
+document.getElementById('bonusSideContent').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-bonus-level]');
+  if (!btn || !currentBonusRep) return;
+  bonusPlanningLevelByRep[currentBonusRep] = normalizeCompLevel(btn.getAttribute('data-bonus-level'));
+  document.getElementById('bonusSideContent').innerHTML = bonusPayoutHTML(currentBonusRep);
+});
+document.getElementById('incomePlanningContent').addEventListener('click', (e) => {
+  if (!currentBonusRep) return;
+  const windowBtn = e.target.closest('[data-income-window]');
+  const levelBtn = e.target.closest('[data-income-level]');
+  const state = getIncomePlanningState(currentBonusRep);
+  if (windowBtn) {
+    state.window = Number(windowBtn.getAttribute('data-income-window')) === 12 ? 12 : 6;
+  } else if (levelBtn) {
+    state.level = normalizeCompLevel(levelBtn.getAttribute('data-income-level'));
+  } else {
+    return;
+  }
+  renderIncomePlanning(currentBonusRep);
+});
+document.getElementById('incomePlanningContent').addEventListener('change', (e) => {
+  if (!currentBonusRep || !e.target.matches('[data-income-mtd]')) return;
+  getIncomePlanningState(currentBonusRep).includeMtd = !!e.target.checked;
+  renderIncomePlanning(currentBonusRep);
 });
 // Event delegation: rep cards (and their client-detail buttons) are rebuilt on every
 // render(), so listen on a static ancestor rather than re-binding per button.
@@ -10428,7 +10743,7 @@ async function fetchDashboardData() {
   try {
     const data = await authedFetch('/api/dashboard/data', { cache: 'no-store' });
     if (data.roster) ROSTER_CACHE = data.roster;
-    if (data.goals) GOALS_CACHE = data.goals;
+    if (data.goals) GOALS_CACHE = normalizeGoalsDoc(data.goals);
     // Prefer whatever Blobs has until/unless live Supabase overwrites in boot().
     if (data.actuals) ACTUALS_CACHE = data.actuals;
     if (data.prelim) PRELIM_CACHE = data.prelim;
