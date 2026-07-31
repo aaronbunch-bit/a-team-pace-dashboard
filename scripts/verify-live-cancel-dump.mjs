@@ -105,4 +105,47 @@ assert.ok(droppedAbsent.length >= 40, "dozens of soft-deleted cancels");
 assert.equal(sum(kept, "members"), sum(exportNeg, "expert_net_members") + 1, "kept matches export within the known Chris Jones re-book");
 assert.ok(Math.abs(sum(kept, "members") - (-50.5)) < 0.01, "kept members land on -50.5");
 
-console.log("ok — live dump reaches export parity under deleted-attro + orphan rules");
+// ---- The members side ------------------------------------------------------
+// Dropping a cancel is only safe if the credit it was paired with goes too.
+// The A-Team tiles are the nine reps with July goals (the dump also carries
+// Amanda and Jordan, who have no tile), so compare like for like.
+const TILE_NINE = new Set([
+  "Becky Ruffer", "Brenda Wong", "Christopher Jones", "David Valverde", "Del Ali",
+  "Domenica Sorrentino", "JENNA SALUPO", "Liz Weiss", "Timothy Carr",
+]);
+const DUMP_NINE = new Set([
+  "Becky Ruffer", "Brenda Wong", "Chris Jones", "David Valverde", "Del Ali",
+  "Domenica Sorrentino", "Jenna Salupo", "Liz Weiss", "Tim Carr",
+]);
+const nineExport = exp.filter((r) => TILE_NINE.has(r.manager));
+const nineDump = live.filter((r) => DUMP_NINE.has(r.rep));
+
+const exportNet = sum(nineExport, "expert_net_members");
+const exportCancels = nineExport
+  .filter((r) => num(r.expert_net_members) < 0)
+  .reduce((s, r) => s + num(r.expert_net_members), 0);
+const dumpCancels = sum(nineDump, "members");
+
+// What the screenshot showed against what the export says it should have been.
+const TILE_MEMBERS = 397.5;
+const TILE_CANCELS = -86.5;
+
+console.log(`\nnine-rep tiles   members ${TILE_MEMBERS}  cancels ${TILE_CANCELS}   (screenshot)`);
+console.log(`nine-rep export  members ${exportNet.toFixed(1)}  cancels ${exportCancels.toFixed(1)}`);
+console.log(`nine-rep dump    cancels ${dumpCancels.toFixed(1)}`);
+
+assert.ok(Math.abs(dumpCancels - TILE_CANCELS) < 0.01, "the dump's nine tile reps are the -86.5 on screen");
+assert.ok(Math.abs(exportCancels - (-50.5)) < 0.01, "the export's nine-rep cancels are -50.5");
+assert.ok(Math.abs(exportNet - 398.0) < 0.01, "the export's nine-rep members are 398.0");
+
+// Extra cancels the pacer counted, and the extra credits that hid them.
+const extraCancels = dumpCancels - exportCancels;          // -36.0
+const extraCredits = (TILE_MEMBERS - exportNet) - extraCancels; // +35.5
+console.log(`extra cancels ${extraCancels.toFixed(1)}, extra credits ${extraCredits.toFixed(1)}, net ${(extraCancels + extraCredits).toFixed(1)}`);
+assert.ok(
+  Math.abs(extraCancels + extraCredits) < 1,
+  "the extra cancels arrive paired with credits — dropping the attribution moves members by ~0"
+);
+
+console.log("\nok — live dump reaches export parity under deleted-attro + orphan rules,");
+console.log("     and the dropped lines net to zero so the members tile holds at ~398");
