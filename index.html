@@ -525,8 +525,14 @@
           <option value="dragon-cup">🐉 Dragon Cup</option>
           <option value="space-race">🚀 Space Race</option>
           <option value="stadium">🏟️ Stadium</option>
+          <option value="desert-rally">🏜️ Desert Rally</option>
+          <option value="rainbow-road">🌈 Rainbow Road</option>
+          <option value="ice-circuit">❄️ Ice Circuit</option>
+          <option value="pirate">🏴‍☠️ Pirate Quest</option>
+          <option value="underwater">🐠 Underwater</option>
+          <option value="retro">📼 Retro Rally</option>
         </select>
-        <span class="contest-field-hint">Look &amp; feel comes from the pack — cars, track, accents, mascot.</span>
+        <span class="contest-field-hint">Look &amp; feel comes from the pack. You can swap it while live without resetting standings.</span>
       </label>
       <label>Duration
         <select id="contestEditDuration">
@@ -2990,6 +2996,11 @@ function paintRecognitionSpotlight(opts) {
   const items = recognitionWallItemsCache;
   if (!items.length) return;
   const idx = ((recognitionWallRotateIdx % items.length) + items.length) % items.length;
+  const ground = host.closest('.recognition-wall-ground');
+  if (ground) {
+    ground.classList.toggle('is-shoutout', items[idx].type === 'shoutout');
+    ground.classList.toggle('is-badge', items[idx].type === 'badge');
+  }
   const animate = !(opts && opts.instant) && !document.body.classList.contains('motion-static');
   const direction = (opts && opts.direction) === 'prev' ? 'prev' : 'next';
   const html = recognitionSpotlightCardHTML(items[idx], idx, items.length);
@@ -3055,6 +3066,8 @@ function recognitionWallStageShellHTML() {
     <div class="recognition-wall-stage${multi ? '' : ' is-solo'}" id="recognitionWallStage" aria-live="polite">
       <div class="recognition-wall-ground">
         <div class="recognition-wall-aurora" aria-hidden="true"></div>
+        <div class="recognition-wall-halo" aria-hidden="true"></div>
+        <div class="recognition-wall-rings" aria-hidden="true"></div>
         <span class="recognition-wall-spark s1" aria-hidden="true"></span>
         <span class="recognition-wall-spark s2" aria-hidden="true"></span>
         <span class="recognition-wall-spark s3" aria-hidden="true"></span>
@@ -7263,6 +7276,71 @@ function contestHistoryHTML() {
         </div>`;
     }).join('')}</div>`;
 }
+function contestAtmosphereHTML(contest) {
+  const theme = contestResolveTheme(contest);
+  const map = {
+    'grand-prix': ['🏁', '✦', '🏎️', '✦', '🏆'],
+    'neon-night': ['✦', '🌃', '◆', '⚡', '✦'],
+    'space-race': ['✦', '🪐', '🚀', '✧', '🌙'],
+    'desert-rally': ['☀️', '🏜️', '✦', '🌵', '✦'],
+    'rainbow-road': ['✦', '🌈', '★', '☁️', '✦'],
+    'ice-circuit': ['❄️', '✦', '🧊', '❄️', '✧'],
+    stadium: ['✦', '🏟️', '★', '📣', '✦'],
+    carnival: ['✦', '🎡', '★', '🎟️', '✦'],
+    pirate: ['✦', '🏴‍☠️', '⚓', '💰', '✦'],
+    arcade: ['✦', '👾', '◆', '⚡', '✦'],
+    'blood-type-a': ['✦', '🅰️', '⚡', '🔥', '✦'],
+    'dragon-cup': ['✦', '🐉', '🔥', '🏆', '✦'],
+    underwater: ['◌', '🐠', '○', '🫧', '◌'],
+    retro: ['✦', '📼', '◆', '🕹️', '✦'],
+  };
+  return `
+    <div class="contest-atmosphere" aria-hidden="true">
+      ${(map[theme] || map['grand-prix']).map((icon, i) =>
+        `<span class="contest-atmosphere-piece p${i + 1}">${escapeHtml(icon)}</span>`
+      ).join('')}
+      <div class="contest-atmosphere-grid"></div>
+      <div class="contest-atmosphere-orb orb-a"></div>
+      <div class="contest-atmosphere-orb orb-b"></div>
+    </div>`;
+}
+function contestMomentumHTML(contest, standings, phase) {
+  const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
+  const leader = standings[0] || null;
+  const runnerUp = standings[1] || null;
+  const mine = me ? standings.find((r) => r.repName === me) : null;
+  const unit = contestUnitsLabel(contest.units);
+  let personal = 'Make the first move';
+  if (phase === 'scheduled') personal = 'Pick your opening move';
+  else if (mine && mine.place === 1) personal = runnerUp
+    ? `${fmt(Math.max(0, mine.score - runnerUp.score), 1)} ${unit} ahead`
+    : 'Setting the pace';
+  else if (mine && leader) personal = `${fmt(Math.max(0, leader.score - mine.score), 1)} ${unit} to the lead`;
+  else if (mine) personal = `#${mine.place} · ${fmt(mine.score, 1)} ${unit}`;
+
+  const leadText = leader
+    ? `${leader.repName} · ${fmt(leader.score, 1)} ${unit}`
+    : 'First credit takes it';
+  const pulse = leader && runnerUp
+    ? (leader.score === runnerUp.score ? 'Dead heat' : `${fmt(Math.max(0, leader.score - runnerUp.score), 1)} between the top two`)
+    : 'The board is wide open';
+  return `
+    <div class="contest-momentum-bar">
+      <div class="contest-momentum-stat">
+        <span class="contest-momentum-icon" aria-hidden="true">👑</span>
+        <span><small>Front runner</small><strong>${escapeHtml(leadText)}</strong></span>
+      </div>
+      <div class="contest-momentum-stat is-pulse">
+        <span class="contest-momentum-icon" aria-hidden="true">⚡</span>
+        <span><small>Race pulse</small><strong>${escapeHtml(pulse)}</strong></span>
+      </div>
+      <div class="contest-momentum-stat is-you">
+        <span class="contest-momentum-icon" aria-hidden="true">🎯</span>
+        <span><small>Your move</small><strong>${escapeHtml(personal)}</strong></span>
+      </div>
+      ${phase === 'active' ? `<button type="button" class="contest-rally-btn" data-contest-rally="${escapeAttr(contest.id)}">📣 Rally the team</button>` : ''}
+    </div>`;
+}
 function contestBoardHTML(contest) {
   if (contestArenaTab === 'history') return contestHistoryHTML();
   if (!contest) {
@@ -7280,6 +7358,9 @@ function contestBoardHTML(contest) {
   const manage = contestCanManage();
   const theme = contestThemeClass(contest);
   const mode = contestMigrateMode(contest.mode);
+  const momentumStandings = mode === 'deal'
+    ? contestDealStandingSnapRows(contest)
+    : standings;
   const myPlace = mode === 'deal'
     ? (() => {
       const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
@@ -7296,6 +7377,7 @@ function contestBoardHTML(contest) {
       <div class="m-label" style="margin-bottom:8px;">🎛️ Coach booth${contest.isTest ? ' · <span class="contest-hist-badge test-badge">Test</span>' : ''}</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
         <button type="button" class="theme-btn" data-contest-edit="${escapeAttr(contest.id)}">Edit contest</button>
+        ${contest.status !== 'ended' ? `<button type="button" class="theme-btn contest-live-theme-btn" data-contest-theme-edit="${escapeAttr(contest.id)}">🎨 Change live theme</button>` : ''}
         ${contest.status !== 'ended' ? `<button type="button" class="theme-btn" data-contest-end="${escapeAttr(contest.id)}">End contest</button>` : ''}
         ${contest.status === 'ended' ? `<button type="button" class="theme-btn" data-contest-hide="${escapeAttr(contest.id)}" data-hide="${contest.hiddenFromHistory ? '0' : '1'}">${contest.hiddenFromHistory ? 'Unhide from history' : 'Hide from history'}</button>` : ''}
         <button type="button" class="theme-btn contest-danger-btn" data-contest-delete="${escapeAttr(contest.id)}">Delete</button>
@@ -7335,37 +7417,43 @@ function contestBoardHTML(contest) {
     : '';
 
   return `
-    <div class="contest-board-hero ${theme}">
-      <div class="contest-hero-top">
-        <div style="display:flex;gap:12px;align-items:flex-start;min-width:0;flex:1 1 240px;">
-          <div class="contest-hero-icon" aria-hidden="true">${contestThemeIcon(contest)}</div>
-          <div class="contest-hero-copy">
-            ${livePill}
-            <p class="contest-promo-eyebrow" style="margin-top:8px;">${contest.isTest ? '🧪 Test · ' : ''}${contest.kind === 'promo' ? 'Promo / company-wide' : 'Hosted'} · ${escapeHtml(contestModeLabel(contest.mode))} · ${escapeHtml(contestVehicleEmoji(contest.vehicle || 'car'))}</p>
-            <h2>${escapeHtml(contest.name)}${contest.isTest ? ' <span class="contest-hist-badge test-badge">Test</span>' : ''}</h2>
-            <div class="contest-promo-meta" style="margin-top:6px;">${escapeHtml(contestThemeTagline(contest))}</div>
+    <div class="contest-experience ${theme} mode-${escapeAttr(mode)} phase-${escapeAttr(phase)}">
+      ${contestAtmosphereHTML(contest)}
+      <div class="contest-experience-inner">
+        <div class="contest-board-hero ${theme}">
+          <div class="contest-hero-top">
+            <div class="contest-hero-identity">
+              <div class="contest-hero-icon" aria-hidden="true">${contestThemeIcon(contest)}</div>
+              <div class="contest-hero-copy">
+                ${livePill}
+                <p class="contest-promo-eyebrow" style="margin-top:8px;">${contest.isTest ? '🧪 Test · ' : ''}${contest.kind === 'promo' ? 'Promo / company-wide' : 'Hosted'} · ${escapeHtml(contestModeLabel(contest.mode))}</p>
+                <h2>${escapeHtml(contest.name)}${contest.isTest ? ' <span class="contest-hist-badge test-badge">Test</span>' : ''}</h2>
+                <div class="contest-promo-meta" style="margin-top:6px;">${escapeHtml(contestThemeTagline(contest))}</div>
+              </div>
+            </div>
+            <div class="contest-countdown-block">
+              <div class="contest-countdown-label" data-contest-cd-label="${escapeAttr(contest.id)}">${escapeHtml(contestCountdownLabel(contest))}</div>
+              <div class="contest-countdown" data-contest-cd="${escapeAttr(contest.id)}">${escapeHtml(contestCountdownHTML(contest))}</div>
+            </div>
           </div>
+          <div class="contest-board-chips">
+            <span class="contest-chip hot"><strong>${escapeHtml(contestModeLabel(contest.mode))}</strong></span>
+            <span class="contest-chip hot"><strong>${escapeHtml(contestUnitsLabel(contest.units))}</strong></span>
+            <span class="contest-chip hot"><strong>${escapeHtml(contestStakeLabel(contest))}</strong></span>
+            <span class="contest-chip">Your place <strong>${escapeHtml(phase === 'scheduled' ? 'Soon' : contestPlaceLabel(myPlace))}</strong></span>
+            ${contest.raceGoal ? `<span class="contest-chip">Goal <strong>${fmt(contest.raceGoal, 1)}</strong></span>` : ''}
+            ${mode === 'wheel' && contest.wheelSpin ? `<span class="contest-chip">Winner <strong>${escapeHtml(contest.wheelSpin.winner)}</strong></span>` : ''}
+            ${mode === 'deal' && contestDealRankRows(contest)[0] ? `<span class="contest-chip">Best case <strong>$${fmt(contestDealRankRows(contest)[0].best, 0)}</strong></span>` : ''}
+          </div>
+          ${frozenNote}
+          ${scheduleNote}
         </div>
-        <div class="contest-countdown-block">
-          <div class="contest-countdown-label" data-contest-cd-label="${escapeAttr(contest.id)}">${escapeHtml(contestCountdownLabel(contest))}</div>
-          <div class="contest-countdown" data-contest-cd="${escapeAttr(contest.id)}">${escapeHtml(contestCountdownHTML(contest))}</div>
-        </div>
+        ${contestMomentumHTML(contest, momentumStandings, phase)}
+        ${phase === 'ended' ? contestRecapBannerHTML(contest) : ''}
+        <div class="contest-main-stage">${boardBlock}</div>
+        ${coachPanel}
       </div>
-      <div class="contest-board-chips">
-        <span class="contest-chip hot"><strong>${escapeHtml(contestModeLabel(contest.mode))}</strong></span>
-        <span class="contest-chip hot"><strong>${escapeHtml(contestUnitsLabel(contest.units))}</strong></span>
-        <span class="contest-chip hot"><strong>${escapeHtml(contestStakeLabel(contest))}</strong></span>
-        <span class="contest-chip">Your place <strong>${escapeHtml(phase === 'scheduled' ? 'Soon' : contestPlaceLabel(myPlace))}</strong></span>
-        ${contest.raceGoal ? `<span class="contest-chip">Goal <strong>${fmt(contest.raceGoal, 1)}</strong></span>` : ''}
-        ${mode === 'wheel' && contest.wheelSpin ? `<span class="contest-chip">Winner <strong>${escapeHtml(contest.wheelSpin.winner)}</strong></span>` : ''}
-        ${mode === 'deal' && contestDealRankRows(contest)[0] ? `<span class="contest-chip">Best case <strong>$${fmt(contestDealRankRows(contest)[0].best, 0)}</strong></span>` : ''}
-      </div>
-      ${frozenNote}
-      ${scheduleNote}
-    </div>
-    ${phase === 'ended' ? contestRecapBannerHTML(contest) : ''}
-    ${boardBlock}
-    ${coachPanel}`;
+    </div>`;
 }
 function populateContestManualRepSelect() {
   const sel = document.getElementById('contestManualRep');
@@ -7406,7 +7494,9 @@ function renderContestBoard() {
     else title.textContent = contest ? `${contestThemeIcon(contest)} ${contest.name}` : '🏆 Contest Arena';
   }
   if (overlay) {
-    overlay.classList.remove('theme-morning', 'theme-power-hour', 'theme-evening');
+    [...overlay.classList]
+      .filter((cls) => cls.startsWith('theme-'))
+      .forEach((cls) => overlay.classList.remove(cls));
     if (contest && contestArenaTab === 'live') overlay.classList.add(contestThemeClass(contest));
   }
   host.innerHTML = contestBoardHTML(contestArenaTab === 'history' ? null : contest);
@@ -7684,15 +7774,18 @@ function syncContestEditEmoji() {
   const meta = contestThemeMeta(theme);
   emoji.textContent = meta.mascot || meta.icon || '🏁';
 }
-function applyContestThemeDefaults(theme, { force } = {}) {
+function applyContestThemeDefaults(theme, { force, preserveMode } = {}) {
   const meta = contestThemeMeta(theme);
   const setVal = (id, v) => {
     const el = document.getElementById(id);
     if (!el) return;
-    if (!force && contestEditId) return;
     el.value = v;
   };
-  if (force || !contestEditId) setContestEditMode(meta.mode || 'race', { syncGuide: true });
+  // A live theme swap changes the arena's cosmetics immediately, but it must
+  // never silently turn an in-progress Speedway into a Wheel (or vice versa).
+  if (!preserveMode && (force || !contestEditId)) {
+    setContestEditMode(meta.mode || 'race', { syncGuide: true });
+  }
   setVal('contestEditVehicle', meta.vehicle || 'car');
   setVal('contestEditTrack', meta.track || 'asphalt');
   setVal('contestEditAccent', meta.accent || 'pink');
@@ -7801,7 +7894,13 @@ document.getElementById('contestEditStart')?.addEventListener('change', () => {
 });
 document.getElementById('contestEditTheme')?.addEventListener('change', () => {
   const theme = document.getElementById('contestEditTheme')?.value || 'grand-prix';
-  applyContestThemeDefaults(theme, { force: !contestEditId });
+  applyContestThemeDefaults(theme, { force: !contestEditId, preserveMode: !!contestEditId });
+  const status = document.getElementById('contestEditStatus');
+  const existing = CONTEST_CACHE.find((c) => c.id === contestEditId);
+  if (status && existing && contestCountdownPhase(existing) === 'active') {
+    status.textContent = 'Live theme preview updated. Saving changes the arena without resetting standings.';
+    status.style.color = '';
+  }
 });
 document.getElementById('contestEditStakeType')?.addEventListener('change', syncContestStakeFields);
 document.getElementById('contestEditModePicker')?.addEventListener('click', (e) => {
@@ -7992,6 +8091,46 @@ document.getElementById('contestBoardHost')?.addEventListener('click', async (e)
   const edit = e.target.closest('[data-contest-edit]');
   if (edit) {
     openContestEditModal(edit.getAttribute('data-contest-edit'));
+    return;
+  }
+  const themeEdit = e.target.closest('[data-contest-theme-edit]');
+  if (themeEdit) {
+    openContestEditModal(themeEdit.getAttribute('data-contest-theme-edit'));
+    const themeSelect = document.getElementById('contestEditTheme');
+    if (themeSelect) {
+      requestAnimationFrame(() => {
+        themeSelect.focus();
+        themeSelect.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      });
+    }
+    return;
+  }
+  const rallyBtn = e.target.closest('[data-contest-rally]');
+  if (rallyBtn) {
+    const contest = CONTEST_CACHE.find((c) => c.id === rallyBtn.getAttribute('data-contest-rally'));
+    if (!contest) return;
+    const lines = [
+      'Friendly pressure is on — next credit changes the board.',
+      'The crew is watching. Make the next move count.',
+      'Keep it close, keep it kind, keep it moving.',
+      'One strong close can shake up the whole race.',
+    ];
+    const announcer = document.getElementById('contestAnnouncer');
+    const line = lines[Math.floor(Math.random() * lines.length)];
+    if (announcer) {
+      announcer.textContent = line;
+      announcer.classList.remove('is-rallied');
+      void announcer.offsetWidth;
+      announcer.classList.add('is-rallied');
+    }
+    rallyBtn.textContent = '⚡ Team rallied';
+    rallyBtn.disabled = true;
+    burstContestConfetti(contest.effects === 'max' ? 'confetti' : (contest.effects || 'sparks'));
+    window.setTimeout(() => {
+      if (!rallyBtn.isConnected) return;
+      rallyBtn.textContent = '📣 Rally the team';
+      rallyBtn.disabled = false;
+    }, 3500);
     return;
   }
   const endBtn = e.target.closest('[data-contest-end]');
