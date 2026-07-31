@@ -5691,6 +5691,7 @@ function incomePlanningHTML(repDisplay) {
   const currentMeta = compLevelMeta(normalizeGoalRecord(loadGoals()[repDisplay]).level);
   const pct = tracking.composite;
   const progress = pct === null ? 0 : Math.min(100, pct / tracking.threshold * 100);
+  const months = tracking.periods.length;
   const status = !tracking.hasFullWindow
     ? `Building ${targetMeta.label} history · ${months} of ${state.window} periods`
     : tracking.meets
@@ -5698,7 +5699,6 @@ function incomePlanningHTML(repDisplay) {
     : pct === null
       ? 'Not enough goal data yet'
       : `${fmt(tracking.pointsGap, 1)} points from ${targetMeta.label}`;
-  const months = tracking.periods.length;
   return `
     <div class="income-planning-shell">
       <div class="income-planning-hero">
