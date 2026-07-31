@@ -3,7 +3,8 @@ import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
 import { requireAdmin } from "./_shared/access.mts";
 
-const LEVEL_DEFAULT_OTE: Record<number, number> = {
+const LEVEL_DEFAULT_OTE: Record<string, number> = {
+  pt: 500,
   1: 1000,
   2: 1333,
   3: 1667,
@@ -11,14 +12,16 @@ const LEVEL_DEFAULT_OTE: Record<number, number> = {
 
 function normalizeGoalRecord(raw: any) {
   const source = raw && typeof raw === "object" ? raw : {};
-  const parsedLevel = Number(raw?.level);
-  const level = parsedLevel === 2 || parsedLevel === 3 ? parsedLevel : 1;
+  const rawLevel = String(raw?.level || "").trim().toLowerCase();
+  const parsedLevel = Number(rawLevel);
+  const level = raw?.partTime === true || rawLevel === "pt" ? "pt" : parsedLevel === 2 || parsedLevel === 3 ? parsedLevel : 1;
   const savedOte = Number(raw?.ote);
   return {
     ...source,
     sessions: Math.max(0, Number(raw?.sessions) || 0),
     members: Math.max(0, Number(raw?.members) || 0),
     level,
+    partTime: level === "pt",
     ote: Number.isFinite(savedOte) && savedOte >= 0 ? savedOte : LEVEL_DEFAULT_OTE[level],
     tag: String(raw?.tag || "").trim().slice(0, 120),
     email: String(raw?.email || "").trim().toLowerCase().slice(0, 160),
