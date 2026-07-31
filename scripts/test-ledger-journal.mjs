@@ -168,11 +168,8 @@ const periodDuplicate = netLedgerJournal(
 );
 assert.equal(totals(periodDuplicate.rows).cancelMembers, -1, "a cancelled sale is charged once");
 assert.equal(totals(periodDuplicate.rows).cancelSessions, -8);
-assert.equal(
-  periodDuplicate.suppressed.filter((s) => s.reason === "duplicate-period-line").length,
-  1,
-  "and the duplicate is reported, not silently dropped"
-);
+assert.equal(periodDuplicate.suppressed.length, 1, "and the duplicate is reported, not silently dropped");
+assert.equal(periodDuplicate.suppressed[0].reason, "duplicate-period-line");
 
 // The safety case that matters most: a genuine cancel of a prior-month sale has
 // its credit outside the window too, but the journal nets to zero over all time,
@@ -185,14 +182,17 @@ const genuinePriorCancel = netLedgerJournal(
 assert.equal(totals(genuinePriorCancel.rows).cancelMembers, -1, "a real prior-month cancel still counts");
 assert.equal(genuinePriorCancel.suppressed.length, 0);
 
-// Never drop the only cancel a journal has, even if the arithmetic looks odd.
-const loneNegative = netLedgerJournal(
-  [line({ ledgerId: 670001, attributionId: 80001, members: -1, sessions: -8, lifetimeMembers: -1, lifetimeSessions: -8 })],
+// An orphan cancel — negative lifetime, no credit for this manager anywhere —
+// is bookkeeping. The July dump's Amanda/Jordan SPIFF cancels against sales
+// credited to other reps were this shape (~-5.5 of the -90.5 tile).
+const orphanCancel = netLedgerJournal(
+  [line({ ledgerId: 670001, attributionId: 80001, members: -0.5, sessions: -4, lifetimeMembers: -0.5, lifetimeSessions: -4 })],
   DISPLAY,
   new Set()
 );
-assert.equal(totals(loneNegative.rows).cancelMembers, -1, "a lone negative line is left alone");
-assert.equal(loneNegative.suppressed.length, 0);
+assert.equal(totals(orphanCancel.rows).cancelMembers, 0, "an orphan cancel is dropped");
+assert.equal(orphanCancel.suppressed.length, 1);
+assert.equal(orphanCancel.suppressed[0].reason, "orphan-cancel");
 
 // Drop no more than the overshoot: two cancels, only one line too many.
 const partialOvershoot = netLedgerJournal(
