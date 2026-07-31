@@ -10,6 +10,7 @@ function redactCompensation(goals: any, viewerEmail: string, fullAccess: boolean
     const goal = raw && typeof raw === "object" ? { ...(raw as Record<string, any>) } : {};
     const isOwn = String(goal.email || "").trim().toLowerCase() === email;
     if (!isOwn) {
+      goal.partTime = String(goal.level || "").trim().toLowerCase() === "pt" || goal.partTime === true;
       delete goal.ote;
       delete goal.level;
       goal.compensationRestricted = true;

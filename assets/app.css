@@ -5354,6 +5354,32 @@ body.dark .income-qualification-note b { color: #fbbf24; }
 .income-locked strong { font-size: 14px; }
 .income-locked p { margin: 4px 0 0; color: var(--text-muted); font-size: 10px; line-height: 1.45; }
 .income-formula { color: var(--text-faint); font-size: 9px; text-align: right; }
+.income-months-card > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+  list-style: none;
+}
+.income-months-card > summary::-webkit-details-marker { display: none; }
+.income-months-card > summary strong { display: block; margin-top: 3px; font-size: 14px; }
+.income-months-card > summary small { color: var(--text-faint); font-size: 9px; text-align: right; }
+.income-months-card > summary::after {
+  content: '+';
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  color: #7c3aed;
+  background: color-mix(in srgb,#8b5cf6 10%,var(--metric-box-bg));
+  font-size: 16px;
+  font-weight: 900;
+}
+.income-months-card[open] > summary::after { content: '−'; }
+.income-months-card[open] .income-formula { margin: 14px 0 8px; text-align: left; }
 .income-month-list { display: flex; flex-direction: column; gap: 6px; }
 .income-month-row {
   display: grid;
@@ -5385,11 +5411,13 @@ body.dark .income-qualification-note b { color: #fbbf24; }
 .income-month-row.goal .income-month-pct strong { color: #16a34a; }
 .income-empty { padding: 20px; color: var(--text-faint); font-size: 11px; text-align: center; }
 
-.bonus-level-planner { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
-.bonus-level-planner > span { color: var(--text-faint); font-size: 8px; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
-.bonus-level-toggle { padding: 3px; border-radius: 11px; }
-.bonus-level-toggle button { min-width: 34px; padding: 5px 8px; font-size: 9px; }
-.bonus-level-context { margin-bottom: 3px; color: var(--text-faint); font-size: 8px; font-weight: 800; }
+.bonus-level-toggle {
+  width: 100%;
+  margin-bottom: 9px;
+  padding: 3px;
+  border-radius: 11px;
+}
+.bonus-level-toggle button { flex: 1; min-width: 34px; padding: 5px 8px; font-size: 9px; }
 
 @media (max-width: 850px) {
   .income-planning-hero { align-items: stretch; flex-direction: column; }
@@ -5405,6 +5433,8 @@ body.dark .income-qualification-note b { color: #fbbf24; }
   .income-blended { grid-column: 1 / -1; text-align: left; }
   .income-qualification-note, .income-section-head { align-items: flex-start; flex-direction: column; }
   .income-qualification-note b, .income-formula { text-align: left; }
+  .income-months-card > summary { align-items: flex-start; }
+  .income-months-card > summary small { text-align: left; }
   .income-level-picker { width: 100%; }
   .income-level-picker button { flex: 1; min-width: 0; }
   .income-month-row { grid-template-columns: 1fr 1fr; }

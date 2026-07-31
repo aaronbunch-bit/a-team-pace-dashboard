@@ -5,8 +5,8 @@
 <title>A-Team Pacer</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
 <link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/assets/app.css">
-<script src="/assets/ui-dialog.js"></script>
+<link rel="stylesheet" href="/assets/app.css?v=20260731-income-pt-ux">
+<script src="/assets/ui-dialog.js?v=20260731-income-pt-ux"></script>
 
 </head>
 <body>
@@ -293,7 +293,7 @@
         <button type="button" class="pacer-layout-tab active" role="tab" aria-selected="true" data-pacer-tab="current">Current</button>
         <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="lastmonth" id="pacerTabLastMonthBtn" hidden>Last Month</button>
         <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="historical">Historical</button>
-        <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="income">Income Planning</button>
+        <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="income" id="pacerTabIncomeBtn">Income Planning</button>
       </div>
     </div>
 
@@ -411,7 +411,7 @@
       </div>
     </div>
 
-    <section class="income-planning-pane" id="incomePlanningPane" aria-label="Income Planning">
+    <section class="income-planning-pane" id="incomePlanningPane" aria-label="Income Planning" hidden>
       <div id="incomePlanningContent"></div>
     </section>
 
@@ -421,7 +421,7 @@
         <span class="side-chevron collapsed" id="historyCollapseChevron">▾</span>
       </div>
       <div id="historyCollapseBody" class="history-collapse-body collapsed">
-        <div class="meta-note" style="margin-top:0;">Month-over-month pacing for this rep. The chart's dashed lines mark 115% (Level 2) and 150% (Level 3), plus the selected range's average — toggle them on/off with the Thresholds button, hover a line to see its label.</div>
+        <div class="meta-note" id="repHistoryIntro" style="margin-top:0;">Month-over-month pacing for this rep. The chart's dashed lines mark 115% (Level 2) and 150% (Level 3), plus the selected range's average — toggle them on/off with the Thresholds button, hover a line to see its label.</div>
         <div class="rep-sip-grid">
           <div class="card rep-sip-col rep-sip-col-month">
             <h2>🗓️ Select a month</h2>
@@ -1076,7 +1076,7 @@
           <button id="saveGoals">Save goals</button>
           <span class="field-toggle-tag" id="toggleAdvancedFields">+ Tag / Email / Cap</span>
         </div>
-        <div class="meta-note">L1: $41,600 salary / $1,000 OTE · L2: $50,000 / $1,333 · L3: $60,000 / $1,667. Changing Level fills the standard OTE; OTE remains editable. ✕ removes someone (restorable in Removed).</div>
+        <div class="meta-note">PT: $500 OTE (no leveling planner) · L1: $41,600 salary / $1,000 OTE · L2: $50,000 / $1,333 · L3: $60,000 / $1,667. Changing Level fills the standard OTE; OTE remains editable. ✕ removes someone (restorable in Removed).</div>
       </div>
     </div>
     <div class="ops-subpanel" data-goals-panel="removed" id="removedBody">
@@ -1627,26 +1627,41 @@ function badgeYesterdayYmd(date) {
 }
 
 const COMP_LEVELS = Object.freeze({
+  pt: Object.freeze({ level: 'pt', label: 'PT', salary: null, ote: 500, threshold: null }),
   1: Object.freeze({ level: 1, label: 'L1', salary: 41600, ote: 1000, threshold: 100 }),
   2: Object.freeze({ level: 2, label: 'L2', salary: 50000, ote: 1333, threshold: 115 }),
   3: Object.freeze({ level: 3, label: 'L3', salary: 60000, ote: 1667, threshold: 150 }),
 });
 function normalizeCompLevel(value) {
+  if (String(value || '').trim().toLowerCase() === 'pt') return 'pt';
   const n = Number(value);
   return n === 2 || n === 3 ? n : 1;
+}
+function isPartTimeLevel(value) {
+  return normalizeCompLevel(value) === 'pt';
+}
+function compLevelRank(value) {
+  const level = normalizeCompLevel(value);
+  return level === 'pt' ? 0 : level;
+}
+function clampPlanningLevel(currentValue, selectedValue) {
+  const current = normalizeCompLevel(currentValue);
+  if (current === 'pt') return 'pt';
+  return Math.max(current, compLevelRank(selectedValue) || current);
 }
 function compLevelMeta(value) {
   return COMP_LEVELS[normalizeCompLevel(value)];
 }
 function normalizeGoalRecord(raw) {
   const source = raw && typeof raw === 'object' ? raw : {};
-  const level = normalizeCompLevel(source.level);
+  const level = source.partTime === true ? 'pt' : normalizeCompLevel(source.level);
   const savedOte = Number(source.ote);
   return {
     ...source,
     sessions: Math.max(0, Number(source.sessions) || 0),
     members: Math.max(0, Number(source.members) || 0),
     level,
+    partTime: level === 'pt',
     // Existing zero/missing OTE records migrate to the L1 standard.
     ote: Number.isFinite(savedOte) && savedOte > 0 ? savedOte : compLevelMeta(level).ote,
     tag: String(source.tag || ''),
@@ -1922,6 +1937,9 @@ function applyLayout(pref) {
     btn.classList.toggle('active', on);
     btn.setAttribute('aria-selected', on ? 'true' : 'false');
   });
+  const incomePane = document.getElementById('incomePlanningPane');
+  const incomeTab = document.getElementById('pacerTabIncomeBtn');
+  if (incomePane) incomePane.hidden = pacerTab !== 'income' || !!incomeTab?.hidden;
   document.querySelectorAll('#layoutBoardsSwitch .theme-btn').forEach((btn) => {
     btn.classList.toggle('active', btn.getAttribute('data-board-surface') === boardSurface);
   });
@@ -5001,6 +5019,7 @@ function renderGoalsForm(goals) {
       <div><input type="number" step="0.01" data-name="${r.display}" data-field="sessions" value="${g.sessions}"></div>
       <div><input type="number" step="0.01" data-name="${r.display}" data-field="members" value="${g.members}"></div>
       <div><select data-name="${r.display}" data-field="level" aria-label="${r.display} compensation level">
+        <option value="pt"${g.level === 'pt' ? ' selected' : ''}>PT</option>
         <option value="1"${g.level === 1 ? ' selected' : ''}>L1</option>
         <option value="2"${g.level === 2 ? ' selected' : ''}>L2</option>
         <option value="3"${g.level === 3 ? ' selected' : ''}>L3</option>
@@ -5504,8 +5523,14 @@ function renderSipChart(slice, rangeAvg) {
 // Same raw actual/goal math as the team section, just scoped to one rep's own
 // row within each month's `reps[]` array. Uses different promotion thresholds
 // (115% / 150%) than the team-level 110%/120%, per Aaron's request.
-function repPromoTier(pct) {
+function repPromoTier(pct, repDisplay) {
   if (pct === null || pct === undefined || isNaN(pct)) return { cls: 'st-na', label: '—', barGrad: '#c7c5d6', special: false };
+  if (repDisplay && isPartTimeLevel(loadGoals()[repDisplay]?.level)) {
+    if (pct >= 100) return { cls: 'st-gradient', label: '🏆 Goal Met', barGrad: 'linear-gradient(90deg, #f472b6, #a855f7 35%, #6366f1 65%, #38bdf8)', special: true };
+    if (pct >= 80) return { cls: 'st-ontrack', label: 'On Track', barGrad: 'linear-gradient(90deg,#60a5fa,#6366f1)', special: false };
+    if (pct >= 50) return { cls: 'st-behind', label: 'Behind', barGrad: 'linear-gradient(90deg,#fb923c,#f97316)', special: false };
+    return { cls: 'st-far', label: 'Far Behind', barGrad: 'linear-gradient(90deg,#f87171,#dc2626)', special: false };
+  }
   if (pct >= 150) return { cls: 'st-gold', label: '🥇 Level 3', barGrad: 'linear-gradient(90deg,#fbbf24,#f59e0b)', special: false };
   if (pct >= 115) return { cls: 'st-l2', label: '🥈 Level 2', barGrad: 'linear-gradient(90deg,#a78bfa,#7c3aed)', special: false };
   if (pct >= 100) return { cls: 'st-gradient', label: '🏆 Goal Met', barGrad: 'linear-gradient(90deg, #f472b6, #a855f7 35%, #6366f1 65%, #38bdf8)', special: true };
@@ -5549,13 +5574,13 @@ const incomePlanningStateByRep = Object.create(null);
 function getIncomePlanningState(repDisplay) {
   const currentLevel = normalizeGoalRecord(loadGoals()[repDisplay]).level;
   const state = incomePlanningStateByRep[repDisplay] || {
-    window: 6,
+    window: compLevelRank(currentLevel) >= 2 ? 12 : 6,
     includeMtd: true,
     level: currentLevel,
   };
   state.window = state.window === 12 ? 12 : 6;
   state.includeMtd = state.includeMtd !== false;
-  state.level = Math.max(currentLevel, normalizeCompLevel(state.level));
+  state.level = clampPlanningLevel(currentLevel, state.level);
   incomePlanningStateByRep[repDisplay] = state;
   return state;
 }
@@ -5639,6 +5664,7 @@ function incomePeriodRowHTML(period, csvKey) {
 }
 
 function incomeConfidentialHTML(repDisplay, tracking, state) {
+  if (isPartTimeLevel(loadGoals()[repDisplay]?.level)) return '';
   if (!canViewConfidentialPayout(repDisplay)) {
     return `
       <div class="income-locked">
@@ -5650,8 +5676,8 @@ function incomeConfidentialHTML(repDisplay, tracking, state) {
       </div>`;
   }
   const goal = normalizeGoalRecord(loadGoals()[repDisplay]);
-  const allowedLevels = [1, 2, 3].filter((level) => level >= goal.level);
-  const level = Math.max(goal.level, normalizeCompLevel(state.level));
+  const allowedLevels = [1, 2, 3].filter((level) => level >= compLevelRank(goal.level));
+  const level = clampPlanningLevel(goal.level, state.level);
   const meta = compLevelMeta(level);
   const ote = level === goal.level ? goal.ote : meta.ote;
   const attainment = tracking.composite === null ? 0 : tracking.composite / 100;
@@ -5687,6 +5713,7 @@ function incomeConfidentialHTML(repDisplay, tracking, state) {
 }
 
 function incomePlanningHTML(repDisplay) {
+  if (isPartTimeLevel(loadGoals()[repDisplay]?.level)) return '';
   const state = getIncomePlanningState(repDisplay);
   const tracking = incomeLevelTracking(repDisplay, state.window, state.includeMtd);
   const a = tracking.aggregate;
@@ -5698,19 +5725,19 @@ function incomePlanningHTML(repDisplay) {
   const progress = pct === null ? 0 : Math.min(100, pct / tracking.threshold * 100);
   const months = tracking.periods.length;
   const status = !tracking.hasFullWindow
-    ? `Building ${targetMeta.label} history · ${months} of ${state.window} periods`
+    ? `${months} of ${state.window} months available`
     : tracking.meets
-    ? `At the ${targetMeta.label} performance threshold`
+    ? `${targetMeta.label} performance benchmark reached`
     : pct === null
       ? 'Not enough goal data yet'
-      : `${fmt(tracking.pointsGap, 1)} points from ${targetMeta.label}`;
+      : `${fmt(tracking.pointsGap, 1)} points to the ${targetMeta.label} benchmark`;
   return `
     <div class="income-planning-shell">
       <div class="income-planning-hero">
         <div>
           <span class="income-eyebrow">${canSeeComp ? `Current compensation · ${currentMeta.label}` : 'Consultant level progress'}</span>
           <h2>Income Planning</h2>
-          <p>See how your trailing performance tracks toward the next level—and what that pace could mean for income.</p>
+          <p>Track your trailing level score and see what the same performance could mean at each available compensation level.</p>
         </div>
         <div class="income-controls">
           <div class="income-window-toggle" role="group" aria-label="Level tracking window">
@@ -5727,7 +5754,7 @@ function incomePlanningHTML(repDisplay) {
       <div class="income-progress-card ${tracking.meets ? 'meets' : ''}">
         <div class="income-progress-summary">
           <span class="income-level-badge">${targetMeta.label}</span>
-          <div><span class="income-eyebrow">${months} of ${state.window} periods available</span><h3>${escapeHtml(status)}</h3></div>
+          <div><span class="income-eyebrow">${state.window}-month ${targetMeta.label} view</span><h3>${escapeHtml(status)}</h3></div>
           <strong class="income-blended">${pct === null ? '—' : fmt(pct, 1) + '%'}<small>blended average</small></strong>
         </div>
         <div class="income-track"><span style="width:${progress}%"></span><i style="left:100%"></i></div>
@@ -5745,15 +5772,16 @@ function incomePlanningHTML(repDisplay) {
 
       ${incomeConfidentialHTML(repDisplay, tracking, state)}
 
-      <div class="income-months-card">
-        <div class="income-section-head">
-          <div><span class="income-eyebrow">Calculation detail</span><h3>Months in this view</h3></div>
-          <span class="income-formula">Blended = (aggregate sessions % + aggregate members %) ÷ 2</span>
-        </div>
+      <details class="income-months-card">
+        <summary>
+          <span><span class="income-eyebrow">Calculation detail</span><strong>View the ${months} months used</strong></span>
+          <small>Aggregate sessions and members—not an average of monthly scores</small>
+        </summary>
+        <div class="income-formula">Blended score = (aggregate sessions attainment + aggregate members attainment) ÷ 2</div>
         <div class="income-month-list">
           ${tracking.periods.length ? tracking.periods.map((period) => incomePeriodRowHTML(period, tracking.csvKey)).join('') : '<div class="income-empty">No completed SIP history is available for this rep yet.</div>'}
         </div>
-      </div>
+      </details>
     </div>`;
 }
 
@@ -5813,15 +5841,15 @@ function repSipMonthCardHTML(m, csvKey, repDisplay) {
   } else {
     trendSub = 'First month on record for this rep';
   }
-  const pt = repPromoTier(a.compositePct);
+  const pt = repPromoTier(a.compositePct, currentRepSipDisplay);
   const heroStyle = a.compositePct === null
     ? 'color:#c7c5d6;'
     : `background:${pt.barGrad}; -webkit-background-clip:text; background-clip:text; color:transparent;`;
   const barWidth = a.compositePct === null ? 0 : Math.min(a.compositePct, 100);
   // Sessions/Members each get their own tag, colored/labeled with the same
   // repPromoTier() logic as the composite pill above — not just plain text.
-  const sessTier = repPromoTier(a.sessionsPct);
-  const memTier = repPromoTier(a.membersPct);
+  const sessTier = repPromoTier(a.sessionsPct, currentRepSipDisplay);
+  const memTier = repPromoTier(a.membersPct, currentRepSipDisplay);
   // Pure SIP payout, computed entirely from the imported SIP file's real
   // Sessions/Members numbers for this month — no manual entry here. SPIFF
   // isn't part of the SIP ledger, so it has no place in a historical month
@@ -5901,7 +5929,7 @@ function renderRepSipRange() {
   }
   const att = repAggregateMonths(slice, currentRepSipCsv);
   const avg = att.compositePct;
-  const pt = repPromoTier(avg);
+  const pt = repPromoTier(avg, currentRepSipDisplay);
   const heroStyle = avg === null ? 'color:#c7c5d6;' : `background:${pt.barGrad}; -webkit-background-clip:text; background-clip:text; color:transparent;`;
   const barWidth = avg === null ? 0 : Math.min(avg, 100);
 
@@ -5986,6 +6014,7 @@ let repChartMode = loadJSON(REP_CHART_MODE_KEY, 'attainment');
 function renderRepSipChart(slice, csvKey, rangeAvg, repDisplay) {
   const ctx = document.getElementById('repSipChart');
   if (!ctx) return;
+  const partTime = isPartTimeLevel(loadGoals()[repDisplay]?.level);
   const paint = () => {
     if (typeof Chart === 'undefined') return;
     if (!slice) slice = SIP_HISTORY;
@@ -6029,7 +6058,7 @@ function renderRepSipChart(slice, csvKey, rangeAvg, repDisplay) {
           : { title: { display: true, text: 'Attainment %' } }
       }
     },
-    plugins: (isEarnings || !repChartThresholdsOn) ? [] : [{
+    plugins: (partTime || isEarnings || !repChartThresholdsOn) ? [] : [{
       id: 'refLinesRep',
       afterDraw(chart) {
         const { ctx, chartArea, scales } = chart;
@@ -9430,7 +9459,7 @@ function computeBonusForRep(repDisplay, planningLevel) {
   const goals = loadGoals();
   const goal = normalizeGoalRecord(goals[repDisplay]);
   const currentLevel = goal.level;
-  const level = Math.max(currentLevel, normalizeCompLevel(planningLevel || currentLevel));
+  const level = clampPlanningLevel(currentLevel, planningLevel || currentLevel);
   const levelMeta = compLevelMeta(level);
   // Current band honors the admin override; higher-band what-ifs use standard OTE.
   const ote = level === currentLevel ? goal.ote : levelMeta.ote;
@@ -9500,25 +9529,24 @@ function bonusPayoutHTML(repDisplay) {
   }
   const goal = normalizeGoalRecord(loadGoals()[repDisplay]);
   const savedLevel = normalizeCompLevel(bonusPlanningLevelByRep[repDisplay] || goal.level);
-  const planningLevel = Math.max(goal.level, savedLevel);
+  const planningLevel = clampPlanningLevel(goal.level, savedLevel);
   bonusPlanningLevelByRep[repDisplay] = planningLevel;
   const b = computeBonusForRep(repDisplay, planningLevel);
   const money = (x) => '$' + fmt(x, 2);
   const noOte = !b.ote;
   const st = tier(b.overallProjPct, b.overallGoalIsZero);
   const heroStyle = b.overallGoalIsZero ? 'color:#c7c5d6;' : `background:${st.barGrad}; -webkit-background-clip:text; background-clip:text; color:transparent;`;
-  const levelButtons = [1, 2, 3]
-    .filter((level) => level >= b.currentLevel)
+  const levelButtons = isPartTimeLevel(b.currentLevel) ? '' : [1, 2, 3]
+    .filter((level) => level >= compLevelRank(b.currentLevel))
     .map((level) => `<button type="button" data-bonus-level="${level}" class="${level === b.level ? 'active' : ''}">L${level}</button>`)
     .join('');
+  const levelToggle = levelButtons
+    ? `<div class="bonus-level-toggle" role="group" aria-label="Payout level scenario">${levelButtons}</div>`
+    : '';
   return `
     ${noOte ? `<div class="meta-note" style="margin-top:0; color:#dc2626; font-size:10.5px;">No Monthly OTE set yet — add one on <a href="#edit-goals">Edit Monthly Goals</a>.</div>` : ''}
-    <div class="bonus-level-planner">
-      <span>Plan at</span>
-      <div class="bonus-level-toggle" role="group" aria-label="Compensation level scenario">${levelButtons}</div>
-    </div>
+    ${levelToggle}
     <div class="bonus-hero">
-      <div class="bonus-level-context">${b.levelMeta.label} · $${b.levelMeta.salary.toLocaleString('en-US')} salary · ${money(b.ote)} monthly OTE</div>
       <div class="bonus-hero-label">Projected Payout</div>
       <div class="bonus-hero-num" style="${heroStyle}">${money(b.withSpiffProj)}</div>
       ${b.cappedProj ? `<div class="meta-note" style="margin-top:4px; font-size:10.5px;">Capped at 200% of OTE</div>` : ''}
@@ -9541,7 +9569,6 @@ function bonusPayoutHTML(repDisplay) {
           SPIFF this month ($)
           <input type="number" step="1" min="0" id="bonusSpiffInput" value="${b.spiff}">
         </label>
-        <div class="meta-note" style="margin:0; font-size:10.5px;">${b.levelMeta.label} OTE: ${money(b.ote)} · Prorated: ${money(b.proratedOte)}</div>
       </div>
     </details>
     <div class="bonus-disclaimer">⚠️ Estimate only — not your actual bonus check. Final payouts are calculated and approved by Finance; Aaron will share confirmed numbers after that review.</div>`;
@@ -9671,6 +9698,13 @@ function renderClientDetail(opts) {
   overlay.classList.add('open');
   syncOverlayBodyScroll();
   document.getElementById('detailRepName').textContent = repName + ' — Individual Pacer';
+  const partTime = isPartTimeLevel(loadGoals()[repName]?.level);
+  const incomeTab = document.getElementById('pacerTabIncomeBtn');
+  if (incomeTab) incomeTab.hidden = partTime;
+  if (partTime && pacerTab === 'income') {
+    pacerTab = 'current';
+    applyLayout(document.body.dataset.layout || 'split-stack');
+  }
 
   const allowed = canViewClientDetail(repName);
   const restrictedNote = document.getElementById('detailRestrictedNote');
@@ -9688,7 +9722,7 @@ function renderClientDetail(opts) {
     return;
   }
   const incomePane = document.getElementById('incomePlanningPane');
-  if (incomePane) incomePane.hidden = false;
+  if (incomePane) incomePane.hidden = partTime || pacerTab !== 'income';
   restrictedNote.style.display = 'none';
   // Clear any leftover inline display so tab CSS can own visibility.
   bodyEls.forEach(el => { el.style.removeProperty('display'); });
@@ -9758,7 +9792,12 @@ function renderClientDetail(opts) {
   fillDetailActivity(repName);
   try { syncLastMonthPacerTab(repName); } catch (e) { console.warn('Last Month tab sync failed:', e); }
   syncMetricsSidePanel(repName);
-  renderIncomePlanning(repName);
+  if (partTime) {
+    const incomeHost = document.getElementById('incomePlanningContent');
+    if (incomeHost) incomeHost.innerHTML = '';
+  } else {
+    renderIncomePlanning(repName);
+  }
   syncViewAsTopbar();
   // Confidentiality gate for the chart's $ view — hide the option entirely for
   // a viewer who shouldn't see payout, and if they were somehow left on
@@ -9767,6 +9806,13 @@ function renderClientDetail(opts) {
   // chart, so it never renders in $ mode for a gated viewer even for a frame.
   const canSeePayout = canViewConfidentialPayout(repName);
   document.getElementById('chartModeEarningsBtn').style.display = canSeePayout ? '' : 'none';
+  document.getElementById('repChartThresholdsBtn').style.display = partTime ? 'none' : '';
+  const historyIntro = document.getElementById('repHistoryIntro');
+  if (historyIntro) {
+    historyIntro.textContent = partTime
+      ? 'Month-over-month pacing for this rep, using aggregate Sessions and Members attainment.'
+      : "Month-over-month pacing for this rep. The chart's dashed lines mark 115% (Level 2) and 150% (Level 3), plus the selected range's average — toggle them on/off with the Thresholds button, hover a line to see its label.";
+  }
   if (!canSeePayout && repChartMode === 'earnings') {
     repChartMode = 'attainment';
     saveJSON(REP_CHART_MODE_KEY, repChartMode);
