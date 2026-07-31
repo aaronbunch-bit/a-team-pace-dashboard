@@ -963,7 +963,7 @@
     <div class="workspace-panel active" id="teamPanelCancels" data-team-panel="cancels">
       <div class="card ops-panel-shell">
         <h2>Cancels — team-wide</h2>
-        <div class="meta-note" style="margin:0 0 12px;">Negative ledger lines across the team, dated the day the ledger recorded them — the same dates a rep-scores export shows. Convert a cancel into a Manual Attribution correction without guessing the rep.</div>
+        <div class="meta-note" style="margin:0 0 12px;">Negative ledger lines across the team for this month (and cancels of last month's sales that hit this month). Convert a cancel into a Manual Attribution correction without guessing the rep.</div>
         <div class="meta-note" id="teamCancelsWindowNote" style="margin:0 0 12px;" hidden></div>
         <div class="ops-list-head ops-cancels"><span>Date</span><span>Rep</span><span>Client</span><span>Members</span><span>Sessions</span><span>Action</span></div>
         <div class="ops-list" id="teamCancelsBody"></div>
@@ -6694,8 +6694,8 @@ let contestSoftPollTimer = 0;
 let contestLastListFetchMs = 0;
 let contestStandingsCache = new Map(); // key -> { at, rows }
 let contestFreezeAttempted = new Set();
-const CONTEST_LIVE_POLL_MS = 20000;
-const CONTEST_SOFT_POLL_MS = 60000;
+const CONTEST_LIVE_POLL_MS = 30000;
+const CONTEST_SOFT_POLL_MS = 120000;
 const CONTEST_CAR_COLORS = ['#ec4899','#38bdf8','#a3e635','#fbbf24','#a78bfa','#fb923c','#22d3ee','#f472b6','#34d399','#818cf8'];
 
 function contestCanManage() {
@@ -10560,9 +10560,9 @@ function computeTeamCancels() {
 const cancelsConvertedThisSession = new Set();
 function cancelRowKey(row) { return row.date + '|' + row.clientId + '|' + row.rep; }
 /**
- * How this month's cancels split by the age of the sale behind them, plus any
- * line the pacer held back. Reconciling the tiles against a rep-scores export
- * used to mean exporting the ledger and adding it up by hand.
+ * How this month's cancels split by the age of the sale behind them. Reconciling
+ * the tiles against a rep-scores export used to mean exporting the ledger and
+ * adding it up by hand — this is that split, live.
  */
 function renderCancelsWindowNote() {
   const note = document.getElementById('teamCancelsWindowNote');
@@ -10575,9 +10575,9 @@ function renderCancelsWindowNote() {
     `Cancels of this month's sales: ${lost(c.thisMonthSale)}`,
     `of last month's: ${lost(c.priorMonthSale)}`,
   ];
-  if (c.olderSale && c.olderSale.rows) parts.push(`older: ${lost(c.olderSale)}`);
-  const held = (w.deletedAttribution && w.deletedAttribution.rows) || 0;
-  if (held) parts.push(`${held} line${held === 1 ? '' : 's'} held back (attribution deleted upstream)`);
+  if (c.olderSale && c.olderSale.rows) parts.push(`older (should be 0): ${lost(c.olderSale)}`);
+  const soft = (w.deletedAttribution && w.deletedAttribution.rows) || 0;
+  if (soft) parts.push(`${soft} line${soft === 1 ? '' : 's'} on soft-deleted attributions`);
   note.textContent = parts.join(' · ') + '.';
   note.hidden = false;
 }
@@ -10863,11 +10863,17 @@ async function fetchShoutouts() {
 // baked-in default keeps showing until the first real write.
 // Live MTD actuals from Supabase (acquisition-call-center ledger). Preferred
 // over Blobs/CSV when available; Manual Attribution approved totals stay additive.
-const LIVE_ACTUALS_POLL_MS = 45000;
+const LIVE_ACTUALS_POLL_MS = 90_000;
+const LIVE_ACTUALS_POLL_MAX_MS = 180_000;
+const LIVE_ACTUALS_SHARE_KEY = 'pace_live_actuals_share_v1';
+const LIVE_ACTUALS_LEADER_KEY = 'pace_live_actuals_leader_v1';
 let liveActualsTimer = null;
 let lastLiveActualsOk = false;
 let liveActualsInFlight = null;
 let liveActualsVisibilityBound = false;
+let liveActualsEtag = '';
+let liveActualsUnchangedStreak = 0;
+let liveActualsPollDelayMs = LIVE_ACTUALS_POLL_MS;
 
 function actualsDigest(actuals) {
   if (!actuals || !actuals.perRep) return '';
@@ -10875,6 +10881,7 @@ function actualsDigest(actuals) {
   return String(actuals.asOf || '') + '|' + Object.keys(per).sort().map((k) => {
     const r = per[k] || {};
     return k + ':' + (Number(r.members) || 0) + ':' + (Number(r.sessions) || 0) + ':' +
+      (Number(r.membersCancels) || 0) + ':' + (Number(r.sessionsCancels) || 0) + ':' +
       (Array.isArray(r.items) ? r.items.length : 0);
   }).join(',');
 }
@@ -11040,6 +11047,89 @@ function patchLandingPaceNumbers() {
   return true;
 }
 
+function readSharedLiveActuals(maxAgeMs) {
+  try {
+    const raw = localStorage.getItem(LIVE_ACTUALS_SHARE_KEY);
+    if (!raw) return null;
+    const doc = JSON.parse(raw);
+    if (!doc || !doc.actuals || !doc.actuals.perRep) return null;
+    const age = Date.now() - Number(doc.fetchedAtMs || 0);
+    if (!(age >= 0 && age < maxAgeMs)) return null;
+    return doc;
+  } catch (_) {
+    return null;
+  }
+}
+
+function writeSharedLiveActuals(data, wantFull) {
+  try {
+    // Compact shares stay small; full item lists are per-tab only.
+    const actuals = wantFull ? data.actuals : {
+      asOf: data.actuals.asOf,
+      perRep: Object.fromEntries(Object.entries(data.actuals.perRep || {}).map(([name, row]) => [name, {
+        members: row.members,
+        sessions: row.sessions,
+        membersCancels: row.membersCancels,
+        sessionsCancels: row.sessionsCancels,
+      }])),
+    };
+    localStorage.setItem(LIVE_ACTUALS_SHARE_KEY, JSON.stringify({
+      fetchedAtMs: Date.now(),
+      etag: liveActualsEtag || '',
+      actuals,
+      prelim: data.prelim || null,
+      ledgerIntegrity: data.ledgerIntegrity || null,
+      matchedRows: data.matchedRows,
+      cacheHit: !!data.cacheHit,
+      fetchedAt: data.fetchedAt || null,
+    }));
+  } catch (_) { /* quota / private mode */ }
+}
+
+/** Only one visible tab should hit the network; siblings reuse its share. */
+function claimLiveActualsLeadership() {
+  const tabId = (window.__paceLiveTabId ||= (Math.random().toString(36).slice(2) + Date.now().toString(36)));
+  try {
+    const now = Date.now();
+    const raw = localStorage.getItem(LIVE_ACTUALS_LEADER_KEY);
+    const cur = raw ? JSON.parse(raw) : null;
+    if (cur && cur.id && cur.id !== tabId && (now - Number(cur.at || 0)) < liveActualsPollDelayMs * 0.8) {
+      return false;
+    }
+    localStorage.setItem(LIVE_ACTUALS_LEADER_KEY, JSON.stringify({ id: tabId, at: now }));
+    return true;
+  } catch (_) {
+    return true;
+  }
+}
+
+function applyLiveActualsPayload(data, wantFull, prevDigest) {
+  if (!data.actuals || !data.actuals.perRep) {
+    lastLiveActualsOk = false;
+    return 'error';
+  }
+  ACTUALS_CACHE = wantFull ? data.actuals : mergeLiveActualsPreserveItems(data.actuals);
+  if (data.prelim) PRELIM_CACHE = data.prelim;
+  if (data.ledgerIntegrity && !data.ledgerIntegrity.compact) {
+    LEDGER_INTEGRITY = data.ledgerIntegrity;
+  } else if (data.ledgerIntegrity && data.ledgerIntegrity.window) {
+    LEDGER_INTEGRITY = { ...LEDGER_INTEGRITY, window: data.ledgerIntegrity.window };
+  }
+  syncLedgerIntegrityBadge(data.ledgerIntegrity);
+  lastLiveActualsOk = true;
+  const statusEl = document.getElementById('liveActualsStatus');
+  if (statusEl) {
+    statusEl.textContent = `Live Supabase feed OK · as of ${data.actuals.asOf}` +
+      (data.matchedRows != null ? ` · ${data.matchedRows} ledger rows` : '') +
+      (data.cacheHit ? ' · cached' : '') +
+      (data.sharedHit ? ' · sibling tab' : '') +
+      (data.notModified ? ' · unchanged' : '') +
+      (data.fetchedAt ? ` · synced ${new Date(data.fetchedAt).toLocaleTimeString()}` : '');
+    statusEl.style.color = '#16a34a';
+  }
+  return actualsDigest(ACTUALS_CACHE) === prevDigest ? 'unchanged' : 'changed';
+}
+
 async function fetchLiveActuals(opts) {
   if (liveActualsInFlight) {
     // A `fresh` caller just changed the data server-side, so an already
@@ -11053,31 +11143,42 @@ async function fetchLiveActuals(opts) {
   liveActualsInFlight = (async () => {
   try {
     const wantFull = forceFull || liveActualsNeedsFullItems();
+    // Sibling tabs: reuse a fresh share instead of another Supabase round trip.
+    if (!(opts && opts.fresh)) {
+      const isLeader = claimLiveActualsLeadership();
+      if (!isLeader) {
+        const shared = readSharedLiveActuals(liveActualsPollDelayMs);
+        if (shared) {
+          if (shared.etag) liveActualsEtag = shared.etag;
+          return applyLiveActualsPayload({ ...shared, sharedHit: true }, wantFull, prevDigest);
+        }
+      }
+    } else {
+      claimLiveActualsLeadership();
+    }
     const params = [];
     if (!wantFull) params.push('compact=1');
     if (opts && opts.fresh) params.push('fresh=1');
     const qs = params.length ? '?' + params.join('&') : '';
-    const data = await authedFetch('/api/actuals/live' + qs, { cache: 'no-store' });
-    if (!data.actuals || !data.actuals.perRep) {
-      lastLiveActualsOk = false;
-      return 'error';
+    const headers = {};
+    if (liveActualsEtag && !(opts && opts.fresh)) headers['If-None-Match'] = liveActualsEtag;
+    const data = await authedFetch('/api/actuals/live' + qs, {
+      cache: 'no-store',
+      headers,
+      acceptNotModified: true,
+    });
+    if (data && data.__notModified) {
+      lastLiveActualsOk = true;
+      if (statusEl) {
+        statusEl.textContent = (statusEl.textContent || 'Live Supabase feed OK') + ' · unchanged';
+        statusEl.style.color = '#16a34a';
+      }
+      return 'unchanged';
     }
-    ACTUALS_CACHE = wantFull ? data.actuals : mergeLiveActualsPreserveItems(data.actuals);
-    if (data.prelim) PRELIM_CACHE = data.prelim;
-    // Compact polls only carry counts, so keep the last full detail around.
-    if (data.ledgerIntegrity && !data.ledgerIntegrity.compact) {
-      LEDGER_INTEGRITY = data.ledgerIntegrity;
-    }
-    syncLedgerIntegrityBadge(data.ledgerIntegrity);
-    lastLiveActualsOk = true;
-    if (statusEl) {
-      statusEl.textContent = `Live Supabase feed OK · as of ${data.actuals.asOf}` +
-        (data.matchedRows != null ? ` · ${data.matchedRows} ledger rows` : '') +
-        (data.cacheHit ? ' · cached' : '') +
-        (data.fetchedAt ? ` · synced ${new Date(data.fetchedAt).toLocaleTimeString()}` : '');
-      statusEl.style.color = '#16a34a';
-    }
-    return actualsDigest(ACTUALS_CACHE) === prevDigest ? 'unchanged' : 'changed';
+    if (data && data.__etag) liveActualsEtag = data.__etag;
+    const result = applyLiveActualsPayload(data, wantFull, prevDigest);
+    writeSharedLiveActuals(data, wantFull);
+    return result;
   } catch (e) {
     lastLiveActualsOk = false;
     console.warn('Could not load live Supabase actuals', e);
@@ -11096,19 +11197,56 @@ async function fetchLiveActuals(opts) {
   }
 }
 
+function scheduleNextLiveActualsPoll() {
+  if (liveActualsTimer) clearTimeout(liveActualsTimer);
+  liveActualsTimer = setTimeout(() => { tickLiveActualsPoll(); }, liveActualsPollDelayMs);
+}
+
 async function tickLiveActualsPoll() {
-  if (document.hidden) return;
+  if (document.hidden) {
+    scheduleNextLiveActualsPoll();
+    return;
+  }
   const result = await fetchLiveActuals();
-  if (result === 'changed') quietRefreshFromActuals();
+  if (result === 'changed') {
+    liveActualsUnchangedStreak = 0;
+    liveActualsPollDelayMs = LIVE_ACTUALS_POLL_MS;
+    quietRefreshFromActuals();
+  } else if (result === 'unchanged') {
+    liveActualsUnchangedStreak += 1;
+    // Back off while the ledger is quiet so an idle open tab stops chewing bandwidth.
+    liveActualsPollDelayMs = Math.min(
+      LIVE_ACTUALS_POLL_MAX_MS,
+      LIVE_ACTUALS_POLL_MS * Math.pow(1.5, Math.min(liveActualsUnchangedStreak, 4))
+    );
+  } else {
+    liveActualsPollDelayMs = LIVE_ACTUALS_POLL_MS;
+  }
+  scheduleNextLiveActualsPoll();
 }
 
 function startLiveActualsPolling() {
   if (liveActualsTimer) return;
-  liveActualsTimer = setInterval(() => { tickLiveActualsPoll(); }, LIVE_ACTUALS_POLL_MS);
+  scheduleNextLiveActualsPoll();
   if (!liveActualsVisibilityBound) {
     liveActualsVisibilityBound = true;
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') tickLiveActualsPoll();
+      if (document.visibilityState === 'visible') {
+        liveActualsUnchangedStreak = 0;
+        liveActualsPollDelayMs = LIVE_ACTUALS_POLL_MS;
+        tickLiveActualsPoll();
+      }
+    });
+    window.addEventListener('storage', (ev) => {
+      if (ev.key !== LIVE_ACTUALS_SHARE_KEY || !ev.newValue || document.hidden) return;
+      try {
+        const doc = JSON.parse(ev.newValue);
+        if (!doc || !doc.actuals) return;
+        const prev = actualsDigest(ACTUALS_CACHE);
+        const result = applyLiveActualsPayload({ ...doc, sharedHit: true }, false, prev);
+        if (doc.etag) liveActualsEtag = doc.etag;
+        if (result === 'changed') quietRefreshFromActuals();
+      } catch (_) { /* ignore */ }
     });
   }
 }
@@ -11142,7 +11280,7 @@ function refreshForTeamCalendarDay() {
 function startTeamCalendarWatch() {
   teamCalendarWatchYmd = teamTodayYmd();
   if (!teamCalendarWatchTimer) {
-    teamCalendarWatchTimer = setInterval(() => { refreshForTeamCalendarDay(); }, 30_000);
+    teamCalendarWatchTimer = setInterval(() => { refreshForTeamCalendarDay(); }, 60_000);
   }
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') refreshForTeamCalendarDay();
@@ -11195,14 +11333,23 @@ async function authedFetch(path, options) {
   if (!user) throw new Error('Not signed in');
   const token = await user.jwt();
   const opts = Object.assign({}, options);
+  const acceptNotModified = !!(opts && opts.acceptNotModified);
+  if (opts) delete opts.acceptNotModified;
   opts.headers = Object.assign({ Authorization: 'Bearer ' + token }, options && options.headers);
   const res = await fetch(path, opts);
+  if (acceptNotModified && res.status === 304) {
+    return { __notModified: true, __etag: res.headers.get('ETag') || '' };
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(data.error || ('Request failed (' + res.status + ')'));
     err.status = res.status;
     err.payload = data;
     throw err;
+  }
+  if (acceptNotModified) {
+    const etag = res.headers.get('ETag');
+    if (etag) data.__etag = etag;
   }
   return data;
 }
