@@ -3,11 +3,15 @@ import { getStore } from "@netlify/blobs";
 import { requireSignedIn } from "./_shared/identity.mts";
 import { runSupabaseSql, supabaseConfig } from "./_shared/supabase.mts";
 import { FALLBACK_ROSTER_EMAILS } from "./_shared/roster.mts";
+import {
+  LIVE_ACTUALS_CACHE_KEY,
+  loadLedgerExclusionIds,
+} from "./_shared/ledger-exclusions.mts";
 import { TEAM_TIME_ZONE, clampAsOfToTeamToday, teamTodayYmd } from "./_shared/time.mts";
 
 /** Shared warm cache so N open tabs don't each hit Supabase every poll. */
 const LIVE_CACHE_TTL_MS = 20_000;
-const LIVE_CACHE_KEY = "live-response-v1";
+const LIVE_CACHE_KEY = LIVE_ACTUALS_CACHE_KEY;
 
 type LedgerRow = {
   email: string;
@@ -19,6 +23,33 @@ type LedgerRow = {
   sessions: number;
   ledger_id?: string;
   attribution_id?: string;
+  manager_id?: string;
+  ledger_created_at?: string;
+};
+
+/** A ledger row the pacer removed before totalling, and why. */
+type SuppressedRow = {
+  ledgerId: string;
+  attributionId: string;
+  clientId: string;
+  repName: string;
+  members: number;
+  sessions: number;
+  date: string;
+  reason: "superseded-revision" | "admin-excluded";
+  /** Ledger row that was kept in place of a superseded revision. */
+  supersededBy?: string;
+};
+
+/** Same client + rep credited by two separate attributions — needs a human. */
+type FlaggedPair = {
+  clientId: string;
+  repName: string;
+  ledgerIds: string[];
+  attributionIds: string[];
+  members: number[];
+  sessions: number[];
+  dates: string[];
 };
 
 type PerRep = {
@@ -68,6 +99,118 @@ async function loadEmailToDisplay(): Promise<Record<string, string>> {
 
 function sqlStringList(values: string[]): string {
   return values.map((v) => `'${v.replace(/'/g, "''")}'`).join(", ");
+}
+
+function rowSortKey(row: LedgerRow): string {
+  // created_at first so a later revision wins; ledger id breaks exact ties.
+  return `${String(row.ledger_created_at || "")}|${String(row.ledger_id || "")}`;
+}
+
+/**
+ * Collapse duplicate credit before totalling.
+ *
+ * Two live ledger rows sharing one attribution + manager are a revision that
+ * was never soft-deleted upstream (the 100%-then-corrected-to-50% case), not
+ * two sales — so the newest row wins and the rest are suppressed.
+ *
+ * Two *different* attributions for the same client are deliberately left alone:
+ * that shape is also how a legitimate second purchase or a cancel/rebook pair
+ * looks, and collapsing it would erase real revenue. Those are flagged for
+ * human review instead, and an admin can exclude a specific ledger id.
+ */
+function reconcileLedgerRows(
+  rows: LedgerRow[],
+  emailToDisplay: Record<string, string>,
+  exclusions: Set<string>
+): { rows: LedgerRow[]; suppressed: SuppressedRow[]; flagged: FlaggedPair[] } {
+  const suppressed: SuppressedRow[] = [];
+  const displayFor = (row: LedgerRow) => {
+    const email = safeEmail(row.email);
+    return (email && emailToDisplay[email]) || String(row.manager_name || "Unknown rep");
+  };
+  const describe = (
+    row: LedgerRow,
+    reason: SuppressedRow["reason"],
+    supersededBy?: string
+  ): SuppressedRow => ({
+    ledgerId: String(row.ledger_id || ""),
+    attributionId: String(row.attribution_id || ""),
+    clientId: String(row.client_id || ""),
+    repName: displayFor(row),
+    members: Number(row.members) || 0,
+    sessions: Number(row.sessions) || 0,
+    date: String(row.attribution_date || "").slice(0, 10),
+    reason,
+    ...(supersededBy ? { supersededBy } : {}),
+  });
+
+  const afterExclusions: LedgerRow[] = [];
+  for (const row of rows) {
+    const ledgerId = String(row.ledger_id || "").trim();
+    if (ledgerId && exclusions.has(ledgerId)) {
+      suppressed.push(describe(row, "admin-excluded"));
+      continue;
+    }
+    afterExclusions.push(row);
+  }
+
+  // Revision collapse — keyed on attribution + manager, never on client alone.
+  const byAttribution = new Map<string, LedgerRow[]>();
+  const unkeyed: LedgerRow[] = [];
+  for (const row of afterExclusions) {
+    const attributionId = String(row.attribution_id || "").trim();
+    const managerId = String(row.manager_id || "").trim();
+    if (!attributionId) {
+      unkeyed.push(row);
+      continue;
+    }
+    const key = `${attributionId}|${managerId}`;
+    const bucket = byAttribution.get(key);
+    if (bucket) bucket.push(row);
+    else byAttribution.set(key, [row]);
+  }
+
+  const kept: LedgerRow[] = [...unkeyed];
+  for (const bucket of byAttribution.values()) {
+    if (bucket.length === 1) {
+      kept.push(bucket[0]);
+      continue;
+    }
+    const ordered = [...bucket].sort((a, b) => rowSortKey(a).localeCompare(rowSortKey(b)));
+    const winner = ordered[ordered.length - 1];
+    kept.push(winner);
+    for (const loser of ordered.slice(0, -1)) {
+      suppressed.push(describe(loser, "superseded-revision", String(winner.ledger_id || "")));
+    }
+  }
+
+  // Flag-only pass: same client + rep credited through separate attributions.
+  const byClientRep = new Map<string, LedgerRow[]>();
+  for (const row of kept) {
+    if ((Number(row.members) || 0) <= 0 && (Number(row.sessions) || 0) <= 0) continue;
+    const clientId = String(row.client_id || "").trim();
+    if (!clientId) continue;
+    const key = `${clientId}|${displayFor(row)}`;
+    const bucket = byClientRep.get(key);
+    if (bucket) bucket.push(row);
+    else byClientRep.set(key, [row]);
+  }
+  const flagged: FlaggedPair[] = [];
+  for (const bucket of byClientRep.values()) {
+    if (bucket.length < 2) continue;
+    const ordered = [...bucket].sort((a, b) => rowSortKey(a).localeCompare(rowSortKey(b)));
+    flagged.push({
+      clientId: String(ordered[0].client_id || ""),
+      repName: displayFor(ordered[0]),
+      ledgerIds: ordered.map((r) => String(r.ledger_id || "")),
+      attributionIds: ordered.map((r) => String(r.attribution_id || "")),
+      members: ordered.map((r) => Number(r.members) || 0),
+      sessions: ordered.map((r) => Number(r.sessions) || 0),
+      dates: ordered.map((r) => String(r.attribution_date || "").slice(0, 10)),
+    });
+  }
+
+  return { rows: kept, suppressed, flagged };
 }
 
 function buildActuals(
@@ -189,6 +332,22 @@ function stripItemsForCompact(actuals: { asOf: string; perRep: Record<string, Pe
   return { asOf: actuals.asOf, perRep };
 }
 
+/**
+ * Compact polling payloads keep only the integrity counts — enough to badge the
+ * Ops tab without shipping the full row detail on every poll.
+ */
+function stripIntegrityForCompact(payload: Record<string, unknown>) {
+  const integrity = payload.ledgerIntegrity as
+    | { suppressed?: unknown[]; flagged?: unknown[] }
+    | undefined;
+  if (!integrity) return;
+  payload.ledgerIntegrity = {
+    suppressedCount: Array.isArray(integrity.suppressed) ? integrity.suppressed.length : 0,
+    flaggedCount: Array.isArray(integrity.flagged) ? integrity.flagged.length : 0,
+    compact: true,
+  };
+}
+
 export default async (req: Request, context: Context) => {
   if (req.method !== "GET") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
@@ -223,6 +382,7 @@ export default async (req: Request, context: Context) => {
             if (compact && payload.actuals) {
               payload.actuals = stripItemsForCompact(payload.actuals as any);
               delete payload.prelim;
+              stripIntegrityForCompact(payload);
             }
             return new Response(JSON.stringify(payload), {
               status: 200,
@@ -256,6 +416,8 @@ select
   a.client_id,
   l.id::text as ledger_id,
   a.id::text as attribution_id,
+  l.manager_id::text as manager_id,
+  l.created_at::text as ledger_created_at,
   (a.occurred_at at time zone '${tz}')::date::text as attribution_date,
   (a.occurred_at at time zone '${tz}')::text as occurred_at,
   l.net_client_credit_amount::float8 as members,
@@ -274,7 +436,10 @@ where l.deleted_at is null
 order by a.occurred_at asc, l.id asc;
 `;
 
-    const rows = await runSupabaseSql<LedgerRow>(sql);
+    const rawRows = await runSupabaseSql<LedgerRow>(sql);
+    const exclusions = await loadLedgerExclusionIds();
+    const reconciled = reconcileLedgerRows(rawRows, emailToDisplay, exclusions);
+    const rows = reconciled.rows;
     const built = buildActuals(rows, emailToDisplay);
     const actuals = { asOf: built.asOf, perRep: built.perRep };
     const prelim = await maybeFreezePrelimAndCache(actuals);
@@ -284,8 +449,16 @@ order by a.occurred_at asc, l.id asc;
       source: "supabase",
       project: process.env.SUPABASE_PROJECT_REF || "oervjdxjjkhkyledsqag",
       rowCount: rows.length,
+      rawRowCount: rawRows.length,
       matchedRows: built.matchedRows,
       unmatchedManagers: built.unmatchedManagers,
+      // Surfaced rather than silently absorbed — if upstream duplication gets
+      // worse, Ops should be able to see it.
+      ledgerIntegrity: {
+        suppressed: reconciled.suppressed,
+        flagged: reconciled.flagged,
+        excludedIds: [...exclusions],
+      },
       actuals,
       fetchedAt: new Date().toISOString(),
       cacheHit: false,
@@ -305,6 +478,7 @@ order by a.occurred_at asc, l.id asc;
     if (compact) {
       responsePayload.actuals = stripItemsForCompact(actuals);
       delete responsePayload.prelim;
+      stripIntegrityForCompact(responsePayload);
     }
 
     return new Response(JSON.stringify(responsePayload), {
