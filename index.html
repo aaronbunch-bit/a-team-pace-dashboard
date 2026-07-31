@@ -7277,42 +7277,44 @@ function contestHistoryHTML() {
     }).join('')}</div>`;
 }
 function contestAtmosphereHTML(contest) {
-  // Soft wash only — no floating icons / orbs. Theme color comes from CSS vars.
-  return `<div class="contest-atmosphere" aria-hidden="true"><div class="contest-atmosphere-wash"></div></div>`;
+  const meta = contestThemeMeta(contestResolveTheme(contest));
+  return `
+    <div class="contest-atmosphere" aria-hidden="true">
+      <div class="contest-atmosphere-aura"></div>
+      <div class="contest-atmosphere-beam beam-a"></div>
+      <div class="contest-atmosphere-beam beam-b"></div>
+      <div class="contest-atmosphere-grid"></div>
+      <div class="contest-atmosphere-mark">${escapeHtml(meta.mascot || meta.icon || '🏆')}</div>
+      <div class="contest-atmosphere-word">${escapeHtml(meta.name || 'Live Event')}</div>
+    </div>`;
 }
 function contestMomentumHTML(contest, standings, phase) {
   const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
-  const leader = standings[0] || null;
-  const runnerUp = standings[1] || null;
   const mine = me ? standings.find((r) => r.repName === me) : null;
   const unit = contestUnitsLabel(contest.units);
-  let personal = 'Open';
-  if (phase === 'scheduled') personal = 'Soon';
-  else if (mine && mine.place === 1) personal = runnerUp
-    ? `+${fmt(Math.max(0, mine.score - runnerUp.score), 1)} lead`
-    : 'Leading';
-  else if (mine && leader) personal = `${fmt(Math.max(0, leader.score - mine.score), 1)} to #1`;
-  else if (mine) personal = `#${mine.place}`;
-
-  const leadText = leader ? leader.repName : '—';
-  const leadScore = leader ? fmt(leader.score, 1) : '0';
-  const gapText = leader && runnerUp
-    ? (leader.score === runnerUp.score ? 'Tied' : fmt(Math.max(0, leader.score - runnerUp.score), 1))
-    : '—';
+  const podium = [0, 1, 2].map((idx) => {
+    const row = standings[idx];
+    const medals = ['🥇', '🥈', '🥉'];
+    return `
+      <div class="contest-pulse-place place-${idx + 1}${row && row.repName === me ? ' is-me' : ''}">
+        <span class="contest-pulse-medal" aria-hidden="true">${medals[idx]}</span>
+        <span class="contest-pulse-copy">
+          <small>${idx === 0 ? 'Leading' : `Place ${idx + 1}`}</small>
+          <strong>${escapeHtml(row ? row.repName : 'Open')}</strong>
+        </span>
+        <b>${row ? fmt(row.score, 1) : '—'}<em>${escapeHtml(unit)}</em></b>
+      </div>`;
+  }).join('');
+  let personal = phase === 'scheduled' ? 'Starts soon' : 'Get on the board';
+  if (mine) personal = `#${mine.place} · ${fmt(mine.score, 1)} ${unit}`;
   return `
     <div class="contest-momentum-bar">
-      <div class="contest-momentum-stat">
-        <b>${escapeHtml(leadText)}</b>
-        <span>Front · ${escapeHtml(leadScore)} ${escapeHtml(unit)}</span>
+      <div class="contest-pulse-heading">
+        <span>Live podium</span>
+        <strong>Friendly competition. Full-send energy.</strong>
       </div>
-      <div class="contest-momentum-stat">
-        <b>${escapeHtml(gapText)}</b>
-        <span>Gap to #2</span>
-      </div>
-      <div class="contest-momentum-stat is-you">
-        <b>${escapeHtml(personal)}</b>
-        <span>You</span>
-      </div>
+      <div class="contest-pulse-podium">${podium}</div>
+      <div class="contest-pulse-you"><small>Your position</small><strong>${escapeHtml(personal)}</strong></div>
     </div>`;
 }
 function contestBoardHTML(contest) {
