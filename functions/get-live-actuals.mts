@@ -495,11 +495,19 @@ export default async (req: Request, context: Context) => {
 
     // Current calendar month in America/Chicago (CST/CDT) — team business day.
     //
-    // The month key is each ledger line's OWN date (l.created_at), not the
-    // sale's occurred_at. For a sale the two are the same instant, but for a
-    // cancellation or correction of an earlier sale only the line date says
-    // when the credit changed — so keying on occurred_at meant July never saw
-    // cancels of June sales. The sale timestamp is still selected for audit.
+    // Month key is attributions.occurred_at — the same business date the July
+    // CSV exports as attribution_date (verified: for sales the two match the
+    // live occurredAt to the second; for cancels upstream updates occurred_at
+    // to the cancel date). Keying on ledger created_at instead pulled every
+    // negative row *written* this month, including cancels whose business date
+    // is still prior-month (e.g. client 8555523 on 6/30) — cancel tiles jumped
+    // from ~51.5/326 (manual + CSV) to ~86.5/542.
+    //
+    // Cancelled attributions are often soft-deleted upstream while their
+    // negative ledger lines stay live. Filtering a.deleted_at IS NULL dropped
+    // those cancels from MTD even though occurred_at was already in-month and
+    // the CSV/manual pacer counted them. Ledger soft-delete (l.deleted_at) is
+    // still enforced.
     const tz = TEAM_TIME_ZONE.replace(/'/g, "''");
     const sql = `
 select
@@ -510,8 +518,8 @@ select
   a.id::text as attribution_id,
   l.manager_id::text as manager_id,
   l.created_at::text as ledger_created_at,
-  (l.created_at at time zone '${tz}')::date::text as attribution_date,
-  (l.created_at at time zone '${tz}')::text as occurred_at,
+  (a.occurred_at at time zone '${tz}')::date::text as attribution_date,
+  (a.occurred_at at time zone '${tz}')::text as occurred_at,
   (a.occurred_at at time zone '${tz}')::text as sale_occurred_at,
   l.net_client_credit_amount::float8 as members,
   l.hours_amount::float8 as sessions
@@ -522,11 +530,10 @@ join sales_attribution.flex_team_members f
   on f.manager_id = l.manager_id
  and f.deleted_at is null
 where l.deleted_at is null
-  and a.deleted_at is null
-  and l.created_at >= (date_trunc('month', (now() at time zone '${tz}')) at time zone '${tz}')
-  and l.created_at <  ((date_trunc('month', (now() at time zone '${tz}')) + interval '1 month') at time zone '${tz}')
+  and a.occurred_at >= (date_trunc('month', (now() at time zone '${tz}')) at time zone '${tz}')
+  and a.occurred_at <  ((date_trunc('month', (now() at time zone '${tz}')) + interval '1 month') at time zone '${tz}')
   and lower(f.email) in (${sqlStringList(emails)})
-order by l.created_at asc, l.id asc;
+order by a.occurred_at asc, l.id asc;
 `;
 
     const rawRows = await runSupabaseSql<LedgerRow>(sql);
