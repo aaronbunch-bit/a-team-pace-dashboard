@@ -7681,10 +7681,13 @@ async function refreshContestsUi(opts) {
     const incoming = Array.isArray(data.contests) ? data.contests : [];
     if (data.scope === 'active') {
       // Keep ended contests already in cache for History; refresh only live ones.
-      const ended = CONTEST_CACHE.filter((c) => c.status === 'ended');
-      const byId = new Map(ended.map((c) => [c.id, c]));
+      const endedKeep = CONTEST_CACHE.filter((c) => c.status === 'ended');
+      const incomingIds = new Set(incoming.map((c) => c.id));
+      const newlyEnded = CONTEST_CACHE
+        .filter((c) => c.status !== 'ended' && !incomingIds.has(c.id))
+        .map((c) => ({ ...c, status: 'ended' }));
+      const byId = new Map([...endedKeep, ...newlyEnded].map((c) => [c.id, c]));
       incoming.forEach((c) => byId.set(c.id, c));
-      // Drop stale active/scheduled that vanished from the active list.
       CONTEST_CACHE = Array.from(byId.values());
     } else {
       CONTEST_CACHE = incoming;
