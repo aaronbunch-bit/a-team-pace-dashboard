@@ -9855,7 +9855,7 @@ function renderTeamCancelsTable() {
     <div class="ops-list-row ops-cancels">
       <div><span class="ops-list-k">Date</span><div class="ops-list-v">${escapeHtml(row.date || '—')}</div></div>
       <div><span class="ops-list-k">Rep</span><div class="ops-list-v">${escapeHtml(row.rep)}</div></div>
-      <div><span class="ops-list-k">Client</span><div class="ops-list-v muted">${escapeHtml(row.clientId || '—')}</div></div>
+      <div><span class="ops-list-k">Client</span><div class="ops-list-v">${detailClientIdCellHTML(row.clientId)}</div></div>
       <div><span class="ops-list-k">Members</span><div class="ops-list-v">${fmt(row.members,1)}</div></div>
       <div><span class="ops-list-k">Sessions</span><div class="ops-list-v">${fmt(row.sessions,1)}</div></div>
       <div class="ops-span-all"><span class="ops-list-k">Action</span>${actionCell}</div>
