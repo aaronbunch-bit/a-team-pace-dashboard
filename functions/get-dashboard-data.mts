@@ -1,6 +1,22 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { requireSignedIn } from "./_shared/identity.mts";
+import { resolveAccess } from "./_shared/access.mts";
+
+function redactCompensation(goals: any, viewerEmail: string, fullAccess: boolean) {
+  if (!goals || typeof goals !== "object" || fullAccess) return goals || null;
+  const email = String(viewerEmail || "").trim().toLowerCase();
+  return Object.fromEntries(Object.entries(goals).map(([name, raw]) => {
+    const goal = raw && typeof raw === "object" ? { ...(raw as Record<string, any>) } : {};
+    const isOwn = String(goal.email || "").trim().toLowerCase() === email;
+    if (!isOwn) {
+      delete goal.ote;
+      delete goal.level;
+      goal.compensationRestricted = true;
+    }
+    return [name, goal];
+  }));
+}
 
 // Identity-gated (@varsitytutors.com). Roster / goals / actuals / access lists
 // are team-internal — never serve them to anonymous callers with the URL.
@@ -22,6 +38,8 @@ import { requireSignedIn } from "./_shared/identity.mts";
 export default async (req: Request, context: Context) => {
   const auth = await requireSignedIn(req, context);
   if (auth.response) return auth.response;
+  const viewerEmail = String(auth.user?.email || "").trim().toLowerCase();
+  const access = await resolveAccess(viewerEmail);
 
   const rosterStore = getStore("roster");
   const goalsStore = getStore("goals");
@@ -45,13 +63,25 @@ export default async (req: Request, context: Context) => {
     coachListStore.get("current", { type: "json" }),
     sipExtraStore.get("current", { type: "json" }),
   ]);
+  const safeGoals = redactCompensation(goals, viewerEmail, !!access?.isFullAdmin);
+  const safePrelim = prelim && typeof prelim === "object"
+    ? Object.fromEntries(Object.entries(prelim as Record<string, any>).map(([month, snapshot]) => [
+        month,
+        snapshot && typeof snapshot === "object"
+          ? {
+              ...snapshot,
+              goals: redactCompensation(snapshot.goals, viewerEmail, !!access?.isFullAdmin),
+            }
+          : snapshot,
+      ]))
+    : prelim;
 
   return new Response(
     JSON.stringify({
       roster: roster || null,
-      goals: goals || null,
+      goals: safeGoals,
       actuals: actuals || null,
-      prelim: prelim || null,
+      prelim: safePrelim || null,
       admins: admins || [],
       coaches: coaches || [],
       // Closed-out SIP months from the Historical Performance importer.
