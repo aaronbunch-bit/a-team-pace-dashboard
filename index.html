@@ -963,7 +963,8 @@
     <div class="workspace-panel active" id="teamPanelCancels" data-team-panel="cancels">
       <div class="card ops-panel-shell">
         <h2>Cancels — team-wide</h2>
-        <div class="meta-note" style="margin:0 0 12px;">Negative ledger lines across the team. Convert a cancel into a Manual Attribution correction without guessing the rep.</div>
+        <div class="meta-note" style="margin:0 0 12px;">Negative ledger lines across the team, dated the day the ledger recorded them — the same dates a rep-scores export shows. Convert a cancel into a Manual Attribution correction without guessing the rep.</div>
+        <div class="meta-note" id="teamCancelsWindowNote" style="margin:0 0 12px;" hidden></div>
         <div class="ops-list-head ops-cancels"><span>Date</span><span>Rep</span><span>Client</span><span>Members</span><span>Sessions</span><span>Action</span></div>
         <div class="ops-list" id="teamCancelsBody"></div>
         <div class="meta-note" id="teamCancelsEmpty" style="display:none;">No cancels in the current ledger.</div>
@@ -10338,7 +10339,7 @@ document.getElementById('saveTeamScheduleBtn')?.addEventListener('click', saveTe
 // ambiguous (one client credited through two separate attributions that both
 // net positive) is only flagged, because that shape is also a legitimate second
 // purchase or a cancel/rebook pair. Admins resolve those by excluding a row.
-let LEDGER_INTEGRITY = { suppressed: [], flagged: [], netted: [], excludedIds: [] };
+let LEDGER_INTEGRITY = { suppressed: [], flagged: [], netted: [], excludedIds: [], window: null };
 
 function ledgerIntegrityCounts(payload) {
   const data = payload && typeof payload === 'object' ? payload : LEDGER_INTEGRITY;
@@ -10558,9 +10559,33 @@ function computeTeamCancels() {
 // properly, out of scope for this round.
 const cancelsConvertedThisSession = new Set();
 function cancelRowKey(row) { return row.date + '|' + row.clientId + '|' + row.rep; }
+/**
+ * How this month's cancels split by the age of the sale behind them, plus any
+ * line the pacer held back. Reconciling the tiles against a rep-scores export
+ * used to mean exporting the ledger and adding it up by hand.
+ */
+function renderCancelsWindowNote() {
+  const note = document.getElementById('teamCancelsWindowNote');
+  if (!note) return;
+  const w = (LEDGER_INTEGRITY && LEDGER_INTEGRITY.window) || null;
+  if (!w || !w.cancelsBySaleMonth) { note.hidden = true; return; }
+  const lost = (b) => `${fmt(Math.abs((b && b.members) || 0), 1)} members / ${fmt(Math.abs((b && b.sessions) || 0), 1)} sessions`;
+  const c = w.cancelsBySaleMonth;
+  const parts = [
+    `Cancels of this month's sales: ${lost(c.thisMonthSale)}`,
+    `of last month's: ${lost(c.priorMonthSale)}`,
+  ];
+  if (c.olderSale && c.olderSale.rows) parts.push(`older: ${lost(c.olderSale)}`);
+  const held = (w.deletedAttribution && w.deletedAttribution.rows) || 0;
+  if (held) parts.push(`${held} line${held === 1 ? '' : 's'} held back (attribution deleted upstream)`);
+  note.textContent = parts.join(' · ') + '.';
+  note.hidden = false;
+}
+
 function renderTeamCancelsTable() {
   const tbody = document.getElementById('teamCancelsBody');
   const empty = document.getElementById('teamCancelsEmpty');
+  renderCancelsWindowNote();
   const rows = computeTeamCancels();
   if (!tbody) return;
   if (!rows.length) {
