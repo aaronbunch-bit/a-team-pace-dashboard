@@ -963,7 +963,7 @@
     <div class="workspace-panel active" id="teamPanelCancels" data-team-panel="cancels">
       <div class="card ops-panel-shell">
         <h2>Cancels — team-wide</h2>
-        <div class="meta-note" style="margin:0 0 12px;">Negative ledger lines that hit this Chicago month (including cancels of earlier-month sales). Convert a cancel into a Manual Attribution correction without guessing the rep.</div>
+        <div class="meta-note" style="margin:0 0 12px;">Negative ledger lines across the team. Convert a cancel into a Manual Attribution correction without guessing the rep.</div>
         <div class="ops-list-head ops-cancels"><span>Date</span><span>Rep</span><span>Client</span><span>Members</span><span>Sessions</span><span>Action</span></div>
         <div class="ops-list" id="teamCancelsBody"></div>
         <div class="meta-note" id="teamCancelsEmpty" style="display:none;">No cancels in the current ledger.</div>
@@ -1001,16 +1001,21 @@
     <div class="workspace-panel" id="teamPanelDupes" data-team-panel="dupes">
       <div class="card ops-panel-shell">
         <h2>Duplicate credit review</h2>
-        <div class="meta-note" style="margin:0 0 12px;">Supabase is read-only for this dashboard, so duplicate ledger credit is corrected here instead. Revisions of the same attribution are collapsed automatically; anything ambiguous is listed for a human, and admins can exclude a specific ledger row from every total.</div>
+        <div class="meta-note" style="margin:0 0 12px;">The ledger is a journal, so every line of one attribution is summed — a correction written as a reversal plus a replacement nets to the corrected value, and a cancellation nets the sale back to zero. Anything genuinely ambiguous is listed for a human, and admins can exclude a specific ledger row from every total.</div>
         <h3 style="margin:16px 0 4px; font-size:14px;">Needs review</h3>
-        <div class="meta-note" style="margin:0 0 10px;">One client credited by two separate attributions for the same rep. This is also what a genuine second purchase or a cancel/rebook looks like, so nothing is removed until someone decides.</div>
+        <div class="meta-note" style="margin:0 0 10px;">One client credited by two separate attributions for the same rep, both still netting positive. This is also what a genuine second purchase or a cancel/rebook looks like, so nothing is removed until someone decides.</div>
         <div class="ops-list-head ops-dupes"><span>Client</span><span>Rep</span><span>Date</span><span>Members</span><span>Sessions</span><span>Action</span></div>
         <div class="ops-list" id="teamDupesBody"></div>
         <div class="meta-note" id="teamDupesEmpty" style="display:none;">No ambiguous duplicate credit in the current month.</div>
-        <h3 style="margin:22px 0 4px; font-size:14px;">Suppressed automatically</h3>
-        <div class="meta-note" style="margin:0 0 10px;">Superseded revisions of one attribution, plus rows an admin excluded. These are already out of every total.</div>
+        <h3 style="margin:22px 0 4px; font-size:14px;">Netted journals</h3>
+        <div class="meta-note" style="margin:0 0 10px;">Attributions with more than one ledger line this month, and the net each contributed.</div>
+        <div class="ops-list-head ops-dupes"><span>Client</span><span>Rep</span><span>Lines</span><span>Net members</span><span>Net sessions</span><span>Date</span></div>
+        <div class="ops-list" id="teamNettedBody"></div>
+        <div class="meta-note" id="teamNettedEmpty" style="display:none;">No multi-line attributions this month.</div>
+        <h3 style="margin:22px 0 4px; font-size:14px;">Excluded by an admin</h3>
+        <div class="meta-note" style="margin:0 0 10px;">Rows held out of every total on purpose.</div>
         <div class="ops-list" id="teamSuppressedBody"></div>
-        <div class="meta-note" id="teamSuppressedEmpty" style="display:none;">Nothing suppressed — the live ledger is clean.</div>
+        <div class="meta-note" id="teamSuppressedEmpty" style="display:none;">Nothing excluded — the live ledger is clean.</div>
       </div>
     </div>
   </div>
@@ -10324,17 +10329,16 @@ document.getElementById('saveTeamScheduleBtn')?.addEventListener('click', saveTe
 
 // Walks every rep's raw ledger line items (the same `items` array Client
 // Detail's per-rep drill-down already reads) and pulls out anything negative
-// on either metric — that's a cancel. Live MTD includes cancels that *hit*
-// this Chicago month (ledger created_at), not only cancels of this-month
-// originated sales. Team-wide, newest first.
-// ---------- Ledger integrity (duplicate credit) ----------------------------
-// Supabase is read-only for this dashboard, so duplicate credit can't be
-// soft-deleted at the source. get-live-actuals collapses superseded revisions
-// of one attribution before totalling and reports what it removed; anything
-// ambiguous (one client credited through two separate attributions) is only
-// flagged, because that shape is also a legitimate second purchase or a
-// cancel/rebook pair. Admins resolve those by excluding a specific ledger row.
-let LEDGER_INTEGRITY = { suppressed: [], flagged: [], excludedIds: [] };
+// on either metric — that's a cancel. Team-wide, newest first.
+// ---------- Ledger integrity (journal netting) ------------------------------
+// Supabase is read-only for this dashboard, so bad credit can't be soft-deleted
+// at the source. get-live-actuals sums every ledger line of an attribution —
+// the ledger is a journal, so a reversal plus a replacement nets to the
+// corrected value and a cancellation nets a sale back to zero. Anything
+// ambiguous (one client credited through two separate attributions that both
+// net positive) is only flagged, because that shape is also a legitimate second
+// purchase or a cancel/rebook pair. Admins resolve those by excluding a row.
+let LEDGER_INTEGRITY = { suppressed: [], flagged: [], netted: [], excludedIds: [] };
 
 function ledgerIntegrityCounts(payload) {
   const data = payload && typeof payload === 'object' ? payload : LEDGER_INTEGRITY;
@@ -10406,9 +10410,7 @@ function renderLedgerSuppressedTable() {
   if (empty) empty.style.display = 'none';
   body.innerHTML = suppressed.map((row) => {
     const isAdminExcluded = row.reason === 'admin-excluded';
-    const why = isAdminExcluded
-      ? 'Excluded by an admin'
-      : `Superseded revision${row.supersededBy ? ' — replaced by a newer ledger row' : ''}`;
+    const why = isAdminExcluded ? 'Excluded by an admin' : (row.reason || 'Removed before totalling');
     const action = isAdminExcluded && canEdit
       ? `<button type="button" class="theme-btn" style="margin-top:0;" data-restore-ledger="${escapeAttr(row.ledgerId || '')}">Restore</button>`
       : '<span class="ops-list-v muted">—</span>';
@@ -10424,9 +10426,40 @@ function renderLedgerSuppressedTable() {
   }).join('');
 }
 
+function renderLedgerNettedTable() {
+  const body = document.getElementById('teamNettedBody');
+  const empty = document.getElementById('teamNettedEmpty');
+  if (!body) return;
+  const netted = LEDGER_INTEGRITY.netted || [];
+  if (!netted.length) {
+    body.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  body.innerHTML = netted.map((group) => {
+    const lines = (group.members || []).map((m, i) => {
+      const s = (group.sessions || [])[i] || 0;
+      const kind = (group.kinds || [])[i] || '';
+      return `${fmt(m, 1)} / ${fmt(s, 1)}${kind ? ' ' + kind : ''}`;
+    }).join(' → ');
+    const dates = group.dates || [];
+    return `
+    <div class="ops-list-row ops-dupes">
+      <div><span class="ops-list-k">Client</span><div class="ops-list-v">${detailClientIdCellHTML(group.clientId)}</div></div>
+      <div><span class="ops-list-k">Rep</span><div class="ops-list-v">${escapeHtml(group.repName || '—')}</div></div>
+      <div><span class="ops-list-k">Lines</span><div class="ops-list-v">${escapeHtml(lines)}</div></div>
+      <div><span class="ops-list-k">Net members</span><div class="ops-list-v">${fmt(group.netMembers || 0, 1)}</div></div>
+      <div><span class="ops-list-k">Net sessions</span><div class="ops-list-v">${fmt(group.netSessions || 0, 1)}</div></div>
+      <div><span class="ops-list-k">Date</span><div class="ops-list-v">${escapeHtml(dates[dates.length - 1] || '—')}</div></div>
+    </div>`;
+  }).join('');
+}
+
 function renderLedgerIntegrityTables() {
   syncLedgerIntegrityBadge();
   renderLedgerDupesTable();
+  renderLedgerNettedTable();
   renderLedgerSuppressedTable();
 }
 
@@ -10506,9 +10539,12 @@ function computeTeamCancels() {
   getRoster().forEach(r => {
     const raw = (actuals.perRep && actuals.perRep[r.display]) || {};
     (raw.items || []).forEach(it => {
-      if (it.members < 0 || it.sessions < 0) {
-        rows.push({ rep: r.display, clientId: it.clientId || '', date: it.date || '', members: it.members, sessions: it.sessions });
-      }
+      if (it.members >= 0 && it.sessions >= 0) return;
+      // A reversal that a later ledger line replaces is a correction being
+      // rebooked, not lost business. Snapshots without `kind` predate the
+      // journal classification, so they fall back to sign alone.
+      if (it.kind === 'reversal') return;
+      rows.push({ rep: r.display, clientId: it.clientId || '', date: it.date || '', members: it.members, sessions: it.sessions });
     });
   });
   rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));

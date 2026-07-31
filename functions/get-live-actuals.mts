@@ -8,12 +8,6 @@ import {
   loadLedgerExclusionIds,
 } from "./_shared/ledger-exclusions.mts";
 import { TEAM_TIME_ZONE, clampAsOfToTeamToday, teamTodayYmd } from "./_shared/time.mts";
-// Month-window contract (sale occurred_at OR cancel ledger created_at) — keep
-// SQL below aligned with functions/_shared/live-month-credit.mts.
-export {
-  ledgerRowInLiveMonth,
-  liveMonthCreditAtMs,
-} from "./_shared/live-month-credit.mts";
 
 /** Shared warm cache so N open tabs don't each hit Supabase every poll. */
 const LIVE_CACHE_TTL_MS = 20_000;
@@ -31,7 +25,21 @@ type LedgerRow = {
   attribution_id?: string;
   manager_id?: string;
   ledger_created_at?: string;
+  /** When the original sale happened — audit only, never the month key. */
+  sale_occurred_at?: string;
+  /** Journal role, assigned by netLedgerJournal. */
+  kind?: LedgerKind;
 };
+
+/**
+ * What a ledger line means inside its attribution's journal.
+ *
+ * - `credit`   — positive line (a sale, or the corrected value after a reversal)
+ * - `reversal` — negative line that a later positive line in the same
+ *                attribution replaces (the 100%-corrected-to-50% shape)
+ * - `cancel`   — negative line with nothing after it: real lost business
+ */
+type LedgerKind = "credit" | "reversal" | "cancel";
 
 /** A ledger row the pacer removed before totalling, and why. */
 type SuppressedRow = {
@@ -42,9 +50,25 @@ type SuppressedRow = {
   members: number;
   sessions: number;
   date: string;
-  reason: "superseded-revision" | "admin-excluded";
-  /** Ledger row that was kept in place of a superseded revision. */
-  supersededBy?: string;
+  reason: "admin-excluded";
+};
+
+/**
+ * An attribution whose journal has more than one line, with the net the pacer
+ * actually counted. Replaces the old "superseded revision" suppression: the
+ * ledger is a journal, so every line is summed rather than one winning.
+ */
+type NettedAttribution = {
+  attributionId: string;
+  clientId: string;
+  repName: string;
+  ledgerIds: string[];
+  members: number[];
+  sessions: number[];
+  kinds: LedgerKind[];
+  dates: string[];
+  netMembers: number;
+  netSessions: number;
 };
 
 /** Same client + rep credited by two separate attributions — needs a human. */
@@ -72,6 +96,9 @@ type PerRep = {
     /** Stable ledger row id when available (Deal or No Deal sale keys). */
     ledgerId?: string;
     attributionId?: string;
+    kind?: LedgerKind;
+    /** Original sale timestamp when the line is a later adjustment. */
+    saleOccurredAt?: string;
   }[];
 };
 
@@ -108,59 +135,70 @@ function sqlStringList(values: string[]): string {
 }
 
 function rowSortKey(row: LedgerRow): string {
-  // created_at first so a later revision wins; ledger id breaks exact ties.
+  // created_at orders the journal; ledger id breaks exact ties.
   return `${String(row.ledger_created_at || "")}|${String(row.ledger_id || "")}`;
 }
 
 /**
- * Collapse duplicate credit before totalling.
+ * Net each attribution's ledger journal.
  *
- * Two live ledger rows sharing one attribution + manager are a revision that
- * was never soft-deleted upstream (the 100%-then-corrected-to-50% case), not
- * two sales — so the newest row wins and the rest are suppressed.
+ * The ledger is a journal, not a snapshot: a correction is written as a
+ * reversal line plus a replacement line, and a cancellation is written as a
+ * reversal line with nothing after it. Summing every line is therefore the only
+ * rule that is right in all shapes:
  *
- * Two *different* attributions for the same client are deliberately left alone:
- * that shape is also how a legitimate second purchase or a cancel/rebook pair
- * looks, and collapsing it would erase real revenue. Those are flagged for
- * human review instead, and an admin can exclude a specific ledger id.
+ *   sale then correction   (+1, -1, +0.5) -> +0.5
+ *   sale then cancellation (+1, -1)       ->  0
+ *   two credits, one pulled (+1, +1, -1)  -> +1
+ *
+ * Keeping only the newest line instead returns -1, -1 and -1 for those three —
+ * which understated pace and inflated cancels.
+ *
+ * Lines are classified so cancel reporting stays honest: a negative line that a
+ * later positive line replaces is a `reversal` (bookkeeping), while a negative
+ * line with nothing after it is a real `cancel`.
+ *
+ * Two *different* attributions for the same client are still only flagged, never
+ * merged: that shape is also a legitimate second purchase or a cancel/rebook
+ * pair. Admins can exclude a specific ledger id.
  */
-function reconcileLedgerRows(
+function netLedgerJournal(
   rows: LedgerRow[],
   emailToDisplay: Record<string, string>,
   exclusions: Set<string>
-): { rows: LedgerRow[]; suppressed: SuppressedRow[]; flagged: FlaggedPair[] } {
+): {
+  rows: LedgerRow[];
+  suppressed: SuppressedRow[];
+  flagged: FlaggedPair[];
+  netted: NettedAttribution[];
+} {
   const suppressed: SuppressedRow[] = [];
   const displayFor = (row: LedgerRow) => {
     const email = safeEmail(row.email);
     return (email && emailToDisplay[email]) || String(row.manager_name || "Unknown rep");
   };
-  const describe = (
-    row: LedgerRow,
-    reason: SuppressedRow["reason"],
-    supersededBy?: string
-  ): SuppressedRow => ({
-    ledgerId: String(row.ledger_id || ""),
-    attributionId: String(row.attribution_id || ""),
-    clientId: String(row.client_id || ""),
-    repName: displayFor(row),
-    members: Number(row.members) || 0,
-    sessions: Number(row.sessions) || 0,
-    date: String(row.attribution_date || "").slice(0, 10),
-    reason,
-    ...(supersededBy ? { supersededBy } : {}),
-  });
 
   const afterExclusions: LedgerRow[] = [];
   for (const row of rows) {
     const ledgerId = String(row.ledger_id || "").trim();
     if (ledgerId && exclusions.has(ledgerId)) {
-      suppressed.push(describe(row, "admin-excluded"));
+      suppressed.push({
+        ledgerId,
+        attributionId: String(row.attribution_id || ""),
+        clientId: String(row.client_id || ""),
+        repName: displayFor(row),
+        members: Number(row.members) || 0,
+        sessions: Number(row.sessions) || 0,
+        date: String(row.attribution_date || "").slice(0, 10),
+        reason: "admin-excluded",
+      });
       continue;
     }
     afterExclusions.push(row);
   }
 
-  // Revision collapse — keyed on attribution + manager, never on client alone.
+  // Group each attribution's journal — keyed on attribution + manager so a
+  // split sale stays two independent journals.
   const byAttribution = new Map<string, LedgerRow[]>();
   const unkeyed: LedgerRow[] = [];
   for (const row of afterExclusions) {
@@ -176,33 +214,66 @@ function reconcileLedgerRows(
     else byAttribution.set(key, [row]);
   }
 
-  const kept: LedgerRow[] = [...unkeyed];
+  const kept: LedgerRow[] = [];
+  const netted: NettedAttribution[] = [];
+  for (const row of unkeyed) {
+    const isNegative = (Number(row.members) || 0) < 0 || (Number(row.sessions) || 0) < 0;
+    kept.push({ ...row, kind: isNegative ? "cancel" : "credit" });
+  }
+
   for (const bucket of byAttribution.values()) {
-    if (bucket.length === 1) {
-      kept.push(bucket[0]);
-      continue;
-    }
     const ordered = [...bucket].sort((a, b) => rowSortKey(a).localeCompare(rowSortKey(b)));
-    const winner = ordered[ordered.length - 1];
-    kept.push(winner);
-    for (const loser of ordered.slice(0, -1)) {
-      suppressed.push(describe(loser, "superseded-revision", String(winner.ledger_id || "")));
+    const classified = ordered.map((row, index) => {
+      const negative = (Number(row.members) || 0) < 0 || (Number(row.sessions) || 0) < 0;
+      if (!negative) return { ...row, kind: "credit" as LedgerKind };
+      const replacedLater = ordered
+        .slice(index + 1)
+        .some((later) => (Number(later.members) || 0) > 0 || (Number(later.sessions) || 0) > 0);
+      return { ...row, kind: (replacedLater ? "reversal" : "cancel") as LedgerKind };
+    });
+    kept.push(...classified);
+
+    if (classified.length > 1) {
+      netted.push({
+        attributionId: String(classified[0].attribution_id || ""),
+        clientId: String(classified[0].client_id || ""),
+        repName: displayFor(classified[0]),
+        ledgerIds: classified.map((r) => String(r.ledger_id || "")),
+        members: classified.map((r) => Number(r.members) || 0),
+        sessions: classified.map((r) => Number(r.sessions) || 0),
+        kinds: classified.map((r) => r.kind as LedgerKind),
+        dates: classified.map((r) => String(r.attribution_date || "").slice(0, 10)),
+        netMembers: classified.reduce((sum, r) => sum + (Number(r.members) || 0), 0),
+        netSessions: classified.reduce((sum, r) => sum + (Number(r.sessions) || 0), 0),
+      });
     }
   }
 
-  // Flag-only pass: same client + rep credited through separate attributions.
-  const byClientRep = new Map<string, LedgerRow[]>();
+  // Flag-only pass: same client + rep credited through separate attributions
+  // that each still net positive.
+  const netByClientRepAttribution = new Map<string, LedgerRow[]>();
   for (const row of kept) {
-    if ((Number(row.members) || 0) <= 0 && (Number(row.sessions) || 0) <= 0) continue;
     const clientId = String(row.client_id || "").trim();
     if (!clientId) continue;
-    const key = `${clientId}|${displayFor(row)}`;
-    const bucket = byClientRep.get(key);
+    const key = `${clientId}|${displayFor(row)}|${String(row.attribution_id || "")}`;
+    const bucket = netByClientRepAttribution.get(key);
     if (bucket) bucket.push(row);
-    else byClientRep.set(key, [row]);
+    else netByClientRepAttribution.set(key, [row]);
+  }
+  const positiveByClientRep = new Map<string, LedgerRow[]>();
+  for (const bucket of netByClientRepAttribution.values()) {
+    const netMembers = bucket.reduce((sum, r) => sum + (Number(r.members) || 0), 0);
+    const netSessions = bucket.reduce((sum, r) => sum + (Number(r.sessions) || 0), 0);
+    if (netMembers <= 0 && netSessions <= 0) continue;
+    const key = `${String(bucket[0].client_id || "")}|${displayFor(bucket[0])}`;
+    const existing = positiveByClientRep.get(key);
+    // One representative row per attribution — the newest line in its journal.
+    const representative = [...bucket].sort((a, b) => rowSortKey(a).localeCompare(rowSortKey(b))).pop()!;
+    if (existing) existing.push(representative);
+    else positiveByClientRep.set(key, [representative]);
   }
   const flagged: FlaggedPair[] = [];
-  for (const bucket of byClientRep.values()) {
+  for (const bucket of positiveByClientRep.values()) {
     if (bucket.length < 2) continue;
     const ordered = [...bucket].sort((a, b) => rowSortKey(a).localeCompare(rowSortKey(b)));
     flagged.push({
@@ -216,7 +287,7 @@ function reconcileLedgerRows(
     });
   }
 
-  return { rows: kept, suppressed, flagged };
+  return { rows: kept, suppressed, flagged, netted };
 }
 
 function buildActuals(
@@ -253,11 +324,17 @@ function buildActuals(
     const bucket = perRep[display];
     bucket.members += m;
     bucket.sessions += s;
-    if (m < 0) bucket.membersCancels += m;
-    if (s < 0) bucket.sessionsCancels += s;
+    // Only lines that stayed negative are lost business. A reversal that a
+    // later line replaces is bookkeeping, so counting it would double-report
+    // the correction as attrition.
+    if (row.kind !== "reversal") {
+      if (m < 0) bucket.membersCancels += m;
+      if (s < 0) bucket.sessionsCancels += s;
+    }
     const occurredAt = String(row.occurred_at || "").trim();
     const ledgerId = String(row.ledger_id || "").trim();
     const attributionId = String(row.attribution_id || "").trim();
+    const saleOccurredAt = String(row.sale_occurred_at || "").trim();
     bucket.items.push({
       clientId: String(row.client_id || "").trim(),
       members: m,
@@ -266,6 +343,8 @@ function buildActuals(
       ...(occurredAt ? { occurredAt } : {}),
       ...(ledgerId ? { ledgerId } : {}),
       ...(attributionId ? { attributionId } : {}),
+      ...(row.kind ? { kind: row.kind } : {}),
+      ...(saleOccurredAt && saleOccurredAt !== occurredAt ? { saleOccurredAt } : {}),
     });
   }
 
@@ -344,12 +423,13 @@ function stripItemsForCompact(actuals: { asOf: string; perRep: Record<string, Pe
  */
 function stripIntegrityForCompact(payload: Record<string, unknown>) {
   const integrity = payload.ledgerIntegrity as
-    | { suppressed?: unknown[]; flagged?: unknown[] }
+    | { suppressed?: unknown[]; flagged?: unknown[]; netted?: unknown[] }
     | undefined;
   if (!integrity) return;
   payload.ledgerIntegrity = {
     suppressedCount: Array.isArray(integrity.suppressed) ? integrity.suppressed.length : 0,
     flaggedCount: Array.isArray(integrity.flagged) ? integrity.flagged.length : 0,
+    nettedCount: Array.isArray(integrity.netted) ? integrity.netted.length : 0,
     compact: true,
   };
 }
@@ -415,23 +495,13 @@ export default async (req: Request, context: Context) => {
 
     // Current calendar month in America/Chicago (CST/CDT) — team business day.
     //
-    // Month window rules:
-    // 1) Any credit whose attribution occurred_at is in the month (sales +
-    //    same-month revisions/cancels).
-    // 2) Cancels that *hit* this month even when the original sale was earlier:
-    //    negative ledger rows whose ledger created_at falls in the month.
-    //    Without (2), prior-month sale cancels never reduce MTD — which is how
-    //    live drifted above the July CSV cancel set.
-    //
-    // Display/as-of date for (2) uses ledger created_at (when the cancel hit),
-    // not the original sale's occurred_at.
+    // The month key is each ledger line's OWN date (l.created_at), not the
+    // sale's occurred_at. For a sale the two are the same instant, but for a
+    // cancellation or correction of an earlier sale only the line date says
+    // when the credit changed — so keying on occurred_at meant July never saw
+    // cancels of June sales. The sale timestamp is still selected for audit.
     const tz = TEAM_TIME_ZONE.replace(/'/g, "''");
     const sql = `
-with month_bounds as (
-  select
-    (date_trunc('month', (now() at time zone '${tz}')) at time zone '${tz}') as month_start,
-    ((date_trunc('month', (now() at time zone '${tz}')) + interval '1 month') at time zone '${tz}') as month_end
-)
 select
   lower(f.email) as email,
   f.name as manager_name,
@@ -440,16 +510,9 @@ select
   a.id::text as attribution_id,
   l.manager_id::text as manager_id,
   l.created_at::text as ledger_created_at,
-  case
-    when a.occurred_at >= mb.month_start and a.occurred_at < mb.month_end
-      then (a.occurred_at at time zone '${tz}')::date::text
-    else (l.created_at at time zone '${tz}')::date::text
-  end as attribution_date,
-  case
-    when a.occurred_at >= mb.month_start and a.occurred_at < mb.month_end
-      then (a.occurred_at at time zone '${tz}')::text
-    else (l.created_at at time zone '${tz}')::text
-  end as occurred_at,
+  (l.created_at at time zone '${tz}')::date::text as attribution_date,
+  (l.created_at at time zone '${tz}')::text as occurred_at,
+  (a.occurred_at at time zone '${tz}')::text as sale_occurred_at,
   l.net_client_credit_amount::float8 as members,
   l.hours_amount::float8 as sessions
 from sales_attribution.rep_scores_ledger_entries l
@@ -458,24 +521,17 @@ join sales_attribution.attributions a
 join sales_attribution.flex_team_members f
   on f.manager_id = l.manager_id
  and f.deleted_at is null
-cross join month_bounds mb
 where l.deleted_at is null
   and a.deleted_at is null
-  and (
-    (a.occurred_at >= mb.month_start and a.occurred_at < mb.month_end)
-    or (
-      l.created_at >= mb.month_start
-      and l.created_at < mb.month_end
-      and (l.net_client_credit_amount < 0 or l.hours_amount < 0)
-    )
-  )
+  and l.created_at >= (date_trunc('month', (now() at time zone '${tz}')) at time zone '${tz}')
+  and l.created_at <  ((date_trunc('month', (now() at time zone '${tz}')) + interval '1 month') at time zone '${tz}')
   and lower(f.email) in (${sqlStringList(emails)})
-order by attribution_date asc, l.id asc;
+order by l.created_at asc, l.id asc;
 `;
 
     const rawRows = await runSupabaseSql<LedgerRow>(sql);
     const exclusions = await loadLedgerExclusionIds();
-    const reconciled = reconcileLedgerRows(rawRows, emailToDisplay, exclusions);
+    const reconciled = netLedgerJournal(rawRows, emailToDisplay, exclusions);
     const rows = reconciled.rows;
     const built = buildActuals(rows, emailToDisplay);
     const actuals = { asOf: built.asOf, perRep: built.perRep };
@@ -494,6 +550,7 @@ order by attribution_date asc, l.id asc;
       ledgerIntegrity: {
         suppressed: reconciled.suppressed,
         flagged: reconciled.flagged,
+        netted: reconciled.netted,
         excludedIds: [...exclusions],
       },
       actuals,
