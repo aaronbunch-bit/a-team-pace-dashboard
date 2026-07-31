@@ -10,10 +10,12 @@ const LEVEL_DEFAULT_OTE: Record<number, number> = {
 };
 
 function normalizeGoalRecord(raw: any) {
+  const source = raw && typeof raw === "object" ? raw : {};
   const parsedLevel = Number(raw?.level);
   const level = parsedLevel === 2 || parsedLevel === 3 ? parsedLevel : 1;
   const savedOte = Number(raw?.ote);
   return {
+    ...source,
     sessions: Math.max(0, Number(raw?.sessions) || 0),
     members: Math.max(0, Number(raw?.members) || 0),
     level,
@@ -49,7 +51,7 @@ export default async (req: Request, context: Context) => {
 
   const normalizedGoals = Object.fromEntries(
     Object.entries(goals)
-      .map(([name, goal]) => [String(name).trim().slice(0, 100), normalizeGoalRecord(goal)])
+      .map(([name, goal]) => [String(name).trim(), normalizeGoalRecord(goal)])
       .filter(([name]) => !!name),
   );
 

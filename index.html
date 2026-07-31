@@ -5599,7 +5599,10 @@ function incomeLevelTracking(repDisplay, windowSize, includeMtd) {
   const aggregate = repAggregateMonths(periods, csvKey);
   const targetLevel = windowSize === 12 ? 3 : 2;
   const threshold = compLevelMeta(targetLevel).threshold;
-  const composite = aggregate.compositePct;
+  // Chris Jones workbook requires both aggregate ratios before blending.
+  const composite = aggregate.sessionsPct === null || aggregate.membersPct === null
+    ? null
+    : aggregate.compositePct;
   const pointsGap = composite === null ? null : Math.max(0, threshold - composite);
   const sessionsNeeded = aggregate.totalSG > 0
     ? Math.max(0, aggregate.totalSG * threshold / 100 - aggregate.totalSA)
@@ -5688,7 +5691,9 @@ function incomePlanningHTML(repDisplay) {
   const tracking = incomeLevelTracking(repDisplay, state.window, state.includeMtd);
   const a = tracking.aggregate;
   const targetMeta = compLevelMeta(tracking.targetLevel);
-  const currentMeta = compLevelMeta(normalizeGoalRecord(loadGoals()[repDisplay]).level);
+  const goal = normalizeGoalRecord(loadGoals()[repDisplay]);
+  const currentMeta = compLevelMeta(goal.level);
+  const canSeeComp = canViewConfidentialPayout(repDisplay) && !goal.compensationRestricted;
   const pct = tracking.composite;
   const progress = pct === null ? 0 : Math.min(100, pct / tracking.threshold * 100);
   const months = tracking.periods.length;
@@ -5703,7 +5708,7 @@ function incomePlanningHTML(repDisplay) {
     <div class="income-planning-shell">
       <div class="income-planning-hero">
         <div>
-          <span class="income-eyebrow">Current compensation · ${currentMeta.label}</span>
+          <span class="income-eyebrow">${canSeeComp ? `Current compensation · ${currentMeta.label}` : 'Consultant level progress'}</span>
           <h2>Income Planning</h2>
           <p>See how your trailing performance tracks toward the next level—and what that pace could mean for income.</p>
         </div>
@@ -9672,6 +9677,8 @@ function renderClientDetail(opts) {
   const bodyEls = ['detailPacingRow', 'doubleGoalBanner', 'metricsStyleToggleWrap', 'detailSummary', 'detailNetActuals', 'detailContent', 'pacerTabPace', 'clientDetailHistoryBlock', 'incomePlanningPane']
     .map(id => document.getElementById(id)).filter(Boolean);
   if (!allowed) {
+    const incomePane = document.getElementById('incomePlanningPane');
+    if (incomePane) incomePane.hidden = true;
     restrictedNote.style.display = '';
     restrictedNote.innerHTML = `<div class="meta-note" style="margin-top:0;">🔒 You don't have access to ${repName}'s Individual Pacer.</div>`;
     bodyEls.forEach(el => el.style.display = 'none');
@@ -9680,6 +9687,8 @@ function renderClientDetail(opts) {
     window.scrollTo(0, 0);
     return;
   }
+  const incomePane = document.getElementById('incomePlanningPane');
+  if (incomePane) incomePane.hidden = false;
   restrictedNote.style.display = 'none';
   // Clear any leftover inline display so tab CSS can own visibility.
   bodyEls.forEach(el => { el.style.removeProperty('display'); });
@@ -10729,6 +10738,14 @@ function refreshForTeamCalendarDay() {
   }
   if (typeof fetchPersonalGoals === 'function') {
     fetchPersonalGoals().catch(() => {});
+  }
+  // Approved attribution totals are month-scoped; don't carry yesterday's
+  // month into the new MTD Income Planning period on a tab left open overnight.
+  if (typeof fetchApprovedTotals === 'function') {
+    fetchApprovedTotals().then((totals) => {
+      APPROVED_TOTALS = totals || {};
+      if (typeof quietRefreshFromActuals === 'function') quietRefreshFromActuals();
+    }).catch(() => {});
   }
   return true;
 }
