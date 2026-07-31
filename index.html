@@ -958,6 +958,7 @@
       <button type="button" class="workspace-tab" data-team-tab="goals"><strong>Goals</strong><small>Personal month</small></button>
       <button type="button" class="workspace-tab" data-team-tab="schedule"><strong>Schedules</strong><small>Weekly shifts</small></button>
       <button type="button" class="workspace-tab" data-team-tab="attr"><strong>Attributions</strong><small>Requests log</small></button>
+      <button type="button" class="workspace-tab" data-team-tab="dupes"><strong>Duplicates</strong><small>Ledger integrity</small><span class="workspace-tab-badge" id="teamDupesTabBadge" hidden>0</span></button>
     </div>
     <div class="workspace-panel active" id="teamPanelCancels" data-team-panel="cancels">
       <div class="card ops-panel-shell">
@@ -997,6 +998,42 @@
         <div class="meta-note" id="teamAttributionsStatus"></div>
       </div>
     </div>
+    <div class="workspace-panel" id="teamPanelDupes" data-team-panel="dupes">
+      <div class="card ops-panel-shell">
+        <h2>Duplicate credit review</h2>
+        <div class="meta-note" style="margin:0 0 12px;">Supabase is read-only for this dashboard, so duplicate ledger credit is corrected here instead. Revisions of the same attribution are collapsed automatically; anything ambiguous is listed for a human, and admins can exclude a specific ledger row from every total.</div>
+        <h3 style="margin:16px 0 4px; font-size:14px;">Needs review</h3>
+        <div class="meta-note" style="margin:0 0 10px;">One client credited by two separate attributions for the same rep. This is also what a genuine second purchase or a cancel/rebook looks like, so nothing is removed until someone decides.</div>
+        <div class="ops-list-head ops-dupes"><span>Client</span><span>Rep</span><span>Date</span><span>Members</span><span>Sessions</span><span>Action</span></div>
+        <div class="ops-list" id="teamDupesBody"></div>
+        <div class="meta-note" id="teamDupesEmpty" style="display:none;">No ambiguous duplicate credit in the current month.</div>
+        <h3 style="margin:22px 0 4px; font-size:14px;">Suppressed automatically</h3>
+        <div class="meta-note" style="margin:0 0 10px;">Superseded revisions of one attribution, plus rows an admin excluded. These are already out of every total.</div>
+        <div class="ops-list" id="teamSuppressedBody"></div>
+        <div class="meta-note" id="teamSuppressedEmpty" style="display:none;">Nothing suppressed — the live ledger is clean.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Ledger exclusion modal, opened from the Duplicates tab. The ledger row is
+     locked; only the audit note is editable, so every pacer-side correction
+     records who did it and why. -->
+<div class="celebration-modal-backdrop" id="ledgerExcludeBackdrop">
+  <div class="celebration-modal shoutout-modal-glow" style="text-align:left; max-width:420px;">
+    <div class="celebration-modal-title" style="text-align:center;">Exclude ledger row</div>
+    <div class="meta-note" style="margin:0 0 10px;">Removes this row from pacing, Activity, contests, and Income Planning. Nothing in Supabase changes, and it can be restored here at any time.</div>
+    <div class="attribution-form-grid" style="margin-top:10px;">
+      <label>Rep <input type="text" id="ledgerExcludeRep" disabled></label>
+      <label>Client ID <input type="text" id="ledgerExcludeClient" disabled></label>
+      <label>Credit <input type="text" id="ledgerExcludeAmount" disabled></label>
+    </div>
+    <label style="display:block; margin-top:10px;">Why is this a duplicate? <span style="color:#dc2626;">(required)</span>
+      <textarea id="ledgerExcludeNote" style="height:70px;" placeholder="e.g. Split corrected to 50% — this is the stale 100% row."></textarea>
+    </label>
+    <button type="button" class="celebration-modal-close" id="ledgerExcludeSubmit" style="margin-top:12px;">Exclude row</button>
+    <button type="button" class="celebration-modal-mute" id="ledgerExcludeCancel">Cancel</button>
+    <div class="meta-note" id="ledgerExcludeStatus"></div>
   </div>
 </div>
 
@@ -10096,7 +10133,7 @@ document.getElementById('attrPageTabs')?.addEventListener('click', (e) => {
 // Admin/coach-only view — tabs use replaceState so Back always returns to the
 // dashboard instead of walking through every tab click.
 function setTeamWorkspaceTab(tab) {
-  const allowed = ['cancels', 'goals', 'schedule', 'attr'];
+  const allowed = ['cancels', 'goals', 'schedule', 'attr', 'dupes'];
   const active = allowed.includes(tab) ? tab : 'cancels';
   document.querySelectorAll('#teamWorkspaceTabs .workspace-tab').forEach((btn) => {
     btn.classList.toggle('active', btn.getAttribute('data-team-tab') === active);
@@ -10110,19 +10147,22 @@ function teamWorkspaceHashTab() {
   if (location.hash === '#team-goals') return 'goals';
   if (location.hash === '#team-schedule') return 'schedule';
   if (location.hash === '#team-attr') return 'attr';
+  if (location.hash === '#team-dupes') return 'dupes';
   return 'cancels';
 }
 function teamWorkspaceHashForTab(tab) {
   if (tab === 'goals') return 'team-goals';
   if (tab === 'schedule') return 'team-schedule';
   if (tab === 'attr') return 'team-attr';
+  if (tab === 'dupes') return 'team-dupes';
   return 'team-details';
 }
 function isTeamWorkspaceHash() {
   return location.hash === '#team-details'
     || location.hash === '#team-goals'
     || location.hash === '#team-schedule'
-    || location.hash === '#team-attr';
+    || location.hash === '#team-attr'
+    || location.hash === '#team-dupes';
 }
 function renderTeamDetailsOverlay() {
   const overlay = document.getElementById('teamDetailsOverlay');
@@ -10142,6 +10182,7 @@ function renderTeamDetailsOverlay() {
       renderTeamCancelsTable();
       renderTeamPersonalGoalsTable();
       refreshTeamAttributions();
+      renderLedgerIntegrityTables();
     }
   } else {
     overlay.classList.remove('open');
@@ -10284,6 +10325,179 @@ document.getElementById('saveTeamScheduleBtn')?.addEventListener('click', saveTe
 // Walks every rep's raw ledger line items (the same `items` array Client
 // Detail's per-rep drill-down already reads) and pulls out anything negative
 // on either metric — that's a cancel. Team-wide, newest first.
+// ---------- Ledger integrity (duplicate credit) ----------------------------
+// Supabase is read-only for this dashboard, so duplicate credit can't be
+// soft-deleted at the source. get-live-actuals collapses superseded revisions
+// of one attribution before totalling and reports what it removed; anything
+// ambiguous (one client credited through two separate attributions) is only
+// flagged, because that shape is also a legitimate second purchase or a
+// cancel/rebook pair. Admins resolve those by excluding a specific ledger row.
+let LEDGER_INTEGRITY = { suppressed: [], flagged: [], excludedIds: [] };
+
+function ledgerIntegrityCounts(payload) {
+  const data = payload && typeof payload === 'object' ? payload : LEDGER_INTEGRITY;
+  const flagged = Number.isFinite(data.flaggedCount)
+    ? data.flaggedCount
+    : (data.flagged || []).length;
+  const suppressed = Number.isFinite(data.suppressedCount)
+    ? data.suppressedCount
+    : (data.suppressed || []).length;
+  return { flagged, suppressed };
+}
+
+function syncLedgerIntegrityBadge(payload) {
+  const badge = document.getElementById('teamDupesTabBadge');
+  if (!badge) return;
+  const { flagged } = ledgerIntegrityCounts(payload);
+  badge.textContent = String(flagged);
+  badge.hidden = flagged <= 0;
+}
+
+function ledgerCreditLabel(members, sessions) {
+  return `${fmt(Number(members) || 0, 1)} members · ${fmt(Number(sessions) || 0, 1)} sessions`;
+}
+
+function renderLedgerDupesTable() {
+  const body = document.getElementById('teamDupesBody');
+  const empty = document.getElementById('teamDupesEmpty');
+  if (!body) return;
+  const flagged = LEDGER_INTEGRITY.flagged || [];
+  const canEdit = canViewAdminTools();
+  if (!flagged.length) {
+    body.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  body.innerHTML = flagged.map((pair) => {
+    const rows = (pair.ledgerIds || []).map((ledgerId, i) => {
+      const members = (pair.members || [])[i] || 0;
+      const sessions = (pair.sessions || [])[i] || 0;
+      const action = canEdit
+        ? `<button type="button" class="theme-btn" style="margin-top:0;" data-exclude-ledger="${escapeAttr(ledgerId)}" data-client="${escapeAttr(pair.clientId || '')}" data-rep="${escapeAttr(pair.repName || '')}" data-amount="${escapeAttr(ledgerCreditLabel(members, sessions))}">Exclude this row</button>`
+        : '<span class="ops-list-v muted">Admin only</span>';
+      return `
+      <div class="ops-list-row ops-dupes">
+        <div><span class="ops-list-k">Client</span><div class="ops-list-v">${detailClientIdCellHTML(pair.clientId)}</div></div>
+        <div><span class="ops-list-k">Rep</span><div class="ops-list-v">${escapeHtml(pair.repName || '—')}</div></div>
+        <div><span class="ops-list-k">Date</span><div class="ops-list-v">${escapeHtml((pair.dates || [])[i] || '—')}</div></div>
+        <div><span class="ops-list-k">Members</span><div class="ops-list-v">${fmt(members, 1)}</div></div>
+        <div><span class="ops-list-k">Sessions</span><div class="ops-list-v">${fmt(sessions, 1)}</div></div>
+        <div class="ops-span-all"><span class="ops-list-k">Action</span>${action}</div>
+      </div>`;
+    }).join('');
+    return rows;
+  }).join('');
+}
+
+function renderLedgerSuppressedTable() {
+  const body = document.getElementById('teamSuppressedBody');
+  const empty = document.getElementById('teamSuppressedEmpty');
+  if (!body) return;
+  const suppressed = LEDGER_INTEGRITY.suppressed || [];
+  const canEdit = canViewAdminTools();
+  if (!suppressed.length) {
+    body.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  body.innerHTML = suppressed.map((row) => {
+    const isAdminExcluded = row.reason === 'admin-excluded';
+    const why = isAdminExcluded
+      ? 'Excluded by an admin'
+      : `Superseded revision${row.supersededBy ? ' — replaced by a newer ledger row' : ''}`;
+    const action = isAdminExcluded && canEdit
+      ? `<button type="button" class="theme-btn" style="margin-top:0;" data-restore-ledger="${escapeAttr(row.ledgerId || '')}">Restore</button>`
+      : '<span class="ops-list-v muted">—</span>';
+    return `
+    <div class="ops-list-row ops-dupes">
+      <div><span class="ops-list-k">Client</span><div class="ops-list-v">${detailClientIdCellHTML(row.clientId)}</div></div>
+      <div><span class="ops-list-k">Rep</span><div class="ops-list-v">${escapeHtml(row.repName || '—')}</div></div>
+      <div><span class="ops-list-k">Reason</span><div class="ops-list-v">${escapeHtml(why)}</div></div>
+      <div><span class="ops-list-k">Members</span><div class="ops-list-v">${fmt(row.members, 1)}</div></div>
+      <div><span class="ops-list-k">Sessions</span><div class="ops-list-v">${fmt(row.sessions, 1)}</div></div>
+      <div class="ops-span-all"><span class="ops-list-k">Action</span>${action}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderLedgerIntegrityTables() {
+  syncLedgerIntegrityBadge();
+  renderLedgerDupesTable();
+  renderLedgerSuppressedTable();
+}
+
+async function postLedgerExclusion(payload) {
+  const data = await authedFetch('/api/ledger/exclusions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  // Bypass the warm cache so the corrected totals land immediately.
+  await fetchLiveActuals({ full: true, fresh: true });
+  quietRefreshFromActuals();
+  renderLedgerIntegrityTables();
+  return data;
+}
+
+document.getElementById('teamDupesBody')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-exclude-ledger]');
+  if (!btn) return;
+  const backdrop = document.getElementById('ledgerExcludeBackdrop');
+  backdrop.dataset.ledgerId = btn.getAttribute('data-exclude-ledger') || '';
+  backdrop.dataset.clientId = btn.getAttribute('data-client') || '';
+  backdrop.dataset.repName = btn.getAttribute('data-rep') || '';
+  document.getElementById('ledgerExcludeRep').value = btn.getAttribute('data-rep') || '';
+  document.getElementById('ledgerExcludeClient').value = btn.getAttribute('data-client') || '';
+  document.getElementById('ledgerExcludeAmount').value = btn.getAttribute('data-amount') || '';
+  document.getElementById('ledgerExcludeNote').value = '';
+  document.getElementById('ledgerExcludeStatus').textContent = '';
+  backdrop.classList.add('open');
+});
+
+document.getElementById('teamSuppressedBody')?.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-restore-ledger]');
+  if (!btn) return;
+  btn.disabled = true;
+  try {
+    await postLedgerExclusion({ action: 'restore', ledgerId: btn.getAttribute('data-restore-ledger') });
+  } catch (err) {
+    alert('Could not restore that ledger row: ' + (err && err.message ? err.message : 'unknown error'));
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('ledgerExcludeCancel')?.addEventListener('click', () => {
+  document.getElementById('ledgerExcludeBackdrop').classList.remove('open');
+});
+document.getElementById('ledgerExcludeBackdrop')?.addEventListener('click', (e) => {
+  if (e.target.id === 'ledgerExcludeBackdrop') e.currentTarget.classList.remove('open');
+});
+document.getElementById('ledgerExcludeSubmit')?.addEventListener('click', async (e) => {
+  const backdrop = document.getElementById('ledgerExcludeBackdrop');
+  const status = document.getElementById('ledgerExcludeStatus');
+  const note = document.getElementById('ledgerExcludeNote').value.trim();
+  if (!note) { status.textContent = 'A note is required.'; return; }
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  status.textContent = 'Excluding…';
+  try {
+    await postLedgerExclusion({
+      action: 'exclude',
+      ledgerId: backdrop.dataset.ledgerId || '',
+      clientId: backdrop.dataset.clientId || '',
+      repName: backdrop.dataset.repName || '',
+      note,
+    });
+    backdrop.classList.remove('open');
+  } catch (err) {
+    status.textContent = 'Error: ' + (err && err.message ? err.message : 'unknown error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 function computeTeamCancels() {
   const actuals = loadActuals();
   const rows = [];
@@ -10764,14 +10978,22 @@ function patchLandingPaceNumbers() {
 }
 
 async function fetchLiveActuals(opts) {
-  if (liveActualsInFlight) return liveActualsInFlight;
+  if (liveActualsInFlight) {
+    // A `fresh` caller just changed the data server-side, so an already
+    // in-flight poll would hand back the numbers it's trying to replace.
+    if (!(opts && opts.fresh)) return liveActualsInFlight;
+    try { await liveActualsInFlight; } catch (_) {}
+  }
   const forceFull = !!(opts && opts.full);
   const statusEl = document.getElementById('liveActualsStatus');
   const prevDigest = actualsDigest(ACTUALS_CACHE);
   liveActualsInFlight = (async () => {
   try {
     const wantFull = forceFull || liveActualsNeedsFullItems();
-    const qs = wantFull ? '' : '?compact=1';
+    const params = [];
+    if (!wantFull) params.push('compact=1');
+    if (opts && opts.fresh) params.push('fresh=1');
+    const qs = params.length ? '?' + params.join('&') : '';
     const data = await authedFetch('/api/actuals/live' + qs, { cache: 'no-store' });
     if (!data.actuals || !data.actuals.perRep) {
       lastLiveActualsOk = false;
@@ -10779,6 +11001,11 @@ async function fetchLiveActuals(opts) {
     }
     ACTUALS_CACHE = wantFull ? data.actuals : mergeLiveActualsPreserveItems(data.actuals);
     if (data.prelim) PRELIM_CACHE = data.prelim;
+    // Compact polls only carry counts, so keep the last full detail around.
+    if (data.ledgerIntegrity && !data.ledgerIntegrity.compact) {
+      LEDGER_INTEGRITY = data.ledgerIntegrity;
+    }
+    syncLedgerIntegrityBadge(data.ledgerIntegrity);
     lastLiveActualsOk = true;
     if (statusEl) {
       statusEl.textContent = `Live Supabase feed OK · as of ${data.actuals.asOf}` +
