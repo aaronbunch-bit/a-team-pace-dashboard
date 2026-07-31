@@ -963,7 +963,7 @@
     <div class="workspace-panel active" id="teamPanelCancels" data-team-panel="cancels">
       <div class="card ops-panel-shell">
         <h2>Cancels — team-wide</h2>
-        <div class="meta-note" style="margin:0 0 12px;">Negative ledger lines across the team. Convert a cancel into a Manual Attribution correction without guessing the rep.</div>
+        <div class="meta-note" style="margin:0 0 12px;">Negative ledger lines that hit this Chicago month (including cancels of earlier-month sales). Convert a cancel into a Manual Attribution correction without guessing the rep.</div>
         <div class="ops-list-head ops-cancels"><span>Date</span><span>Rep</span><span>Client</span><span>Members</span><span>Sessions</span><span>Action</span></div>
         <div class="ops-list" id="teamCancelsBody"></div>
         <div class="meta-note" id="teamCancelsEmpty" style="display:none;">No cancels in the current ledger.</div>
@@ -10324,7 +10324,9 @@ document.getElementById('saveTeamScheduleBtn')?.addEventListener('click', saveTe
 
 // Walks every rep's raw ledger line items (the same `items` array Client
 // Detail's per-rep drill-down already reads) and pulls out anything negative
-// on either metric — that's a cancel. Team-wide, newest first.
+// on either metric — that's a cancel. Live MTD includes cancels that *hit*
+// this Chicago month (ledger created_at), not only cancels of this-month
+// originated sales. Team-wide, newest first.
 // ---------- Ledger integrity (duplicate credit) ----------------------------
 // Supabase is read-only for this dashboard, so duplicate credit can't be
 // soft-deleted at the source. get-live-actuals collapses superseded revisions
