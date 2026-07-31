@@ -7277,32 +7277,8 @@ function contestHistoryHTML() {
     }).join('')}</div>`;
 }
 function contestAtmosphereHTML(contest) {
-  const theme = contestResolveTheme(contest);
-  const map = {
-    'grand-prix': ['🏁', '✦', '🏎️', '✦', '🏆'],
-    'neon-night': ['✦', '🌃', '◆', '⚡', '✦'],
-    'space-race': ['✦', '🪐', '🚀', '✧', '🌙'],
-    'desert-rally': ['☀️', '🏜️', '✦', '🌵', '✦'],
-    'rainbow-road': ['✦', '🌈', '★', '☁️', '✦'],
-    'ice-circuit': ['❄️', '✦', '🧊', '❄️', '✧'],
-    stadium: ['✦', '🏟️', '★', '📣', '✦'],
-    carnival: ['✦', '🎡', '★', '🎟️', '✦'],
-    pirate: ['✦', '🏴‍☠️', '⚓', '💰', '✦'],
-    arcade: ['✦', '👾', '◆', '⚡', '✦'],
-    'blood-type-a': ['✦', '🅰️', '⚡', '🔥', '✦'],
-    'dragon-cup': ['✦', '🐉', '🔥', '🏆', '✦'],
-    underwater: ['◌', '🐠', '○', '🫧', '◌'],
-    retro: ['✦', '📼', '◆', '🕹️', '✦'],
-  };
-  return `
-    <div class="contest-atmosphere" aria-hidden="true">
-      ${(map[theme] || map['grand-prix']).map((icon, i) =>
-        `<span class="contest-atmosphere-piece p${i + 1}">${escapeHtml(icon)}</span>`
-      ).join('')}
-      <div class="contest-atmosphere-grid"></div>
-      <div class="contest-atmosphere-orb orb-a"></div>
-      <div class="contest-atmosphere-orb orb-b"></div>
-    </div>`;
+  // Soft wash only — no floating icons / orbs. Theme color comes from CSS vars.
+  return `<div class="contest-atmosphere" aria-hidden="true"><div class="contest-atmosphere-wash"></div></div>`;
 }
 function contestMomentumHTML(contest, standings, phase) {
   const me = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
@@ -7310,35 +7286,33 @@ function contestMomentumHTML(contest, standings, phase) {
   const runnerUp = standings[1] || null;
   const mine = me ? standings.find((r) => r.repName === me) : null;
   const unit = contestUnitsLabel(contest.units);
-  let personal = 'Make the first move';
-  if (phase === 'scheduled') personal = 'Pick your opening move';
+  let personal = 'Open';
+  if (phase === 'scheduled') personal = 'Soon';
   else if (mine && mine.place === 1) personal = runnerUp
-    ? `${fmt(Math.max(0, mine.score - runnerUp.score), 1)} ${unit} ahead`
-    : 'Setting the pace';
-  else if (mine && leader) personal = `${fmt(Math.max(0, leader.score - mine.score), 1)} ${unit} to the lead`;
-  else if (mine) personal = `#${mine.place} · ${fmt(mine.score, 1)} ${unit}`;
+    ? `+${fmt(Math.max(0, mine.score - runnerUp.score), 1)} lead`
+    : 'Leading';
+  else if (mine && leader) personal = `${fmt(Math.max(0, leader.score - mine.score), 1)} to #1`;
+  else if (mine) personal = `#${mine.place}`;
 
-  const leadText = leader
-    ? `${leader.repName} · ${fmt(leader.score, 1)} ${unit}`
-    : 'First credit takes it';
-  const pulse = leader && runnerUp
-    ? (leader.score === runnerUp.score ? 'Dead heat' : `${fmt(Math.max(0, leader.score - runnerUp.score), 1)} between the top two`)
-    : 'The board is wide open';
+  const leadText = leader ? leader.repName : '—';
+  const leadScore = leader ? fmt(leader.score, 1) : '0';
+  const gapText = leader && runnerUp
+    ? (leader.score === runnerUp.score ? 'Tied' : fmt(Math.max(0, leader.score - runnerUp.score), 1))
+    : '—';
   return `
     <div class="contest-momentum-bar">
       <div class="contest-momentum-stat">
-        <span class="contest-momentum-icon" aria-hidden="true">👑</span>
-        <span><small>Front runner</small><strong>${escapeHtml(leadText)}</strong></span>
+        <b>${escapeHtml(leadText)}</b>
+        <span>Front · ${escapeHtml(leadScore)} ${escapeHtml(unit)}</span>
       </div>
-      <div class="contest-momentum-stat is-pulse">
-        <span class="contest-momentum-icon" aria-hidden="true">⚡</span>
-        <span><small>Race pulse</small><strong>${escapeHtml(pulse)}</strong></span>
+      <div class="contest-momentum-stat">
+        <b>${escapeHtml(gapText)}</b>
+        <span>Gap to #2</span>
       </div>
       <div class="contest-momentum-stat is-you">
-        <span class="contest-momentum-icon" aria-hidden="true">🎯</span>
-        <span><small>Your move</small><strong>${escapeHtml(personal)}</strong></span>
+        <b>${escapeHtml(personal)}</b>
+        <span>You</span>
       </div>
-      ${phase === 'active' ? `<button type="button" class="contest-rally-btn" data-contest-rally="${escapeAttr(contest.id)}">📣 Rally the team</button>` : ''}
     </div>`;
 }
 function contestBoardHTML(contest) {
@@ -8103,34 +8077,6 @@ document.getElementById('contestBoardHost')?.addEventListener('click', async (e)
         themeSelect.scrollIntoView({ block: 'center', behavior: 'smooth' });
       });
     }
-    return;
-  }
-  const rallyBtn = e.target.closest('[data-contest-rally]');
-  if (rallyBtn) {
-    const contest = CONTEST_CACHE.find((c) => c.id === rallyBtn.getAttribute('data-contest-rally'));
-    if (!contest) return;
-    const lines = [
-      'Friendly pressure is on — next credit changes the board.',
-      'The crew is watching. Make the next move count.',
-      'Keep it close, keep it kind, keep it moving.',
-      'One strong close can shake up the whole race.',
-    ];
-    const announcer = document.getElementById('contestAnnouncer');
-    const line = lines[Math.floor(Math.random() * lines.length)];
-    if (announcer) {
-      announcer.textContent = line;
-      announcer.classList.remove('is-rallied');
-      void announcer.offsetWidth;
-      announcer.classList.add('is-rallied');
-    }
-    rallyBtn.textContent = '⚡ Team rallied';
-    rallyBtn.disabled = true;
-    burstContestConfetti(contest.effects === 'max' ? 'confetti' : (contest.effects || 'sparks'));
-    window.setTimeout(() => {
-      if (!rallyBtn.isConnected) return;
-      rallyBtn.textContent = '📣 Rally the team';
-      rallyBtn.disabled = false;
-    }, 3500);
     return;
   }
   const endBtn = e.target.closest('[data-contest-end]');
