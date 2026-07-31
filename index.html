@@ -965,6 +965,10 @@
         <h2>Cancels — team-wide</h2>
         <div class="meta-note" style="margin:0 0 12px;">Negative ledger lines across the team for this month (and cancels of last month's sales that hit this month). Convert a cancel into a Manual Attribution correction without guessing the rep.</div>
         <div class="meta-note" id="teamCancelsWindowNote" style="margin:0 0 12px;" hidden></div>
+        <div style="margin:0 0 12px;">
+          <button type="button" class="theme-btn" style="margin-top:0;" id="teamCancelsCopyBtn">Copy these lines</button>
+          <span class="meta-note" id="teamCancelsCopyStatus" style="margin-left:8px;"></span>
+        </div>
         <div class="ops-list-head ops-cancels"><span>Date</span><span>Rep</span><span>Client</span><span>Members</span><span>Sessions</span><span>Action</span></div>
         <div class="ops-list" id="teamCancelsBody"></div>
         <div class="meta-note" id="teamCancelsEmpty" style="display:none;">No cancels in the current ledger.</div>
@@ -10644,6 +10648,33 @@ function renderCancelsWindowNote() {
   note.hidden = false;
 }
 
+/**
+ * The counted cancel lines as CSV.
+ *
+ * Every line the tiles are built from, in the same shape as a rep-scores export,
+ * so the two can be diffed directly instead of by eye.
+ */
+function cancelLinesCsv() {
+  const rows = computeTeamCancels();
+  const w = (LEDGER_INTEGRITY && LEDGER_INTEGRITY.window) || {};
+  const bySaleMonth = new Map((CANCEL_ITEMS || []).map((it) => [
+    `${it.rep}|${it.clientId}|${it.date}|${it.members}|${it.sessions}`,
+    it.saleMonth || '',
+  ]));
+  const head = ['date', 'rep', 'client_id', 'members', 'sessions', 'sale_month'];
+  const body = rows.map((r) => [
+    r.date,
+    r.rep,
+    r.clientId,
+    r.members,
+    r.sessions,
+    bySaleMonth.get(`${r.rep}|${r.clientId}|${r.date}|${r.members}|${r.sessions}`) || '',
+  ]);
+  const totals = rows.reduce((a, r) => ({ m: a.m + r.members, s: a.s + r.sessions }), { m: 0, s: 0 });
+  const meta = `# rule=${w.rule || 'unknown'} month=${w.month || ''} lines=${rows.length} members=${fmt(totals.m, 1)} sessions=${fmt(totals.s, 1)}`;
+  return [meta, head.join(','), ...body.map((cols) => cols.join(','))].join('\n');
+}
+
 function renderTeamCancelsTable() {
   const tbody = document.getElementById('teamCancelsBody');
   const empty = document.getElementById('teamCancelsEmpty');
@@ -10677,6 +10708,22 @@ function renderTeamCancelsTable() {
     </div>`;
   }).join('');
 }
+document.getElementById('teamCancelsCopyBtn')?.addEventListener('click', async () => {
+  const status = document.getElementById('teamCancelsCopyStatus');
+  const csv = cancelLinesCsv();
+  try {
+    await navigator.clipboard.writeText(csv);
+    if (status) status.textContent = `Copied ${computeTeamCancels().length} lines.`;
+  } catch (_) {
+    // Clipboard is blocked in some contexts — fall back to a selectable dump.
+    const box = document.createElement('textarea');
+    box.value = csv;
+    box.style.cssText = 'width:100%;height:200px;margin-top:8px;font-family:monospace;font-size:11px;';
+    document.getElementById('teamCancelsCopyBtn').after(box);
+    box.select();
+    if (status) status.textContent = 'Select all and copy.';
+  }
+});
 document.getElementById('teamCancelsBody').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-move-to-attro]');
   if (!btn) return;
