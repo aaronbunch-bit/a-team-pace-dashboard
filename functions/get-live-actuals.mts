@@ -27,6 +27,8 @@ type LedgerRow = {
   ledger_created_at?: string;
   /** When the original sale happened — audit only, never the month key. */
   sale_occurred_at?: string;
+  /** Upstream soft-deleted the attribution this line hangs off. */
+  attribution_deleted?: boolean;
   /** Journal role, assigned by netLedgerJournal. */
   kind?: LedgerKind;
 };
@@ -134,6 +136,114 @@ function sqlStringList(values: string[]): string {
   return values.map((v) => `'${v.replace(/'/g, "''")}'`).join(", ");
 }
 
+/**
+ * The ledger row's own business date, in the order the rep-scores export is
+ * most likely to name it.
+ *
+ * A ledger line carries a business date that is not the moment the row was
+ * written: the July export holds cancel lines dated 7/6, 7/14 and 7/15 that did
+ * not exist yet when the 7/26 export was pulled, so upstream backfills lines
+ * with an earlier date on them. That business date is the export's
+ * `attribution_date` column and it is what decides the month a line lands in.
+ * Row creation time is the wrong key in both directions — a line written in
+ * July for June business belongs to June.
+ */
+const LEDGER_MONTH_KEY_CANDIDATES = [
+  "attribution_date",
+  "effective_date",
+  "business_date",
+  "entry_date",
+  "scored_at",
+  "scored_date",
+  "occurred_at",
+  "posted_at",
+  "transaction_date",
+  "credited_at",
+];
+
+type MonthKey = { column: string; dataType: string; discovered: boolean };
+
+const CREATED_AT_MONTH_KEY: MonthKey = {
+  column: "created_at",
+  dataType: "timestamp with time zone",
+  discovered: false,
+};
+
+/** Picked once per warm instance — the ledger's shape doesn't change per poll. */
+let cachedMonthKey: MonthKey | null = null;
+
+export function pickMonthKey(columns: { column_name: string; data_type: string }[]): MonthKey | null {
+  const byName = new Map(columns.map((c) => [String(c.column_name), String(c.data_type)]));
+  for (const column of LEDGER_MONTH_KEY_CANDIDATES) {
+    const dataType = byName.get(column);
+    if (dataType) return { column, dataType, discovered: true };
+  }
+  return null;
+}
+
+/**
+ * Ask the database which date column the ledger actually has rather than
+ * hard-coding a name that may not exist. A miss falls back to created_at (the
+ * previous behaviour) and is reported in the payload instead of failing the
+ * request.
+ */
+async function ledgerMonthKey(): Promise<MonthKey> {
+  if (cachedMonthKey) return cachedMonthKey;
+  try {
+    const columns = await runSupabaseSql<{ column_name: string; data_type: string }>(`
+select column_name, data_type
+from information_schema.columns
+where table_schema = 'sales_attribution'
+  and table_name = 'rep_scores_ledger_entries'
+  and data_type in ('date', 'timestamp with time zone', 'timestamp without time zone');
+`);
+    const picked = pickMonthKey(columns || []);
+    if (picked) {
+      cachedMonthKey = picked;
+      return picked;
+    }
+  } catch {
+    // Introspection is best-effort; retry on the next cold-ish request.
+  }
+  return CREATED_AT_MONTH_KEY;
+}
+
+/** The month key as a Chicago calendar day. */
+export function monthKeyDayExpr(key: MonthKey, tz: string): string {
+  const col = `l.${key.column}`;
+  if (key.dataType === "date") return col;
+  if (key.dataType === "timestamp without time zone") {
+    return `((${col} at time zone 'UTC') at time zone '${tz}')::date`;
+  }
+  return `(${col} at time zone '${tz}')::date`;
+}
+
+/** The month key as a readable Chicago timestamp for the row detail views. */
+export function monthKeyStampExpr(key: MonthKey, tz: string): string {
+  const col = `l.${key.column}`;
+  if (key.dataType === "date") return `${col}::text`;
+  if (key.dataType === "timestamp without time zone") {
+    return `((${col} at time zone 'UTC') at time zone '${tz}')::text`;
+  }
+  return `(${col} at time zone '${tz}')::text`;
+}
+
+/**
+ * Month window as a bare comparison on the column itself — the bounds do the
+ * timezone work — so the ledger's index on that column can still be used.
+ * Bounds come from the `bounds` CTE below.
+ */
+export function monthKeyWindowSql(key: MonthKey): string {
+  const col = `l.${key.column}`;
+  if (key.dataType === "date") {
+    return `${col} >= b.month_start_day\n  and ${col} <  b.next_month_day`;
+  }
+  if (key.dataType === "timestamp without time zone") {
+    return `${col} >= (b.month_start at time zone 'UTC')\n  and ${col} <  (b.month_end at time zone 'UTC')`;
+  }
+  return `${col} >= b.month_start\n  and ${col} <  b.month_end`;
+}
+
 function rowSortKey(row: LedgerRow): string {
   // created_at orders the journal; ledger id breaks exact ties.
   return `${String(row.ledger_created_at || "")}|${String(row.ledger_id || "")}`;
@@ -162,7 +272,7 @@ function rowSortKey(row: LedgerRow): string {
  * merged: that shape is also a legitimate second purchase or a cancel/rebook
  * pair. Admins can exclude a specific ledger id.
  */
-function netLedgerJournal(
+export function netLedgerJournal(
   rows: LedgerRow[],
   emailToDisplay: Record<string, string>,
   exclusions: Set<string>
@@ -315,6 +425,47 @@ function netLedgerJournal(
   return { rows: kept, suppressed, flagged, netted };
 }
 
+type RowSummary = { rows: number; members: number; sessions: number; clientIds: string[] };
+
+function summarizeRows(rows: LedgerRow[]): RowSummary {
+  return {
+    rows: rows.length,
+    members: rows.reduce((sum, r) => sum + (Number(r.members) || 0), 0),
+    sessions: rows.reduce((sum, r) => sum + (Number(r.sessions) || 0), 0),
+    // Enough to look a few up by hand without shipping the whole set.
+    clientIds: [...new Set(rows.map((r) => String(r.client_id || "").trim()).filter(Boolean))].slice(0, 25),
+  };
+}
+
+/** Previous calendar month for a `YYYY-MM` key. */
+function priorMonthKey(month: string): string {
+  const [y, m] = month.split("-").map((n) => Number(n));
+  if (!y || !m) return "";
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
+}
+
+/**
+ * Cancels split by how old the sale behind them is. The export's July cancels
+ * are -14.0/-108 against July sales and -36.5/-228 against June sales, so this
+ * is the one breakdown that says at a glance whether the month window is
+ * reading the same population the reps reconcile against.
+ */
+function summarizeCancelsBySaleMonth(rows: LedgerRow[], month: string) {
+  const prior = priorMonthKey(month);
+  const cancels = rows.filter((r) => r.kind === "cancel");
+  const bucketOf = (row: LedgerRow) => {
+    const saleMonth = String(row.sale_occurred_at || "").slice(0, 7);
+    if (saleMonth === month) return "thisMonthSale" as const;
+    if (saleMonth && saleMonth === prior) return "priorMonthSale" as const;
+    return "olderSale" as const;
+  };
+  return {
+    thisMonthSale: summarizeRows(cancels.filter((r) => bucketOf(r) === "thisMonthSale")),
+    priorMonthSale: summarizeRows(cancels.filter((r) => bucketOf(r) === "priorMonthSale")),
+    olderSale: summarizeRows(cancels.filter((r) => bucketOf(r) === "olderSale")),
+  };
+}
+
 function buildActuals(
   rows: LedgerRow[],
   emailToDisplay: Record<string, string>
@@ -448,13 +599,16 @@ function stripItemsForCompact(actuals: { asOf: string; perRep: Record<string, Pe
  */
 function stripIntegrityForCompact(payload: Record<string, unknown>) {
   const integrity = payload.ledgerIntegrity as
-    | { suppressed?: unknown[]; flagged?: unknown[]; netted?: unknown[] }
+    | { suppressed?: unknown[]; flagged?: unknown[]; netted?: unknown[]; window?: unknown }
     | undefined;
   if (!integrity) return;
   payload.ledgerIntegrity = {
     suppressedCount: Array.isArray(integrity.suppressed) ? integrity.suppressed.length : 0,
     flaggedCount: Array.isArray(integrity.flagged) ? integrity.flagged.length : 0,
     nettedCount: Array.isArray(integrity.netted) ? integrity.netted.length : 0,
+    // A handful of numbers — small enough to keep on every poll, and the fastest
+    // way to see the window the tiles were built from.
+    window: integrity.window,
     compact: true,
   };
 }
@@ -520,27 +674,29 @@ export default async (req: Request, context: Context) => {
 
     // Current calendar month in America/Chicago (CST/CDT) — team business day.
     //
-    // Two conditions, both taken from the rep-scores export the reps reconcile
-    // against:
+    // One condition, the same one the rep-scores export applies: the ledger
+    // line's own business date falls in this month. Everything else we tried is
+    // measurably wrong against the July export's -50.5 members / -336 sessions
+    // of cancels (the manual pacer reads 51.5 / 326):
     //
-    // 1. Month key is the ledger line's own date (l.created_at) — the export's
-    //    `attribution_date`. For a sale that equals the attribution's
-    //    occurred_at, but a cancel or correction carries its own date, so
-    //    keying on occurred_at hid every cancel of a prior-month sale (cancel
-    //    tiles read -14.5/-108 against the export's -50.5/-332).
-    //
-    // 2. The sale must still be in scoring range: its occurred_at falls in this
-    //    month or the one before. Rep scores stop charging a rep once the sale
-    //    is older than that — every cancel in the July export belongs to a June
-    //    or July sale. Without this gate the month key in (1) also drags in
-    //    cancels of much older sales and tiles overshoot to -86.5/-542.
+    // - attributions.occurred_at is the sale's date and stays there when the
+    //   sale is cancelled, so it only ever finds cancels of *this month's*
+    //   sales: -14.0 / -108 in the export, which is exactly what the tiles read.
+    // - l.created_at is when the row was written, which is not its business
+    //   date — the export carries lines dated 7/6, 7/14 and 7/15 that did not
+    //   exist on 7/26. Keying on it charges July for June-dated lines written in
+    //   July and the tiles overshoot to -86.5.
     const tz = TEAM_TIME_ZONE.replace(/'/g, "''");
+    const monthKey = await ledgerMonthKey();
+    const monthYmd = teamTodayYmd().slice(0, 7);
+    const ledgerDay = monthKeyDayExpr(monthKey, tz);
     const sql = `
 with bounds as (
   select
     (date_trunc('month', (now() at time zone '${tz}')) at time zone '${tz}') as month_start,
     ((date_trunc('month', (now() at time zone '${tz}')) + interval '1 month') at time zone '${tz}') as month_end,
-    ((date_trunc('month', (now() at time zone '${tz}')) - interval '1 month') at time zone '${tz}') as scoring_start
+    date_trunc('month', (now() at time zone '${tz}'))::date as month_start_day,
+    (date_trunc('month', (now() at time zone '${tz}')) + interval '1 month')::date as next_month_day
 )
 select
   lower(f.email) as email,
@@ -550,9 +706,10 @@ select
   a.id::text as attribution_id,
   l.manager_id::text as manager_id,
   l.created_at::text as ledger_created_at,
-  (l.created_at at time zone '${tz}')::date::text as attribution_date,
-  (l.created_at at time zone '${tz}')::text as occurred_at,
+  ${ledgerDay}::text as attribution_date,
+  ${monthKeyStampExpr(monthKey, tz)} as occurred_at,
   (a.occurred_at at time zone '${tz}')::text as sale_occurred_at,
+  (a.deleted_at is not null) as attribution_deleted,
   l.net_client_credit_amount::float8 as members,
   l.hours_amount::float8 as sessions
 from sales_attribution.rep_scores_ledger_entries l
@@ -563,17 +720,19 @@ join sales_attribution.flex_team_members f
  and f.deleted_at is null
 cross join bounds b
 where l.deleted_at is null
-  and l.created_at >= b.month_start
-  and l.created_at <  b.month_end
-  and a.occurred_at >= b.scoring_start
-  and a.occurred_at <  b.month_end
+  and ${monthKeyWindowSql(monthKey)}
   and lower(f.email) in (${sqlStringList(emails)})
-order by l.created_at asc, l.id asc;
+order by l.${monthKey.column} asc, l.id asc;
 `;
 
     const rawRows = await runSupabaseSql<LedgerRow>(sql);
+    // The export lists live attributions, so a line whose attribution upstream
+    // soft-deleted is held back rather than counted — but it is reported, since
+    // silently dropping a cancel is how tiles drift from the export.
+    const liveRows = rawRows.filter((row) => !row.attribution_deleted);
+    const deletedAttribution = summarizeRows(rawRows.filter((row) => !!row.attribution_deleted));
     const exclusions = await loadLedgerExclusionIds();
-    const reconciled = netLedgerJournal(rawRows, emailToDisplay, exclusions);
+    const reconciled = netLedgerJournal(liveRows, emailToDisplay, exclusions);
     const rows = reconciled.rows;
     const built = buildActuals(rows, emailToDisplay);
     const actuals = { asOf: built.asOf, perRep: built.perRep };
@@ -594,6 +753,15 @@ order by l.created_at asc, l.id asc;
         flagged: reconciled.flagged,
         netted: reconciled.netted,
         excludedIds: [...exclusions],
+        // Everything needed to reconcile the cancel tiles against a rep-scores
+        // export without another round of guessing at the window.
+        window: {
+          monthKeyColumn: monthKey.column,
+          monthKeyDiscovered: monthKey.discovered,
+          month: monthYmd,
+          deletedAttribution,
+          cancelsBySaleMonth: summarizeCancelsBySaleMonth(rows, monthYmd),
+        },
       },
       actuals,
       fetchedAt: new Date().toISOString(),
