@@ -1001,7 +1001,7 @@
     <div class="workspace-panel" id="teamPanelDupes" data-team-panel="dupes">
       <div class="card ops-panel-shell">
         <h2>Duplicate credit review</h2>
-        <div class="meta-note" style="margin:0 0 12px;">The ledger is a journal, so every line of one attribution is summed — a correction written as a reversal plus a replacement nets to the corrected value, and a cancellation nets the sale back to zero. Anything genuinely ambiguous is listed for a human, and admins can exclude a specific ledger row from every total.</div>
+        <div class="meta-note" style="margin:0 0 12px;">The ledger is a journal, so every line of one attribution is summed and reported as a single credit row — an attribution corrected from 100% to 50% shows once at 50%, not twice. Cancellations stay on their own row and date. Anything genuinely ambiguous is listed for a human, and admins can exclude a specific ledger row from every total.</div>
         <h3 style="margin:16px 0 4px; font-size:14px;">Needs review</h3>
         <div class="meta-note" style="margin:0 0 10px;">One client credited by two separate attributions for the same rep, both still netting positive. This is also what a genuine second purchase or a cancel/rebook looks like, so nothing is removed until someone decides.</div>
         <div class="ops-list-head ops-dupes"><span>Client</span><span>Rep</span><span>Date</span><span>Members</span><span>Sessions</span><span>Action</span></div>
@@ -10540,10 +10540,10 @@ function computeTeamCancels() {
     const raw = (actuals.perRep && actuals.perRep[r.display]) || {};
     (raw.items || []).forEach(it => {
       if (it.members >= 0 && it.sessions >= 0) return;
-      // A reversal that a later ledger line replaces is a correction being
-      // rebooked, not lost business. Snapshots without `kind` predate the
-      // journal classification, so they fall back to sign alone.
-      if (it.kind === 'reversal') return;
+      // Revisions never reach here — they're folded into their attribution's
+      // single credit row — so any negative row is real lost business. Older
+      // snapshots carry no `kind` and fall back to sign alone.
+      if (it.kind && it.kind !== 'cancel') return;
       rows.push({ rep: r.display, clientId: it.clientId || '', date: it.date || '', members: it.members, sessions: it.sessions });
     });
   });
