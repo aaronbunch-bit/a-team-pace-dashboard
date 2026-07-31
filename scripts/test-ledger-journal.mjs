@@ -11,10 +11,7 @@
 import assert from "node:assert/strict";
 import {
   netLedgerJournal,
-  pickMonthKey,
-  monthKeyDayExpr,
-  monthKeyStampExpr,
-  monthKeyWindowSql,
+  lineInLiveMonth,
 } from "../functions/get-live-actuals.mts";
 
 const EMAIL = "becky.ruffer@varsitytutors.com";
@@ -49,8 +46,6 @@ const totals = (rows) => ({
 });
 
 // attr 87409 (Becky, client 8568597): booked at 100%, reversed, rebooked at 50%.
-// The export carries ONE Becky line for this client at 0.5/4 — the pacer must
-// not list the 100% and the 50% side by side.
 const doubleAttro = journal([
   line({ ledgerId: 675266, attributionId: 87409, members: 1, sessions: 8 }),
   line({ ledgerId: 675272, attributionId: 87409, members: -1, sessions: -8 }),
@@ -95,61 +90,19 @@ const priorSaleCancel = journal([
 ]);
 assert.equal(totals(priorSaleCancel).cancelSessions, -8);
 
-// ---- Month key -------------------------------------------------------------
-// A ledger line belongs to the month its own business date falls in — the
-// export's `attribution_date`. The two other columns we tried are both wrong
-// against the July export's -50.5 members / -336 sessions of cancels:
-//
-//   attributions.occurred_at  -> -14.0 / -108  (only cancels of July sales;
-//                                 occurred_at stays on the sale's date)
-//   rep_scores...created_at   -> -86.5         (also charges July for
-//                                 June-dated lines that were written in July)
-const LEDGER_COLUMNS = [
-  { column_name: "created_at", data_type: "timestamp with time zone" },
-  { column_name: "updated_at", data_type: "timestamp with time zone" },
-  { column_name: "attribution_date", data_type: "timestamp with time zone" },
-];
-assert.deepEqual(pickMonthKey(LEDGER_COLUMNS), {
-  column: "attribution_date",
-  dataType: "timestamp with time zone",
-  discovered: true,
-});
+// ---- Month window ----------------------------------------------------------
+// Line date = ledger created_at month. Sale date = attributions.occurred_at
+// month. Both conditions required — either alone reproduces a wrong total we
+// already shipped (-14 without prior-month sales, -86.5 without the sale gate).
+const MONTH = "2026-07";
+const PRIOR = "2026-06";
+const inMonth = (lineMonth, saleMonth) =>
+  lineInLiveMonth({ lineMonth, saleMonth }, MONTH, PRIOR);
 
-// created_at is never picked as the business date — it is only the fallback the
-// handler uses when no candidate column exists at all.
-assert.equal(pickMonthKey([{ column_name: "created_at", data_type: "timestamp with time zone" }]), null);
-assert.equal(pickMonthKey([]), null);
+assert.equal(inMonth("2026-07", "2026-07"), true, "July sale credited in July");
+assert.equal(inMonth("2026-07", "2026-06"), true, "June sale cancelled in July");
+assert.equal(inMonth("2026-06", "2026-06"), false, "June-dated line stays in June");
+assert.equal(inMonth("2026-07", "2026-05"), false, "May sale cancel no longer scores");
+assert.equal(inMonth("2026-07", "2026-04"), false, "older cancels stay out");
 
-// Whatever the column's type, the month key reads as a Chicago calendar day, so
-// a line written at 8pm Central on the 31st can't land in next month.
-assert.equal(
-  monthKeyDayExpr({ column: "attribution_date", dataType: "timestamp with time zone" }, "America/Chicago"),
-  "(l.attribution_date at time zone 'America/Chicago')::date"
-);
-assert.equal(
-  monthKeyDayExpr({ column: "attribution_date", dataType: "timestamp without time zone" }, "America/Chicago"),
-  "((l.attribution_date at time zone 'UTC') at time zone 'America/Chicago')::date"
-);
-assert.equal(
-  monthKeyDayExpr({ column: "effective_date", dataType: "date" }, "America/Chicago"),
-  "l.effective_date"
-);
-assert.equal(
-  monthKeyStampExpr({ column: "effective_date", dataType: "date" }, "America/Chicago"),
-  "l.effective_date::text"
-);
-
-// The window compares the column itself against pre-computed bounds, so the
-// ledger's index on that column still applies — a cast on the left of the
-// comparison would make every poll a full scan.
-for (const [dataType, column] of [
-  ["timestamp with time zone", "attribution_date"],
-  ["timestamp without time zone", "entry_date"],
-  ["date", "effective_date"],
-]) {
-  const window = monthKeyWindowSql({ column, dataType });
-  assert.ok(window.startsWith(`l.${column} >= `), `${dataType}: bare column on the left`);
-  assert.ok(window.includes(`and l.${column} <  `), `${dataType}: half-open upper bound`);
-}
-
-console.log("ok — journal rows, cancel classification, month key, month window");
+console.log("ok — journal rows, cancel classification, month window");
