@@ -10610,6 +10610,14 @@ function renderCancelsWindowNote() {
   if (!note) return;
   const w = (LEDGER_INTEGRITY && LEDGER_INTEGRITY.window) || null;
   if (!w || !w.cancelsBySaleMonth) { note.hidden = true; return; }
+  // A cancel total that can't be refreshed is worse than no total: say so where
+  // the number is, not in a status line at the top of the page.
+  if (!lastLiveActualsOk) {
+    note.textContent = 'Live ledger feed unavailable — these are the last numbers that loaded, not current. '
+      + 'Cancel totals will not change until the feed recovers.';
+    note.hidden = false;
+    return;
+  }
   const lost = (b) => `${fmt(Math.abs((b && b.members) || 0), 1)} members / ${fmt(Math.abs((b && b.sessions) || 0), 1)} sessions`;
   const c = w.cancelsBySaleMonth;
   const rows = computeTeamCancels();
@@ -10623,9 +10631,15 @@ function renderCancelsWindowNote() {
     `last month's: ${lost(c.priorMonthSale)}`,
   ];
   if (c.olderSale && c.olderSale.rows) parts.push(`older (should be 0): ${lost(c.olderSale)}`);
+  if (w.periodDuplicatesDropped) {
+    parts.push(`${w.periodDuplicatesDropped} prior-month duplicate${w.periodDuplicatesDropped === 1 ? '' : 's'} dropped`);
+  }
   if (w.duplicateRows) parts.push(`${w.duplicateRows} duplicate ledger rows collapsed`);
   const soft = (w.deletedAttribution && w.deletedAttribution.rows) || 0;
   if (soft) parts.push(`${soft} line${soft === 1 ? '' : 's'} on soft-deleted attributions`);
+  if (w.lifetimeAvailable === false) parts.push('lifetime check unavailable — cancels may be over-counted');
+  // Which counting rule produced these numbers, so an old build is obvious.
+  if (w.rule) parts.push(`rule ${w.rule}`);
   note.textContent = parts.join(' · ') + '.';
   note.hidden = false;
 }

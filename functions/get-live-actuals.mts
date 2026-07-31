@@ -13,6 +13,14 @@ import { TEAM_TIME_ZONE, clampAsOfToTeamToday, teamTodayYmd } from "./_shared/ti
 const LIVE_CACHE_TTL_MS = 60_000;
 const LIVE_CACHE_KEY = LIVE_ACTUALS_CACHE_KEY;
 
+/**
+ * Counting rule the tiles were built with, shown on the Cancels panel.
+ *
+ * Four rewrites in a row all read the same -86.5 on screen, and there was no way
+ * to tell a rule that had not worked from a build that had not shipped yet.
+ */
+const LEDGER_RULE_VERSION = "created_at+scoring+lifetime-v1";
+
 type LedgerRow = {
   email: string;
   manager_name: string;
@@ -582,11 +590,17 @@ async function maybeFreezePrelimAndCache(actuals: { asOf: string; perRep: Record
   // Keep Blobs actuals fresh as a fallback when Supabase is unreachable.
   // Skip the write when nothing meaningful changed so N open browsers don't
   // stampede Blobs on every poll.
+  //
+  // Cancels are part of "meaningful": they used to be left out, so a month whose
+  // sales had not moved kept serving an old cancel total to every browser that
+  // fell back to Blobs — a stale number that survived any number of fixes.
   const digest = (doc: any) => {
     const per = (doc && doc.perRep) || {};
     return `${doc?.asOf || ""}|` + Object.keys(per).sort().map((k) => {
       const r = per[k] || {};
-      return `${k}:${Number(r.members) || 0}:${Number(r.sessions) || 0}:${Array.isArray(r.items) ? r.items.length : 0}`;
+      return `${k}:${Number(r.members) || 0}:${Number(r.sessions) || 0}` +
+        `:${Number(r.membersCancels) || 0}:${Number(r.sessionsCancels) || 0}` +
+        `:${Array.isArray(r.items) ? r.items.length : 0}`;
     }).join(",");
   };
   if (digest(existing) !== digest(actuals)) {
@@ -819,7 +833,58 @@ join life
 order by win.created_at asc, win.ledger_id asc;
 `;
 
-    const rawRows = await runSupabaseSql<LedgerRow>(sql);
+    // Same window, without the lifetime pass — only used if the query above fails.
+    const fallbackSql = `
+with bounds as (
+  select
+    (date_trunc('month', (now() at time zone '${tz}')) at time zone '${tz}') as month_start,
+    ((date_trunc('month', (now() at time zone '${tz}')) + interval '1 month') at time zone '${tz}') as month_end,
+    ((date_trunc('month', (now() at time zone '${tz}')) - interval '1 month') at time zone '${tz}') as scoring_start
+)
+select
+  lower(f.email) as email,
+  f.name as manager_name,
+  a.client_id,
+  l.id::text as ledger_id,
+  a.id::text as attribution_id,
+  l.manager_id::text as manager_id,
+  l.created_at::text as ledger_created_at,
+  (l.created_at at time zone '${tz}')::date::text as attribution_date,
+  (l.created_at at time zone '${tz}')::text as occurred_at,
+  (a.occurred_at at time zone '${tz}')::text as sale_occurred_at,
+  (a.deleted_at is not null) as attribution_deleted,
+  l.net_client_credit_amount::float8 as members,
+  l.hours_amount::float8 as sessions
+from sales_attribution.rep_scores_ledger_entries l
+join sales_attribution.attributions a
+  on a.id = l.attribution_id
+join sales_attribution.flex_team_members f
+  on f.manager_id = l.manager_id
+ and f.deleted_at is null
+cross join bounds b
+where l.deleted_at is null
+  and l.created_at >= b.month_start
+  and l.created_at <  b.month_end
+  and a.occurred_at >= b.scoring_start
+  and a.occurred_at <  b.month_end
+  and lower(f.email) in (${sqlStringList(emails)})
+order by l.created_at asc, l.id asc;
+`;
+
+    // The lifetime totals need a second pass over the ledger for every journal in
+    // the window. If that ever gets too slow for the SQL endpoint, serve the plain
+    // window rather than 502 — a 502 leaves the browser showing the last good
+    // numbers behind a one-line status note, which is exactly how a wrong cancel
+    // total can sit on screen for an hour looking like a fix that did not work.
+    let rawRows: LedgerRow[];
+    let lifetimeAvailable = true;
+    try {
+      rawRows = await runSupabaseSql<LedgerRow>(sql);
+    } catch (enrichedErr: any) {
+      console.error("get-live-actuals lifetime query failed, falling back", enrichedErr);
+      rawRows = await runSupabaseSql<LedgerRow>(fallbackSql);
+      lifetimeAvailable = false;
+    }
     const deletedAttribution = summarizeRows(rawRows.filter((row) => !!row.attribution_deleted));
     const exclusions = await loadLedgerExclusionIds();
     const reconciled = netLedgerJournal(rawRows, emailToDisplay, exclusions);
@@ -845,11 +910,19 @@ order by win.created_at asc, win.ledger_id asc;
         netted: reconciled.netted,
         excludedIds: [...exclusions],
         window: {
+          // Bumped whenever the counting rule changes, so "is this the build
+          // with the fix?" is answerable from the dashboard instead of from
+          // deploy timestamps.
+          rule: LEDGER_RULE_VERSION,
           monthKeyColumn: "created_at",
           scoringRange: "current_and_prior_month",
           month: monthYmd,
           rawRows: rawRows.length,
           duplicateRows: reconciled.duplicateRows,
+          periodDuplicatesDropped: reconciled.suppressed.filter(
+            (s) => s.reason === "duplicate-period-line"
+          ).length,
+          lifetimeAvailable,
           deletedAttribution,
           cancelsBySaleMonth: summarizeCancelsBySaleMonth(rows, monthYmd),
         },
