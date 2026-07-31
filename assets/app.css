@@ -5607,6 +5607,11 @@ body.dark .contest-recap-stat { background: rgba(30,27,48,0.65); }
 }
 .bonus-level-toggle button { flex: 1; min-width: 34px; padding: 5px 8px; font-size: 9px; }
 
+@media (prefers-reduced-motion: reduce) {
+  .income-hero-metric,
+  .income-track span { animation: none; }
+}
+
 @media (max-width: 900px) {
   .income-board-top { align-items: stretch; flex-direction: column; }
   .income-controls { flex-wrap: wrap; }
