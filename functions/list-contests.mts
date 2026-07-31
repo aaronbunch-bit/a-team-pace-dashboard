@@ -17,10 +17,17 @@ export default async (req: Request, context: Context) => {
   ).filter(Boolean) as ContestRecord[];
 
   const now = new Date();
+  const url = new URL(req.url);
+  // Soft/live polls use scope=active so ended history isn't re-sent every minute.
+  // History tab / coach edits still request the full list (default).
+  const scope = String(url.searchParams.get("scope") || "all").toLowerCase();
   const contests = records
     .map((c) => publicContest(c, now))
     // Reps never see contests hidden from History; coaches/admins do (to unhide).
     .filter((c) => {
+      if (scope === "active") {
+        return c.status === "active" || c.status === "scheduled";
+      }
       if (!c.hiddenFromHistory) return true;
       if (c.status !== "ended") return true; // hide flag only applies to history
       return canManage;
@@ -31,6 +38,7 @@ export default async (req: Request, context: Context) => {
     JSON.stringify({
       contests,
       canManage,
+      scope: scope === "active" ? "active" : "all",
     }),
     {
       status: 200,

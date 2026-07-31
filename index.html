@@ -1368,7 +1368,26 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<!-- Chart.js is loaded on demand when Historical SIP charts open (saves ~200KB on boot). -->
+<script>
+window.__ensureChartJs = (function () {
+  var pending = null;
+  return function ensureChartJs() {
+    if (window.Chart) return Promise.resolve(window.Chart);
+    if (pending) return pending;
+    pending = new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js';
+      s.integrity = 'sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi';
+      s.crossOrigin = 'anonymous';
+      s.onload = function () { resolve(window.Chart); };
+      s.onerror = function () { pending = null; reject(new Error('Chart.js failed to load')); };
+      document.head.appendChild(s);
+    });
+    return pending;
+  };
+})();
+</script>
 <!-- Netlify Identity: visitors sign in with Google (@varsitytutors.com). They do
      NOT need Netlify accounts. Requires Identity enabled + Google external
      provider in the Netlify dashboard (Project configuration > Identity).
@@ -1906,8 +1925,14 @@ function applyMotionMode(mode) {
   }
 }
 (function initMotionMode() {
-  const saved = localStorage.getItem(MOTION_KEY) || 'dynamic';
-  applyMotionMode(saved === 'static' ? 'static' : 'dynamic');
+  const saved = localStorage.getItem(MOTION_KEY);
+  if (saved === 'static' || saved === 'dynamic') {
+    applyMotionMode(saved);
+  } else if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    applyMotionMode('static');
+  } else {
+    applyMotionMode('dynamic');
+  }
 })();
 document.getElementById('motionToggle').addEventListener('click', () => {
   const next = document.body.classList.contains('motion-static') ? 'dynamic' : 'static';
@@ -3060,6 +3085,7 @@ function startRecognitionWallRotation() {
   if (recognitionWallItemsCache.length <= 1) return;
   if (document.body.classList.contains('motion-static')) return;
   recognitionWallRotateTimer = window.setInterval(() => {
+    if (document.hidden) return;
     if (!document.getElementById('recognitionWallStage')) {
       stopRecognitionWallRotation();
       return;
@@ -5346,15 +5372,17 @@ let sipChartInstance = null;
 // rangeAvg: the raw-totals composite % for the selected range, drawn as a red dotted line.
 function renderSipChart(slice, rangeAvg) {
   const ctx = document.getElementById('sipChart');
-  if (!ctx || typeof Chart === 'undefined') return;
-  if (!slice) slice = SIP_HISTORY;
-  const labels = slice.map(m => m.l);
-  const data = slice.map(m => {
-    const a = monthAttainment(m);
-    return a.compositePct === null ? null : Math.round(a.compositePct * 10) / 10;
-  });
-  if (sipChartInstance) sipChartInstance.destroy();
-  sipChartInstance = new Chart(ctx, {
+  if (!ctx) return;
+  const paint = () => {
+    if (typeof Chart === 'undefined') return;
+    if (!slice) slice = SIP_HISTORY;
+    const labels = slice.map(m => m.l);
+    const data = slice.map(m => {
+      const a = monthAttainment(m);
+      return a.compositePct === null ? null : Math.round(a.compositePct * 10) / 10;
+    });
+    if (sipChartInstance) sipChartInstance.destroy();
+    sipChartInstance = new Chart(ctx, {
     type: 'line',
     data: {
       labels,
@@ -5408,6 +5436,11 @@ function renderSipChart(slice, rangeAvg) {
       }
     }]
   });
+  };
+  if (typeof Chart !== 'undefined') paint();
+  else if (typeof window.__ensureChartJs === 'function') {
+    window.__ensureChartJs().then(paint).catch(() => {});
+  }
 }
 
 // ---------- Per-rep Historical Performance (Client Detail page) ----------
@@ -5678,22 +5711,24 @@ let repChartMode = loadJSON(REP_CHART_MODE_KEY, 'attainment');
 
 function renderRepSipChart(slice, csvKey, rangeAvg, repDisplay) {
   const ctx = document.getElementById('repSipChart');
-  if (!ctx || typeof Chart === 'undefined') return;
-  if (!slice) slice = SIP_HISTORY;
-  const labels = slice.map(m => m.l);
-  const isEarnings = repChartMode === 'earnings';
-  const data = slice.map(m => {
-    const a = repMonthAttainment(m, csvKey);
-    if (isEarnings) {
-      const e = repMonthEarnings(a, repDisplay);
-      return e.earnings === null ? null : Math.round(e.earnings * 100) / 100;
-    }
-    return a.compositePct === null ? null : Math.round(a.compositePct * 10) / 10;
-  });
-  const lineColor = isEarnings ? '#16a34a' : '#7c3aed';
-  const fillColor = isEarnings ? 'rgba(22,163,74,0.14)' : 'rgba(124,58,237,0.12)';
-  if (repSipChartInstance) repSipChartInstance.destroy();
-  repSipChartInstance = new Chart(ctx, {
+  if (!ctx) return;
+  const paint = () => {
+    if (typeof Chart === 'undefined') return;
+    if (!slice) slice = SIP_HISTORY;
+    const labels = slice.map(m => m.l);
+    const isEarnings = repChartMode === 'earnings';
+    const data = slice.map(m => {
+      const a = repMonthAttainment(m, csvKey);
+      if (isEarnings) {
+        const e = repMonthEarnings(a, repDisplay);
+        return e.earnings === null ? null : Math.round(e.earnings * 100) / 100;
+      }
+      return a.compositePct === null ? null : Math.round(a.compositePct * 10) / 10;
+    });
+    const lineColor = isEarnings ? '#16a34a' : '#7c3aed';
+    const fillColor = isEarnings ? 'rgba(22,163,74,0.14)' : 'rgba(124,58,237,0.12)';
+    if (repSipChartInstance) repSipChartInstance.destroy();
+    repSipChartInstance = new Chart(ctx, {
     type: 'line',
     data: {
       labels,
@@ -5768,6 +5803,11 @@ function renderRepSipChart(slice, csvKey, rangeAvg, repDisplay) {
       }
     }]
   });
+  };
+  if (typeof Chart !== 'undefined') paint();
+  else if (typeof window.__ensureChartJs === 'function') {
+    window.__ensureChartJs().then(paint).catch(() => {});
+  }
 }
 
 // Only the months where this rep actually has a row in SIP_HISTORY. Used for
@@ -6639,6 +6679,9 @@ function setContestArenaTab(tab) {
     if (el.getAttribute('data-contest-tab') === 'history') el.textContent = 'History';
   });
   renderContestBoard();
+  if (contestArenaTab === 'history') {
+    refreshContestsUi({ force: true, all: true, quiet: true, skipFreeze: true });
+  }
 }
 let contestStickyRotateTimer = 0;
 let contestStickyRotateIdx = 0;
@@ -7027,6 +7070,13 @@ async function syncContestDealPicks(contest, { quiet } = {}) {
   if (!contest || contestMigrateMode(contest.mode) !== 'deal') return contest;
   if (contest.status === 'ended') return contest;
   const sales = collectContestDealSales(contest);
+  const salesDigest = sales.map((s) => s.saleKey).sort().join('|');
+  const picksDigest = JSON.stringify(
+    (contest.dealPicks || []).map((p) => [p.caseId, p.saleKey, p.repName, p.value, p.source]).sort()
+  );
+  const sig = salesDigest + '::' + picksDigest + '::' + (contest.dealCases || []).length;
+  if (!syncContestDealPicks._lastSig) syncContestDealPicks._lastSig = Object.create(null);
+  if (syncContestDealPicks._lastSig[contest.id] === sig) return contest;
   try {
     const data = await authedFetch('/api/contests/deal-pick', {
       method: 'POST',
@@ -7037,6 +7087,11 @@ async function syncContestDealPicks(contest, { quiet } = {}) {
     const idx = CONTEST_CACHE.findIndex((c) => c.id === next.id);
     if (idx >= 0) CONTEST_CACHE[idx] = next;
     else CONTEST_CACHE.push(next);
+    const nextPicksDigest = JSON.stringify(
+      (next.dealPicks || []).map((p) => [p.caseId, p.saleKey, p.repName, p.value, p.source]).sort()
+    );
+    syncContestDealPicks._lastSig[contest.id] =
+      salesDigest + '::' + nextPicksDigest + '::' + (next.dealCases || []).length;
     return next;
   } catch (err) {
     if (!quiet) console.warn('Deal sync failed', err);
@@ -7527,6 +7582,7 @@ function populateContestDealPickRepSelect() {
   sel.innerHTML = roster.map((r) => `<option value="${escapeAttr(r.display)}">${escapeHtml(r.display)}</option>`).join('');
 }
 function tickContestCountdowns() {
+  if (document.hidden) return;
   let phaseFlip = false;
   document.querySelectorAll('[data-contest-cd]').forEach((el) => {
     const id = el.getAttribute('data-contest-cd');
@@ -7602,6 +7658,9 @@ async function refreshContestsUi(opts) {
   const quiet = !!(opts && opts.quiet);
   const skipFreeze = !!(opts && opts.skipFreeze) || quiet;
   const force = !!(opts && opts.force);
+  const historyOpen = contestArenaTab === 'history'
+    || (document.getElementById('contestOverlay')?.classList.contains('open') && contestArenaTab === 'history');
+  const wantAll = !!(opts && opts.all) || historyOpen || !quiet;
   try {
     const user = window.netlifyIdentity && netlifyIdentity.currentUser();
     if (!user) {
@@ -7616,14 +7675,30 @@ async function refreshContestsUi(opts) {
       renderContestPromoBanners();
       return;
     }
-    const data = await authedFetch('/api/contests/list');
+    const scopeQs = wantAll ? '' : '?scope=active';
+    const data = await authedFetch('/api/contests/list' + scopeQs);
     contestLastListFetchMs = Date.now();
-    CONTEST_CACHE = Array.isArray(data.contests) ? data.contests : [];
+    const incoming = Array.isArray(data.contests) ? data.contests : [];
+    if (data.scope === 'active') {
+      // Keep ended contests already in cache for History; refresh only live ones.
+      const ended = CONTEST_CACHE.filter((c) => c.status === 'ended');
+      const byId = new Map(ended.map((c) => [c.id, c]));
+      incoming.forEach((c) => byId.set(c.id, c));
+      // Drop stale active/scheduled that vanished from the active list.
+      CONTEST_CACHE = Array.from(byId.values());
+    } else {
+      CONTEST_CACHE = incoming;
+    }
     CONTEST_CAN_MANAGE = !!data.canManage;
-    contestStandingsCache.clear();
+    const digest = CONTEST_CACHE.map((c) => `${c.id}:${c.updatedAt || ''}:${c.status}`).join('|');
+    const changed = digest !== refreshContestsUi._digest;
+    refreshContestsUi._digest = digest;
+    if (changed) contestStandingsCache.clear();
     if (!skipFreeze) await maybeFreezeEndedContests();
     renderContestPromoBanners();
-    if (document.getElementById('contestOverlay')?.classList.contains('open')) renderContestBoard();
+    if (document.getElementById('contestOverlay')?.classList.contains('open') && (changed || force)) {
+      renderContestBoard();
+    }
     if (!contestCountdownTimer) {
       contestCountdownTimer = window.setInterval(tickContestCountdowns, 1000);
     }
@@ -7635,15 +7710,12 @@ async function refreshContestsUi(opts) {
 function startContestLiveLoop() {
   if (contestLiveTimer) return;
   contestLiveTimer = window.setInterval(async () => {
+    if (document.hidden) return;
     const open = document.getElementById('contestOverlay')?.classList.contains('open');
     if (!open || contestArenaTab !== 'live') return;
     try {
       // Reuse landing actuals when fresh; only re-list contests quietly.
       await refreshContestsUi({ quiet: true, skipFreeze: true, force: true });
-      if (document.getElementById('contestOverlay')?.classList.contains('open')) {
-        contestStandingsCache.clear();
-        renderContestBoard();
-      }
     } catch (_) { /* ignore */ }
   }, CONTEST_LIVE_POLL_MS);
 }
@@ -7656,6 +7728,7 @@ function stopContestLiveLoop() {
 function startContestSoftPoll() {
   if (contestSoftPollTimer) return;
   contestSoftPollTimer = window.setInterval(() => {
+    if (document.hidden) return;
     if (document.getElementById('contestOverlay')?.classList.contains('open')) return;
     refreshContestsUi({ quiet: true, skipFreeze: true });
   }, CONTEST_SOFT_POLL_MS);
@@ -7685,7 +7758,11 @@ function openContestOverlay(id) {
   });
   // Paint from cache immediately, then refresh in background.
   renderContestBoard();
-  refreshContestsUi({ force: true, skipFreeze: true }).then(() => {
+  refreshContestsUi({
+    force: true,
+    skipFreeze: true,
+    all: contestArenaTab === 'history',
+  }).then(() => {
     maybeFreezeEndedContests();
   });
   startContestLiveLoop();
@@ -10082,6 +10159,8 @@ async function fetchShoutouts() {
 const LIVE_ACTUALS_POLL_MS = 45000;
 let liveActualsTimer = null;
 let lastLiveActualsOk = false;
+let liveActualsInFlight = null;
+let liveActualsVisibilityBound = false;
 
 function actualsDigest(actuals) {
   if (!actuals || !actuals.perRep) return '';
@@ -10091,6 +10170,36 @@ function actualsDigest(actuals) {
     return k + ':' + (Number(r.members) || 0) + ':' + (Number(r.sessions) || 0) + ':' +
       (Array.isArray(r.items) ? r.items.length : 0);
   }).join(',');
+}
+
+/** Prefer compact polls (no per-sale items) unless a view needs line items. */
+function liveActualsNeedsFullItems() {
+  const contestOpen = document.getElementById('contestOverlay')?.classList.contains('open');
+  if (contestOpen) {
+    const c = CONTEST_CACHE.find((x) => x.id === contestViewId)
+      || CONTEST_CACHE.find((x) => x.status === 'active')
+      || null;
+    if (c && contestMigrateMode(c.mode) === 'deal') return true;
+  }
+  if (document.getElementById('clientDetailOverlay')?.classList.contains('open')) return true;
+  return false;
+}
+
+function mergeLiveActualsPreserveItems(nextActuals) {
+  if (!nextActuals || !nextActuals.perRep) return nextActuals;
+  const prev = ACTUALS_CACHE && ACTUALS_CACHE.perRep;
+  if (!prev) return nextActuals;
+  const merged = { ...nextActuals, perRep: { ...nextActuals.perRep } };
+  for (const [name, row] of Object.entries(merged.perRep)) {
+    if (Array.isArray(row.items)) continue;
+    const old = prev[name];
+    if (old && Array.isArray(old.items)) {
+      merged.perRep[name] = { ...row, items: old.items };
+    } else {
+      merged.perRep[name] = { ...row, items: [] };
+    }
+  }
+  return merged;
 }
 
 /**
@@ -10224,21 +10333,27 @@ function patchLandingPaceNumbers() {
   return true;
 }
 
-async function fetchLiveActuals() {
+async function fetchLiveActuals(opts) {
+  if (liveActualsInFlight) return liveActualsInFlight;
+  const forceFull = !!(opts && opts.full);
   const statusEl = document.getElementById('liveActualsStatus');
   const prevDigest = actualsDigest(ACTUALS_CACHE);
+  liveActualsInFlight = (async () => {
   try {
-    const data = await authedFetch('/api/actuals/live', { cache: 'no-store' });
+    const wantFull = forceFull || liveActualsNeedsFullItems();
+    const qs = wantFull ? '' : '?compact=1';
+    const data = await authedFetch('/api/actuals/live' + qs, { cache: 'no-store' });
     if (!data.actuals || !data.actuals.perRep) {
       lastLiveActualsOk = false;
       return 'error';
     }
-    ACTUALS_CACHE = data.actuals;
+    ACTUALS_CACHE = wantFull ? data.actuals : mergeLiveActualsPreserveItems(data.actuals);
     if (data.prelim) PRELIM_CACHE = data.prelim;
     lastLiveActualsOk = true;
     if (statusEl) {
       statusEl.textContent = `Live Supabase feed OK · as of ${data.actuals.asOf}` +
         (data.matchedRows != null ? ` · ${data.matchedRows} ledger rows` : '') +
+        (data.cacheHit ? ' · cached' : '') +
         (data.fetchedAt ? ` · synced ${new Date(data.fetchedAt).toLocaleTimeString()}` : '');
       statusEl.style.color = '#16a34a';
     }
@@ -10253,14 +10368,29 @@ async function fetchLiveActuals() {
     }
     return 'error';
   }
+  })();
+  try {
+    return await liveActualsInFlight;
+  } finally {
+    liveActualsInFlight = null;
+  }
+}
+
+async function tickLiveActualsPoll() {
+  if (document.hidden) return;
+  const result = await fetchLiveActuals();
+  if (result === 'changed') quietRefreshFromActuals();
 }
 
 function startLiveActualsPolling() {
   if (liveActualsTimer) return;
-  liveActualsTimer = setInterval(async () => {
-    const result = await fetchLiveActuals();
-    if (result === 'changed') quietRefreshFromActuals();
-  }, LIVE_ACTUALS_POLL_MS);
+  liveActualsTimer = setInterval(() => { tickLiveActualsPoll(); }, LIVE_ACTUALS_POLL_MS);
+  if (!liveActualsVisibilityBound) {
+    liveActualsVisibilityBound = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') tickLiveActualsPoll();
+    });
+  }
 }
 
 // Re-render when America/Chicago rolls to a new calendar day (tab left open overnight,
@@ -12687,7 +12817,7 @@ async function boot() {
     fetchDashboardData(),
   ]);
   APPROVED_TOTALS = approved;
-  await fetchLiveActuals();
+  await fetchLiveActuals({ full: true });
   await Promise.all([fetchPersonalGoals(), fetchTeamSchedules()]);
   // UX preview: ensure the demo rep has a personal goal so the gate never blocks.
   if (isUxPreviewMode() && !getPersonalGoal(UX_PREVIEW_REP)) {
