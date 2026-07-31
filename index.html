@@ -5688,7 +5688,7 @@ function incomeConfidentialHTML(repDisplay, tracking, state) {
   const annualTotal = meta.salary + annualVariable;
   const buttons = allowedLevels.map((value) => `
     <button type="button" data-income-level="${value}" class="${value === level ? 'active' : ''}">
-      <span>L${value}</span><small>${incomeMoney(compLevelMeta(value).salary)} salary</small>
+      <span>L${value}</span>
     </button>`).join('');
   return `
     <div class="income-pay-card">
@@ -5708,7 +5708,6 @@ function incomeConfidentialHTML(repDisplay, tracking, state) {
         <div><span>Monthly OTE used</span><strong>${incomeMoney(ote)}</strong></div>
       </div>
       ${goal.capAt200 && payoutRaw > 2 ? '<div class="income-cap-note">Payout capped at 200% of OTE.</div>' : ''}
-      <div class="income-estimate-note">Estimate only. Excludes SPIFFs and yearly extras; Finance calculates and approves final compensation.</div>
     </div>`;
 }
 
@@ -5731,6 +5730,11 @@ function incomePlanningHTML(repDisplay) {
     : pct === null
       ? 'Not enough goal data yet'
       : `${fmt(tracking.pointsGap, 1)} points to the ${targetMeta.label} benchmark`;
+  const clearance = !tracking.hasFullWindow
+    ? `${state.window - months} months needed`
+    : tracking.meets
+      ? '✓ Cleared'
+      : `${fmt(tracking.pointsGap, 1)} pts needed`;
   return `
     <div class="income-planning-shell">
       <div class="income-planning-hero">
@@ -5740,9 +5744,12 @@ function incomePlanningHTML(repDisplay) {
           <p>Track your trailing level score and see what the same performance could mean at each available compensation level.</p>
         </div>
         <div class="income-controls">
-          <div class="income-window-toggle" role="group" aria-label="Level tracking window">
-            <button type="button" data-income-window="6" class="${state.window === 6 ? 'active' : ''}"><strong>6 months</strong><small>Track to L2 · 115%</small></button>
-            <button type="button" data-income-window="12" class="${state.window === 12 ? 'active' : ''}"><strong>12 months</strong><small>Track to L3 · 150%</small></button>
+          <div class="income-track-picker">
+            <span class="income-control-label">Track to</span>
+            <div class="income-window-toggle" role="group" aria-label="Level tracking window">
+              <button type="button" data-income-window="6" class="${state.window === 6 ? 'active' : ''}"><strong>L2</strong><small>6 months · 115%</small></button>
+              <button type="button" data-income-window="12" class="${state.window === 12 ? 'active' : ''}"><strong>L3</strong><small>12 months · 150%</small></button>
+            </div>
           </div>
           <label class="income-mtd-toggle">
             <input type="checkbox" data-income-mtd ${state.includeMtd ? 'checked' : ''}>
@@ -5754,15 +5761,18 @@ function incomePlanningHTML(repDisplay) {
       <div class="income-progress-card ${tracking.meets ? 'meets' : ''}">
         <div class="income-progress-summary">
           <span class="income-level-badge">${targetMeta.label}</span>
-          <div><span class="income-eyebrow">${state.window}-month ${targetMeta.label} view</span><h3>${escapeHtml(status)}</h3></div>
-          <strong class="income-blended">${pct === null ? '—' : fmt(pct, 1) + '%'}<small>blended average</small></strong>
+          <div><span class="income-eyebrow">Level progress</span><h3>${state.window}-month track to ${targetMeta.label}</h3></div>
+          <strong class="income-clearance ${tracking.meets ? 'cleared' : ''}">${escapeHtml(clearance)}</strong>
+        </div>
+        <div class="income-benchmark-row">
+          <span><b>${targetMeta.label} benchmark</b><small>${escapeHtml(status)}</small></span>
+          <strong>${tracking.threshold}% <small>average attainment required</small></strong>
         </div>
         <div class="income-track"><span style="width:${progress}%"></span><i style="left:100%"></i></div>
         <div class="income-metric-grid">
           <div><span>Sessions attainment</span><strong>${a.sessionsPct === null ? '—' : fmt(a.sessionsPct, 1) + '%'}</strong><small>${fmt(a.totalSA, 1)} / ${fmt(a.totalSG, 1)}</small></div>
           <div><span>Members attainment</span><strong>${a.membersPct === null ? '—' : fmt(a.membersPct, 1) + '%'}</strong><small>${fmt(a.totalMA, 1)} / ${fmt(a.totalMG, 1)}</small></div>
-          <div><span>${targetMeta.label} threshold</span><strong>${tracking.threshold}%</strong><small>${state.window}-month blended</small></div>
-          <div><span>Balanced path</span><strong>${tracking.meets ? 'Cleared' : `+${fmt(tracking.sessionsNeeded || 0, 1)} / +${fmt(tracking.membersNeeded || 0, 1)}`}</strong><small>${tracking.meets ? 'Performance threshold met' : 'sessions / members to each hit target'}</small></div>
+          <div class="income-average-box"><span>Average attainment</span><strong>${pct === null ? '—' : fmt(pct, 1) + '%'}</strong><small>Sessions + Members averages ÷ 2</small></div>
         </div>
         <div class="income-qualification-note">
           <span>Performance is one part of level eligibility.</span>
@@ -5782,6 +5792,10 @@ function incomePlanningHTML(repDisplay) {
           ${tracking.periods.length ? tracking.periods.map((period) => incomePeriodRowHTML(period, tracking.csvKey)).join('') : '<div class="income-empty">No completed SIP history is available for this rep yet.</div>'}
         </div>
       </details>
+      <div class="income-page-disclaimer">
+        <span>⚠️</span>
+        <p><strong>Planning estimate only.</strong> These projections are not intended to represent a true or guaranteed payout. Actual compensation is calculated and approved by Finance and may differ from what is shown here. SPIFFs and yearly extras are excluded.</p>
+      </div>
     </div>`;
 }
 
