@@ -10641,8 +10641,10 @@ function renderCancelsWindowNote() {
     parts.push(`${w.periodDuplicatesDropped} prior-month duplicate${w.periodDuplicatesDropped === 1 ? '' : 's'} dropped`);
   }
   if (w.duplicateRows) parts.push(`${w.duplicateRows} duplicate ledger rows collapsed`);
-  const soft = (w.deletedAttribution && w.deletedAttribution.rows) || 0;
-  if (soft) parts.push(`${soft} line${soft === 1 ? '' : 's'} on soft-deleted attributions`);
+  const soft = (w.dropped && w.dropped['deleted-attribution']) || null;
+  if (soft && soft.rows) {
+    parts.push(`${soft.rows} line${soft.rows === 1 ? '' : 's'} on soft-deleted attributions dropped (${lost(soft)})`);
+  }
   if (w.lifetimeAvailable === false) parts.push('lifetime check unavailable — cancels may be over-counted');
   // Which counting rule produced these numbers, so an old build is obvious.
   if (w.rule) parts.push(`rule ${w.rule}`);
@@ -10673,7 +10675,15 @@ function cancelLinesCsv() {
     bySaleMonth.get(`${r.rep}|${r.clientId}|${r.date}|${r.members}|${r.sessions}`) || '',
   ]);
   const totals = rows.reduce((a, r) => ({ m: a.m + r.members, s: a.s + r.sessions }), { m: 0, s: 0 });
-  const meta = `# rule=${w.rule || 'unknown'} month=${w.month || ''} lines=${rows.length} members=${fmt(totals.m, 1)} sessions=${fmt(totals.s, 1)}`;
+  // What each suppression rule removed, so a dump that still reads wrong says
+  // which rule missed instead of only that the total missed.
+  const dropped = (w.dropped && typeof w.dropped === 'object') ? w.dropped : {};
+  const droppedMeta = Object.keys(dropped)
+    .sort()
+    .map((reason) => `${reason}=${dropped[reason].rows}/${fmt(dropped[reason].members, 1)}`)
+    .join(' ');
+  const meta = `# rule=${w.rule || 'unknown'} month=${w.month || ''} lines=${rows.length} members=${fmt(totals.m, 1)} sessions=${fmt(totals.s, 1)}`
+    + (droppedMeta ? ` dropped[${droppedMeta}]` : ' dropped[none]');
   return [meta, head.join(','), ...body.map((cols) => cols.join(','))].join('\n');
 }
 

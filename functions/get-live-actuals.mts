@@ -19,7 +19,7 @@ const LIVE_CACHE_KEY = LIVE_ACTUALS_CACHE_KEY;
  * Four rewrites in a row all read the same -86.5 on screen, and there was no way
  * to tell a rule that had not worked from a build that had not shipped yet.
  */
-const LEDGER_RULE_VERSION = "created_at+scoring+live-attro+lifetime-v2";
+const LEDGER_RULE_VERSION = "created_at+scoring+live-attro+deleted-attro-v3";
 
 type LedgerRow = {
   email: string;
@@ -67,7 +67,11 @@ type SuppressedRow = {
   members: number;
   sessions: number;
   date: string;
-  reason: "admin-excluded" | "duplicate-period-line" | "orphan-cancel";
+  reason:
+    | "admin-excluded"
+    | "duplicate-period-line"
+    | "orphan-cancel"
+    | "deleted-attribution";
 };
 
 /**
@@ -242,6 +246,22 @@ export function netLedgerJournal(
   const afterExclusions: LedgerRow[] = [];
   for (const row of deduped) {
     const ledgerId = String(row.ledger_id || "").trim();
+    // A soft-deleted attribution is gone upstream: the rep-scores export lists
+    // neither its sale nor the negative line that closed it out. Both go, so a
+    // cancelled-and-deleted attribution stops showing up as pure attrition.
+    if (row.attribution_deleted) {
+      suppressed.push({
+        ledgerId,
+        attributionId: String(row.attribution_id || ""),
+        clientId: String(row.client_id || ""),
+        repName: displayFor(row),
+        members: Number(row.members) || 0,
+        sessions: Number(row.sessions) || 0,
+        date: String(row.attribution_date || "").slice(0, 10),
+        reason: "deleted-attribution",
+      });
+      continue;
+    }
     if (ledgerId && exclusions.has(ledgerId)) {
       suppressed.push({
         ledgerId,
@@ -452,6 +472,26 @@ export function cancelLineItems(
 }
 
 type RowSummary = { rows: number; members: number; sessions: number };
+
+/**
+ * What each suppression rule actually removed this month.
+ *
+ * The whole reason the cancel tile stayed wrong through several releases is
+ * that a rule could be shipped, deployed and still match nothing without
+ * saying so. These totals ride along in the payload and in the Cancels CSV
+ * header, so "the rule fired and removed -34.5" and "the rule fired and
+ * removed nothing" are told apart from a single copied dump.
+ */
+function summarizeSuppressed(rows: SuppressedRow[]): Record<string, RowSummary> {
+  const out: Record<string, RowSummary> = {};
+  for (const row of rows) {
+    const bucket = out[row.reason] || (out[row.reason] = { rows: 0, members: 0, sessions: 0 });
+    bucket.rows++;
+    bucket.members += Number(row.members) || 0;
+    bucket.sessions += Number(row.sessions) || 0;
+  }
+  return out;
+}
 
 function summarizeRows(rows: LedgerRow[]): RowSummary {
   return {
@@ -750,15 +790,26 @@ export default async (req: Request, context: Context) => {
     //
     // 1. Month key is l.created_at — the export's attribution_date.
     // 2. The sale (a.occurred_at) is this month or the prior one (scoring range).
-    // 3. a.deleted_at IS NULL — the export only lists live attributions.
-    //    Without (3), 41 June-sale cancels whose clients appear nowhere in the
-    //    July export (soft-deleted upstream, -34.5 members) inflate the tile.
-    //    We previously removed this filter thinking it hid real cancels; the
-    //    dump proves those "hidden" lines are exactly the ones the export omits.
+    // 3. Soft-deleted attributions do not count. The export only lists live
+    //    attributions, and 41 June-sale cancel lines in the live dump belong to
+    //    clients that appear nowhere in the July export (-34.5 members).
+    //
+    // (3) is applied in netLedgerJournal rather than here on purpose. Filtering
+    // it away in SQL makes the fix unfalsifiable: the rows never arrive, so a
+    // wrong tile looks identical to a right one. Selecting the flag and dropping
+    // the rows in code means the payload and the Cancels CSV both report how
+    // many lines went and what they were worth, so one dump says whether the
+    // rule matched the export instead of another round of guessing.
+    //
+    // Dropping the attribution takes its credit lines with it, which is why
+    // members barely move: the dump's extra -36.0 of cancels arrives paired with
+    // +35.5 of credits on the same attributions. That pairing is why the members
+    // tile already reconciled (397.5 against the export's 398.0) while cancels
+    // read -86.5 against -50.5.
     //
     // Orphan cancels (negative lifetime, no credit for this manager) are dropped
-    // in netLedgerJournal — another ~-5.5 members of SPIFF cancels against sales
-    // credited to other reps that the export never counted.
+    // in netLedgerJournal too — another ~-5.5 members of SPIFF cancels against
+    // sales credited to other reps that the export never counted.
     const tz = TEAM_TIME_ZONE.replace(/'/g, "''");
     const monthYmd = teamTodayYmd().slice(0, 7);
     const sql = `
@@ -789,7 +840,6 @@ win as (
    and f.deleted_at is null
   cross join bounds b
   where l.deleted_at is null
-    and a.deleted_at is null
     and l.created_at >= b.month_start
     and l.created_at <  b.month_end
     and a.occurred_at >= b.scoring_start
@@ -865,7 +915,6 @@ join sales_attribution.flex_team_members f
  and f.deleted_at is null
 cross join bounds b
 where l.deleted_at is null
-  and a.deleted_at is null
   and l.created_at >= b.month_start
   and l.created_at <  b.month_end
   and a.occurred_at >= b.scoring_start
@@ -927,6 +976,7 @@ order by l.created_at asc, l.id asc;
           ).length,
           lifetimeAvailable,
           deletedAttribution,
+          dropped: summarizeSuppressed(reconciled.suppressed),
           cancelsBySaleMonth: summarizeCancelsBySaleMonth(rows, monthYmd),
         },
       },

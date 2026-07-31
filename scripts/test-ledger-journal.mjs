@@ -29,8 +29,10 @@ function line({
   clientId = "8568597",
   lifetimeMembers,
   lifetimeSessions,
+  attributionDeleted,
 }) {
   return {
+    ...(attributionDeleted === undefined ? {} : { attribution_deleted: attributionDeleted }),
     email: EMAIL,
     manager_name: "Becky Ruffer",
     client_id: clientId,
@@ -193,6 +195,32 @@ const orphanCancel = netLedgerJournal(
 assert.equal(totals(orphanCancel.rows).cancelMembers, 0, "an orphan cancel is dropped");
 assert.equal(orphanCancel.suppressed.length, 1);
 assert.equal(orphanCancel.suppressed[0].reason, "orphan-cancel");
+
+// A soft-deleted attribution leaves the pacer entirely — sale line included.
+//
+// This is the shape behind 41 lines / -34.5 members of the July dump: clients
+// that appear nowhere in the July rep-scores export. Taking the credit out with
+// the cancel is the point. The July numbers only make sense as pairs (-36.0 of
+// cancels arriving with +35.5 of credits), which is why the members tile read
+// 397.5 against the export's 398.0 while cancels read -86.5 against -50.5.
+// Dropping the cancel alone would have fixed the cancel tile and broken the
+// members tile by the same amount.
+const deletedAttro = netLedgerJournal(
+  [
+    line({ ledgerId: 673001, attributionId: 83001, members: 1, sessions: 8, date: "2026-07-04", attributionDeleted: true }),
+    line({ ledgerId: 673002, attributionId: 83001, members: -1, sessions: -8, date: "2026-07-28", attributionDeleted: true }),
+    line({ ledgerId: 673003, attributionId: 83002, members: 1, sessions: 8, date: "2026-07-05" }),
+  ],
+  DISPLAY,
+  new Set()
+);
+assert.equal(totals(deletedAttro.rows).cancelMembers, 0, "a soft-deleted attribution's cancel is not attrition");
+assert.equal(totals(deletedAttro.rows).members, 1, "and its credit goes with it, so members do not move");
+assert.equal(deletedAttro.suppressed.length, 2, "both lines are reported, not silently dropped");
+assert.deepEqual(
+  [...new Set(deletedAttro.suppressed.map((s) => s.reason))],
+  ["deleted-attribution"]
+);
 
 // Drop no more than the overshoot: two cancels, only one line too many.
 const partialOvershoot = netLedgerJournal(
