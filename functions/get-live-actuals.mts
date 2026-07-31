@@ -231,7 +231,32 @@ function netLedgerJournal(
         .some((later) => (Number(later.members) || 0) > 0 || (Number(later.sessions) || 0) > 0);
       return { ...row, kind: (replacedLater ? "reversal" : "cancel") as LedgerKind };
     });
-    kept.push(...classified);
+
+    // One credit row per attribution. Credits and the reversals that revise
+    // them are folded into a single line carrying the corrected value, so a
+    // client whose attribution went 100% -> 50% is listed once at 50% instead
+    // of showing both. Cancels stay as their own rows: they happen on their own
+    // date and Ops reviews them individually.
+    const creditLines = classified.filter((r) => r.kind !== "cancel");
+    const cancelLines = classified.filter((r) => r.kind === "cancel");
+    if (creditLines.length) {
+      const netMembers = creditLines.reduce((sum, r) => sum + (Number(r.members) || 0), 0);
+      const netSessions = creditLines.reduce((sum, r) => sum + (Number(r.sessions) || 0), 0);
+      if (netMembers !== 0 || netSessions !== 0) {
+        // Earliest line dates the credit (the sale), newest supplies the row id
+        // so sale keys follow the surviving revision.
+        const newest = creditLines[creditLines.length - 1];
+        kept.push({
+          ...creditLines[0],
+          members: netMembers,
+          sessions: netSessions,
+          ledger_id: newest.ledger_id,
+          ledger_created_at: newest.ledger_created_at,
+          kind: "credit",
+        });
+      }
+    }
+    kept.push(...cancelLines);
 
     if (classified.length > 1) {
       netted.push({
@@ -324,10 +349,10 @@ function buildActuals(
     const bucket = perRep[display];
     bucket.members += m;
     bucket.sessions += s;
-    // Only lines that stayed negative are lost business. A reversal that a
-    // later line replaces is bookkeeping, so counting it would double-report
-    // the correction as attrition.
-    if (row.kind !== "reversal") {
+    // Only cancels are lost business. Revisions were already folded into the
+    // attribution's single credit row, so nothing here double-reports a
+    // correction as attrition.
+    if (row.kind === "cancel") {
       if (m < 0) bucket.membersCancels += m;
       if (s < 0) bucket.sessionsCancels += s;
     }
@@ -495,21 +520,28 @@ export default async (req: Request, context: Context) => {
 
     // Current calendar month in America/Chicago (CST/CDT) — team business day.
     //
-    // Month key is attributions.occurred_at — the same business date the July
-    // CSV exports as attribution_date (verified: for sales the two match the
-    // live occurredAt to the second; for cancels upstream updates occurred_at
-    // to the cancel date). Keying on ledger created_at instead pulled every
-    // negative row *written* this month, including cancels whose business date
-    // is still prior-month (e.g. client 8555523 on 6/30) — cancel tiles jumped
-    // from ~51.5/326 (manual + CSV) to ~86.5/542.
+    // Two conditions, both taken from the rep-scores export the reps reconcile
+    // against:
     //
-    // Cancelled attributions are often soft-deleted upstream while their
-    // negative ledger lines stay live. Filtering a.deleted_at IS NULL dropped
-    // those cancels from MTD even though occurred_at was already in-month and
-    // the CSV/manual pacer counted them. Ledger soft-delete (l.deleted_at) is
-    // still enforced.
+    // 1. Month key is the ledger line's own date (l.created_at) — the export's
+    //    `attribution_date`. For a sale that equals the attribution's
+    //    occurred_at, but a cancel or correction carries its own date, so
+    //    keying on occurred_at hid every cancel of a prior-month sale (cancel
+    //    tiles read -14.5/-108 against the export's -50.5/-332).
+    //
+    // 2. The sale must still be in scoring range: its occurred_at falls in this
+    //    month or the one before. Rep scores stop charging a rep once the sale
+    //    is older than that — every cancel in the July export belongs to a June
+    //    or July sale. Without this gate the month key in (1) also drags in
+    //    cancels of much older sales and tiles overshoot to -86.5/-542.
     const tz = TEAM_TIME_ZONE.replace(/'/g, "''");
     const sql = `
+with bounds as (
+  select
+    (date_trunc('month', (now() at time zone '${tz}')) at time zone '${tz}') as month_start,
+    ((date_trunc('month', (now() at time zone '${tz}')) + interval '1 month') at time zone '${tz}') as month_end,
+    ((date_trunc('month', (now() at time zone '${tz}')) - interval '1 month') at time zone '${tz}') as scoring_start
+)
 select
   lower(f.email) as email,
   f.name as manager_name,
@@ -518,8 +550,8 @@ select
   a.id::text as attribution_id,
   l.manager_id::text as manager_id,
   l.created_at::text as ledger_created_at,
-  (a.occurred_at at time zone '${tz}')::date::text as attribution_date,
-  (a.occurred_at at time zone '${tz}')::text as occurred_at,
+  (l.created_at at time zone '${tz}')::date::text as attribution_date,
+  (l.created_at at time zone '${tz}')::text as occurred_at,
   (a.occurred_at at time zone '${tz}')::text as sale_occurred_at,
   l.net_client_credit_amount::float8 as members,
   l.hours_amount::float8 as sessions
@@ -529,11 +561,14 @@ join sales_attribution.attributions a
 join sales_attribution.flex_team_members f
   on f.manager_id = l.manager_id
  and f.deleted_at is null
+cross join bounds b
 where l.deleted_at is null
-  and a.occurred_at >= (date_trunc('month', (now() at time zone '${tz}')) at time zone '${tz}')
-  and a.occurred_at <  ((date_trunc('month', (now() at time zone '${tz}')) + interval '1 month') at time zone '${tz}')
+  and l.created_at >= b.month_start
+  and l.created_at <  b.month_end
+  and a.occurred_at >= b.scoring_start
+  and a.occurred_at <  b.month_end
   and lower(f.email) in (${sqlStringList(emails)})
-order by a.occurred_at asc, l.id asc;
+order by l.created_at asc, l.id asc;
 `;
 
     const rawRows = await runSupabaseSql<LedgerRow>(sql);
