@@ -29,6 +29,13 @@ type LedgerRow = {
   sale_occurred_at?: string;
   /** Upstream soft-deleted the attribution this line hangs off. */
   attribution_deleted?: boolean;
+  /**
+   * Every line this attribution + manager has ever had, summed — including the
+   * months outside this window. A journal can't legitimately net below zero, so
+   * this is what tells a real cancel apart from a period-transfer duplicate.
+   */
+  lifetime_members?: number;
+  lifetime_sessions?: number;
   /** Journal role, assigned by netLedgerJournal. */
   kind?: LedgerKind;
 };
@@ -52,7 +59,7 @@ type SuppressedRow = {
   members: number;
   sessions: number;
   date: string;
-  reason: "admin-excluded";
+  reason: "admin-excluded" | "duplicate-period-line";
 };
 
 /**
@@ -156,6 +163,9 @@ export function lineInLiveMonth(
   if (lineMonth !== month) return false;
   return saleMonth === month || saleMonth === priorMonth;
 }
+
+/** Float slack — ledger amounts are halves and quarters, never this small. */
+const EPSILON = 1e-9;
 
 function rowSortKey(row: LedgerRow): string {
   // created_at orders the journal; ledger id breaks exact ties.
@@ -281,7 +291,54 @@ export function netLedgerJournal(
     // of showing both. Cancels stay as their own rows: they happen on their own
     // date and Ops reviews them individually.
     const creditLines = classified.filter((r) => r.kind !== "cancel");
-    const cancelLines = classified.filter((r) => r.kind === "cancel");
+    let cancelLines = classified.filter((r) => r.kind === "cancel");
+
+    // Drop period-transfer duplicates.
+    //
+    // Cancelling a prior-month sale takes two lines: one unwinding the credit in
+    // the month it was booked, one charging the month the cancel landed in. Both
+    // are written now, so a window on write time sees both and the rep is
+    // charged twice — the July tiles read -86.5 against an export's -50.5, and
+    // the gap was exactly the prior-month cancels, counted a second time.
+    //
+    // The tell is arithmetic, not a date: summed over all time an attribution
+    // cannot lose more than it was ever credited. Across 5,956 complete journals
+    // in the July export, not one nets below zero. So when lifetime totals go
+    // negative, that overshoot is bookkeeping, and the cancel lines that fit
+    // inside it are dropped oldest-first — never more than the overshoot, so a
+    // genuine cancel of a prior-month sale (lifetime nets to zero) is untouched.
+    const lifetimeMembers = Number(classified[0].lifetime_members);
+    const lifetimeSessions = Number(classified[0].lifetime_sessions);
+    let overMembers = Number.isFinite(lifetimeMembers) ? Math.max(0, -lifetimeMembers) : 0;
+    let overSessions = Number.isFinite(lifetimeSessions) ? Math.max(0, -lifetimeSessions) : 0;
+    if (cancelLines.length > 1 && (overMembers > EPSILON || overSessions > EPSILON)) {
+      const surviving: LedgerRow[] = [];
+      for (const row of cancelLines) {
+        const lostMembers = -(Number(row.members) || 0);
+        const lostSessions = -(Number(row.sessions) || 0);
+        const fits =
+          lostMembers <= overMembers + EPSILON &&
+          lostSessions <= overSessions + EPSILON &&
+          (lostMembers > EPSILON || lostSessions > EPSILON);
+        if (fits) {
+          overMembers -= lostMembers;
+          overSessions -= lostSessions;
+          suppressed.push({
+            ledgerId: String(row.ledger_id || ""),
+            attributionId: String(row.attribution_id || ""),
+            clientId: String(row.client_id || ""),
+            repName: displayFor(row),
+            members: Number(row.members) || 0,
+            sessions: Number(row.sessions) || 0,
+            date: String(row.attribution_date || "").slice(0, 10),
+            reason: "duplicate-period-line",
+          });
+          continue;
+        }
+        surviving.push(row);
+      }
+      cancelLines = surviving;
+    }
     if (creditLines.length) {
       const netMembers = creditLines.reduce((sum, r) => sum + (Number(r.members) || 0), 0);
       const netSessions = creditLines.reduce((sum, r) => sum + (Number(r.sessions) || 0), 0);
@@ -301,7 +358,7 @@ export function netLedgerJournal(
     }
     kept.push(...cancelLines);
 
-    if (classified.length > 1) {
+    if (classified.length > 1 && (creditLines.length || cancelLines.length)) {
       netted.push({
         attributionId: String(classified[0].attribution_id || ""),
         clientId: String(classified[0].client_id || ""),
@@ -557,20 +614,28 @@ function stripItemsForCompact(actuals: { asOf: string; perRep: Record<string, Pe
  * Compact polling payloads keep only the integrity counts — enough to badge the
  * Ops tab without shipping the full row detail on every poll.
  */
-function livePayloadDigest(payload: Record<string, unknown>): string {
+/**
+ * ETag for a live payload.
+ *
+ * Shape is part of the identity, not just the numbers: a compact poll and a full
+ * one carry the same totals but different bodies, so without the prefix a client
+ * holding the compact tag would get a 304 for a request that needed the line
+ * items and would render an empty Cancels list.
+ */
+export function livePayloadEtag(payload: Record<string, unknown>, compact: boolean): string {
   const actuals = payload.actuals as { asOf?: string; perRep?: Record<string, any> } | undefined;
   const per = (actuals && actuals.perRep) || {};
-  return `${actuals?.asOf || ""}|` + Object.keys(per).sort().map((k) => {
+  const body = Object.keys(per).sort().map((k) => {
     const r = per[k] || {};
     return `${k}:${Number(r.members) || 0}:${Number(r.sessions) || 0}:${Number(r.membersCancels) || 0}:${Number(r.sessionsCancels) || 0}`;
   }).join(",");
+  const cancels = Array.isArray(payload.cancelItems) ? payload.cancelItems.length : 0;
+  return `"${compact ? "c" : "f"}|${actuals?.asOf || ""}|${cancels}|${body}"`;
 }
 
-function liveJsonResponse(payload: Record<string, unknown>, status = 200) {
-  const body = JSON.stringify(payload);
-  const etag = `"${livePayloadDigest(payload)}"`;
-  return new Response(body, {
-    status,
+function liveJsonResponse(payload: Record<string, unknown>, etag: string) {
+  return new Response(JSON.stringify(payload), {
+    status: 200,
     headers: {
       "Content-Type": "application/json",
       "Cache-Control": "private, max-age=30",
@@ -626,7 +691,7 @@ export default async (req: Request, context: Context) => {
       delete out.prelim;
       stripIntegrityForCompact(out);
     }
-    const etag = `"${livePayloadDigest(out)}"`;
+    const etag = livePayloadEtag(out, compact);
     if (ifNoneMatch && ifNoneMatch === etag) {
       return new Response(null, {
         status: 304,
@@ -637,7 +702,7 @@ export default async (req: Request, context: Context) => {
         },
       });
     }
-    return liveJsonResponse(out);
+    return liveJsonResponse(out, etag);
   };
 
   try {
@@ -687,35 +752,71 @@ with bounds as (
     (date_trunc('month', (now() at time zone '${tz}')) at time zone '${tz}') as month_start,
     ((date_trunc('month', (now() at time zone '${tz}')) + interval '1 month') at time zone '${tz}') as month_end,
     ((date_trunc('month', (now() at time zone '${tz}')) - interval '1 month') at time zone '${tz}') as scoring_start
+),
+win as (
+  select
+    l.id as ledger_id,
+    l.attribution_id,
+    l.manager_id,
+    l.created_at,
+    l.net_client_credit_amount,
+    l.hours_amount,
+    a.client_id,
+    a.occurred_at as sale_occurred_at,
+    (a.deleted_at is not null) as attribution_deleted,
+    lower(f.email) as email,
+    f.name as manager_name
+  from sales_attribution.rep_scores_ledger_entries l
+  join sales_attribution.attributions a
+    on a.id = l.attribution_id
+  join sales_attribution.flex_team_members f
+    on f.manager_id = l.manager_id
+   and f.deleted_at is null
+  cross join bounds b
+  where l.deleted_at is null
+    and l.created_at >= b.month_start
+    and l.created_at <  b.month_end
+    and a.occurred_at >= b.scoring_start
+    and a.occurred_at <  b.month_end
+    and lower(f.email) in (${sqlStringList(emails)})
+),
+journals as (
+  select distinct attribution_id, manager_id from win
+),
+life as (
+  select
+    l2.attribution_id,
+    l2.manager_id,
+    sum(l2.net_client_credit_amount)::float8 as lifetime_members,
+    sum(l2.hours_amount)::float8 as lifetime_sessions
+  from sales_attribution.rep_scores_ledger_entries l2
+  join journals j
+    on j.attribution_id = l2.attribution_id
+   and j.manager_id = l2.manager_id
+  where l2.deleted_at is null
+  group by 1, 2
 )
 select
-  lower(f.email) as email,
-  f.name as manager_name,
-  a.client_id,
-  l.id::text as ledger_id,
-  a.id::text as attribution_id,
-  l.manager_id::text as manager_id,
-  l.created_at::text as ledger_created_at,
-  (l.created_at at time zone '${tz}')::date::text as attribution_date,
-  (l.created_at at time zone '${tz}')::text as occurred_at,
-  (a.occurred_at at time zone '${tz}')::text as sale_occurred_at,
-  (a.deleted_at is not null) as attribution_deleted,
-  l.net_client_credit_amount::float8 as members,
-  l.hours_amount::float8 as sessions
-from sales_attribution.rep_scores_ledger_entries l
-join sales_attribution.attributions a
-  on a.id = l.attribution_id
-join sales_attribution.flex_team_members f
-  on f.manager_id = l.manager_id
- and f.deleted_at is null
-cross join bounds b
-where l.deleted_at is null
-  and l.created_at >= b.month_start
-  and l.created_at <  b.month_end
-  and a.occurred_at >= b.scoring_start
-  and a.occurred_at <  b.month_end
-  and lower(f.email) in (${sqlStringList(emails)})
-order by l.created_at asc, l.id asc;
+  win.email,
+  win.manager_name,
+  win.client_id,
+  win.ledger_id::text as ledger_id,
+  win.attribution_id::text as attribution_id,
+  win.manager_id::text as manager_id,
+  win.created_at::text as ledger_created_at,
+  (win.created_at at time zone '${tz}')::date::text as attribution_date,
+  (win.created_at at time zone '${tz}')::text as occurred_at,
+  (win.sale_occurred_at at time zone '${tz}')::text as sale_occurred_at,
+  win.attribution_deleted,
+  win.net_client_credit_amount::float8 as members,
+  win.hours_amount::float8 as sessions,
+  life.lifetime_members,
+  life.lifetime_sessions
+from win
+join life
+  on life.attribution_id = win.attribution_id
+ and life.manager_id = win.manager_id
+order by win.created_at asc, win.ledger_id asc;
 `;
 
     const rawRows = await runSupabaseSql<LedgerRow>(sql);

@@ -13,13 +13,23 @@ import {
   netLedgerJournal,
   lineInLiveMonth,
   cancelLineItems,
+  livePayloadEtag,
 } from "../functions/get-live-actuals.mts";
 
 const EMAIL = "becky.ruffer@varsitytutors.com";
 const DISPLAY = { [EMAIL]: "Becky Ruffer" };
 
 /** One ledger line, in the shape the live query returns. */
-function line({ ledgerId, attributionId, members, sessions, date = "2026-07-31", clientId = "8568597" }) {
+function line({
+  ledgerId,
+  attributionId,
+  members,
+  sessions,
+  date = "2026-07-31",
+  clientId = "8568597",
+  lifetimeMembers,
+  lifetimeSessions,
+}) {
   return {
     email: EMAIL,
     manager_name: "Becky Ruffer",
@@ -34,6 +44,8 @@ function line({ ledgerId, attributionId, members, sessions, date = "2026-07-31",
     manager_id: "2210",
     // Journal order follows write order; ledger ids break same-day ties.
     ledger_created_at: `${date}T12:00:00Z`,
+    ...(lifetimeMembers === undefined ? {} : { lifetime_members: lifetimeMembers }),
+    ...(lifetimeSessions === undefined ? {} : { lifetime_sessions: lifetimeSessions }),
   };
 }
 
@@ -136,4 +148,97 @@ assert.equal(
   "itemised total equals the tile total"
 );
 
-console.log("ok — journal rows, cancel classification, month window, dedupe, line items");
+// ---- Period-transfer duplicates --------------------------------------------
+// Cancelling a prior-month sale writes two lines: one unwinding the credit in
+// the month it was booked, one charging the month the cancel landed in. A window
+// on write time sees both and charges the rep twice — that is the -86.5 the
+// tiles showed against the export's -50.5.
+//
+// The tell is arithmetic: over all time an attribution cannot lose more than it
+// was credited (0 of 5,956 complete journals in the July export net below zero).
+const periodDuplicate = netLedgerJournal(
+  [
+    // Sale was +1/8 last month, so the credit is outside this window and the
+    // journal's all-time net is 1 - 1 - 1 = -1: one line too many.
+    line({ ledgerId: 666899, attributionId: 77803, members: -1, sessions: -8, date: "2026-07-02", lifetimeMembers: -1, lifetimeSessions: -8 }),
+    line({ ledgerId: 666900, attributionId: 77803, members: -1, sessions: -8, date: "2026-07-02", lifetimeMembers: -1, lifetimeSessions: -8 }),
+  ],
+  DISPLAY,
+  new Set()
+);
+assert.equal(totals(periodDuplicate.rows).cancelMembers, -1, "a cancelled sale is charged once");
+assert.equal(totals(periodDuplicate.rows).cancelSessions, -8);
+assert.equal(
+  periodDuplicate.suppressed.filter((s) => s.reason === "duplicate-period-line").length,
+  1,
+  "and the duplicate is reported, not silently dropped"
+);
+
+// The safety case that matters most: a genuine cancel of a prior-month sale has
+// its credit outside the window too, but the journal nets to zero over all time,
+// so nothing may be dropped.
+const genuinePriorCancel = netLedgerJournal(
+  [line({ ledgerId: 666899, attributionId: 77803, members: -1, sessions: -8, date: "2026-07-02", lifetimeMembers: 0, lifetimeSessions: 0 })],
+  DISPLAY,
+  new Set()
+);
+assert.equal(totals(genuinePriorCancel.rows).cancelMembers, -1, "a real prior-month cancel still counts");
+assert.equal(genuinePriorCancel.suppressed.length, 0);
+
+// Never drop the only cancel a journal has, even if the arithmetic looks odd.
+const loneNegative = netLedgerJournal(
+  [line({ ledgerId: 670001, attributionId: 80001, members: -1, sessions: -8, lifetimeMembers: -1, lifetimeSessions: -8 })],
+  DISPLAY,
+  new Set()
+);
+assert.equal(totals(loneNegative.rows).cancelMembers, -1, "a lone negative line is left alone");
+assert.equal(loneNegative.suppressed.length, 0);
+
+// Drop no more than the overshoot: two cancels, only one line too many.
+const partialOvershoot = netLedgerJournal(
+  [
+    line({ ledgerId: 671001, attributionId: 81001, members: -1, sessions: -4, lifetimeMembers: -1, lifetimeSessions: -4 }),
+    line({ ledgerId: 671002, attributionId: 81001, members: -1, sessions: -4, lifetimeMembers: -1, lifetimeSessions: -4 }),
+    line({ ledgerId: 671003, attributionId: 81001, members: -1, sessions: -4, lifetimeMembers: -1, lifetimeSessions: -4 }),
+  ],
+  DISPLAY,
+  new Set()
+);
+assert.equal(totals(partialOvershoot.rows).cancelMembers, -2, "only the overshoot is removed");
+
+// Without lifetime totals (an older cached payload) nothing is dropped.
+const noLifetime = netLedgerJournal(
+  [
+    line({ ledgerId: 672001, attributionId: 82001, members: -1, sessions: -8 }),
+    line({ ledgerId: 672002, attributionId: 82001, members: -1, sessions: -8 }),
+  ],
+  DISPLAY,
+  new Set()
+);
+assert.equal(totals(noLifetime.rows).cancelMembers, -2, "no lifetime totals means no guessing");
+
+// ---- Poll ETags ------------------------------------------------------------
+// A compact poll and a full one carry the same totals but different bodies. If
+// they shared a tag, a tab that had polled compact and then needed line items
+// would get a 304 and render an empty Cancels list.
+const samePayload = {
+  actuals: { asOf: "2026-07-31", perRep: { "Becky Ruffer": { members: 1, sessions: 8, membersCancels: 0, sessionsCancels: 0 } } },
+  cancelItems: [],
+};
+assert.notEqual(
+  livePayloadEtag(samePayload, true),
+  livePayloadEtag(samePayload, false),
+  "compact and full payloads must not share an ETag"
+);
+assert.equal(livePayloadEtag(samePayload, true), livePayloadEtag({ ...samePayload }, true), "same shape, same tag");
+const movedCancels = {
+  ...samePayload,
+  actuals: { asOf: "2026-07-31", perRep: { "Becky Ruffer": { members: 1, sessions: 8, membersCancels: -1, sessionsCancels: -8 } } },
+};
+assert.notEqual(
+  livePayloadEtag(samePayload, true),
+  livePayloadEtag(movedCancels, true),
+  "a cancel moving must break the tag, or tiles freeze on a stale number"
+);
+
+console.log("ok — journal rows, cancel classification, month window, dedupe, line items, period duplicates, etags");
