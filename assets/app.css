@@ -4324,11 +4324,16 @@
   background: color-mix(in srgb, var(--card-bg) 78%, transparent);
   backdrop-filter: blur(12px);
 }
-#contestOverlay .contest-tab.is-active {
-  color: #fff;
-  background: linear-gradient(135deg, var(--arena-a), var(--arena-b) 58%, var(--arena-c));
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--arena-b) 28%, transparent);
+body.dark #contestOverlay {
+  background:
+    radial-gradient(ellipse 88% 55% at 8% -6%, color-mix(in srgb, var(--arena-a) 34%, transparent), transparent 58%),
+    radial-gradient(ellipse 78% 48% at 96% 4%, color-mix(in srgb, var(--arena-b) 30%, transparent), transparent 56%),
+    radial-gradient(ellipse 70% 42% at 50% 108%, color-mix(in srgb, var(--arena-c) 22%, transparent), transparent 60%),
+    radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--arena-a) 10%, transparent), transparent 55%),
+    var(--bg);
 }
+body.dark .contest-party-disco { opacity: 0.55; mix-blend-mode: screen; }
+body.dark .contest-party-spot { opacity: 0.55; }
 
 /* Party ambient — confetti + disco on page bg (outside the contest card) */
 .contest-party-room {
