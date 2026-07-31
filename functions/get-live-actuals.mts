@@ -8,6 +8,12 @@ import {
   loadLedgerExclusionIds,
 } from "./_shared/ledger-exclusions.mts";
 import { TEAM_TIME_ZONE, clampAsOfToTeamToday, teamTodayYmd } from "./_shared/time.mts";
+// Month-window contract (sale occurred_at OR cancel ledger created_at) — keep
+// SQL below aligned with functions/_shared/live-month-credit.mts.
+export {
+  ledgerRowInLiveMonth,
+  liveMonthCreditAtMs,
+} from "./_shared/live-month-credit.mts";
 
 /** Shared warm cache so N open tabs don't each hit Supabase every poll. */
 const LIVE_CACHE_TTL_MS = 20_000;
@@ -408,8 +414,24 @@ export default async (req: Request, context: Context) => {
     }
 
     // Current calendar month in America/Chicago (CST/CDT) — team business day.
+    //
+    // Month window rules:
+    // 1) Any credit whose attribution occurred_at is in the month (sales +
+    //    same-month revisions/cancels).
+    // 2) Cancels that *hit* this month even when the original sale was earlier:
+    //    negative ledger rows whose ledger created_at falls in the month.
+    //    Without (2), prior-month sale cancels never reduce MTD — which is how
+    //    live drifted above the July CSV cancel set.
+    //
+    // Display/as-of date for (2) uses ledger created_at (when the cancel hit),
+    // not the original sale's occurred_at.
     const tz = TEAM_TIME_ZONE.replace(/'/g, "''");
     const sql = `
+with month_bounds as (
+  select
+    (date_trunc('month', (now() at time zone '${tz}')) at time zone '${tz}') as month_start,
+    ((date_trunc('month', (now() at time zone '${tz}')) + interval '1 month') at time zone '${tz}') as month_end
+)
 select
   lower(f.email) as email,
   f.name as manager_name,
@@ -418,8 +440,16 @@ select
   a.id::text as attribution_id,
   l.manager_id::text as manager_id,
   l.created_at::text as ledger_created_at,
-  (a.occurred_at at time zone '${tz}')::date::text as attribution_date,
-  (a.occurred_at at time zone '${tz}')::text as occurred_at,
+  case
+    when a.occurred_at >= mb.month_start and a.occurred_at < mb.month_end
+      then (a.occurred_at at time zone '${tz}')::date::text
+    else (l.created_at at time zone '${tz}')::date::text
+  end as attribution_date,
+  case
+    when a.occurred_at >= mb.month_start and a.occurred_at < mb.month_end
+      then (a.occurred_at at time zone '${tz}')::text
+    else (l.created_at at time zone '${tz}')::text
+  end as occurred_at,
   l.net_client_credit_amount::float8 as members,
   l.hours_amount::float8 as sessions
 from sales_attribution.rep_scores_ledger_entries l
@@ -428,12 +458,19 @@ join sales_attribution.attributions a
 join sales_attribution.flex_team_members f
   on f.manager_id = l.manager_id
  and f.deleted_at is null
+cross join month_bounds mb
 where l.deleted_at is null
   and a.deleted_at is null
-  and a.occurred_at >= (date_trunc('month', (now() at time zone '${tz}')) at time zone '${tz}')
-  and a.occurred_at <  ((date_trunc('month', (now() at time zone '${tz}')) + interval '1 month') at time zone '${tz}')
+  and (
+    (a.occurred_at >= mb.month_start and a.occurred_at < mb.month_end)
+    or (
+      l.created_at >= mb.month_start
+      and l.created_at < mb.month_end
+      and (l.net_client_credit_amount < 0 or l.hours_amount < 0)
+    )
+  )
   and lower(f.email) in (${sqlStringList(emails)})
-order by a.occurred_at asc, l.id asc;
+order by attribution_date asc, l.id asc;
 `;
 
     const rawRows = await runSupabaseSql<LedgerRow>(sql);
