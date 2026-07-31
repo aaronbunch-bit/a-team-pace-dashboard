@@ -77,19 +77,29 @@ assert.equal(priorSaleCancel.netSessions, -8);
 assert.deepEqual(priorSaleCancel.lines.map((l) => l.kind), ["cancel"]);
 
 // ---- Month key -------------------------------------------------------------
-// Each line is dated by its OWN ledger date, never by the sale it adjusts.
-// Verified against the export: for sales the two timestamps are identical, and
-// for cancels the CSV shows the later line date (ledger 672910 -> 07-23 even
-// though the sale occurred 07-21).
+// Business date is attributions.occurred_at (CSV attribution_date). Upstream
+// updates it to the cancel date when a sale is cancelled, so prior-sale
+// cancels that hit in July land in July. Ledger created_at is when the row
+// was written — using it as the month key pulled cancels whose business date
+// is still prior-month (client 8555523 on 6/30) and inflated cancel tiles
+// from ~51.5/326 to ~86.5/542.
 function monthKey(line) {
-  return line.ledgerCreatedAt.slice(0, 7);
+  return line.occurredAt.slice(0, 7);
 }
-assert.equal(monthKey({ ledgerCreatedAt: "2026-07-23", saleOccurredAt: "2026-07-21" }), "2026-07");
-assert.equal(monthKey({ ledgerCreatedAt: "2026-07-02", saleOccurredAt: "2026-06-18" }), "2026-07");
 assert.equal(
-  monthKey({ ledgerCreatedAt: "2026-06-30", saleOccurredAt: "2026-06-30" }),
+  monthKey({ occurredAt: "2026-07-23", ledgerCreatedAt: "2026-07-24" }),
+  "2026-07",
+  "cancel whose occurred_at was updated to the cancel date"
+);
+assert.equal(
+  monthKey({ occurredAt: "2026-06-30", ledgerCreatedAt: "2026-07-15" }),
   "2026-06",
-  "a line written in June stays in June even if the export is pulled in July"
+  "row written in July but business-dated 6/30 stays out of July (8555523)"
+);
+assert.equal(
+  monthKey({ occurredAt: "2026-07-01", ledgerCreatedAt: "2026-07-01" }),
+  "2026-07",
+  "ordinary July sale"
 );
 
 console.log("ok — ledger journal netting + month key");
