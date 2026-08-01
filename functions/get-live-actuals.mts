@@ -65,16 +65,17 @@ function monthBoundsCte(month: string, tz: string): string {
  * Four rewrites in a row all read the same -86.5 on screen, and there was no way
  * to tell a rule that had not worked from a build that had not shipped yet.
  */
-const LEDGER_RULE_VERSION = "created_at+scoring+live-attro+transfer-wash-v5";
+const LEDGER_RULE_VERSION = "created_at+scoring+live-attro+transfer-wash-v5+attr-dates";
 
 /**
- * Ledger date columns worth testing as the export's month key, most likely
- * first. The export windows July on a business date we do not read: joined on
- * `ledger_id`, 58 of the 93 lines the tile counted are in the July export
- * (-50.5, the number the reps reconcile against) and 25 are not — and those 25
- * are indistinguishable from the 42 prior-month cancels the export *does* keep
- * on every column we currently select. Rather than guess at a name again, every
- * date column on the table is measured against the month and reported.
+ * Ledger / attribution date columns worth testing as the export's month key.
+ *
+ * The July dump proved the ledger only exposes `created_at` and `updated_at`,
+ * and both keep every leftover cancel (86 / -74.5). The export's own
+ * `attribution_date` disagrees with both on 38 of the 58 lines it keeps — so
+ * the business date lives somewhere else, most likely on `attributions`.
+ * Candidates are drawn from both tables; attribution columns are prefixed
+ * `a_` in the CSV so they can't collide with ledger names.
  */
 const MONTH_KEY_CANDIDATE_TYPES = new Set([
   "date",
@@ -86,7 +87,17 @@ const MONTH_KEY_CANDIDATE_TYPES = new Set([
 const MONTH_KEY_CANDIDATE_SKIP = new Set(["deleted_at"]);
 
 /** Keeps the generated select (and the CSV) to a readable width. */
-const MONTH_KEY_CANDIDATE_LIMIT = 12;
+const MONTH_KEY_CANDIDATE_LIMIT = 16;
+
+type MonthKeyCandidate = {
+  /** Alias used in SQL (`cand_…`) and in the CSV header. */
+  alias: string;
+  /** Qualified column, e.g. `l.created_at` or `a.occurred_at`. */
+  expr: string;
+  type: string;
+  table: "rep_scores_ledger_entries" | "attributions";
+  column: string;
+};
 
 type LedgerRow = {
   email: string;
@@ -715,7 +726,7 @@ function summarizeCancelsBySaleMonth(rows: LedgerRow[], month: string) {
  */
 async function loadLedgerSchema(): Promise<{
   columns: Record<string, string[]> | null;
-  candidates: { name: string; type: string }[];
+  candidates: MonthKeyCandidate[];
 }> {
   try {
     const cols = await runSupabaseSql<{
@@ -730,19 +741,21 @@ where table_schema = 'sales_attribution'
 order by table_name, ordinal_position;
 `);
     const columns: Record<string, string[]> = {};
-    const candidates: { name: string; type: string }[] = [];
+    const candidates: MonthKeyCandidate[] = [];
     for (const c of cols) {
-      const table = String(c.table_name);
+      const table = String(c.table_name) as MonthKeyCandidate["table"];
       const name = String(c.column_name);
       const type = String(c.data_type);
       (columns[table] ||= []).push(`${name}:${type}`);
-      if (table !== "rep_scores_ledger_entries") continue;
+      if (table !== "rep_scores_ledger_entries" && table !== "attributions") continue;
       if (MONTH_KEY_CANDIDATE_SKIP.has(name)) continue;
       if (!MONTH_KEY_CANDIDATE_TYPES.has(type)) continue;
       // Interpolated into SQL, so only ever a plain identifier.
       if (!/^[a-z_][a-z0-9_]*$/.test(name)) continue;
       if (candidates.length >= MONTH_KEY_CANDIDATE_LIMIT) continue;
-      candidates.push({ name, type });
+      const alias = table === "attributions" ? `a_${name}` : name;
+      const expr = table === "attributions" ? `a.${name}` : `l.${name}`;
+      candidates.push({ alias, expr, type, table, column: name });
     }
     return { columns, candidates };
   } catch (err: any) {
@@ -754,13 +767,12 @@ order by table_name, ordinal_position;
 /**
  * What each candidate date column would score if the month were keyed on it.
  *
- * The July tile counts 93 lines at -78.0. Joined onto the rep-scores export by
- * `ledger_id`, 58 of them are in that export and total -50.5 — the number the
- * reps reconcile against — so the export keeps a strict subset of what we
- * count. `created_at`, the key we use now, keeps all 93; the export's real key
- * keeps 66 (58 plus the 8 transfers the wash removes separately). Reporting the
- * line count and member total per column turns "which column is it?" into a
- * number to read off the panel instead of another release to guess at.
+ * After v5 the July tile counts 86 lines at -74.5. Joined onto the export by
+ * `ledger_id`, 58 of them are in that export (-50.5) and 28 are not. The ledger
+ * only has `created_at` and `updated_at`, and both keep all 86 — so the
+ * export's month key is not on the ledger. Attribution date columns are the
+ * next place to look; the column that keeps 58 (or 61, if it still carries the
+ * three zeroed-sibling transfers) is the one to switch the window onto.
  */
 function summarizeMonthKeyCandidates(rows: LedgerRow[], month: string) {
   const cancels = rows.filter((r) => r.kind === "cancel");
@@ -1046,15 +1058,15 @@ export default async (req: Request, context: Context) => {
     const schema = await loadLedgerSchema();
     const candidateColumns = schema.candidates;
     const candidateSelect = candidateColumns
-      .map(({ name, type }) => {
+      .map(({ alias, expr, type }) => {
         // A `date` column is already a calendar day; only a timestamp needs
         // shifting into the team's zone before it becomes one.
-        const asDay = type === "date" ? `l.${name}::text` : `(l.${name} at time zone '${tz}')::date::text`;
-        return `  ${asDay} as "cand_${name}"`;
+        const asDay = type === "date" ? `${expr}::text` : `(${expr} at time zone '${tz}')::date::text`;
+        return `  ${asDay} as "cand_${alias}"`;
       })
       .join(",\n");
     const candidateSelectFromWin = candidateColumns
-      .map(({ name }) => `  win."cand_${name}"`)
+      .map(({ alias }) => `  win."cand_${alias}"`)
       .join(",\n");
 
     // Did the ledger hand this sale to a different rep at the moment it wrote
@@ -1198,9 +1210,9 @@ order by l.created_at asc, l.id asc;
     for (const row of rawRows) {
       if (!candidateColumns.length) break;
       const dates: Record<string, string> = {};
-      for (const { name } of candidateColumns) {
-        const value = (row as Record<string, unknown>)[`cand_${name}`];
-        if (value) dates[name] = String(value).slice(0, 10);
+      for (const { alias } of candidateColumns) {
+        const value = (row as Record<string, unknown>)[`cand_${alias}`];
+        if (value) dates[alias] = String(value).slice(0, 10);
       }
       row.month_key_candidates = dates;
     }
@@ -1252,7 +1264,7 @@ order by l.created_at asc, l.id asc;
           // Candidate month-key columns, so the next fix can name the right one.
           ledgerColumns: schema.columns,
           // What each of those columns would score as the month key. The one
-          // that keeps 66 lines in July is the column the export windows on.
+          // that keeps ~58 lines in July is the column the export windows on.
           monthKeyCandidates: summarizeMonthKeyCandidates(rows, monthYmd),
           // Whether the period-transfer wash matched anything. A rule that
           // ships, deploys and quietly matches nothing is how the cancel tile
