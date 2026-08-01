@@ -146,6 +146,7 @@ export default async (req: Request, context: Context) => {
 
   // Cancel → Manual Attribution conversion (legacy field names).
   // Sessions-only cancels may still request members = 0.
+  // Only full admins can convert cancels; land approved so they don't re-approve.
   const membersErr = membersValidationError(members, { allowZero: true });
   if (membersErr) {
     return new Response(JSON.stringify({ error: membersErr }), {
@@ -159,7 +160,7 @@ export default async (req: Request, context: Context) => {
       { status: 400 }
     );
   }
-  const { clientId, saleDate, reason, comments } = body || {};
+  const { clientId, saleDate, reason, comments, clientLink: bodyClientLink } = body || {};
   if (!clientId || !saleDate || !reason || !comments) {
     return new Response(
       JSON.stringify({
@@ -169,23 +170,46 @@ export default async (req: Request, context: Context) => {
     );
   }
 
+  const clientIdStr = String(clientId).trim();
+  const note = String(comments).trim();
+  const reasonStr = String(reason).trim();
+  const now = new Date().toISOString();
+  // Prefer an explicit link from the client; otherwise build the standard
+  // Varsity Tutors client page so CSV export / UI never get a bare id.
+  const clientLink = String(bodyClientLink || "").trim()
+    || (clientIdStr ? `https://www.varsitytutors.com/clients/${encodeURIComponent(clientIdStr)}` : "");
+
   const record = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     repEmail,
     repName: String(repName),
-    clientId: String(clientId).trim(),
+    clientId: clientIdStr,
+    clientLink,
     members: membersNum,
     sessions: sessionsNum,
     saleDate: String(saleDate).slice(0, 10),
-    reason: String(reason).trim(),
-    comments: String(comments).trim(),
-    status: "pending",
-    submittedAt: new Date().toISOString(),
-    reviewedAt: null as string | null,
-    reviewedBy: null as string | null,
+    reason: reasonStr,
+    adjustmentReason: reasonStr,
+    // Admin convert comments are the approval note — no second review step.
+    comments: note,
+    reviewComment: note,
+    status: "approved",
+    submittedAt: now,
+    reviewedAt: now,
+    reviewedBy: initiatedBy,
     submittedByAdmin: true,
     initiatedBy,
     source: "cancel-conversion",
+    decisionHistory: [
+      {
+        from: "pending",
+        to: "approved",
+        action: "approve",
+        by: initiatedBy,
+        at: now,
+        note,
+      },
+    ],
   };
 
   const store = getStore("manual-attributions");
