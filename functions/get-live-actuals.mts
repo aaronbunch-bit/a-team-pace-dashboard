@@ -19,7 +19,7 @@ const LIVE_CACHE_KEY = LIVE_ACTUALS_CACHE_KEY;
  * Four rewrites in a row all read the same -86.5 on screen, and there was no way
  * to tell a rule that had not worked from a build that had not shipped yet.
  */
-const LEDGER_RULE_VERSION = "created_at+scoring+live-attro+lifetime-v2";
+const LEDGER_RULE_VERSION = "created_at+scoring+live-attro+transfer-wash-v3";
 
 type LedgerRow = {
   email: string;
@@ -68,6 +68,22 @@ type SuppressedRow = {
   sessions: number;
   date: string;
   reason: "admin-excluded" | "duplicate-period-line" | "orphan-cancel";
+};
+
+/**
+ * A cancel that was written together with a credit re-booking a prior month's
+ * sale into this one. Reported rather than counted as attrition — its value
+ * stays in the attribution's credit row, so the members tile is unaffected.
+ */
+type WashedCancel = {
+  ledgerId: string;
+  attributionId: string;
+  clientId: string;
+  repName: string;
+  members: number;
+  sessions: number;
+  date: string;
+  saleMonth: string;
 };
 
 /**
@@ -202,18 +218,24 @@ function rowSortKey(row: LedgerRow): string {
  * Two *different* attributions for the same client are still only flagged, never
  * merged: that shape is also a legitimate second purchase or a cancel/rebook
  * pair. Admins can exclude a specific ledger id.
+ *
+ * `windowMonth` (a `YYYY-MM` key) enables the period-transfer wash documented
+ * inside. Omit it and the journal behaves exactly as before.
  */
 export function netLedgerJournal(
   rows: LedgerRow[],
   emailToDisplay: Record<string, string>,
-  exclusions: Set<string>
+  exclusions: Set<string>,
+  windowMonth?: string
 ): {
   rows: LedgerRow[];
   suppressed: SuppressedRow[];
   flagged: FlaggedPair[];
   netted: NettedAttribution[];
   duplicateRows: number;
+  washed: WashedCancel[];
 } {
+  const washed: WashedCancel[] = [];
   const suppressed: SuppressedRow[] = [];
   const displayFor = (row: LedgerRow) => {
     const email = safeEmail(row.email);
@@ -346,9 +368,59 @@ export function netLedgerJournal(
       }
       cancelLines = surviving;
     }
+    // Wash period-transfer credits against the cancels they were written with.
+    //
+    // When a prior month's sale is cancelled, the ledger can re-book the credit
+    // into the current month and cancel it in the same breath. Both lines are
+    // written now, so the window sees +1 and -1 on a journal whose sale is
+    // older than the window. The rep-scores export shows neither: those lines
+    // belong to the month the sale lived in.
+    //
+    // Checked against the July export line by line: of the 44 prior-month
+    // cancels the export does count, not one has a credit inside the window,
+    // and all 41 the export omits do. Nothing is removed from the totals — the
+    // washed line is folded into the attribution's credit row — so this moves
+    // the cancel tile without moving the members tile.
+    const saleMonth = String(classified[0].sale_occurred_at || "").slice(0, 7);
+    const washedHere: LedgerRow[] = [];
+    if (windowMonth && saleMonth && saleMonth < windowMonth && cancelLines.length) {
+      let transferMembers = creditLines.reduce((sum, r) => sum + (Number(r.members) || 0), 0);
+      let transferSessions = creditLines.reduce((sum, r) => sum + (Number(r.sessions) || 0), 0);
+      if (transferMembers > EPSILON || transferSessions > EPSILON) {
+        const surviving: LedgerRow[] = [];
+        for (const row of cancelLines) {
+          const lostMembers = -(Number(row.members) || 0);
+          const lostSessions = -(Number(row.sessions) || 0);
+          const fits =
+            lostMembers <= transferMembers + EPSILON &&
+            lostSessions <= transferSessions + EPSILON &&
+            (lostMembers > EPSILON || lostSessions > EPSILON);
+          if (fits) {
+            transferMembers -= lostMembers;
+            transferSessions -= lostSessions;
+            washedHere.push(row);
+            washed.push({
+              ledgerId: String(row.ledger_id || ""),
+              attributionId: String(row.attribution_id || ""),
+              clientId: String(row.client_id || ""),
+              repName: displayFor(row),
+              members: Number(row.members) || 0,
+              sessions: Number(row.sessions) || 0,
+              date: String(row.attribution_date || "").slice(0, 10),
+              saleMonth,
+            });
+            continue;
+          }
+          surviving.push(row);
+        }
+        cancelLines = surviving;
+      }
+    }
+
     if (creditLines.length) {
-      const netMembers = creditLines.reduce((sum, r) => sum + (Number(r.members) || 0), 0);
-      const netSessions = creditLines.reduce((sum, r) => sum + (Number(r.sessions) || 0), 0);
+      const settled = washedHere.length ? [...creditLines, ...washedHere] : creditLines;
+      const netMembers = settled.reduce((sum, r) => sum + (Number(r.members) || 0), 0);
+      const netSessions = settled.reduce((sum, r) => sum + (Number(r.sessions) || 0), 0);
       if (netMembers !== 0 || netSessions !== 0) {
         // Earliest line dates the credit (the sale), newest supplies the row id
         // so sale keys follow the surviving revision.
@@ -419,7 +491,7 @@ export function netLedgerJournal(
     });
   }
 
-  return { rows: kept, suppressed, flagged, netted, duplicateRows };
+  return { rows: kept, suppressed, flagged, netted, duplicateRows, washed };
 }
 
 /**
@@ -890,7 +962,7 @@ order by l.created_at asc, l.id asc;
     }
     const deletedAttribution = summarizeRows(rawRows.filter((row) => !!row.attribution_deleted));
     const exclusions = await loadLedgerExclusionIds();
-    const reconciled = netLedgerJournal(rawRows, emailToDisplay, exclusions);
+    const reconciled = netLedgerJournal(rawRows, emailToDisplay, exclusions, monthYmd);
     const rows = reconciled.rows;
     const built = buildActuals(rows, emailToDisplay);
     const actuals = { asOf: built.asOf, perRep: built.perRep };
@@ -911,6 +983,7 @@ order by l.created_at asc, l.id asc;
         suppressed: reconciled.suppressed,
         flagged: reconciled.flagged,
         netted: reconciled.netted,
+        washed: reconciled.washed,
         excludedIds: [...exclusions],
         window: {
           // Bumped whenever the counting rule changes, so "is this the build
@@ -927,6 +1000,15 @@ order by l.created_at asc, l.id asc;
           ).length,
           lifetimeAvailable,
           deletedAttribution,
+          // Whether the period-transfer wash matched anything. A rule that
+          // ships, deploys and quietly matches nothing is how the cancel tile
+          // stayed wrong across several releases — so this is reported next to
+          // the number it is supposed to move.
+          transferWash: {
+            rows: reconciled.washed.length,
+            members: reconciled.washed.reduce((s, w) => s + w.members, 0),
+            sessions: reconciled.washed.reduce((s, w) => s + w.sessions, 0),
+          },
           cancelsBySaleMonth: summarizeCancelsBySaleMonth(rows, monthYmd),
         },
       },
