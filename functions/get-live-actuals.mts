@@ -19,7 +19,7 @@ const LIVE_CACHE_KEY = LIVE_ACTUALS_CACHE_KEY;
  * Four rewrites in a row all read the same -86.5 on screen, and there was no way
  * to tell a rule that had not worked from a build that had not shipped yet.
  */
-const LEDGER_RULE_VERSION = "created_at+scoring+live-attro+transfer-wash-v3";
+const LEDGER_RULE_VERSION = "created_at+scoring+live-attro+transfer-wash-v4";
 
 type LedgerRow = {
   email: string;
@@ -191,6 +191,30 @@ export function lineInLiveMonth(
 /** Float slack — ledger amounts are halves and quarters, never this small. */
 const EPSILON = 1e-9;
 
+/**
+ * Can this cancel be absorbed by the available credit / overshoot?
+ *
+ * Membership is the unit of attrition the tiles report. Sessions ride along
+ * with a member line and sometimes disagree with it (a 0.5-member cancel of an
+ * 8-session package against a 0.5/2 re-booking credit, for example). Requiring
+ * both dimensions to fit was why the first wash only cleared 16 of 41
+ * period-transfer lines and why the orphan rule cleared none of the SPIFF
+ * cancels — the member side fitted and the session side did not, so the line
+ * was kept as attrition. Absorb when the member side fits; sessions follow
+ * for as far as the pool allows. A sessions-only cancel (no members) still
+ * absorbs against the session pool alone.
+ */
+function cancelFitsPool(
+  lostMembers: number,
+  lostSessions: number,
+  poolMembers: number,
+  poolSessions: number
+): boolean {
+  if (lostMembers > EPSILON) return lostMembers <= poolMembers + EPSILON;
+  if (lostSessions > EPSILON) return lostSessions <= poolSessions + EPSILON;
+  return false;
+}
+
 function rowSortKey(row: LedgerRow): string {
   // created_at orders the journal; ledger id breaks exact ties.
   return `${String(row.ledger_created_at || "")}|${String(row.ledger_id || "")}`;
@@ -343,13 +367,9 @@ export function netLedgerJournal(
       for (const row of cancelLines) {
         const lostMembers = -(Number(row.members) || 0);
         const lostSessions = -(Number(row.sessions) || 0);
-        const fits =
-          lostMembers <= overMembers + EPSILON &&
-          lostSessions <= overSessions + EPSILON &&
-          (lostMembers > EPSILON || lostSessions > EPSILON);
-        if (fits) {
-          overMembers -= lostMembers;
-          overSessions -= lostSessions;
+        if (cancelFitsPool(lostMembers, lostSessions, overMembers, overSessions)) {
+          overMembers = Math.max(0, overMembers - lostMembers);
+          overSessions = Math.max(0, overSessions - Math.min(lostSessions, overSessions));
           suppressed.push({
             ledgerId: String(row.ledger_id || ""),
             attributionId: String(row.attribution_id || ""),
@@ -391,13 +411,9 @@ export function netLedgerJournal(
         for (const row of cancelLines) {
           const lostMembers = -(Number(row.members) || 0);
           const lostSessions = -(Number(row.sessions) || 0);
-          const fits =
-            lostMembers <= transferMembers + EPSILON &&
-            lostSessions <= transferSessions + EPSILON &&
-            (lostMembers > EPSILON || lostSessions > EPSILON);
-          if (fits) {
-            transferMembers -= lostMembers;
-            transferSessions -= lostSessions;
+          if (cancelFitsPool(lostMembers, lostSessions, transferMembers, transferSessions)) {
+            transferMembers = Math.max(0, transferMembers - lostMembers);
+            transferSessions = Math.max(0, transferSessions - Math.min(lostSessions, transferSessions));
             washedHere.push(row);
             washed.push({
               ledgerId: String(row.ledger_id || ""),
@@ -450,6 +466,88 @@ export function netLedgerJournal(
         netMembers: classified.reduce((sum, r) => sum + (Number(r.members) || 0), 0),
         netSessions: classified.reduce((sum, r) => sum + (Number(r.sessions) || 0), 0),
       });
+    }
+  }
+
+  // Second wash pass: the re-booking credit and the cancel sometimes land on
+  // *different* attributions for the same client + manager (a new attribution
+  // is opened for the re-booked sale, the cancel closes the old one). The
+  // per-journal wash above cannot see across that boundary. Checked against
+  // the July dump after v3 shipped: 16 same-attribution pairs washed, ~25
+  // prior-month cancels still on screen with no credit in their own journal —
+  // exactly the cross-attribution shape. Of the prior-month cancels the export
+  // keeps, none have any in-window credit for that client+manager, so washing
+  // across attributions cannot touch a cancel the export counts.
+  if (windowMonth) {
+    type CreditSlot = { row: LedgerRow; members: number; sessions: number };
+    const creditsByClientRep = new Map<string, CreditSlot[]>();
+    for (const row of kept) {
+      if (row.kind !== "credit") continue;
+      const members = Number(row.members) || 0;
+      const sessions = Number(row.sessions) || 0;
+      if (members <= EPSILON && sessions <= EPSILON) continue;
+      const key = `${String(row.client_id || "").trim()}|${displayFor(row)}`;
+      const bucket = creditsByClientRep.get(key);
+      const slot = { row, members, sessions };
+      if (bucket) bucket.push(slot);
+      else creditsByClientRep.set(key, [slot]);
+    }
+
+    const survivingKept: LedgerRow[] = [];
+    for (const row of kept) {
+      if (row.kind !== "cancel") {
+        survivingKept.push(row);
+        continue;
+      }
+      const saleMonth = String(row.sale_occurred_at || "").slice(0, 7);
+      if (!saleMonth || saleMonth >= windowMonth) {
+        survivingKept.push(row);
+        continue;
+      }
+      const key = `${String(row.client_id || "").trim()}|${displayFor(row)}`;
+      const pool = creditsByClientRep.get(key) || [];
+      const lostMembers = -(Number(row.members) || 0);
+      const lostSessions = -(Number(row.sessions) || 0);
+      let washedInto: CreditSlot | null = null;
+      for (const slot of pool) {
+        if (!cancelFitsPool(lostMembers, lostSessions, slot.members, slot.sessions)) continue;
+        // Fold the cancel into the credit the same way the per-journal wash
+        // does — members and sessions both move — so the pair still nets to
+        // whatever mismatch the two lines already had.
+        slot.row.members = (Number(slot.row.members) || 0) + (Number(row.members) || 0);
+        slot.row.sessions = (Number(slot.row.sessions) || 0) + (Number(row.sessions) || 0);
+        slot.members = Number(slot.row.members) || 0;
+        slot.sessions = Number(slot.row.sessions) || 0;
+        washedInto = slot;
+        break;
+      }
+      if (washedInto) {
+        washed.push({
+          ledgerId: String(row.ledger_id || ""),
+          attributionId: String(row.attribution_id || ""),
+          clientId: String(row.client_id || ""),
+          repName: displayFor(row),
+          members: Number(row.members) || 0,
+          sessions: Number(row.sessions) || 0,
+          date: String(row.attribution_date || "").slice(0, 10),
+          saleMonth,
+        });
+        continue;
+      }
+      survivingKept.push(row);
+    }
+
+    // Drop credit rows the wash drove to zero — they were pure re-bookings.
+    kept.length = 0;
+    for (const row of survivingKept) {
+      if (
+        row.kind === "credit" &&
+        Math.abs(Number(row.members) || 0) <= EPSILON &&
+        Math.abs(Number(row.sessions) || 0) <= EPSILON
+      ) {
+        continue;
+      }
+      kept.push(row);
     }
   }
 

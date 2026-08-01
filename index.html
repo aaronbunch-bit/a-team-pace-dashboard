@@ -10638,7 +10638,7 @@ function renderCancelsWindowNote() {
   ];
   if (c.olderSale && c.olderSale.rows) parts.push(`older (should be 0): ${lost(c.olderSale)}`);
   if (w.periodDuplicatesDropped) {
-    parts.push(`${w.periodDuplicatesDropped} prior-month duplicate${w.periodDuplicatesDropped === 1 ? '' : 's'} dropped`);
+    parts.push(`${w.periodDuplicatesDropped} orphan/duplicate cancel${w.periodDuplicatesDropped === 1 ? '' : 's'} dropped`);
   }
   if (w.duplicateRows) parts.push(`${w.duplicateRows} duplicate ledger rows collapsed`);
   // Whether the period-transfer wash matched anything, next to the number it
