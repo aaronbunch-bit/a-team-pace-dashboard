@@ -1853,7 +1853,28 @@ function loadActuals() {
   if (ACTUALS_CACHE && ACTUALS_CACHE.asOf) {
     ACTUALS_CACHE.asOf = clampAsOfToTeamToday(ACTUALS_CACHE.asOf);
   }
+  // Never paint last month's Blobs/demo MTD as this month's live pacer. Until
+  // the live August (etc.) feed lands, show an empty month shell — not July.
+  if (!lastLiveActualsOk && actualsMonthKey(ACTUALS_CACHE) && actualsMonthKey(ACTUALS_CACHE) !== liveMonthKey()) {
+    return emptyMonthActualsShell();
+  }
   return ACTUALS_CACHE;
+}
+/** YYYY-MM from an actuals document's asOf (empty when unknown). */
+function actualsMonthKey(actuals) {
+  const asOf = String((actuals && actuals.asOf) || '').slice(0, 7);
+  return /^\d{4}-\d{2}$/.test(asOf) ? asOf : '';
+}
+/** Zeroed MTD shell for the live calendar month — used when we refuse stale prior-month caches. */
+function emptyMonthActualsShell() {
+  const perRep = {};
+  (typeof getFullRoster === 'function' ? getFullRoster() : []).forEach((r) => {
+    if (!r || !r.display) return;
+    perRep[r.display] = {
+      members: 0, sessions: 0, membersCancels: 0, sessionsCancels: 0, items: [],
+    };
+  });
+  return { asOf: teamTodayYmd(), perRep };
 }
 
 // Preliminary last-month snapshot: the moment "Update actuals from ledger
@@ -9668,14 +9689,20 @@ function viewCalendarParts(forDetail) {
     : (y && m ? new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'long' }) : 'Last');
   return { dim, d: dim, elapsedFrac: 1, expectedPct: 100, monthName };
 }
-function loadViewCancelItems() {
-  if (viewingPriorMonthForOps() && PRIOR_MONTH_BUNDLE && Array.isArray(PRIOR_MONTH_BUNDLE.cancelItems)) {
+function loadViewCancelItems(forDetail) {
+  const prior = forDetail
+    ? (typeof viewingPriorMonthForDetail === 'function' && viewingPriorMonthForDetail())
+    : (typeof viewingPriorMonthForOps === 'function' && viewingPriorMonthForOps());
+  if (prior && PRIOR_MONTH_BUNDLE && Array.isArray(PRIOR_MONTH_BUNDLE.cancelItems)) {
     return PRIOR_MONTH_BUNDLE.cancelItems;
   }
   return CANCEL_ITEMS;
 }
-function loadViewLedgerIntegrity() {
-  if (viewingPriorMonthForOps() && PRIOR_MONTH_BUNDLE && PRIOR_MONTH_BUNDLE.ledgerIntegrity) {
+function loadViewLedgerIntegrity(forDetail) {
+  const prior = forDetail
+    ? (typeof viewingPriorMonthForDetail === 'function' && viewingPriorMonthForDetail())
+    : (typeof viewingPriorMonthForOps === 'function' && viewingPriorMonthForOps());
+  if (prior && PRIOR_MONTH_BUNDLE && PRIOR_MONTH_BUNDLE.ledgerIntegrity) {
     return PRIOR_MONTH_BUNDLE.ledgerIntegrity;
   }
   return LEDGER_INTEGRITY;
@@ -11014,7 +11041,7 @@ document.getElementById('ledgerExcludeSubmit')?.addEventListener('click', async 
 });
 
 function computeTeamCancels() {
-  const onRoster = new Set(getRoster().map(r => r.display));
+  const onRoster = new Set(getViewRoster(false).map(r => r.display));
   const items = typeof loadViewCancelItems === 'function' ? loadViewCancelItems() : CANCEL_ITEMS;
   // Server-itemised cancel lines are authoritative: the tiles are totalled from
   // this same list, so a number on a tile can always be traced to rows here.
@@ -11032,7 +11059,7 @@ function computeTeamCancels() {
   }
   const actuals = viewingPriorMonthForOps() ? loadViewActuals(false) : loadActuals();
   const rows = [];
-  getRoster().forEach(r => {
+  getViewRoster(false).forEach(r => {
     const raw = (actuals.perRep && actuals.perRep[r.display]) || {};
     (raw.items || []).forEach(it => {
       if (it.members >= 0 && it.sessions >= 0) return;
@@ -11499,9 +11526,15 @@ async function submitAttributionAsAdmin(payload) {
 // additively into each rep's live actual totals via APPROVED_TOTALS (see render()).
 let APPROVED_TOTALS = {};
 
-async function fetchApprovedTotals() {
+async function fetchApprovedTotals(monthKey) {
   try {
-    const data = await authedFetch('/api/attributions/approved-totals', { cache: 'no-store' });
+    // Always pin the month explicitly so a client/server clock skew cannot
+    // silently pull last month's approved credits into this month's pacers.
+    const month = String(monthKey || '') || liveMonthKey();
+    const data = await authedFetch(
+      '/api/attributions/approved-totals?month=' + encodeURIComponent(month),
+      { cache: 'no-store' }
+    );
     return data.totals || {};
   } catch (e) {
     console.warn('Could not load approved manual attribution totals', e);
@@ -11743,6 +11776,8 @@ function readSharedLiveActuals(maxAgeMs) {
     if (!doc || !doc.actuals || !doc.actuals.perRep) return null;
     const age = Date.now() - Number(doc.fetchedAtMs || 0);
     if (!(age >= 0 && age < maxAgeMs)) return null;
+    // Sibling tabs must not hand last month's feed to this month's pacer.
+    if (doc.viewMonth && doc.viewMonth !== liveMonthKey()) return null;
     return doc;
   } catch (_) {
     return null;
@@ -11764,6 +11799,7 @@ function writeSharedLiveActuals(data, wantFull) {
     localStorage.setItem(LIVE_ACTUALS_SHARE_KEY, JSON.stringify({
       fetchedAtMs: Date.now(),
       etag: liveActualsEtag || '',
+      viewMonth: data.viewMonth || liveMonthKey(),
       actuals,
       cancelItems: Array.isArray(data.cancelItems) ? data.cancelItems : [],
       prelim: data.prelim || null,
@@ -11796,6 +11832,13 @@ function applyLiveActualsPayload(data, wantFull, prevDigest) {
   if (!data.actuals || !data.actuals.perRep) {
     lastLiveActualsOk = false;
     return 'error';
+  }
+  // Ironclad month gate: never apply a July (etc.) payload to the live August
+  // pacer. The server always sends viewMonth; sibling-tab shares do too.
+  const payloadMonth = String(data.viewMonth || '').trim();
+  if (payloadMonth && payloadMonth !== liveMonthKey()) {
+    console.warn('Ignoring live actuals for', payloadMonth, '— live month is', liveMonthKey());
+    return 'ignored';
   }
   ACTUALS_CACHE = wantFull ? data.actuals : mergeLiveActualsPreserveItems(data.actuals);
   if (data.prelim) PRELIM_CACHE = data.prelim;
@@ -11847,6 +11890,9 @@ async function fetchLiveActuals(opts) {
       claimLiveActualsLeadership();
     }
     const params = [];
+    // Pin the live Chicago month on every poll so cancels/attributions for
+    // August land on August pacers even if a warm cache or proxy is sticky.
+    params.push('month=' + encodeURIComponent(liveMonthKey()));
     if (!wantFull) params.push('compact=1');
     if (opts && opts.fresh) params.push('fresh=1');
     const qs = params.length ? '?' + params.join('&') : '';
@@ -11944,11 +11990,31 @@ function startLiveActualsPolling() {
 // Re-render when America/Chicago rolls to a new calendar day (tab left open overnight,
 // or user returns after midnight Central) — even if ledger asOf hasn't moved yet.
 let teamCalendarWatchYmd = '';
+let teamCalendarWatchMonth = '';
 let teamCalendarWatchTimer = null;
 function refreshForTeamCalendarDay() {
   const ymd = teamTodayYmd();
   if (ymd === teamCalendarWatchYmd) return false;
+  const prevMonth = teamCalendarWatchMonth || (teamCalendarWatchYmd || '').slice(0, 7);
   teamCalendarWatchYmd = ymd;
+  const month = liveMonthKey();
+  const monthRolled = !!(prevMonth && prevMonth !== month);
+  teamCalendarWatchMonth = month;
+
+  if (monthRolled) {
+    // Drop last month's live cancels/actuals/approved credits immediately so
+    // the new month's pacers never keep painting the closed month.
+    lastLiveActualsOk = false;
+    CANCEL_ITEMS = [];
+    APPROVED_TOTALS = {};
+    ACTUALS_CACHE = emptyMonthActualsShell();
+    PRIOR_MONTH_BUNDLE = null;
+    PRIOR_APPROVED_TOTALS = {};
+    PRIOR_MONTH_FETCH = null;
+    liveActualsEtag = '';
+    try { localStorage.removeItem(LIVE_ACTUALS_SHARE_KEY); } catch (_) {}
+  }
+
   if (typeof render === 'function') render();
   if (document.getElementById('clientDetailOverlay')?.classList.contains('open')
       && typeof renderClientDetail === 'function') {
@@ -11957,11 +12023,17 @@ function refreshForTeamCalendarDay() {
   if (typeof fetchPersonalGoals === 'function') {
     fetchPersonalGoals().catch(() => {});
   }
-  // Approved attribution totals are month-scoped; don't carry yesterday's
-  // month into the new MTD Income Planning period on a tab left open overnight.
+  // Approved attribution totals are month-scoped; pin the new live month.
   if (typeof fetchApprovedTotals === 'function') {
-    fetchApprovedTotals().then((totals) => {
+    fetchApprovedTotals(month).then((totals) => {
       APPROVED_TOTALS = totals || {};
+      if (typeof quietRefreshFromActuals === 'function') quietRefreshFromActuals();
+    }).catch(() => {});
+  }
+  // Cancels + ledger actuals are also month-scoped — force a fresh live pull
+  // when the calendar month rolls so August does not keep July's feed.
+  if (monthRolled && typeof fetchLiveActuals === 'function') {
+    fetchLiveActuals({ fresh: true, full: true }).then(() => {
       if (typeof quietRefreshFromActuals === 'function') quietRefreshFromActuals();
     }).catch(() => {});
   }
@@ -11969,6 +12041,7 @@ function refreshForTeamCalendarDay() {
 }
 function startTeamCalendarWatch() {
   teamCalendarWatchYmd = teamTodayYmd();
+  teamCalendarWatchMonth = liveMonthKey();
   if (!teamCalendarWatchTimer) {
     teamCalendarWatchTimer = setInterval(() => { refreshForTeamCalendarDay(); }, 60_000);
   }
@@ -12230,9 +12303,17 @@ function attrLinkCell(r) {
   if (!canEditAttrClientLink(r)) return link;
   return `<span class="attr-link-cell">${link}<button type="button" class="theme-btn attr-edit-link-btn" data-edit-attr-link="${escapeAttr(r.id)}" title="Update client page link">Edit</button></span>`;
 }
-// Buckets by submission month (same convention as approved-totals — see the
-// comment in submit-attribution.mts on why saleDate now equals submission date).
-function attrMonthKey(r) { return String(r.submittedAt || '').slice(0, 7); }
+// Buckets by the same Central saleDate month approved-totals uses — not the
+// UTC prefix of submittedAt (late Central evenings flip the UTC month early).
+function attrMonthKey(r) {
+  const sale = String((r && r.saleDate) || '').slice(0, 7);
+  if (/^\d{4}-\d{2}$/.test(sale)) return sale;
+  const submitted = (r && r.submittedAt) ? new Date(r.submittedAt) : null;
+  if (submitted && !Number.isNaN(submitted.getTime())) {
+    return teamTodayMonthKey(submitted);
+  }
+  return '';
+}
 function attrMonthLabel(key) {
   const [y, m] = key.split('-').map(Number);
   return new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });

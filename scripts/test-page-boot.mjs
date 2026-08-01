@@ -469,6 +469,27 @@ assert.equal(
   assert.equal(context.goalsEditMonthKey(), live);
 }
 
+/**
+ * Attributions in the Individual Pacer must bucket by Central saleDate — the
+ * same key approved-totals uses — so August credits show on August pacers.
+ */
+assert.equal(typeof context.attrMonthKey, "function", "attrMonthKey must exist");
+assert.equal(
+  context.attrMonthKey({
+    saleDate: "2026-08-01",
+    submittedAt: "2026-08-01T14:00:00.000Z",
+  }),
+  "2026-08"
+);
+assert.equal(
+  context.attrMonthKey({
+    saleDate: "2026-07-31",
+    submittedAt: "2026-08-01T02:15:00.000Z",
+  }),
+  "2026-07",
+  "UTC midnight must not pull a Central July sale into August's list"
+);
+
 if (bodyWipes.length) {
   console.error("\nSomething wrote to <body> in a way that deletes the page:\n");
   bodyWipes.forEach((w) => console.error("  " + w));
