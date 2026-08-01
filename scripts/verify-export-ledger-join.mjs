@@ -25,12 +25,13 @@
  * v5 `transferred_out` wash removes, and this script proves the wash takes
  * exactly those 8 and none of the 58.
  *
- * The remaining 27 lines (-23.5) are the business-date population: the export
- * windows the month on a ledger date the pacer does not read, so a June-dated
- * reversal written in July belongs to June's export and lands in our July
- * window. They are indistinguishable from the 42 prior-month cancels the export
- * *does* keep on every column the query currently selects — which is why the
- * fix ships the month-key candidate diagnostic instead of a sixth guess.
+ * The remaining 27 lines (-23.5) were the business-date population, and the
+ * business date is now known: `credits.occurred_at`, reached through the
+ * ledger's `credit_id`, is the export's `attribution_date`. Every one of the
+ * 58 the export keeps has a credit that occurred in July; every one of the 27
+ * has a credit that occurred in June. The `creditDate` column below is that
+ * value, taken from the live dump, and the assertions at the bottom prove the
+ * shipped journal lands on 58 / -50.5 — the number the reps reconcile against.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -40,106 +41,109 @@ import { netLedgerJournal } from "../functions/get-live-actuals.mts";
  * The July 2026 dump, already joined to the export.
  *
  * [date, rep, clientId, members, sessions, saleMonth, attributionId, ledgerId,
- *  attrWindowCredit, inExport, transferredOut]
+ *  attrWindowCredit, inExport, transferredOut, creditDate]
  *
  * `inExport` and `transferredOut` are the join results, not predictions: the
  * first is whether the export has that ledger id, the second is whether the
- * export still lists this rep on that attribution.
+ * export still lists this rep on that attribution. `creditDate` is
+ * `credits.occurred_at` off the live dump — the export's `attribution_date`.
+ * The eight transferred lines were already washed before that dump was taken,
+ * so they carry their ledger day and can only be removed by the transfer rule.
  */
 const JULY = [
-  ["2026-07-31", "Tim Carr", "8562850", -1.0, -4.0, "2026-07", "83797", "675212", 1.0, 1, 0],
-  ["2026-07-30", "David Valverde", "8561175", -1.0, -4.0, "2026-06", "82149", "674865", 0.0, 1, 0],
-  ["2026-07-30", "Chris Jones", "8561181", -1.0, -4.0, "2026-06", "82152", "674866", 0.0, 1, 0],
-  ["2026-07-29", "Brenda Wong", "8560967", -1.0, -8.0, "2026-06", "81926", "674519", 0.0, 1, 0],
-  ["2026-07-29", "David Valverde", "8561023", -1.0, -8.0, "2026-06", "81980", "674461", 0.0, 1, 0],
-  ["2026-07-29", "Chris Jones", "8561071", -1.0, -4.0, "2026-06", "82024", "674492", 0.0, 0, 0],
-  ["2026-07-29", "Amanda Schaefer", "8568286", -0.5, -2.0, "2026-07", "87113", "674717", 0.5, 0, 1],
-  ["2026-07-28", "David Valverde", "8560766", -1.0, -8.0, "2026-06", "81726", "674089", 0.0, 1, 0],
-  ["2026-07-28", "Becky Ruffer", "8560770", -0.5, -2.0, "2026-06", "81727", "674092", 0.0, 1, 0],
-  ["2026-07-28", "Brenda Wong", "8567610", -1.0, -12.0, "2026-07", "86414", "674245", 1.0, 1, 0],
-  ["2026-07-28", "Liz Weiss", "8560830", -0.5, -2.0, "2026-06", "81791", "674105", 0.0, 1, 0],
-  ["2026-07-28", "Liz Weiss", "8568063", -0.5, -2.0, "2026-07", "86867", "674298", 0.5, 0, 1],
-  ["2026-07-27", "Domenica Sorrentino", "8560681", -1.0, -8.0, "2026-06", "81625", "673759", 0.0, 0, 0],
-  ["2026-07-27", "Brenda Wong", "8563108", -1.0, -12.0, "2026-07", "84056", "673963", 1.0, 1, 0],
-  ["2026-07-26", "Jenna Salupo", "8560469", -1.0, -4.0, "2026-06", "81436", "673572", 0.0, 1, 0],
-  ["2026-07-26", "Liz Weiss", "8560447", -1.0, -4.0, "2026-06", "81409", "673562", 0.0, 1, 0],
-  ["2026-07-25", "Liz Weiss", "8560430", -1.0, -4.0, "2026-06", "81386", "673406", 0.0, 1, 0],
-  ["2026-07-25", "Del Ali", "8557188", -1.0, -8.0, "2026-06", "78314", "673413", 0.0, 1, 0],
-  ["2026-07-24", "Del Ali", "8560219", -0.5, -4.0, "2026-06", "81173", "673042", 0.0, 0, 0],
-  ["2026-07-24", "Chris Jones", "8561761", -1.0, -6.0, "2026-07", "82765", "673113", 1.0, 1, 0],
-  ["2026-07-24", "Del Ali", "8567241", -1.0, -8.0, "2026-07", "86028", "673182", 1.0, 1, 0],
-  ["2026-07-24", "Jenna Salupo", "8567407", -0.5, -4.0, "2026-07", "86203", "673181", 0.5, 1, 0],
-  ["2026-07-24", "Jordan Sturdivant", "8560114", -0.5, -2.0, "2026-06", "81065", "673017", 0.0, 1, 0],
-  ["2026-07-24", "Jenna Salupo", "8560199", -0.5, -4.0, "2026-06", "81150", "673034", 0.0, 0, 0],
-  ["2026-07-24", "Del Ali", "8560216", -0.5, -2.0, "2026-06", "81169", "673040", 0.0, 1, 0],
-  ["2026-07-23", "Liz Weiss", "8559997", -1.0, -8.0, "2026-06", "80954", "672756", 0.0, 1, 0],
-  ["2026-07-23", "Becky Ruffer", "8567062", -1.0, -8.0, "2026-07", "85853", "672910", 1.0, 1, 0],
-  ["2026-07-23", "David Valverde", "8559924", -1.0, -8.0, "2026-06", "80882", "672671", 0.0, 1, 0],
-  ["2026-07-23", "Becky Ruffer", "8559843", -1.0, -8.0, "2026-06", "80803", "672711", 0.0, 1, 0],
-  ["2026-07-23", "Amanda Schaefer", "8567416", -0.5, -4.0, "2026-07", "86209", "672971", 0.5, 0, 1],
-  ["2026-07-22", "Jordan Sturdivant", "8567166", -0.5, -4.0, "2026-07", "85950", "672494", 0.5, 0, 1],
-  ["2026-07-21", "Becky Ruffer", "8559469", -1.0, -8.0, "2026-06", "80465", "671989", 0.0, 0, 0],
-  ["2026-07-21", "Becky Ruffer", "8558294", -1.0, -8.0, "2026-06", "79388", "672090", 0.0, 1, 0],
-  ["2026-07-20", "Del Ali", "8566520", -1.0, -8.0, "2026-07", "85337", "671704", 1.0, 1, 0],
-  ["2026-07-20", "Liz Weiss", "8559340", -1.0, -4.0, "2026-06", "80317", "671568", 0.0, 0, 0],
-  ["2026-07-20", "Liz Weiss", "8559348", -1.0, -8.0, "2026-06", "80322", "671575", 0.0, 0, 0],
-  ["2026-07-19", "Chris Jones", "8559213", -1.0, -4.0, "2026-06", "80178", "671358", 0.0, 1, 0],
-  ["2026-07-19", "Liz Weiss", "8559247", -1.0, -4.0, "2026-06", "80206", "671375", 0.0, 1, 0],
-  ["2026-07-18", "Jenna Salupo", "8558891", -1.0, -4.0, "2026-06", "79872", "671132", 0.0, 1, 0],
-  ["2026-07-18", "Chris Jones", "8555924", -0.5, -4.0, "2026-06", "77173", "671134", 0.0, 1, 0],
-  ["2026-07-17", "Domenica Sorrentino", "8563672", -0.5, -8.0, "2026-07", "84505", "670903", 0.5, 1, 0],
-  ["2026-07-17", "Becky Ruffer", "8563672", -0.5, -8.0, "2026-07", "84505", "670902", 0.5, 1, 0],
-  ["2026-07-17", "Jordan Sturdivant", "8563960", -0.5, -2.0, "2026-07", "84776", "671081", 0.5, 1, 0],
-  ["2026-07-17", "Jenna Salupo", "8558620", -1.0, -4.0, "2026-06", "80112", "670709", 0.0, 1, 0],
-  ["2026-07-17", "Del Ali", "8558683", -0.5, -4.0, "2026-06", "79738", "670742", 0.0, 1, 0],
-  ["2026-07-16", "David Valverde", "8558429", -1.0, -8.0, "2026-06", "79515", "670347", 0.0, 1, 0],
-  ["2026-07-16", "Del Ali", "8558517", -1.0, -4.0, "2026-06", "79585", "670442", 0.0, 1, 0],
-  ["2026-07-15", "Jenna Salupo", "8558325", -0.5, -2.0, "2026-06", "79417", "669962", 0.0, 1, 0],
-  ["2026-07-15", "Chris Jones", "8558251", -1.0, -8.0, "2026-06", "79347", "670014", 0.0, 0, 0],
-  ["2026-07-14", "Jenna Salupo", "8557987", -0.5, -4.0, "2026-06", "79105", "669600", 0.0, 1, 0],
-  ["2026-07-14", "David Valverde", "8557996", -0.5, -2.0, "2026-06", "79112", "669606", 0.0, 0, 0],
-  ["2026-07-14", "Domenica Sorrentino", "8558027", -1.0, -4.0, "2026-06", "79145", "669614", 0.0, 0, 0],
-  ["2026-07-13", "Chris Jones", "8557966", -1.0, -4.0, "2026-06", "79064", "669220", 0.0, 1, 0],
-  ["2026-07-12", "Jenna Salupo", "8557792", -1.0, -4.0, "2026-06", "78865", "668997", 0.0, 1, 0],
-  ["2026-07-12", "Domenica Sorrentino", "8557863", -1.0, -8.0, "2026-06", "78935", "669006", 0.0, 0, 0],
-  ["2026-07-12", "Liz Weiss", "8557776", -1.0, -4.0, "2026-06", "78854", "669007", 0.0, 0, 0],
-  ["2026-07-12", "Jenna Salupo", "8557699", -1.0, -4.0, "2026-06", "78780", "669010", 0.0, 0, 0],
-  ["2026-07-12", "Del Ali", "8557780", -1.0, -8.0, "2026-06", "78856", "669029", 0.0, 0, 0],
-  ["2026-07-12", "Brenda Wong", "8557864", -0.5, -4.0, "2026-06", "78931", "669060", 0.0, 0, 0],
-  ["2026-07-11", "Domenica Sorrentino", "8557590", -1.0, -8.0, "2026-06", "78664", "668781", 0.0, 1, 0],
-  ["2026-07-11", "David Valverde", "8557457", -1.0, -8.0, "2026-06", "78592", "668791", 0.0, 1, 0],
-  ["2026-07-10", "Chris Jones", "8562447", -1.0, -8.0, "2026-07", "83401", "668450", 1.0, 1, 0],
-  ["2026-07-10", "David Valverde", "8557205", -1.0, -8.0, "2026-06", "78359", "668284", 0.0, 1, 0],
-  ["2026-07-10", "Del Ali", "8557336", -1.0, -4.0, "2026-06", "78450", "668332", 0.0, 1, 0],
-  ["2026-07-10", "Del Ali", "8557443", -0.5, -4.0, "2026-06", "78550", "668366", 0.0, 1, 0],
-  ["2026-07-10", "Chris Jones", "8557392", -1.0, -8.0, "2026-06", "78503", "668376", 0.0, 1, 0],
-  ["2026-07-10", "Brenda Wong", "8563076", -1.0, -4.0, "2026-07", "84017", "668593", 1.0, 1, 0],
-  ["2026-07-09", "Brenda Wong", "8562185", -1.0, -4.0, "2026-07", "83168", "667892", 1.0, 1, 0],
-  ["2026-07-09", "Brenda Wong", "8557077", -1.0, -8.0, "2026-06", "78216", "667798", 0.0, 1, 0],
-  ["2026-07-09", "Jenna Salupo", "8557181", -1.0, -4.0, "2026-06", "78309", "667830", 0.0, 0, 0],
-  ["2026-07-08", "Brenda Wong", "8562128", -1.0, -4.0, "2026-07", "83111", "667569", 1.0, 1, 0],
-  ["2026-07-08", "Chris Jones", "8556758", -1.0, -4.0, "2026-06", "77969", "667330", 0.0, 1, 0],
-  ["2026-07-08", "Chris Jones", "8556873", -1.0, -8.0, "2026-06", "78068", "667373", 0.0, 1, 0],
-  ["2026-07-08", "Chris Jones", "8556927", -1.0, -8.0, "2026-06", "78116", "667378", 0.0, 1, 0],
-  ["2026-07-07", "Becky Ruffer", "8556569", -1.0, -8.0, "2026-06", "77803", "666899", 0.0, 1, 0],
-  ["2026-07-07", "Becky Ruffer", "8556587", -0.5, -4.0, "2026-06", "77817", "666912", 0.0, 1, 0],
-  ["2026-07-06", "Del Ali", "8556468", -1.0, -4.0, "2026-06", "77678", "666503", 0.0, 0, 0],
-  ["2026-07-06", "Liz Weiss", "8556473", -1.0, -4.0, "2026-06", "77685", "666505", 0.0, 0, 0],
-  ["2026-07-06", "Chris Jones", "8556508", -0.5, -2.0, "2026-06", "77722", "666524", 0.0, 0, 0],
-  ["2026-07-05", "Jenna Salupo", "8556328", -0.5, -2.0, "2026-06", "77508", "666318", 0.0, 0, 0],
-  ["2026-07-03", "Becky Ruffer", "8561610", -0.5, -2.0, "2026-07", "82605", "666005", 0.5, 1, 0],
-  ["2026-07-03", "Chris Jones", "8555756", -1.0, -4.0, "2026-06", "77025", "665824", 0.0, 0, 0],
-  ["2026-07-03", "Brenda Wong", "8555760", -1.0, -4.0, "2026-06", "77033", "665825", 0.0, 0, 0],
-  ["2026-07-03", "David Valverde", "8555802", -1.0, -4.0, "2026-06", "77068", "665831", 0.0, 0, 0],
-  ["2026-07-03", "David Valverde", "8555708", -1.0, -4.0, "2026-06", "77004", "665841", 0.0, 0, 0],
-  ["2026-07-03", "Brenda Wong", "8555847", -1.0, -12.0, "2026-06", "77100", "665852", 0.0, 0, 0],
-  ["2026-07-03", "Jenna Salupo", "8555039", -1.0, -8.0, "2026-06", "76516", "666019", 0.0, 1, 0],
-  ["2026-07-02", "Becky Ruffer", "8555523", -0.5, -4.0, "2026-06", "76849", "665472", 0.0, 0, 0],
-  ["2026-07-02", "Jordan Sturdivant", "8561548", -0.5, -4.0, "2026-07", "82536", "665511", 0.5, 0, 1],
-  ["2026-07-02", "Amanda Schaefer", "8561639", -0.5, -6.0, "2026-07", "82629", "665697", 0.5, 0, 1],
-  ["2026-07-01", "Chris Jones", "8555278", -1.0, -4.0, "2026-06", "76697", "665038", 0.0, 0, 0],
-  ["2026-07-01", "Del Ali", "8561317", -0.5, -2.0, "2026-07", "82304", "665095", 0.5, 0, 1],
-  ["2026-07-01", "Del Ali", "8561424", -0.5, -4.0, "2026-07", "82412", "665285", 0.5, 0, 1]
+  ["2026-07-31", "Tim Carr", "8562850", -1.0, -4.0, "2026-07", "83797", "675212", 1.0, 1, 0, "2026-07-31"],
+  ["2026-07-30", "David Valverde", "8561175", -1.0, -4.0, "2026-06", "82149", "674865", 0.0, 1, 0, "2026-07-06"],
+  ["2026-07-30", "Chris Jones", "8561181", -1.0, -4.0, "2026-06", "82152", "674866", 0.0, 1, 0, "2026-07-15"],
+  ["2026-07-29", "Brenda Wong", "8560967", -1.0, -8.0, "2026-06", "81926", "674519", 0.0, 1, 0, "2026-07-01"],
+  ["2026-07-29", "David Valverde", "8561023", -1.0, -8.0, "2026-06", "81980", "674461", 0.0, 1, 0, "2026-07-14"],
+  ["2026-07-29", "Chris Jones", "8561071", -1.0, -4.0, "2026-06", "82024", "674492", 0.0, 0, 0, "2026-06-29"],
+  ["2026-07-29", "Amanda Schaefer", "8568286", -0.5, -2.0, "2026-07", "87113", "674717", 0.5, 0, 1, "2026-07-29"],
+  ["2026-07-28", "David Valverde", "8560766", -1.0, -8.0, "2026-06", "81726", "674089", 0.0, 1, 0, "2026-07-09"],
+  ["2026-07-28", "Becky Ruffer", "8560770", -0.5, -2.0, "2026-06", "81727", "674092", 0.0, 1, 0, "2026-07-08"],
+  ["2026-07-28", "Brenda Wong", "8567610", -1.0, -12.0, "2026-07", "86414", "674245", 1.0, 1, 0, "2026-07-28"],
+  ["2026-07-28", "Liz Weiss", "8560830", -0.5, -2.0, "2026-06", "81791", "674105", 0.0, 1, 0, "2026-07-15"],
+  ["2026-07-28", "Liz Weiss", "8568063", -0.5, -2.0, "2026-07", "86867", "674298", 0.5, 0, 1, "2026-07-28"],
+  ["2026-07-27", "Domenica Sorrentino", "8560681", -1.0, -8.0, "2026-06", "81625", "673759", 0.0, 0, 0, "2026-06-27"],
+  ["2026-07-27", "Brenda Wong", "8563108", -1.0, -12.0, "2026-07", "84056", "673963", 1.0, 1, 0, "2026-07-27"],
+  ["2026-07-26", "Jenna Salupo", "8560469", -1.0, -4.0, "2026-06", "81436", "673572", 0.0, 1, 0, "2026-07-10"],
+  ["2026-07-26", "Liz Weiss", "8560447", -1.0, -4.0, "2026-06", "81409", "673562", 0.0, 1, 0, "2026-07-18"],
+  ["2026-07-25", "Liz Weiss", "8560430", -1.0, -4.0, "2026-06", "81386", "673406", 0.0, 1, 0, "2026-07-06"],
+  ["2026-07-25", "Del Ali", "8557188", -1.0, -8.0, "2026-06", "78314", "673413", 0.0, 1, 0, "2026-07-09"],
+  ["2026-07-24", "Del Ali", "8560219", -0.5, -4.0, "2026-06", "81173", "673042", 0.0, 0, 0, "2026-06-25"],
+  ["2026-07-24", "Chris Jones", "8561761", -1.0, -6.0, "2026-07", "82765", "673113", 1.0, 1, 0, "2026-07-24"],
+  ["2026-07-24", "Del Ali", "8567241", -1.0, -8.0, "2026-07", "86028", "673182", 1.0, 1, 0, "2026-07-24"],
+  ["2026-07-24", "Jenna Salupo", "8567407", -0.5, -4.0, "2026-07", "86203", "673181", 0.5, 1, 0, "2026-07-24"],
+  ["2026-07-24", "Jordan Sturdivant", "8560114", -0.5, -2.0, "2026-06", "81065", "673017", 0.0, 1, 0, "2026-07-03"],
+  ["2026-07-24", "Jenna Salupo", "8560199", -0.5, -4.0, "2026-06", "81150", "673034", 0.0, 0, 0, "2026-06-24"],
+  ["2026-07-24", "Del Ali", "8560216", -0.5, -2.0, "2026-06", "81169", "673040", 0.0, 1, 0, "2026-07-23"],
+  ["2026-07-23", "Liz Weiss", "8559997", -1.0, -8.0, "2026-06", "80954", "672756", 0.0, 1, 0, "2026-07-02"],
+  ["2026-07-23", "Becky Ruffer", "8567062", -1.0, -8.0, "2026-07", "85853", "672910", 1.0, 1, 0, "2026-07-23"],
+  ["2026-07-23", "David Valverde", "8559924", -1.0, -8.0, "2026-06", "80882", "672671", 0.0, 1, 0, "2026-07-13"],
+  ["2026-07-23", "Becky Ruffer", "8559843", -1.0, -8.0, "2026-06", "80803", "672711", 0.0, 1, 0, "2026-07-02"],
+  ["2026-07-23", "Amanda Schaefer", "8567416", -0.5, -4.0, "2026-07", "86209", "672971", 0.5, 0, 1, "2026-07-23"],
+  ["2026-07-22", "Jordan Sturdivant", "8567166", -0.5, -4.0, "2026-07", "85950", "672494", 0.5, 0, 1, "2026-07-22"],
+  ["2026-07-21", "Becky Ruffer", "8559469", -1.0, -8.0, "2026-06", "80465", "671989", 0.0, 0, 0, "2026-06-30"],
+  ["2026-07-21", "Becky Ruffer", "8558294", -1.0, -8.0, "2026-06", "79388", "672090", 0.0, 1, 0, "2026-07-21"],
+  ["2026-07-20", "Del Ali", "8566520", -1.0, -8.0, "2026-07", "85337", "671704", 1.0, 1, 0, "2026-07-20"],
+  ["2026-07-20", "Liz Weiss", "8559340", -1.0, -4.0, "2026-06", "80317", "671568", 0.0, 0, 0, "2026-06-24"],
+  ["2026-07-20", "Liz Weiss", "8559348", -1.0, -8.0, "2026-06", "80322", "671575", 0.0, 0, 0, "2026-06-28"],
+  ["2026-07-19", "Chris Jones", "8559213", -1.0, -4.0, "2026-06", "80178", "671358", 0.0, 1, 0, "2026-07-13"],
+  ["2026-07-19", "Liz Weiss", "8559247", -1.0, -4.0, "2026-06", "80206", "671375", 0.0, 1, 0, "2026-07-09"],
+  ["2026-07-18", "Jenna Salupo", "8558891", -1.0, -4.0, "2026-06", "79872", "671132", 0.0, 1, 0, "2026-07-17"],
+  ["2026-07-18", "Chris Jones", "8555924", -0.5, -4.0, "2026-06", "77173", "671134", 0.0, 1, 0, "2026-07-18"],
+  ["2026-07-17", "Domenica Sorrentino", "8563672", -0.5, -8.0, "2026-07", "84505", "670903", 0.5, 1, 0, "2026-07-17"],
+  ["2026-07-17", "Becky Ruffer", "8563672", -0.5, -8.0, "2026-07", "84505", "670902", 0.5, 1, 0, "2026-07-17"],
+  ["2026-07-17", "Jordan Sturdivant", "8563960", -0.5, -2.0, "2026-07", "84776", "671081", 0.5, 1, 0, "2026-07-17"],
+  ["2026-07-17", "Jenna Salupo", "8558620", -1.0, -4.0, "2026-06", "80112", "670709", 0.0, 1, 0, "2026-07-14"],
+  ["2026-07-17", "Del Ali", "8558683", -0.5, -4.0, "2026-06", "79738", "670742", 0.0, 1, 0, "2026-07-06"],
+  ["2026-07-16", "David Valverde", "8558429", -1.0, -8.0, "2026-06", "79515", "670347", 0.0, 1, 0, "2026-07-09"],
+  ["2026-07-16", "Del Ali", "8558517", -1.0, -4.0, "2026-06", "79585", "670442", 0.0, 1, 0, "2026-07-16"],
+  ["2026-07-15", "Jenna Salupo", "8558325", -0.5, -2.0, "2026-06", "79417", "669962", 0.0, 1, 0, "2026-07-08"],
+  ["2026-07-15", "Chris Jones", "8558251", -1.0, -8.0, "2026-06", "79347", "670014", 0.0, 0, 0, "2026-06-23"],
+  ["2026-07-14", "Jenna Salupo", "8557987", -0.5, -4.0, "2026-06", "79105", "669600", 0.0, 1, 0, "2026-07-09"],
+  ["2026-07-14", "David Valverde", "8557996", -0.5, -2.0, "2026-06", "79112", "669606", 0.0, 0, 0, "2026-06-18"],
+  ["2026-07-14", "Domenica Sorrentino", "8558027", -1.0, -4.0, "2026-06", "79145", "669614", 0.0, 0, 0, "2026-06-28"],
+  ["2026-07-13", "Chris Jones", "8557966", -1.0, -4.0, "2026-06", "79064", "669220", 0.0, 1, 0, "2026-07-11"],
+  ["2026-07-12", "Jenna Salupo", "8557792", -1.0, -4.0, "2026-06", "78865", "668997", 0.0, 1, 0, "2026-07-10"],
+  ["2026-07-12", "Domenica Sorrentino", "8557863", -1.0, -8.0, "2026-06", "78935", "669006", 0.0, 0, 0, "2026-06-30"],
+  ["2026-07-12", "Liz Weiss", "8557776", -1.0, -4.0, "2026-06", "78854", "669007", 0.0, 0, 0, "2026-06-30"],
+  ["2026-07-12", "Jenna Salupo", "8557699", -1.0, -4.0, "2026-06", "78780", "669010", 0.0, 0, 0, "2026-06-15"],
+  ["2026-07-12", "Del Ali", "8557780", -1.0, -8.0, "2026-06", "78856", "669029", 0.0, 0, 0, "2026-06-22"],
+  ["2026-07-12", "Brenda Wong", "8557864", -0.5, -4.0, "2026-06", "78931", "669060", 0.0, 0, 0, "2026-06-26"],
+  ["2026-07-11", "Domenica Sorrentino", "8557590", -1.0, -8.0, "2026-06", "78664", "668781", 0.0, 1, 0, "2026-07-08"],
+  ["2026-07-11", "David Valverde", "8557457", -1.0, -8.0, "2026-06", "78592", "668791", 0.0, 1, 0, "2026-07-08"],
+  ["2026-07-10", "Chris Jones", "8562447", -1.0, -8.0, "2026-07", "83401", "668450", 1.0, 1, 0, "2026-07-10"],
+  ["2026-07-10", "David Valverde", "8557205", -1.0, -8.0, "2026-06", "78359", "668284", 0.0, 1, 0, "2026-07-01"],
+  ["2026-07-10", "Del Ali", "8557336", -1.0, -4.0, "2026-06", "78450", "668332", 0.0, 1, 0, "2026-07-06"],
+  ["2026-07-10", "Del Ali", "8557443", -0.5, -4.0, "2026-06", "78550", "668366", 0.0, 1, 0, "2026-07-04"],
+  ["2026-07-10", "Chris Jones", "8557392", -1.0, -8.0, "2026-06", "78503", "668376", 0.0, 1, 0, "2026-07-07"],
+  ["2026-07-10", "Brenda Wong", "8563076", -1.0, -4.0, "2026-07", "84017", "668593", 1.0, 1, 0, "2026-07-10"],
+  ["2026-07-09", "Brenda Wong", "8562185", -1.0, -4.0, "2026-07", "83168", "667892", 1.0, 1, 0, "2026-07-09"],
+  ["2026-07-09", "Brenda Wong", "8557077", -1.0, -8.0, "2026-06", "78216", "667798", 0.0, 1, 0, "2026-07-01"],
+  ["2026-07-09", "Jenna Salupo", "8557181", -1.0, -4.0, "2026-06", "78309", "667830", 0.0, 0, 0, "2026-06-25"],
+  ["2026-07-08", "Brenda Wong", "8562128", -1.0, -4.0, "2026-07", "83111", "667569", 1.0, 1, 0, "2026-07-08"],
+  ["2026-07-08", "Chris Jones", "8556758", -1.0, -4.0, "2026-06", "77969", "667330", 0.0, 1, 0, "2026-07-05"],
+  ["2026-07-08", "Chris Jones", "8556873", -1.0, -8.0, "2026-06", "78068", "667373", 0.0, 1, 0, "2026-07-02"],
+  ["2026-07-08", "Chris Jones", "8556927", -1.0, -8.0, "2026-06", "78116", "667378", 0.0, 1, 0, "2026-07-06"],
+  ["2026-07-07", "Becky Ruffer", "8556569", -1.0, -8.0, "2026-06", "77803", "666899", 0.0, 1, 0, "2026-07-02"],
+  ["2026-07-07", "Becky Ruffer", "8556587", -0.5, -4.0, "2026-06", "77817", "666912", 0.0, 1, 0, "2026-07-06"],
+  ["2026-07-06", "Del Ali", "8556468", -1.0, -4.0, "2026-06", "77678", "666503", 0.0, 0, 0, "2026-06-08"],
+  ["2026-07-06", "Liz Weiss", "8556473", -1.0, -4.0, "2026-06", "77685", "666505", 0.0, 0, 0, "2026-06-09"],
+  ["2026-07-06", "Chris Jones", "8556508", -0.5, -2.0, "2026-06", "77722", "666524", 0.0, 0, 0, "2026-06-24"],
+  ["2026-07-05", "Jenna Salupo", "8556328", -0.5, -2.0, "2026-06", "77508", "666318", 0.0, 0, 0, "2026-06-22"],
+  ["2026-07-03", "Becky Ruffer", "8561610", -0.5, -2.0, "2026-07", "82605", "666005", 0.5, 1, 0, "2026-07-03"],
+  ["2026-07-03", "Chris Jones", "8555756", -1.0, -4.0, "2026-06", "77025", "665824", 0.0, 0, 0, "2026-06-16"],
+  ["2026-07-03", "Brenda Wong", "8555760", -1.0, -4.0, "2026-06", "77033", "665825", 0.0, 0, 0, "2026-06-08"],
+  ["2026-07-03", "David Valverde", "8555802", -1.0, -4.0, "2026-06", "77068", "665831", 0.0, 0, 0, "2026-06-15"],
+  ["2026-07-03", "David Valverde", "8555708", -1.0, -4.0, "2026-06", "77004", "665841", 0.0, 0, 0, "2026-06-03"],
+  ["2026-07-03", "Brenda Wong", "8555847", -1.0, -12.0, "2026-06", "77100", "665852", 0.0, 0, 0, "2026-06-13"],
+  ["2026-07-03", "Jenna Salupo", "8555039", -1.0, -8.0, "2026-06", "76516", "666019", 0.0, 1, 0, "2026-07-03"],
+  ["2026-07-02", "Becky Ruffer", "8555523", -0.5, -4.0, "2026-06", "76849", "665472", 0.0, 0, 0, "2026-06-30"],
+  ["2026-07-02", "Jordan Sturdivant", "8561548", -0.5, -4.0, "2026-07", "82536", "665511", 0.5, 0, 1, "2026-07-02"],
+  ["2026-07-02", "Amanda Schaefer", "8561639", -0.5, -6.0, "2026-07", "82629", "665697", 0.5, 0, 1, "2026-07-02"],
+  ["2026-07-01", "Chris Jones", "8555278", -1.0, -4.0, "2026-06", "76697", "665038", 0.0, 0, 0, "2026-06-04"],
+  ["2026-07-01", "Del Ali", "8561317", -0.5, -2.0, "2026-07", "82304", "665095", 0.5, 0, 1, "2026-07-01"],
+  ["2026-07-01", "Del Ali", "8561424", -0.5, -4.0, "2026-07", "82412", "665285", 0.5, 0, 1, "2026-07-01"]
 ];
 
 const num = (v) => Number(v) || 0;
@@ -157,9 +161,9 @@ const MANAGER_ID = Object.fromEntries(REPS.map((rep, i) => [rep, String(2200 + i
  * every one of these cancels exactly offsets its rep's credit — so the lifetime
  * overshoot rule cannot separate them and is not what is under test here.
  */
-function ledgerRows({ withTransferFlag = true } = {}) {
+function ledgerRows({ withTransferFlag = true, withCreditMonth = true } = {}) {
   const rows = [];
-  JULY.forEach(([date, rep, clientId, members, sessions, saleMonth, attributionId, ledgerId, credit, , transferredOut]) => {
+  JULY.forEach(([date, rep, clientId, members, sessions, saleMonth, attributionId, ledgerId, credit, , transferredOut, creditDate]) => {
     const email = emailFor(rep);
     const base = {
       email,
@@ -191,6 +195,10 @@ function ledgerRows({ withTransferFlag = true } = {}) {
       members,
       sessions,
       transferred_out: withTransferFlag ? transferredOut === 1 : false,
+      // The live query windows on this; feeding it in unwindowed is the
+      // pessimistic case, and proves the journal reaches the same total from a
+      // cached or fallback payload that was not windowed on it.
+      ...(withCreditMonth ? { credit_matched: true, credit_business_date: creditDate } : {}),
     });
   });
   return rows;
@@ -203,6 +211,8 @@ const tile = (rows) => {
     members: out.rows.reduce((s, r) => s + num(r.members), 0),
     cancelLines: cancels.length,
     cancelMembers: cancels.reduce((s, r) => s + num(r.members), 0),
+    cancelIds: cancels.map((r) => String(r.ledger_id || "")),
+    washed: out.washed,
     washedIds: new Set(out.washed.map((w) => w.ledgerId)),
   };
 };
@@ -291,41 +301,72 @@ assert.equal(fmt(sumOf(movedRep)), "-4.0", "8 lines had the sale moved to anothe
 assert.equal(businessDate.length, 27);
 assert.equal(fmt(sumOf(businessDate)), "-23.5", "27 lines are the business-date population");
 
-// 1. Without the flag the tile is what the user reported: nothing has moved.
-const before = tile(ledgerRows({ withTransferFlag: false }));
+// The credit date splits the dump exactly the way the export does.
+for (const row of exportKeeps) {
+  assert.equal(
+    String(row[11]).slice(0, 7),
+    "2026-07",
+    `ledger ${row[7]} (${row[1]}) is in the July export, so its credit occurred in July`
+  );
+}
+for (const row of businessDate) {
+  assert.notEqual(
+    String(row[11]).slice(0, 7),
+    "2026-07",
+    `ledger ${row[7]} (${row[1]}) is not in the July export, so its credit occurred elsewhere`
+  );
+}
+
+// 1. Neither rule applied: the tile is what the user first reported.
+const before = tile(ledgerRows({ withTransferFlag: false, withCreditMonth: false }));
 assert.equal(before.cancelLines, 93);
 assert.equal(fmt(before.cancelMembers), "-78.0");
 
-// 2. With it, exactly the 8 transferred lines wash out.
-const after = tile(ledgerRows());
-assert.equal(after.washedIds.size, 8, "the wash takes 8 lines");
+// 2. Transfer wash alone: exactly the 8 transferred lines go.
+const transferOnly = tile(ledgerRows({ withCreditMonth: false }));
+assert.equal(transferOnly.washedIds.size, 8, "the transfer wash takes 8 lines");
 for (const row of movedRep) {
-  assert.ok(after.washedIds.has(row[7]), `ledger ${row[7]} (${row[1]}) should wash`);
+  assert.ok(transferOnly.washedIds.has(row[7]), `ledger ${row[7]} (${row[1]}) should wash`);
 }
-for (const row of exportKeeps) {
-  assert.ok(!after.washedIds.has(row[7]), `ledger ${row[7]} (${row[1]}) is a real cancel the export counts`);
-}
-assert.equal(after.cancelLines, 85);
-assert.equal(fmt(after.cancelMembers), "-74.0");
+assert.equal(transferOnly.cancelLines, 85);
+assert.equal(fmt(transferOnly.cancelMembers), "-74.0");
 
-// 3. A wash reclassifies; it must never move the members tile.
+// 3. A transfer wash reclassifies; it must never move the members tile.
 assert.equal(
   fmt(before.members),
-  fmt(after.members),
+  fmt(transferOnly.members),
   "washing a transfer drops the credit with the cancel, so members is unchanged"
 );
 
-// 4. Same-month cancels that are still this rep's business are untouched. This
-//    is the check that keeps the flag honest: 16 of the export's own cancels
-//    are same-month, exactly the shape the wash removes, and they must stay.
+// 4. Both rules: the tile is the export, line for line.
+const after = tile(ledgerRows());
+assert.equal(after.cancelLines, 58, "the tile counts exactly the export's 58 cancels");
+assert.equal(fmt(after.cancelMembers), "-50.5", "and reads the manual -50.5");
+const kept = new Set(after.cancelIds);
+for (const row of exportKeeps) {
+  assert.ok(kept.has(row[7]), `ledger ${row[7]} (${row[1]}) is in the export and must be counted`);
+}
+for (const row of [...movedRep, ...businessDate]) {
+  assert.ok(!kept.has(row[7]), `ledger ${row[7]} (${row[1]}) is not in the export and must not be`);
+}
+
+// 5. Same-month cancels that are still this rep's business are untouched. This
+//    is the check that keeps both rules honest: 16 of the export's own cancels
+//    are same-month, exactly the shape the transfer wash removes.
 const sameMonthKept = exportKeeps.filter((r) => r[5] === "2026-07");
 assert.equal(sameMonthKept.length, 16);
 for (const row of sameMonthKept) {
-  assert.ok(!after.washedIds.has(row[7]), `same-month cancel ${row[7]} must survive`);
+  assert.ok(kept.has(row[7]), `same-month cancel ${row[7]} must survive`);
 }
+
+// 6. A credit-month line is dropped, not netted into a credit that belongs to
+//    this month — otherwise the members tile would absorb another month's loss.
+const creditMonthDropped = after.washed.filter((w) => w.reason === "credit-month");
+assert.equal(creditMonthDropped.length, 27);
+assert.equal(fmt(creditMonthDropped.reduce((s, w) => s + w.members, 0)), "-23.5");
 
 console.log(`export join      ${exportKeeps.length} lines  ${fmt(sumOf(exportKeeps))}  (manual target)`);
 console.log(`transfer wash    ${movedRep.length} lines  ${fmt(sumOf(movedRep))}  removed by v5`);
-console.log(`business date    ${businessDate.length} lines  ${fmt(sumOf(businessDate))}  still on the tile, needs the month key`);
+console.log(`credit month     ${businessDate.length} lines  ${fmt(sumOf(businessDate))}  credit occurred in June, so June's export has them`);
 console.log(`tile             ${before.cancelLines} -> ${after.cancelLines} lines, ${fmt(before.cancelMembers)} -> ${fmt(after.cancelMembers)} members`);
-console.log("\nok — the v5 wash removes every transferred line and no cancel the export counts");
+console.log("\nok — the tile counts the export's 58 cancels at -50.5, and only those");

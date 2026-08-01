@@ -2,6 +2,13 @@ import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
 import { requireAdmin } from "./_shared/access.mts";
+import {
+  isMonthKey,
+  liveMonthKey,
+  loadGoalsByMonth,
+  recordLiveMonthGoals,
+  saveGoalsByMonth,
+} from "./_shared/goals.mts";
 
 const LEVEL_DEFAULT_OTE: Record<string, number> = {
   pt: 500,
@@ -58,13 +65,39 @@ export default async (req: Request, context: Context) => {
       .filter(([name]) => !!name),
   );
 
-  const store = getStore("goals");
-  await store.setJSON("current", normalizedGoals);
+  // Which month is being edited. Absent means the live month, which is how
+  // every caller before the month toggle behaved.
+  const requestedMonth = String(body?.month || "").trim();
+  if (requestedMonth && !isMonthKey(requestedMonth)) {
+    return new Response(JSON.stringify({ error: "month must be YYYY-MM" }), { status: 400 });
+  }
+  const live = liveMonthKey();
+  const month = requestedMonth || live;
 
-  return new Response(JSON.stringify({ ok: true, goals: normalizedGoals }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
+  // A closed month is edited in the archive only. The live `goals` document is
+  // what every other view reads for *today*, so rewriting it to fix a past
+  // month is exactly the bug this replaces.
+  if (month !== live) {
+    const byMonth = await loadGoalsByMonth();
+    byMonth[month] = normalizedGoals;
+    await saveGoalsByMonth(byMonth);
+    return new Response(
+      JSON.stringify({ ok: true, month, goals: normalizedGoals, goalsMonths: byMonth }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  const store = getStore("goals");
+  const previous = (await store.get("current", { type: "json" })) as Record<string, any> | null;
+  await store.setJSON("current", normalizedGoals);
+  // Settle last month with the quotas that were in force for it before this
+  // edit, so changing or clearing a quota now cannot rewrite its history.
+  const goalsMonths = await recordLiveMonthGoals(normalizedGoals, previous, live);
+
+  return new Response(
+    JSON.stringify({ ok: true, month: live, goals: normalizedGoals, goalsMonths }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
 };
 
 export const config: Config = {

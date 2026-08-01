@@ -439,6 +439,8 @@ assert.equal(orphanCredit.washed.length, 1);
 assert.equal(orphanCredit.washed[0].reason, "orphan-credit");
 assert.equal(orphanCredit.washed[0].ledgerId, "665038");
 
+// A cancel belongs to the month its credit occurred in — the export's
+// attribution_date. A June credit reversed in July is June's line.
 const wrongMonthCredit = netLedgerJournal(
   [
     {
@@ -461,12 +463,76 @@ const wrongMonthCredit = netLedgerJournal(
   new Set(),
   "2026-07"
 );
-assert.equal(
-  totals(wrongMonthCredit.rows).cancelMembers,
-  -1,
-  "credit business day is diagnostic only until a column is proven against the export"
+assert.equal(totals(wrongMonthCredit.rows).cancelMembers, 0, "a June credit's cancel is not July's");
+assert.equal(wrongMonthCredit.washed[0]?.reason, "credit-month");
+assert.equal(wrongMonthCredit.washed[0]?.creditMonth, "2026-06");
+
+// It is dropped, not folded into a credit that does belong to this month:
+// netting it there would move this month's members by another month's loss.
+const creditMonthWithSale = netLedgerJournal(
+  [
+    line({
+      ledgerId: 670000,
+      attributionId: 78780,
+      members: 1,
+      sessions: 8,
+      date: "2026-07-20",
+      saleDate: "2026-07-20",
+      lifetimeMembers: 0,
+      lifetimeSessions: 0,
+    }),
+    {
+      ...line({
+        ledgerId: 670001,
+        attributionId: 78780,
+        members: -1,
+        sessions: -4,
+        date: "2026-07-21",
+        saleDate: "2026-07-20",
+        lifetimeMembers: 0,
+        lifetimeSessions: 0,
+      }),
+      credit_matched: true,
+      credit_business_date: "2026-06-12",
+    },
+  ],
+  DISPLAY,
+  new Set(),
+  "2026-07"
 );
-assert.equal(wrongMonthCredit.washed.length, 0);
+assert.equal(totals(creditMonthWithSale.rows).members, 1, "this month's credit is left alone");
+assert.equal(totals(creditMonthWithSale.rows).cancelMembers, 0);
+
+// A cancel whose credit occurred this month stays, whatever day it was written.
+const inMonthCredit = netLedgerJournal(
+  [
+    {
+      ...line({
+        ledgerId: 674865,
+        attributionId: 82149,
+        members: -1,
+        sessions: -4,
+        date: "2026-07-30",
+        saleDate: "2026-06-30",
+        lifetimeMembers: 0,
+        lifetimeSessions: 0,
+      }),
+      credit_matched: true,
+      credit_business_date: "2026-07-06",
+    },
+  ],
+  DISPLAY,
+  new Set(),
+  "2026-07"
+);
+assert.equal(totals(inMonthCredit.rows).cancelMembers, -1, "July credit, July cancel");
+assert.equal(inMonthCredit.washed.length, 0);
+
+// The cancel list is dated the way the export dates it, with the ledger day
+// still on the row for anyone reconciling the ledger itself.
+const datedItems = cancelLineItems(inMonthCredit.rows, DISPLAY);
+assert.equal(datedItems[0].date, "2026-07-06", "the list shows the export's attribution_date");
+assert.equal(datedItems[0].ledgerDate, "2026-07-30", "and keeps the day the reversal was written");
 
 const noCreditSignal = netLedgerJournal(
   [
