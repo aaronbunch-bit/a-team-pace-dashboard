@@ -10,7 +10,7 @@ import {
 } from "./_shared/roster-months.mts";
 import { FALLBACK_ROSTER_EMAILS } from "./_shared/roster.mts";
 import {
-  LIVE_ACTUALS_CACHE_KEY,
+  liveActualsCacheKey,
   loadLedgerExclusionIds,
 } from "./_shared/ledger-exclusions.mts";
 import { TEAM_TIME_ZONE, clampAsOfToTeamToday, teamTodayYmd, teamTodayMonthKey } from "./_shared/time.mts";
@@ -19,7 +19,6 @@ import { TEAM_TIME_ZONE, clampAsOfToTeamToday, teamTodayYmd, teamTodayMonthKey }
 const LIVE_CACHE_TTL_MS = 60_000;
 /** Closed months do not change — keep them warm longer than the live month. */
 const HISTORICAL_CACHE_TTL_MS = 10 * 60_000;
-const LIVE_CACHE_KEY = LIVE_ACTUALS_CACHE_KEY;
 
 function isMonthKey(value: string): boolean {
   return /^\d{4}-\d{2}$/.test(value);
@@ -47,8 +46,10 @@ function resolveRequestedMonth(url: URL): { month: string; isCurrent: boolean } 
   return { month: current, isCurrent: true };
 }
 
-function liveCacheKeyFor(month: string, isCurrent: boolean): string {
-  return isCurrent ? LIVE_CACHE_KEY : `${LIVE_CACHE_KEY}:${month}`;
+function liveCacheKeyFor(month: string, _isCurrent: boolean): string {
+  // Always month-scoped. Sharing one key for "whatever is current" lets a
+  // July warm cache answer the first August poll after midnight.
+  return liveActualsCacheKey(month);
 }
 
 /**
