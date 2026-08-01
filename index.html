@@ -1143,14 +1143,14 @@
           </div>
           <span class="meta-note" id="goalsEditMonthNote" style="margin:0;"></span>
         </div>
-        <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Level</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Individual Pacer access)</div><div>Cap bonus @ 200%</div></div>
+        <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Level</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Individual Pacer access)</div><div>Cap bonus @ 200%</div><div class="has-tip" data-tip="When checked, this person’s members, sessions, approved attributions, and refunds do not count toward A-Team Total for this month. Their own Individual Pacer is unchanged.">Excluded from roll-up</div></div>
         <div id="goalsForm"></div>
         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px;">
           <button id="saveGoals">Save quotas</button>
           <span class="meta-note" id="goalsSaveStatus" style="margin:0;"></span>
           <span class="field-toggle-tag" id="toggleAdvancedFields">+ Tag / Email / Cap</span>
         </div>
-        <div class="meta-note">PT: $500 OTE (no leveling planner) · L1: $41,600 salary / $1,000 OTE · L2: $50,000 / $1,333 · L3: $60,000 / $1,667. Changing Level fills the standard OTE; OTE remains editable. ✕ removes someone (restorable in Removed).</div>
+        <div class="meta-note">PT: $500 OTE (no leveling planner) · L1: $41,600 salary / $1,000 OTE · L2: $50,000 / $1,333 · L3: $60,000 / $1,667. Changing Level fills the standard OTE; OTE remains editable. <b>Excluded from roll-up</b> keeps that person off A-Team Total (members, sessions, attro &amp; refunds) for the month you are editing. ✕ removes someone (restorable in Removed).</div>
       </div>
     </div>
     <div class="ops-subpanel" data-goals-panel="removed" id="removedBody">
@@ -1794,6 +1794,8 @@ function normalizeGoalRecord(raw) {
     tag: String(source.tag || ''),
     email: String(source.email || ''),
     capAt200: !!source.capAt200,
+    // Month-scoped: when true, actuals/attro/refunds stay off A-Team Total.
+    excludeFromRollUp: !!source.excludeFromRollUp,
   };
 }
 function normalizeGoalsDoc(doc) {
@@ -2602,12 +2604,15 @@ function render() {
     // Always count actuals/cancels toward the team total — even with no goal or
     // a 0 goal — so production still shows on the landing board and team card.
     // Goals only roll in when set (> 0), so "No Goal" does not dilute % targets.
-    teamMembersActual += a.members;
-    teamSessionsActual += a.sessions;
-    teamMembersCancels += (a.membersCancels || 0);
-    teamSessionsCancels += (a.sessionsCancels || 0);
-    if ((Number(g.members) || 0) > 0) teamMembersGoal += g.members;
-    if ((Number(g.sessions) || 0) > 0) teamSessionsGoal += g.sessions;
+    // Excluded-from-roll-up reps still appear on the board but stay off A-Team Total.
+    if (!normalizeGoalRecord(g).excludeFromRollUp) {
+      teamMembersActual += a.members;
+      teamSessionsActual += a.sessions;
+      teamMembersCancels += (a.membersCancels || 0);
+      teamSessionsCancels += (a.sessionsCancels || 0);
+      if ((Number(g.members) || 0) > 0) teamMembersGoal += g.members;
+      if ((Number(g.sessions) || 0) > 0) teamSessionsGoal += g.sessions;
+    }
     return { rep: r, g, a, memMetric, sesMetric, composite, idx: i };
   }); // getRoster() already returns reps in alphabetical order
   pacingContext = prevCtx;
@@ -5360,6 +5365,7 @@ function renderGoalsForm() {
       <div><input type="text" data-name="${r.display}" data-field="tag" value="${g.tag || ''}"></div>
       <div><input type="email" data-name="${r.display}" data-field="email" placeholder="name@varsitytutors.com" value="${g.email || ''}"></div>
       <div class="cap-cell"><input type="checkbox" data-name="${r.display}" data-field="capAt200" ${g.capAt200 ? 'checked' : ''}></div>
+      <div class="cap-cell"><input type="checkbox" data-name="${r.display}" data-field="excludeFromRollUp" ${g.excludeFromRollUp ? 'checked' : ''} title="Exclude from A-Team roll-up" aria-label="${r.display} excluded from roll-up"></div>
     `;
     container.appendChild(row);
   });
@@ -5438,7 +5444,7 @@ document.getElementById('saveGoals').addEventListener('click', async (e) => {
     const field = input.getAttribute('data-field');
     if (!goals[name]) goals[name] = normalizeGoalRecord({});
     if (field === 'tag' || field === 'email') goals[name][field] = input.value.trim();
-    else if (field === 'capAt200') goals[name][field] = input.checked;
+    else if (field === 'capAt200' || field === 'excludeFromRollUp') goals[name][field] = input.checked;
     else if (field === 'level') goals[name][field] = normalizeCompLevel(input.value);
     else goals[name][field] = parseFloat(input.value) || 0;
   });
@@ -9751,6 +9757,13 @@ function loadViewGoals(forDetail) {
   if (!prior) return loadGoals();
   return goalsForMonth(forDetail ? detailViewMonthKey() : opsViewMonthKey());
 }
+/** True when this rep is flagged Excluded from Roll-Up for the given month. */
+function isExcludedFromRollUp(repDisplay, monthKey) {
+  const key = String(monthKey || '').trim()
+    || (typeof opsViewMonthKey === 'function' ? opsViewMonthKey() : liveMonthKey());
+  const g = normalizeGoalRecord((goalsForMonth(key) || {})[repDisplay]);
+  return !!g.excludeFromRollUp;
+}
 function viewCalendarParts(forDetail) {
   const prior = forDetail ? viewingPriorMonthForDetail() : viewingPriorMonthForOps();
   if (!prior) return teamCalendarParts();
@@ -11120,12 +11133,14 @@ document.getElementById('ledgerExcludeSubmit')?.addEventListener('click', async 
 
 function computeTeamCancels() {
   const onRoster = new Set(getViewRoster(false).map(r => r.display));
+  const monthKey = typeof opsViewMonthKey === 'function' ? opsViewMonthKey() : liveMonthKey();
+  const includeRep = (rep) => onRoster.has(rep) && !isExcludedFromRollUp(rep, monthKey);
   const items = typeof loadViewCancelItems === 'function' ? loadViewCancelItems() : CANCEL_ITEMS;
   // Server-itemised cancel lines are authoritative: the tiles are totalled from
   // this same list, so a number on a tile can always be traced to rows here.
   if (Array.isArray(items) && items.length) {
     return items
-      .filter(it => onRoster.has(it.rep))
+      .filter(it => includeRep(it.rep))
       .map(it => ({
         rep: it.rep,
         clientId: it.clientId || '',
@@ -11138,6 +11153,7 @@ function computeTeamCancels() {
   const actuals = viewingPriorMonthForOps() ? loadViewActuals(false) : loadActuals();
   const rows = [];
   getViewRoster(false).forEach(r => {
+    if (!includeRep(r.display)) return;
     const raw = (actuals.perRep && actuals.perRep[r.display]) || {};
     (raw.items || []).forEach(it => {
       if (it.members >= 0 && it.sessions >= 0) return;
@@ -11782,10 +11798,12 @@ function patchLandingPaceNumbers() {
     const memMetric = computeMetric(a.members, g.members, cal.elapsedFrac);
     const sesMetric = computeMetric(a.sessions, g.sessions, cal.elapsedFrac);
     const composite = compositeOf(memMetric, sesMetric);
-    teamMembersActual += a.members;
-    teamSessionsActual += a.sessions;
-    if ((Number(g.members) || 0) > 0) teamMembersGoal += g.members;
-    if ((Number(g.sessions) || 0) > 0) teamSessionsGoal += g.sessions;
+    if (!normalizeGoalRecord(g).excludeFromRollUp) {
+      teamMembersActual += a.members;
+      teamSessionsActual += a.sessions;
+      if ((Number(g.members) || 0) > 0) teamMembersGoal += g.members;
+      if ((Number(g.sessions) || 0) > 0) teamSessionsGoal += g.sessions;
+    }
     return { rep: r, a, composite, memMetric, sesMetric, uid: headers[i].getAttribute('data-toggle') };
   });
 
