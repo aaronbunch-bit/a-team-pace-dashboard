@@ -65,29 +65,65 @@ function monthBoundsCte(month: string, tz: string): string {
  * Four rewrites in a row all read the same -86.5 on screen, and there was no way
  * to tell a rule that had not worked from a build that had not shipped yet.
  */
-const LEDGER_RULE_VERSION = "created_at+scoring+live-attro+transfer-wash-v5+attr-dates";
+const LEDGER_RULE_VERSION = "created_at+scoring+live-attro+transfer-wash-v5+col-probe";
 
 /**
- * Ledger / attribution date columns worth testing as the export's month key.
+ * Columns worth testing as the export's month key.
  *
- * The July dump proved the ledger only exposes `created_at` and `updated_at`,
- * and both keep every leftover cancel (86 / -74.5). The export's own
- * `attribution_date` disagrees with both on 38 of the 58 lines it keeps — so
- * the business date lives somewhere else, most likely on `attributions`.
- * Candidates are drawn from both tables; attribution columns are prefixed
- * `a_` in the CSV so they can't collide with ledger names.
+ * The attr-dates dump scored every date-typed column on both tables: none of
+ * them keeps the export's 58 / -50.5. The export's own `attribution_date` on
+ * those 58 lines (e.g. 2026-07-06 for ledger 674865) matches none of the six
+ * date fields we shipped — so that value is stored under a name or type the
+ * date-typed probe never selected. This pass takes every scalar column whose
+ * name looks like a date, plus every real date/timestamp column, ledger first.
  */
 const MONTH_KEY_CANDIDATE_TYPES = new Set([
+  "date",
+  "timestamp with time zone",
+  "timestamp without time zone",
+  "text",
+  "character varying",
+  "character",
+  "bigint",
+  "integer",
+  "numeric",
+  "double precision",
+  "real",
+]);
+
+const MONTH_KEY_DATE_TYPES = new Set([
   "date",
   "timestamp with time zone",
   "timestamp without time zone",
 ]);
 
 /** Never worth testing as a business date. */
-const MONTH_KEY_CANDIDATE_SKIP = new Set(["deleted_at"]);
+const MONTH_KEY_CANDIDATE_SKIP = new Set([
+  "deleted_at",
+  "id",
+  "attribution_id",
+  "manager_id",
+  "client_id",
+  "email",
+  "name",
+  "role",
+  "product_type",
+  "multiplier",
+  "amount",
+  "hours",
+  "hours_amount",
+  "net_client_credit_amount",
+  "conference_ids",
+  "conference_id_timestamps",
+  "last_updated_by",
+]);
+
+/** Name looks like it could hold a calendar day. */
+const MONTH_KEY_NAME_RE =
+  /(date|time|at$|_at$|when|scored|effective|business|period|month|day|on$)/i;
 
 /** Keeps the generated select (and the CSV) to a readable width. */
-const MONTH_KEY_CANDIDATE_LIMIT = 16;
+const MONTH_KEY_CANDIDATE_LIMIT = 24;
 
 type MonthKeyCandidate = {
   /** Alias used in SQL (`cand_…`) and in the CSV header. */
@@ -718,8 +754,8 @@ function summarizeCancelsBySaleMonth(rows: LedgerRow[], month: string) {
 }
 
 /**
- * The ledger's own column list, and the date columns worth testing as the
- * export's month key.
+ * The ledger's own column list, and every column that might be the export's
+ * month key — date-typed columns plus any scalar whose name looks like a date.
  *
  * Read-only and best effort: an empty candidate list only costs the diagnostic,
  * never the tiles.
@@ -738,10 +774,13 @@ select table_name, column_name, data_type
 from information_schema.columns
 where table_schema = 'sales_attribution'
   and table_name in ('rep_scores_ledger_entries', 'attributions')
-order by table_name, ordinal_position;
+order by
+  case when table_name = 'rep_scores_ledger_entries' then 0 else 1 end,
+  ordinal_position;
 `);
     const columns: Record<string, string[]> = {};
     const candidates: MonthKeyCandidate[] = [];
+    const seen = new Set<string>();
     for (const c of cols) {
       const table = String(c.table_name) as MonthKeyCandidate["table"];
       const name = String(c.column_name);
@@ -750,13 +789,31 @@ order by table_name, ordinal_position;
       if (table !== "rep_scores_ledger_entries" && table !== "attributions") continue;
       if (MONTH_KEY_CANDIDATE_SKIP.has(name)) continue;
       if (!MONTH_KEY_CANDIDATE_TYPES.has(type)) continue;
+      const isDateType = MONTH_KEY_DATE_TYPES.has(type);
+      if (!isDateType && !MONTH_KEY_NAME_RE.test(name)) continue;
       // Interpolated into SQL, so only ever a plain identifier.
       if (!/^[a-z_][a-z0-9_]*$/.test(name)) continue;
-      if (candidates.length >= MONTH_KEY_CANDIDATE_LIMIT) continue;
       const alias = table === "attributions" ? `a_${name}` : name;
+      if (seen.has(alias)) continue;
+      if (candidates.length >= MONTH_KEY_CANDIDATE_LIMIT) continue;
+      seen.add(alias);
       const expr = table === "attributions" ? `a.${name}` : `l.${name}`;
       candidates.push({ alias, expr, type, table, column: name });
     }
+    // Prefer columns whose names match the export's own header — if the ledger
+    // has an `attribution_date` under any type, it must be tried first.
+    candidates.sort((a, b) => {
+      const score = (c: MonthKeyCandidate) => {
+        let s = 0;
+        if (c.column === "attribution_date") s += 100;
+        if (c.column.includes("attribution")) s += 40;
+        if (c.column.includes("business") || c.column.includes("effective")) s += 30;
+        if (c.table === "rep_scores_ledger_entries") s += 10;
+        if (MONTH_KEY_DATE_TYPES.has(c.type)) s += 5;
+        return -s;
+      };
+      return score(a) - score(b) || a.alias.localeCompare(b.alias);
+    });
     return { columns, candidates };
   } catch (err: any) {
     console.warn("get-live-actuals schema probe failed", err?.message || err);
@@ -765,14 +822,13 @@ order by table_name, ordinal_position;
 }
 
 /**
- * What each candidate date column would score if the month were keyed on it.
+ * What each candidate column would score if the month were keyed on it.
  *
- * After v5 the July tile counts 86 lines at -74.5. Joined onto the export by
- * `ledger_id`, 58 of them are in that export (-50.5) and 28 are not. The ledger
- * only has `created_at` and `updated_at`, and both keep all 86 — so the
- * export's month key is not on the ledger. Attribution date columns are the
- * next place to look; the column that keeps 58 (or 61, if it still carries the
- * three zeroed-sibling transfers) is the one to switch the window onto.
+ * After the attr-dates dump, every date-typed column kept either too few lines
+ * (a_occurred_at: 17 / -14) or all of them (created_at/updated_at/a_updated_at:
+ * 86 / -74.5). The export's attribution_date still matches none of them on
+ * most keeps — so the next probe includes name-matched scalar columns too.
+ * The column that keeps ~58 lines is the one to switch the window onto.
  */
 function summarizeMonthKeyCandidates(rows: LedgerRow[], month: string) {
   const cancels = rows.filter((r) => r.kind === "cancel");
@@ -1059,9 +1115,14 @@ export default async (req: Request, context: Context) => {
     const candidateColumns = schema.candidates;
     const candidateSelect = candidateColumns
       .map(({ alias, expr, type }) => {
-        // A `date` column is already a calendar day; only a timestamp needs
-        // shifting into the team's zone before it becomes one.
-        const asDay = type === "date" ? `${expr}::text` : `(${expr} at time zone '${tz}')::date::text`;
+        // Date-typed columns need the team zone; everything else is cast to text
+        // and clipped to a calendar day so a text/numeric store of the export's
+        // attribution_date still scores.
+        const asDay = MONTH_KEY_DATE_TYPES.has(type)
+          ? type === "date"
+            ? `${expr}::text`
+            : `(${expr} at time zone '${tz}')::date::text`
+          : `left((${expr})::text, 10)`;
         return `  ${asDay} as "cand_${alias}"`;
       })
       .join(",\n");
@@ -1206,13 +1267,14 @@ order by l.created_at asc, l.id asc;
       lifetimeAvailable = false;
     }
     // Carry every candidate date onto the row so the journal, the payload and
-    // the CSV all see the same values.
+    // the CSV all see the same values. Only keep values that look like a
+    // calendar day — a name-matched integer column casting to "42" is noise.
     for (const row of rawRows) {
       if (!candidateColumns.length) break;
       const dates: Record<string, string> = {};
       for (const { alias } of candidateColumns) {
-        const value = (row as Record<string, unknown>)[`cand_${alias}`];
-        if (value) dates[alias] = String(value).slice(0, 10);
+        const value = String((row as Record<string, unknown>)[`cand_${alias}`] ?? "").slice(0, 10);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(value)) dates[alias] = value;
       }
       row.month_key_candidates = dates;
     }
