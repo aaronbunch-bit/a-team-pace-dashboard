@@ -242,6 +242,49 @@ const sameMonthCancel = netLedgerJournal(
 assert.equal(totals(sameMonthCancel.rows).cancelMembers, -1, "this month's sale cancelled this month is attrition");
 assert.equal(sameMonthCancel.washed.length, 0);
 
+// Membership fits, sessions don't: still wash. The first wash release required
+// both dimensions and left 25 of 41 period-transfer lines on the tile because
+// a 0.5/2 re-booking credit could not absorb a 0.5/8 cancel on the session side.
+const mismatchWash = netLedgerJournal(
+  [
+    line({ ledgerId: 673501, attributionId: 83501, members: 0.5, sessions: 2, date: "2026-07-12", saleDate: "2026-06-20" }),
+    line({ ledgerId: 673502, attributionId: 83501, members: -0.5, sessions: -8, date: "2026-07-12", saleDate: "2026-06-20" }),
+  ],
+  DISPLAY,
+  new Set(),
+  MONTH
+);
+assert.equal(totals(mismatchWash.rows).cancelMembers, 0, "member fit is enough to wash a transfer");
+assert.equal(mismatchWash.washed.length, 1);
+
+// Re-booking credit on a new attribution, cancel on the old one — same client
+// and manager. The per-journal wash cannot see this; the cross-attribution
+// pass has to. ~25 of the July leftovers were this shape.
+const crossAttr = netLedgerJournal(
+  [
+    line({ ledgerId: 673601, attributionId: 83601, members: 1, sessions: 8, date: "2026-07-12", saleDate: "2026-07-12", clientId: "900001" }),
+    line({ ledgerId: 673602, attributionId: 83602, members: -1, sessions: -8, date: "2026-07-12", saleDate: "2026-06-20", clientId: "900001" }),
+  ],
+  DISPLAY,
+  new Set(),
+  MONTH
+);
+assert.equal(totals(crossAttr.rows).cancelMembers, 0, "cross-attribution transfer is washed");
+assert.equal(totals(crossAttr.rows).members, 0, "and members still net to zero");
+assert.equal(crossAttr.washed.length, 1);
+
+// Orphan whose lifetime overshoots members but not sessions — still drop.
+// The SPIFF cancels (Amanda/Jordan against someone else's sale) were surviving
+// the orphan rule because sessions did not fit the overshoot.
+const orphanMismatch = netLedgerJournal(
+  [line({ ledgerId: 673701, attributionId: 83701, members: -0.5, sessions: -8, lifetimeMembers: -0.5, lifetimeSessions: 0 })],
+  DISPLAY,
+  new Set(),
+  MONTH
+);
+assert.equal(totals(orphanMismatch.rows).cancelMembers, 0, "orphan drop keys on members");
+assert.equal(orphanMismatch.suppressed[0].reason, "orphan-cancel");
+
 // Without a window month the journal behaves exactly as it did before.
 const noWindow = netLedgerJournal(
   [

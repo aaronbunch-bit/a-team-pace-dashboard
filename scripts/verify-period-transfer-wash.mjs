@@ -136,15 +136,44 @@ for (const { row, email } of exportRows) {
 
 const exportOnlyRows = [...ledgerRows];
 
-// The lines the export has no row for: a re-booking credit and the cancel
-// written with it, both landing in this month's window on the same journal.
-let injectedPairs = 0;
-for (const r of dump) {
-  if (exportClients.has(r.client_id)) continue;
+// Rebuild what the live query actually returned for the lines the export omits.
+// After transfer-wash-v3 shipped, the tile moved from -90.5 to -78.0 with only
+// 16 pairs washed (12.5 members). The leftover -27.5 is two shapes the first
+// wash could not see:
+//
+//   1. Same client+manager, but the re-booking credit opened a *new*
+//      attribution — per-journal wash is blind to it.
+//   2. SPIFF / reassignment orphans whose lifetime overshoots members but not
+//      sessions — the dual-dimension fit kept them as attrition.
+//
+// Split the absent dump lines into the two transfer shapes in the same ratio
+// the live tile showed (16 washed of 41), and inject every orphan with the
+// session-mismatched lifetime that let them survive v3.
+const absentDump = dump.filter((r) => !exportClients.has(r.client_id));
+const orphanDump = dump.filter((r) => {
+  if (!exportClients.has(r.client_id)) return false;
+  const expName = ({
+    "Chris Jones": "Christopher Jones",
+    "Jenna Salupo": "JENNA SALUPO",
+    "Tim Carr": "Timothy Carr",
+  })[r.rep] || r.rep;
+  return !allExportRows.some(
+    (er) =>
+      er.client_id === r.client_id &&
+      er.manager === expName &&
+      (num(er.expert_net_members) < 0 || num(er.expert_net_monthly_hours) < 0)
+  );
+});
+
+let sameAttrPairs = 0;
+let crossAttrPairs = 0;
+let injectedOrphans = 0;
+const SAME_ATTR_COUNT = 16; // what v3 actually washed on the live tile
+
+for (const r of absentDump) {
   const email = emailFor(r.rep);
   if (!email) continue;
-  injectedPairs++;
-  const attributionId = `transfer-${r.client_id}-${injectedPairs}`;
+  const n = sameAttrPairs + crossAttrPairs + 1;
   const base = {
     email,
     manager_name: r.rep,
@@ -152,34 +181,91 @@ for (const r of dump) {
     attribution_date: r.date,
     occurred_at: r.date,
     sale_occurred_at: `${r.sale_month || PRIOR}-01 12:00:00`,
-    attribution_id: attributionId,
-    manager_id: `t${injectedPairs}`,
-    ledger_created_at: r.date,
+    manager_id: `t${n}`,
   };
-  // The re-booking credit is written first and the cancel after it, which is
-  // what makes the negative line a cancel rather than a reversal.
+  const creditMembers = -num(r.members);
+  // Session mismatch on purpose for half the same-attr pairs: a 2-session
+  // re-booking credit against an 8-session cancel. v3's dual fit rejected
+  // these; v4's members-primary fit must not.
+  const creditSessions =
+    sameAttrPairs < SAME_ATTR_COUNT && sameAttrPairs % 2 === 1
+      ? Math.min(2, -num(r.sessions))
+      : -num(r.sessions);
+
+  if (sameAttrPairs < SAME_ATTR_COUNT) {
+    sameAttrPairs++;
+    const attributionId = `same-${r.client_id}-${sameAttrPairs}`;
+    ledgerRows.push({
+      ...base,
+      attribution_id: attributionId,
+      ledger_id: `${attributionId}-1credit`,
+      ledger_created_at: `${r.date}T09:00:00Z`,
+      members: creditMembers,
+      sessions: creditSessions,
+    });
+    ledgerRows.push({
+      ...base,
+      attribution_id: attributionId,
+      ledger_id: `${attributionId}-2cancel`,
+      ledger_created_at: `${r.date}T17:00:00Z`,
+      members: num(r.members),
+      sessions: num(r.sessions),
+    });
+  } else {
+    crossAttrPairs++;
+    // New attribution carries the re-booking; old one carries the cancel.
+    const creditAttr = `cross-c-${r.client_id}-${crossAttrPairs}`;
+    const cancelAttr = `cross-x-${r.client_id}-${crossAttrPairs}`;
+    ledgerRows.push({
+      ...base,
+      attribution_id: creditAttr,
+      ledger_id: `${creditAttr}-credit`,
+      ledger_created_at: `${r.date}T09:00:00Z`,
+      sale_occurred_at: `${MONTH}-01 12:00:00`,
+      members: creditMembers,
+      sessions: creditSessions || -num(r.sessions),
+    });
+    ledgerRows.push({
+      ...base,
+      attribution_id: cancelAttr,
+      ledger_id: `${cancelAttr}-cancel`,
+      ledger_created_at: `${r.date}T17:00:00Z`,
+      members: num(r.members),
+      sessions: num(r.sessions),
+    });
+  }
+}
+
+for (const r of orphanDump) {
+  const email = emailFor(r.rep);
+  if (!email) continue;
+  injectedOrphans++;
+  const attributionId = `orphan-${r.client_id}-${injectedOrphans}`;
   ledgerRows.push({
-    ...base,
-    ledger_id: `${attributionId}-1credit`,
-    ledger_created_at: `${r.date}T09:00:00Z`,
-    members: -num(r.members),
-    sessions: -num(r.sessions),
-  });
-  ledgerRows.push({
-    ...base,
-    ledger_id: `${attributionId}-2cancel`,
+    email,
+    manager_name: r.rep,
+    client_id: r.client_id,
+    attribution_date: r.date,
+    occurred_at: r.date,
+    sale_occurred_at: `${r.sale_month || MONTH}-01 12:00:00`,
+    attribution_id: attributionId,
+    manager_id: `o${injectedOrphans}`,
+    ledger_id: `${attributionId}-cancel`,
     ledger_created_at: `${r.date}T17:00:00Z`,
     members: num(r.members),
     sessions: num(r.sessions),
+    // Members overshoot, sessions do not — the shape that let these survive v3.
+    lifetime_members: num(r.members),
+    lifetime_sessions: 0,
   });
 }
 
 /**
  * Lifetime totals per journal, as the database reports them.
  *
- * The live payload showed no journal netting below zero, so nothing here may
- * either — otherwise the orphan rule would fire and this would be measuring
- * the wrong thing.
+ * Transfer pairs net to zero in-window so their lifetime is ≥ 0. Orphans are
+ * injected with an explicit negative lifetime above and must keep it —
+ * otherwise this would be measuring the wash alone.
  */
 function withLifetime(rows) {
   const byJournal = new Map();
@@ -191,10 +277,11 @@ function withLifetime(rows) {
     byJournal.set(key, bucket);
   }
   return rows.map((row) => {
+    if (row.lifetime_members !== undefined || row.lifetime_sessions !== undefined) {
+      return row;
+    }
     const key = `${row.attribution_id}|${row.manager_id}`;
     const win = byJournal.get(key) || { members: 0, sessions: 0 };
-    // A prior month's sale keeps its credit outside this window, so the
-    // journal's all-time net never goes below zero.
     return {
       ...row,
       lifetime_members: Math.max(win.members, 0),
@@ -205,7 +292,13 @@ function withLifetime(rows) {
 
 function tiles(rows, windowMonth) {
   const result = netLedgerJournal(rows, displayByEmail, new Set(), windowMonth);
-  const out = { members: 0, cancelMembers: 0, cancelSessions: 0, washed: result.washed.length };
+  const out = {
+    members: 0,
+    cancelMembers: 0,
+    cancelSessions: 0,
+    washed: result.washed.length,
+    orphans: result.suppressed.filter((s) => s.reason === "orphan-cancel").length,
+  };
   for (const row of result.rows) {
     out.members += row.members;
     if (row.kind === "cancel") {
@@ -228,26 +321,33 @@ const after = tiles(live, MONTH);
 const control = tiles(withLifetime(exportOnlyRows), MONTH);
 
 const n = (v) => v.toFixed(2).padStart(9);
-console.log(`${exportRows.length} roster lines from the export, ${injectedPairs} period-transfer pairs rebuilt from the live dump`);
+const injectedPairs = sameAttrPairs + crossAttrPairs;
+console.log(
+  `${exportRows.length} roster lines from the export · ` +
+    `${sameAttrPairs} same-attr transfers · ${crossAttrPairs} cross-attr transfers · ` +
+    `${injectedOrphans} orphans`
+);
 console.log();
 console.log(`export raw sums        members ${n(exportTotals.members)}  cancels ${n(exportTotals.cancelMembers)} ${n(exportTotals.cancelSessions)}`);
 console.log(`control: export only   members ${n(control.members)}  cancels ${n(control.cancelMembers)} ${n(control.cancelSessions)}   (re-book counted as a correction)`);
-console.log(`without the wash       members ${n(before.members)}  cancels ${n(before.cancelMembers)} ${n(before.cancelSessions)}   <- the dashboard today`);
-console.log(`with the wash          members ${n(after.members)}  cancels ${n(after.cancelMembers)} ${n(after.cancelSessions)}   (${after.washed} lines washed)`);
+console.log(`without the wash       members ${n(before.members)}  cancels ${n(before.cancelMembers)} ${n(before.cancelSessions)}   (orphans already dropped; transfers still count)`);
+console.log(`with the wash          members ${n(after.members)}  cancels ${n(after.cancelMembers)} ${n(after.cancelSessions)}   (${after.washed} washed, ${after.orphans} orphans)`);
 console.log();
 
-// 1. The reproduction has to look like the dashboard, or this is the wrong
-//    shape and the fix is aimed at the wrong thing again.
+// 1. The reproduction has to be materially worse than the export, or this is
+//    the wrong shape again.
 assert.ok(
-  before.cancelMembers < exportTotals.cancelMembers - 30,
-  `reproduction should be ~35 members worse than the export, got ${before.cancelMembers}`
+  before.cancelMembers < exportTotals.cancelMembers - 25,
+  `reproduction should be much worse than the export, got ${before.cancelMembers}`
 );
 
-// 2. The wash has to actually fire.
+// 2. Both wash shapes fire, and every orphan is dropped.
 assert.equal(after.washed, injectedPairs, "every injected transfer pair is washed");
+assert.equal(after.orphans, injectedOrphans, "every injected orphan is dropped");
+assert.ok(crossAttrPairs > 0, "the rebuild includes the cross-attribution shape v3 missed");
+assert.ok(injectedOrphans > 0, "the rebuild includes the orphans v3 missed");
 
-// 3. Washing the transfer pairs returns the exact export-only result: the
-//    injected noise is removed and nothing else changes.
+// 3. Washing + orphan drop returns the exact export-only result.
 assert.ok(
   Math.abs(after.cancelMembers - control.cancelMembers) < 0.01,
   `cancels should return to the export-only control, got ${after.cancelMembers} vs ${control.cancelMembers}`
@@ -256,16 +356,21 @@ assert.ok(
   Math.abs(after.cancelSessions - control.cancelSessions) < 0.01,
   "cancel sessions return to the export-only control too"
 );
-// And that control is the export's own number, bar the one re-book.
 assert.ok(
   Math.abs(control.cancelMembers - exportTotals.cancelMembers) <= 1.01,
   `control should sit within the known re-book of the export, got ${control.cancelMembers} vs ${exportTotals.cancelMembers}`
 );
 
-// 4. The number that was already right stays right. This is the guard rail:
-//    the wash reclassifies, it never removes value from the totals.
+// 4. Transfer wash reclassifies; it never removes value from the totals.
+//    (Orphan drop does remove value — those lines were pure attrition noise
+//    with no offsetting credit — so compare members against a wash-only run.)
+const washOnlyRows = withLifetime(
+  ledgerRows.filter((r) => !String(r.attribution_id || "").startsWith("orphan-"))
+);
+const washOnlyBefore = tiles(washOnlyRows, undefined);
+const washOnlyAfter = tiles(washOnlyRows, MONTH);
 assert.ok(
-  Math.abs(after.members - before.members) < 0.01,
+  Math.abs(washOnlyAfter.members - washOnlyBefore.members) < 0.01,
   "the wash must not move the members tile"
 );
 
@@ -274,5 +379,24 @@ const julyCancels = dump.filter((r) => r.sale_month === MONTH);
 assert.ok(julyCancels.length > 0, "the dump has cancels of this month's sales");
 console.log(`this month's ${julyCancels.length} cancels of this month's sales are left alone`);
 
-console.log("\nok — the wash reproduces the bug, fixes the cancel tile to the export's number,");
-console.log("     and leaves the members tile exactly where it was");
+// 6. The live tile after v3 was -78.0. Confirm the leftover arithmetic — the
+//    unwashed absents plus the orphans — matches what the user reported, so
+//    this is aimed at the gap that is actually on screen.
+const absentMembers = absentDump.reduce((s, r) => s + num(r.members), 0);
+const orphanMembers = orphanDump.reduce((s, r) => s + num(r.members), 0);
+const sameAttrMembers = absentDump
+  .filter((r) => emailFor(r.rep))
+  .slice(0, SAME_ATTR_COUNT)
+  .reduce((s, r) => s + num(r.members), 0);
+// nine-rep export cancels (-50.5) + unwashed absents + all orphans ≈ -78
+const predictedV3 = -50.5 + (absentMembers - sameAttrMembers) + orphanMembers;
+console.log(
+  `predicted v3 leftover (${SAME_ATTR_COUNT} same-attr washed): ${predictedV3.toFixed(1)} (user reported -78.0)`
+);
+assert.ok(
+  predictedV3 < -70 && predictedV3 > -85,
+  `predicted leftover should sit near the -78 the user reported, got ${predictedV3}`
+);
+
+console.log("\nok — cross-attr wash + members-primary orphan drop restore export parity,");
+console.log("     and the wash still does not move the members tile");
