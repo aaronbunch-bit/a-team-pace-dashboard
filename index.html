@@ -11004,6 +11004,23 @@ function renderMonthKeyCandidates(w) {
   if (cols && cols.attributions) {
     text += `${text ? ' ' : ''}Attribution columns — ${cols.attributions.join(', ')}.`;
   }
+  const tables = (w && w.schemaTables) || [];
+  if (tables.length) {
+    text += `${text ? ' ' : ''}Schema tables — ${tables.join(', ')}.`;
+  }
+  const attrDates = (w && w.attributionDateColumns) || [];
+  if (attrDates.length) {
+    text += `${text ? ' ' : ''}attribution_date hits — ${attrDates.join(', ')}.`;
+  } else if (tables.length) {
+    text += `${text ? ' ' : ''}attribution_date hits — none in information_schema.`;
+  }
+  const types = (w && w.cancelTypes) || null;
+  if (types && Array.isArray(types.ledger) && types.ledger.length) {
+    text += `${text ? ' ' : ''}Ledger types — ${types.ledger.map((t) => `${t.type}: ${t.rows}/${fmt(t.members, 1)}`).join(', ')}.`;
+  }
+  if (types && Array.isArray(types.attribution) && types.attribution.length) {
+    text += `${text ? ' ' : ''}Attr types — ${types.attribution.map((t) => `${t.type}: ${t.rows}/${fmt(t.members, 1)}`).join(', ')}.`;
+  }
   el.textContent = text;
   el.hidden = false;
 }
@@ -11034,7 +11051,7 @@ function cancelLinesCsv() {
   const head = [
     'date', 'rep', 'client_id', 'members', 'sessions', 'sale_month',
     'attribution_id', 'ledger_id', 'lifetime_members', 'attr_credit', 'client_rep_credit',
-    'transferred_out', ...candidateCols,
+    'transferred_out', 'ledger_type', 'attr_type', 'credit_id', ...candidateCols,
   ];
   const body = rows.map((r) => {
     const it = byKey.get(`${r.rep}|${r.clientId}|${r.date}|${r.members}|${r.sessions}`) || {};
@@ -11051,6 +11068,9 @@ function cancelLinesCsv() {
       it.attrWindowCredit === undefined ? '' : it.attrWindowCredit,
       it.clientRepWindowCredit === undefined ? '' : it.clientRepWindowCredit,
       it.transferredOut ? '1' : '0',
+      it.ledgerType || '',
+      it.attrType || '',
+      it.creditId || '',
       ...candidateCols.map((c) => (it.monthKeyCandidates || {})[c] || ''),
     ];
   });
@@ -11061,7 +11081,19 @@ function cancelLinesCsv() {
   const colMeta = w.ledgerColumns
     ? `# ledger_columns=${(w.ledgerColumns.rep_scores_ledger_entries || []).join('|')} attr_columns=${(w.ledgerColumns.attributions || []).join('|')}`
     : null;
-  return [meta, ...(colMeta ? [colMeta] : []), head.join(','), ...body.map((cols) => cols.join(','))].join('\n');
+  const typeMeta = w.cancelTypes
+    ? `# ledger_types=${((w.cancelTypes.ledger || []).map((t) => `${t.type}:${t.rows}:${fmt(t.members, 1)}`).join('|'))}`
+      + ` attr_types=${((w.cancelTypes.attribution || []).map((t) => `${t.type}:${t.rows}:${fmt(t.members, 1)}`).join('|'))}`
+    : null;
+  const schemaMeta = `# schema_tables=${(w.schemaTables || []).join('|')} attribution_date_columns=${(w.attributionDateColumns || []).join('|') || 'none'}`;
+  return [
+    meta,
+    ...(colMeta ? [colMeta] : []),
+    ...(typeMeta ? [typeMeta] : []),
+    schemaMeta,
+    head.join(','),
+    ...body.map((cols) => cols.join(',')),
+  ].join('\n');
 }
 
 function renderTeamCancelsTable() {
