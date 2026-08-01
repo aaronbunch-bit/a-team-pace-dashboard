@@ -42,13 +42,15 @@ function settle(byMonth, month, goals, previousGoals) {
   return out;
 }
 
-const july = { "Becky Ruffer": { members: 8, sessions: 60 } };
-const august = { "Becky Ruffer": { members: 9, sessions: 64 } };
+const july = { "Becky Ruffer": { members: 8, sessions: 60, excludeFromRollUp: true } };
+const august = { "Becky Ruffer": { members: 9, sessions: 64, excludeFromRollUp: false } };
 
 // Saving August for the first time after rollover freezes July as it stood.
 const first = settle({}, "2026-08", august, july);
 assert.deepEqual(first["2026-07"], july, "last month keeps the quotas it ran under");
+assert.equal(first["2026-07"]["Becky Ruffer"].excludeFromRollUp, true, "exclude-from-roll-up freezes with last month");
 assert.deepEqual(first["2026-08"], august);
+assert.equal(first["2026-08"]["Becky Ruffer"].excludeFromRollUp, false);
 
 // Editing August again must not touch July, even to a cleared document.
 const cleared = { "Becky Ruffer": { members: 0, sessions: 0 } };

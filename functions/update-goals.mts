@@ -33,6 +33,9 @@ function normalizeGoalRecord(raw: any) {
     tag: String(raw?.tag || "").trim().slice(0, 120),
     email: String(raw?.email || "").trim().toLowerCase().slice(0, 160),
     capAt200: !!raw?.capAt200,
+    // When true, this rep's members/sessions (incl. approved attro) and refunds
+    // stay on their own board but do not feed A-Team Total for that month.
+    excludeFromRollUp: !!raw?.excludeFromRollUp,
   };
 }
 

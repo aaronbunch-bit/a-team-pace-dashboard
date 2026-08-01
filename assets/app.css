@@ -3651,14 +3651,15 @@
   body.dark .landing-actions-row .header-dropdown > button.theme-btn.large {
     background: var(--card-bg);
   }
-  .goal-grid { display: grid; grid-template-columns: 1fr 0.6fr 0.6fr 0.48fr 0.65fr 0.8fr 1.1fr 0.6fr; gap: 8px; align-items: center; margin-bottom: 6px; font-size: 13px; }
+  .goal-grid { display: grid; grid-template-columns: 1fr 0.6fr 0.6fr 0.48fr 0.65fr 0.8fr 1.1fr 0.55fr 0.75fr; gap: 8px; align-items: center; margin-bottom: 6px; font-size: 13px; }
   /* Default view: Tag / Email / Cap columns (cells 6-8) hidden behind the
      "Show advanced fields" toggle on Edit Monthly Goals — those are set-once
-     fields, unlike Sessions/Members which get touched every month. */
+     fields, unlike Sessions/Members which get touched every month.
+     Cell 9 (Excluded from roll-up) stays visible in compact mode. */
   #goalsFormWrap.goal-grid-compact .goal-grid > *:nth-child(6),
   #goalsFormWrap.goal-grid-compact .goal-grid > *:nth-child(7),
   #goalsFormWrap.goal-grid-compact .goal-grid > *:nth-child(8) { display: none; }
-  #goalsFormWrap.goal-grid-compact .goal-grid { grid-template-columns: 1fr 0.7fr 0.7fr 0.52fr 0.8fr; }
+  #goalsFormWrap.goal-grid-compact .goal-grid { grid-template-columns: 1fr 0.7fr 0.7fr 0.52fr 0.8fr 0.85fr; }
   .goal-grid .cap-cell { display: flex; align-items: center; justify-content: center; }
   .goal-grid .cap-cell input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; margin: 0; }
   .goal-grid input, .goal-grid select { width: 100%; padding: 6px 9px; border: 1px solid var(--card-border); border-radius: 8px; font-size: 13px; background: var(--card-bg); color: var(--text); }
