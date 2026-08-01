@@ -65,7 +65,7 @@ function monthBoundsCte(month: string, tz: string): string {
  * Four rewrites in a row all read the same -86.5 on screen, and there was no way
  * to tell a rule that had not worked from a build that had not shipped yet.
  */
-const LEDGER_RULE_VERSION = "created_at+scoring+live-attro+transfer-wash-v5+col-probe";
+const LEDGER_RULE_VERSION = "created_at+scoring+live-attro+transfer-wash-v5+type-schema";
 
 /**
  * Columns worth testing as the export's month key.
@@ -158,6 +158,12 @@ type LedgerRow = {
    * negative half as attrition.
    */
   transferred_out?: boolean;
+  /** Ledger row `type` — the only remaining on-row discriminator the schema has. */
+  ledger_type?: string;
+  /** Attribution `type`. */
+  attr_type?: string;
+  /** Optional link to a credit line; present on some cancels. */
+  credit_id?: string;
   /**
    * Every date column on the ledger row, keyed by column name, so the month key
    * the export windows on can be named from evidence. Diagnostics only — no
@@ -715,6 +721,9 @@ export function cancelLineItems(
         attrWindowCredit: creditByAttribution.get(attrKey) || 0,
         clientRepWindowCredit: creditByClientRep.get(clientKey) || 0,
         transferredOut: row.transferred_out === true,
+        ledgerType: String(row.ledger_type || "").trim(),
+        attrType: String(row.attr_type || "").trim(),
+        creditId: String(row.credit_id || "").trim(),
         monthKeyCandidates: row.month_key_candidates || {},
       };
     })
@@ -754,15 +763,19 @@ function summarizeCancelsBySaleMonth(rows: LedgerRow[], month: string) {
 }
 
 /**
- * The ledger's own column list, and every column that might be the export's
- * month key — date-typed columns plus any scalar whose name looks like a date.
+ * Schema probe: column lists, month-key candidates, every table in the
+ * attribution schema, and any `attribution_date` column anywhere in the DB.
  *
- * Read-only and best effort: an empty candidate list only costs the diagnostic,
- * never the tiles.
+ * The col-probe dump proved the ledger and attributions tables have no
+ * business-date column — the export's `attribution_date` is not stored on
+ * either. The remaining on-row discriminator is `type`; the remaining
+ * off-row lead is another table that actually has `attribution_date`.
  */
 async function loadLedgerSchema(): Promise<{
   columns: Record<string, string[]> | null;
   candidates: MonthKeyCandidate[];
+  tables: string[];
+  attributionDateColumns: string[];
 }> {
   try {
     const cols = await runSupabaseSql<{
@@ -791,7 +804,6 @@ order by
       if (!MONTH_KEY_CANDIDATE_TYPES.has(type)) continue;
       const isDateType = MONTH_KEY_DATE_TYPES.has(type);
       if (!isDateType && !MONTH_KEY_NAME_RE.test(name)) continue;
-      // Interpolated into SQL, so only ever a plain identifier.
       if (!/^[a-z_][a-z0-9_]*$/.test(name)) continue;
       const alias = table === "attributions" ? `a_${name}` : name;
       if (seen.has(alias)) continue;
@@ -800,8 +812,6 @@ order by
       const expr = table === "attributions" ? `a.${name}` : `l.${name}`;
       candidates.push({ alias, expr, type, table, column: name });
     }
-    // Prefer columns whose names match the export's own header — if the ledger
-    // has an `attribution_date` under any type, it must be tried first.
     candidates.sort((a, b) => {
       const score = (c: MonthKeyCandidate) => {
         let s = 0;
@@ -814,10 +824,46 @@ order by
       };
       return score(a) - score(b) || a.alias.localeCompare(b.alias);
     });
-    return { columns, candidates };
+
+    let tables: string[] = [];
+    try {
+      const tableRows = await runSupabaseSql<{ table_name: string }>(`
+select table_name
+from information_schema.tables
+where table_schema = 'sales_attribution'
+order by table_name;
+`);
+      tables = tableRows.map((r) => String(r.table_name));
+    } catch (err: any) {
+      console.warn("get-live-actuals table list failed", err?.message || err);
+    }
+
+    let attributionDateColumns: string[] = [];
+    try {
+      const dateRows = await runSupabaseSql<{
+        table_schema: string;
+        table_name: string;
+        column_name: string;
+        data_type: string;
+      }>(`
+select table_schema, table_name, column_name, data_type
+from information_schema.columns
+where column_name in (
+  'attribution_date', 'business_date', 'effective_date', 'score_date', 'scoring_date'
+)
+order by table_schema, table_name, column_name;
+`);
+      attributionDateColumns = dateRows.map(
+        (r) => `${r.table_schema}.${r.table_name}.${r.column_name}:${r.data_type}`
+      );
+    } catch (err: any) {
+      console.warn("get-live-actuals attribution_date search failed", err?.message || err);
+    }
+
+    return { columns, candidates, tables, attributionDateColumns };
   } catch (err: any) {
     console.warn("get-live-actuals schema probe failed", err?.message || err);
-    return { columns: null, candidates: [] };
+    return { columns: null, candidates: [], tables: [], attributionDateColumns: [] };
   }
 }
 
@@ -844,6 +890,31 @@ function summarizeMonthKeyCandidates(rows: LedgerRow[], month: string) {
       outOfMonthRows: cancels.length - inMonth.length,
     };
   });
+}
+
+/**
+ * Cancel lines split by ledger `type` / attribution `type`.
+ *
+ * Those two tables have no business-date column. `type` is the only remaining
+ * on-row field that could separate the 58 cancels the export keeps from the 28
+ * it omits — so the breakdown is shipped next to the total, not buried in a
+ * dump the next release has to re-ask for.
+ */
+function summarizeCancelTypes(rows: LedgerRow[]) {
+  const cancels = rows.filter((r) => r.kind === "cancel");
+  const byLedger = new Map<string, LedgerRow[]>();
+  const byAttr = new Map<string, LedgerRow[]>();
+  for (const row of cancels) {
+    const lt = String(row.ledger_type || "").trim() || "(blank)";
+    const at = String(row.attr_type || "").trim() || "(blank)";
+    (byLedger.get(lt) || byLedger.set(lt, []).get(lt)!).push(row);
+    (byAttr.get(at) || byAttr.set(at, []).get(at)!).push(row);
+  }
+  const summarize = (map: Map<string, LedgerRow[]>) =>
+    [...map.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([type, list]) => ({ type, ...summarizeRows(list) }));
+  return { ledger: summarize(byLedger), attribution: summarize(byAttr) };
 }
 
 function buildActuals(
@@ -1159,7 +1230,10 @@ win as (
     l.created_at,
     l.net_client_credit_amount,
     l.hours_amount,
+    l.type as ledger_type,
+    l.credit_id,
     a.client_id,
+    a.type as attr_type,
     a.occurred_at as sale_occurred_at,
     (a.deleted_at is not null) as attribution_deleted,
     lower(f.email) as email,
@@ -1208,6 +1282,9 @@ select
   (win.sale_occurred_at at time zone '${tz}')::text as sale_occurred_at,
   win.attribution_deleted,
   win.transferred_out,
+  win.ledger_type,
+  win.attr_type,
+  win.credit_id,
   win.net_client_credit_amount::float8 as members,
   win.hours_amount::float8 as sessions,
   life.lifetime_members,
@@ -1233,6 +1310,9 @@ select
   (l.created_at at time zone '${tz}')::text as occurred_at,
   (a.occurred_at at time zone '${tz}')::text as sale_occurred_at,
   (a.deleted_at is not null) as attribution_deleted,${transferredOut},
+  l.type as ledger_type,
+  a.type as attr_type,
+  l.credit_id,
   l.net_client_credit_amount::float8 as members,
   l.hours_amount::float8 as sessions${candidateSelect ? `,\n${candidateSelect}` : ""}
 from sales_attribution.rep_scores_ledger_entries l
@@ -1325,9 +1405,13 @@ order by l.created_at asc, l.id asc;
           deletedAttribution,
           // Candidate month-key columns, so the next fix can name the right one.
           ledgerColumns: schema.columns,
+          schemaTables: schema.tables,
+          attributionDateColumns: schema.attributionDateColumns,
           // What each of those columns would score as the month key. The one
           // that keeps ~58 lines in July is the column the export windows on.
           monthKeyCandidates: summarizeMonthKeyCandidates(rows, monthYmd),
+          // Ledger/attribution `type` breakdown — the remaining on-row lead.
+          cancelTypes: summarizeCancelTypes(rows),
           // Whether the period-transfer wash matched anything. A rule that
           // ships, deploys and quietly matches nothing is how the cancel tile
           // stayed wrong across several releases — so this is reported next to
