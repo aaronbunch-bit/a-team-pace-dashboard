@@ -4,9 +4,11 @@
   "description": "A-Team pace dashboard — static site + Netlify Functions (Identity + Blobs)",
   "private": true,
   "scripts": {
-    "test": "npm run test:ledger && npm run test:boot",
+    "test": "npm run test:ledger && npm run test:boot && npm run test:browser",
     "test:ledger": "node --experimental-strip-types --no-warnings scripts/test-ledger-journal.mjs",
-    "test:boot": "node scripts/test-page-boot.mjs"
+    "test:boot": "node scripts/test-page-boot.mjs",
+    "test:browser": "node scripts/test-page-browser.mjs",
+    "test:browser:install": "npm i --no-save playwright && npx playwright install chromium"
   },
   "dependencies": {
     "@netlify/blobs": "10.7.10"

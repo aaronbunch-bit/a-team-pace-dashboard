@@ -9615,18 +9615,21 @@ function syncOpsMonthToggleUI() {
     const el = document.getElementById(id);
     if (el) el.hidden = !show;
   });
-  document.body.dataset.opsMonth = isPriorMonthMode() && prev ? 'prior' : 'current';
-  document.querySelectorAll('[data-ops-month]').forEach((btn) => {
-    const on = btn.getAttribute('data-ops-month') === opsMonthMode;
-    btn.classList.toggle('active', on);
-    if (btn.getAttribute('data-ops-month') === 'prior' && prev) {
-      btn.textContent = prev.label.replace(/\s+\d+$/, '') || 'Last month';
-    } else if (btn.getAttribute('data-ops-month') === 'current') {
+  // Body carries the view state under its own attribute name. It must NOT be
+  // the same attribute the buttons use: `[data-ops-month]` would then match
+  // <body>, and the textContent write below would replace the entire page with
+  // the string "This month".
+  document.body.dataset.opsMonthView = isPriorMonthMode() && prev ? 'prior' : 'current';
+  // Class-scoped so the selector can only ever reach the toggle buttons.
+  document.querySelectorAll('button.ops-month-btn[data-ops-month]').forEach((btn) => {
+    const mode = btn.getAttribute('data-ops-month');
+    btn.classList.toggle('active', mode === opsMonthMode);
+    if (mode === 'prior') {
+      btn.textContent = prev ? (prev.label.replace(/\s+\d+$/, '') || 'Last month') : 'Last month';
+    } else if (mode === 'current') {
       btn.textContent = 'This month';
     }
   });
-  const priorBtn = document.getElementById('opsMonthPriorBtn');
-  if (priorBtn && prev) priorBtn.textContent = prev.label.split(' ')[0] || 'Last month';
 }
 
 async function setOpsMonthMode(mode) {
@@ -10508,7 +10511,9 @@ window.addEventListener('hashchange', renderTeamDetailsOverlay);
 document.getElementById('teamDetailsBtn').addEventListener('click', () => { location.hash = 'team-details'; });
 
 document.addEventListener('click', (ev) => {
-  const btn = ev.target && ev.target.closest && ev.target.closest('[data-ops-month]');
+  // Class-scoped: a bare `[data-ops-month]` would also match <body>, so any
+  // click anywhere on the page would flip the month.
+  const btn = ev.target && ev.target.closest && ev.target.closest('button.ops-month-btn[data-ops-month]');
   if (!btn) return;
   if (typeof canViewTeamDetails === 'function' && !canViewTeamDetails()) return;
   const mode = btn.getAttribute('data-ops-month');
