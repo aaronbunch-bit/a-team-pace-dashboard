@@ -2,6 +2,7 @@ import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { requireSignedIn } from "./_shared/identity.mts";
 import { resolveAccess } from "./_shared/access.mts";
+import { GOALS_MONTHS_KEY, GOALS_MONTHS_STORE, isMonthKey } from "./_shared/goals.mts";
 
 function redactCompensation(goals: any, viewerEmail: string, fullAccess: boolean) {
   if (!goals || typeof goals !== "object" || fullAccess) return goals || null;
@@ -54,8 +55,11 @@ export default async (req: Request, context: Context) => {
   const adminListStore = getStore("admin-list");
   const coachListStore = getStore("coach-list");
   const sipExtraStore = getStore("sip-extra");
+  // Quotas as they stood in each closed month, so a last-month view reads that
+  // month's numbers instead of whatever is set today.
+  const goalsMonthsStore = getStore(GOALS_MONTHS_STORE);
 
-  const [roster, goals, actuals, prelim, admins, coaches, sipExtra] = await Promise.all([
+  const [roster, goals, actuals, prelim, admins, coaches, sipExtra, goalsMonths] = await Promise.all([
     rosterStore.get("current", { type: "json" }),
     goalsStore.get("current", { type: "json" }),
     actualsStore.get("current", { type: "json" }),
@@ -63,8 +67,19 @@ export default async (req: Request, context: Context) => {
     adminListStore.get("current", { type: "json" }),
     coachListStore.get("current", { type: "json" }),
     sipExtraStore.get("current", { type: "json" }),
+    goalsMonthsStore.get(GOALS_MONTHS_KEY, { type: "json" }),
   ]);
   const safeGoals = redactCompensation(goals, viewerEmail, !!access?.isFullAdmin);
+  const safeGoalsMonths = goalsMonths && typeof goalsMonths === "object" && !Array.isArray(goalsMonths)
+    ? Object.fromEntries(
+        Object.entries(goalsMonths as Record<string, any>)
+          .filter(([month, doc]) => isMonthKey(month) && !!doc && typeof doc === "object")
+          .map(([month, doc]) => [
+            month,
+            redactCompensation(doc, viewerEmail, !!access?.isFullAdmin),
+          ])
+      )
+    : {};
   const safePrelim = prelim && typeof prelim === "object"
     ? Object.fromEntries(Object.entries(prelim as Record<string, any>).map(([month, snapshot]) => [
         month,
@@ -81,6 +96,7 @@ export default async (req: Request, context: Context) => {
     JSON.stringify({
       roster: roster || null,
       goals: safeGoals,
+      goalsMonths: safeGoalsMonths,
       actuals: actuals || null,
       prelim: safePrelim || null,
       admins: admins || [],

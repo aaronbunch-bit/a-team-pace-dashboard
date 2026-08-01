@@ -398,6 +398,8 @@ const renderPasses = [
   "renderCancelsWindowNote",
   "renderTeamPersonalGoalsTable",
   "renderTeamDetailsOverlay",
+  "syncGoalsEditMonthUI",
+  "renderGoalsForm",
 ];
 const renderFailures = [];
 for (const name of renderPasses) {
@@ -431,6 +433,42 @@ assert.deepEqual(
   "the render pass must not throw with empty caches"
 );
 
+/**
+ * The quota grid edits one month at a time.
+ *
+ * Team quotas were a single document with no month on it, so last month's
+ * board read whatever was set today. The grid now has its own month toggle and
+ * reads that month's quotas; flipping it must not throw and must not resolve
+ * to the live month.
+ */
+assert.equal(
+  typeof context.goalsForMonth,
+  "function",
+  "the month-scoped quota reader must exist"
+);
+{
+  const live = context.liveMonthKey();
+  assert.equal(
+    context.goalsForMonth(live),
+    context.loadGoals(),
+    "the live month reads the live quota document"
+  );
+  assert.ok(
+    context.goalsForMonth("2020-01"),
+    "a month with nothing recorded still resolves to a usable document"
+  );
+  assert.equal(context.goalsEditMonthKey(), live, "the grid starts on this month");
+  context.setGoalsEditMonthMode("prior");
+  assert.notEqual(
+    context.goalsEditMonthKey(),
+    live,
+    "switching the grid to last month must target last month"
+  );
+  context.renderGoalsForm();
+  context.setGoalsEditMonthMode("current");
+  assert.equal(context.goalsEditMonthKey(), live);
+}
+
 if (bodyWipes.length) {
   console.error("\nSomething wrote to <body> in a way that deletes the page:\n");
   bodyWipes.forEach((w) => console.error("  " + w));
@@ -453,5 +491,5 @@ for (const cls of ["ops-month-toggle"]) {
 
 console.log(
   `ok — index.html top-level pass completes (${script.split("\n").length} lines), ` +
-    "Google sign-in wired, render pass survives empty caches"
+    "Google sign-in wired, render pass survives empty caches, quota grid switches month"
 );

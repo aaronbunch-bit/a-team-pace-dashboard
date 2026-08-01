@@ -2,6 +2,7 @@ import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { requireSignedIn } from "./_shared/identity.mts";
 import { runSupabaseSql, supabaseConfig } from "./_shared/supabase.mts";
+import { loadGoalsByMonth, saveGoalsByMonth } from "./_shared/goals.mts";
 import { FALLBACK_ROSTER_EMAILS } from "./_shared/roster.mts";
 import {
   LIVE_ACTUALS_CACHE_KEY,
@@ -1265,6 +1266,19 @@ async function maybeFreezePrelimAndCache(actuals: { asOf: string; perRep: Record
     };
     await prelimStore.setJSON("current", prelim);
     prelimChanged = true;
+
+    // Settle the outgoing month's quotas so last-month views keep reading them
+    // after this month's are edited. Best effort: a rollover must not fail on
+    // the archive write.
+    try {
+      const byMonth = await loadGoalsByMonth();
+      if (!byMonth[oldMonth] && goals && Object.keys(goals).length) {
+        byMonth[oldMonth] = goals;
+        await saveGoalsByMonth(byMonth);
+      }
+    } catch (err: any) {
+      console.warn("get-live-actuals goals-month freeze failed", err?.message || err);
+    }
   }
 
   // Keep Blobs actuals fresh as a fallback when Supabase is unreachable.

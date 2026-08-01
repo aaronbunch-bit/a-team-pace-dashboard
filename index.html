@@ -1139,6 +1139,13 @@
         <div class="meta-note" id="addPersonStatus"></div>
       </div>
       <div class="card ops-panel-shell goal-grid-compact" id="goalsFormWrap">
+        <div class="ops-month-toggle" id="goalsEditMonthToggle" style="margin-bottom:10px;">
+          <div class="ops-month-seg" role="group" aria-label="Quota month">
+            <button type="button" class="ops-month-btn active" data-goals-month="current" aria-pressed="true">This month</button>
+            <button type="button" class="ops-month-btn" data-goals-month="prior" aria-pressed="false">Last month</button>
+          </div>
+          <span class="meta-note" id="goalsEditMonthNote" style="margin:0;"></span>
+        </div>
         <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Level</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Individual Pacer access)</div><div>Cap bonus @ 200%</div></div>
         <div id="goalsForm"></div>
         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px;">
@@ -1754,16 +1761,49 @@ function normalizeGoalsDoc(doc) {
 // function's comment for why the server doesn't try to seed itself with
 // these defaults.
 let GOALS_CACHE = normalizeGoalsDoc(DEFAULT_GOALS);
+// What the quotas were in each month that has been settled, keyed YYYY-MM.
+// The live `goals` document only says what they are today, so without this a
+// change to this month's quotas rewrote last month's page too.
+let GOALS_MONTHS_CACHE = {};
 let ACTUALS_CACHE = Object.assign({}, DEFAULT_ACTUALS);
 function loadGoals() { return GOALS_CACHE; }
-async function saveGoals(g) {
+function loadGoalsMonths() { return GOALS_MONTHS_CACHE || {}; }
+/**
+ * The quotas that were in force in `monthKey`.
+ *
+ * The live document for the live month; otherwise the month's own settled
+ * quotas, then a prelim/rollover snapshot, and only then today's quotas as a
+ * stand-in for a month that closed before any of this was recorded.
+ */
+function goalsForMonth(monthKey) {
+  const key = String(monthKey || '');
+  if (!key || key === liveMonthKey()) return loadGoals();
+  const settled = loadGoalsMonths()[key];
+  if (settled && Object.keys(settled).length) return normalizeGoalsDoc(settled);
+  const snap = (loadPrelimSnapshots() || {})[key];
+  if (snap && snap.goals && Object.keys(snap.goals).length) return normalizeGoalsDoc(snap.goals);
+  if (PRIOR_MONTH_BUNDLE && PRIOR_MONTH_BUNDLE.month === key && PRIOR_MONTH_BUNDLE.goals) {
+    return normalizeGoalsDoc(PRIOR_MONTH_BUNDLE.goals);
+  }
+  return loadGoals();
+}
+async function saveGoals(g, monthKey) {
   const normalized = normalizeGoalsDoc(g);
-  await authedFetch('/api/goals/update', {
+  const month = String(monthKey || '') || liveMonthKey();
+  const result = await authedFetch('/api/goals/update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ goals: normalized }),
+    body: JSON.stringify({ goals: normalized, month }),
   });
-  GOALS_CACHE = normalized;
+  if (result && result.goalsMonths && typeof result.goalsMonths === 'object') {
+    GOALS_MONTHS_CACHE = result.goalsMonths;
+  } else {
+    GOALS_MONTHS_CACHE = Object.assign({}, GOALS_MONTHS_CACHE, { [month]: normalized });
+  }
+  if (month === liveMonthKey()) GOALS_CACHE = normalized;
+  if (PRIOR_MONTH_BUNDLE && PRIOR_MONTH_BUNDLE.month === month) {
+    PRIOR_MONTH_BUNDLE = Object.assign({}, PRIOR_MONTH_BUNDLE, { goals: normalized });
+  }
 }
 function loadActuals() {
   if (ACTUALS_CACHE && ACTUALS_CACHE.asOf) {
@@ -2691,7 +2731,7 @@ function render() {
 
   renderLeaderboards(repRows);
   renderImprovedBoards();
-  renderGoalsForm(goals);
+  renderGoalsForm();
   renderCultureSide(repRows, teamComposite, expectedPct, cal.ymd, monthName, d, dim);
   syncLandingGridHeight();
   syncLandingBoardsScrollCap();
@@ -5114,13 +5154,64 @@ document.getElementById('shoutoutCelebrationBackdrop').addEventListener('click',
   if (e.target.id === 'shoutoutCelebrationBackdrop') e.currentTarget.classList.remove('open');
 });
 
-function renderGoalsForm(goals) {
+/**
+ * Which month the quota grid is editing: 'current' or 'prior'.
+ *
+ * Quotas used to be one document with no month on it, so clearing or changing
+ * a quota for the new month changed last month's page at the same time. The
+ * grid now edits one month at a time and saves to that month.
+ */
+let goalsEditMonthMode = 'current';
+function goalsEditMonthKey() {
+  if (goalsEditMonthMode !== 'prior') return liveMonthKey();
+  return (previousMonthKeyFromActuals() || {}).key || liveMonthKey();
+}
+function syncGoalsEditMonthUI() {
+  const wrap = document.getElementById('goalsEditMonthToggle');
+  if (!wrap) return;
+  const prev = previousMonthKeyFromActuals();
+  // Nothing to edit for last month until there is a last month.
+  wrap.hidden = !prev;
+  if (!prev && goalsEditMonthMode === 'prior') goalsEditMonthMode = 'current';
+  wrap.querySelectorAll('[data-goals-month]').forEach(btn => {
+    const on = btn.getAttribute('data-goals-month') === goalsEditMonthMode;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  const note = document.getElementById('goalsEditMonthNote');
+  if (note) {
+    note.textContent = goalsEditMonthMode === 'prior'
+      ? `Editing ${(prev && prev.label) || 'last month'} only — this month's quotas are untouched.`
+      : "Editing this month only — last month's quotas stay frozen at what they were.";
+  }
+}
+function setGoalsEditMonthMode(mode) {
+  const next = mode === 'prior' ? 'prior' : 'current';
+  if (next === goalsEditMonthMode) return;
+  goalsEditMonthMode = next;
+  syncGoalsEditMonthUI();
+  renderGoalsForm();
+}
+
+function renderGoalsForm() {
   const container = document.getElementById('goalsForm');
   container.innerHTML = '';
+  syncGoalsEditMonthUI();
+  // The grid follows its own month toggle, not the landing page's: an admin
+  // reviewing last month's board should not have the quota editor silently
+  // switch to writing last month's numbers.
+  const goals = goalsForMonth(goalsEditMonthKey());
+  // A rep removed from the roster this month still had a quota last month, so
+  // the prior-month grid lists whoever that month's quotas name as well.
+  const rosterRows = getRoster();
+  const named = new Set(rosterRows.map(r => r.display));
+  const extra = goalsEditMonthMode === 'prior'
+    ? Object.keys(goals || {}).filter(name => !named.has(name)).sort().map(display => ({ display }))
+    : [];
   // Every rep gets a remove button now — base roster and added people alike —
   // since removal works via the `active` flag in ROSTER_CACHE rather than only
   // being able to delete added entries.
-  getRoster().forEach(r => {
+  [...rosterRows, ...extra].forEach(r => {
     const g = normalizeGoalRecord(goals[r.display]);
     const row = document.createElement('div');
     row.className = 'goal-grid';
@@ -5200,8 +5291,17 @@ function renderRemovedRosterList() {
   `).join('');
 }
 
+document.getElementById('goalsEditMonthToggle')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-goals-month]');
+  if (!btn) return;
+  setGoalsEditMonthMode(btn.getAttribute('data-goals-month'));
+});
+
 document.getElementById('saveGoals').addEventListener('click', async (e) => {
-  const goals = Object.assign({}, loadGoals());
+  const month = goalsEditMonthKey();
+  // Start from the month being edited, never from today's quotas: saving the
+  // prior month must not copy this month's numbers onto it.
+  const goals = Object.assign({}, goalsForMonth(month));
   document.querySelectorAll('#goalsForm input, #goalsForm select').forEach(input => {
     const name = input.getAttribute('data-name');
     const field = input.getAttribute('data-field');
@@ -5214,7 +5314,7 @@ document.getElementById('saveGoals').addEventListener('click', async (e) => {
   const btn = e.currentTarget;
   btn.disabled = true;
   try {
-    await saveGoals(goals);
+    await saveGoals(goals, month);
     render();
   } catch (err) {
     alert('Could not save goals: ' + err.message);
@@ -5255,7 +5355,7 @@ document.getElementById('addPersonBtn').addEventListener('click', async (e) => {
     input.value = '';
     statusEl.textContent = `Added ${name} — set their goals below, then click Save goals.`;
     statusEl.style.color = '#16a34a';
-    renderGoalsForm(loadGoals());
+    renderGoalsForm();
     render();
   } catch (err) {
     statusEl.textContent = 'Error: ' + err.message;
@@ -5275,7 +5375,7 @@ document.getElementById('goalsForm').addEventListener('click', async (e) => {
   try {
     const newRoster = getFullRoster().map(r => r.display === name ? Object.assign({}, r, { active: false }) : r);
     await saveRoster(newRoster);
-    renderGoalsForm(loadGoals());
+    renderGoalsForm();
     render();
   } catch (err) {
     alert('Could not remove ' + name + ': ' + err.message);
@@ -5291,7 +5391,7 @@ document.getElementById('removedRosterList').addEventListener('click', async (e)
   try {
     const newRoster = getFullRoster().map(r => r.display === name ? Object.assign({}, r, { active: true }) : r);
     await saveRoster(newRoster);
-    renderGoalsForm(loadGoals());
+    renderGoalsForm();
     render();
   } catch (err) {
     alert('Could not restore ' + name + ': ' + err.message);
@@ -9504,14 +9604,7 @@ function loadViewApprovedTotals(forDetail) {
 function loadViewGoals(forDetail) {
   const prior = forDetail ? viewingPriorMonthForDetail() : viewingPriorMonthForOps();
   if (!prior) return loadGoals();
-  const key = forDetail ? detailViewMonthKey() : opsViewMonthKey();
-  const snap = (loadPrelimSnapshots() || {})[key];
-  if (snap && snap.goals && Object.keys(snap.goals).length) return snap.goals;
-  if (PRIOR_MONTH_BUNDLE && PRIOR_MONTH_BUNDLE.goals) return PRIOR_MONTH_BUNDLE.goals;
-  // Keep last month's admin goals visible after rollover even before SIP —
-  // the live goals blob is not month-scoped, so current goals are the best
-  // stand-in until a prelim/SIP freeze exists.
-  return loadGoals();
+  return goalsForMonth(forDetail ? detailViewMonthKey() : opsViewMonthKey());
 }
 function viewCalendarParts(forDetail) {
   const prior = forDetail ? viewingPriorMonthForDetail() : viewingPriorMonthForOps();
@@ -11836,6 +11929,7 @@ async function fetchDashboardData() {
     const data = await authedFetch('/api/dashboard/data', { cache: 'no-store' });
     if (data.roster) ROSTER_CACHE = data.roster;
     if (data.goals) GOALS_CACHE = normalizeGoalsDoc(data.goals);
+    if (data.goalsMonths && typeof data.goalsMonths === 'object') GOALS_MONTHS_CACHE = data.goalsMonths;
     // Prefer whatever Blobs has until/unless live Supabase overwrites in boot().
     if (data.actuals) ACTUALS_CACHE = data.actuals;
     if (data.prelim) PRELIM_CACHE = data.prelim;
