@@ -10641,6 +10641,13 @@ function renderCancelsWindowNote() {
     parts.push(`${w.periodDuplicatesDropped} prior-month duplicate${w.periodDuplicatesDropped === 1 ? '' : 's'} dropped`);
   }
   if (w.duplicateRows) parts.push(`${w.duplicateRows} duplicate ledger rows collapsed`);
+  // Whether the period-transfer wash matched anything, next to the number it
+  // is supposed to move — a rule that silently matches nothing looks exactly
+  // like a rule that was never deployed.
+  const wash = w.transferWash || null;
+  if (wash && wash.rows) {
+    parts.push(`${wash.rows} prior-month re-booking${wash.rows === 1 ? '' : 's'} washed (${lost(wash)} not counted as attrition)`);
+  }
   const soft = (w.deletedAttribution && w.deletedAttribution.rows) || 0;
   if (soft) parts.push(`${soft} line${soft === 1 ? '' : 's'} on soft-deleted attributions`);
   if (w.lifetimeAvailable === false) parts.push('lifetime check unavailable — cancels may be over-counted');
@@ -10673,7 +10680,9 @@ function cancelLinesCsv() {
     bySaleMonth.get(`${r.rep}|${r.clientId}|${r.date}|${r.members}|${r.sessions}`) || '',
   ]);
   const totals = rows.reduce((a, r) => ({ m: a.m + r.members, s: a.s + r.sessions }), { m: 0, s: 0 });
-  const meta = `# rule=${w.rule || 'unknown'} month=${w.month || ''} lines=${rows.length} members=${fmt(totals.m, 1)} sessions=${fmt(totals.s, 1)}`;
+  const wash = w.transferWash || null;
+  const meta = `# rule=${w.rule || 'unknown'} month=${w.month || ''} lines=${rows.length} members=${fmt(totals.m, 1)} sessions=${fmt(totals.s, 1)}`
+    + ` washed=${wash ? `${wash.rows}/${fmt(wash.members, 1)}` : 'n/a'}`;
   return [meta, head.join(','), ...body.map((cols) => cols.join(','))].join('\n');
 }
 

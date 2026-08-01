@@ -29,6 +29,7 @@ function line({
   clientId = "8568597",
   lifetimeMembers,
   lifetimeSessions,
+  saleDate = date,
 }) {
   return {
     email: EMAIL,
@@ -36,7 +37,7 @@ function line({
     client_id: clientId,
     attribution_date: date,
     occurred_at: `${date} 12:00:00`,
-    sale_occurred_at: `${date} 12:00:00`,
+    sale_occurred_at: `${saleDate} 12:00:00`,
     members,
     sessions,
     ledger_id: String(ledgerId),
@@ -193,6 +194,64 @@ const orphanCancel = netLedgerJournal(
 assert.equal(totals(orphanCancel.rows).cancelMembers, 0, "an orphan cancel is dropped");
 assert.equal(orphanCancel.suppressed.length, 1);
 assert.equal(orphanCancel.suppressed[0].reason, "orphan-cancel");
+
+// ---- Period-transfer wash ---------------------------------------------------
+// Cancelling a prior month's sale can re-book the credit into this month and
+// cancel it in the same breath. Both lines land in this window on a journal
+// whose sale is older than the window; the export shows neither, because they
+// belong to the month the sale lived in. 41 lines / -34.5 members of the July
+// dump were this shape.
+const transferWash = netLedgerJournal(
+  [
+    line({ ledgerId: 673101, attributionId: 83101, members: 1, sessions: 8, date: "2026-07-12", saleDate: "2026-06-20" }),
+    line({ ledgerId: 673102, attributionId: 83101, members: -1, sessions: -8, date: "2026-07-12", saleDate: "2026-06-20" }),
+  ],
+  DISPLAY,
+  new Set(),
+  MONTH
+);
+assert.equal(totals(transferWash.rows).cancelMembers, 0, "a re-booked prior-month sale is not attrition");
+assert.equal(totals(transferWash.rows).members, 0, "and the pair still nets to zero — members do not move");
+assert.equal(transferWash.washed.length, 1, "the washed line is reported, not silently dropped");
+assert.equal(transferWash.washed[0].saleMonth, "2026-06");
+
+// The same shape with no credit in the window is a genuine prior-month cancel:
+// the sale's credit sits in the month it was booked. 44 July lines were this,
+// and the export counts every one.
+const genuinePriorMonth = netLedgerJournal(
+  [line({ ledgerId: 673201, attributionId: 83201, members: -1, sessions: -8, date: "2026-07-12", saleDate: "2026-06-20", lifetimeMembers: 0, lifetimeSessions: 0 })],
+  DISPLAY,
+  new Set(),
+  MONTH
+);
+assert.equal(totals(genuinePriorMonth.rows).cancelMembers, -1, "a prior-month cancel with no offsetting credit still counts");
+assert.equal(genuinePriorMonth.washed.length, 0);
+
+// A sale made and cancelled inside the same month is real attrition, even
+// though its journal also nets to zero. Keying the wash on the sale month is
+// what tells the two apart.
+const sameMonthCancel = netLedgerJournal(
+  [
+    line({ ledgerId: 673301, attributionId: 83301, members: 1, sessions: 4, date: "2026-07-09" }),
+    line({ ledgerId: 673302, attributionId: 83301, members: -1, sessions: -4, date: "2026-07-31" }),
+  ],
+  DISPLAY,
+  new Set(),
+  MONTH
+);
+assert.equal(totals(sameMonthCancel.rows).cancelMembers, -1, "this month's sale cancelled this month is attrition");
+assert.equal(sameMonthCancel.washed.length, 0);
+
+// Without a window month the journal behaves exactly as it did before.
+const noWindow = netLedgerJournal(
+  [
+    line({ ledgerId: 673401, attributionId: 83401, members: 1, sessions: 8, date: "2026-07-12", saleDate: "2026-06-20" }),
+    line({ ledgerId: 673402, attributionId: 83401, members: -1, sessions: -8, date: "2026-07-12", saleDate: "2026-06-20" }),
+  ],
+  DISPLAY,
+  new Set()
+);
+assert.equal(totals(noWindow.rows).cancelMembers, -1, "the wash is opt-in");
 
 // Drop no more than the overshoot: two cancels, only one line too many.
 const partialOvershoot = netLedgerJournal(
