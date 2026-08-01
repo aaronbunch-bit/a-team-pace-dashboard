@@ -11051,7 +11051,7 @@ function cancelLinesCsv() {
   const head = [
     'date', 'rep', 'client_id', 'members', 'sessions', 'sale_month',
     'attribution_id', 'ledger_id', 'lifetime_members', 'attr_credit', 'client_rep_credit',
-    'transferred_out', 'ledger_type', 'attr_type', 'credit_id', ...candidateCols,
+    'transferred_out', 'ledger_type', 'attr_type', 'credit_id', 'credit_matched', 'credit_business_date', ...candidateCols,
   ];
   const body = rows.map((r) => {
     const it = byKey.get(`${r.rep}|${r.clientId}|${r.date}|${r.members}|${r.sessions}`) || {};
@@ -11071,21 +11071,30 @@ function cancelLinesCsv() {
       it.ledgerType || '',
       it.attrType || '',
       it.creditId || '',
+      it.creditMatched === null || it.creditMatched === undefined ? '' : (it.creditMatched ? '1' : '0'),
+      it.creditBusinessDate || '',
       ...candidateCols.map((c) => (it.monthKeyCandidates || {})[c] || ''),
     ];
   });
   const totals = rows.reduce((a, r) => ({ m: a.m + r.members, s: a.s + r.sessions }), { m: 0, s: 0 });
   const wash = w.transferWash || null;
+  const creditJoin = w.creditJoin || null;
   const meta = `# rule=${w.rule || 'unknown'} month=${w.month || ''} lines=${rows.length} members=${fmt(totals.m, 1)} sessions=${fmt(totals.s, 1)}`
-    + ` washed=${wash ? `${wash.rows}/${fmt(wash.members, 1)}` : 'n/a'}`;
+    + ` washed=${wash ? `${wash.rows}/${fmt(wash.members, 1)}` : 'n/a'}`
+    + (creditJoin
+      ? ` credit_join=${creditJoin.active ? 'on' : (creditJoin.enabled ? 'disabled' : 'off')}`
+        + ` orphan_credit=${creditJoin.orphanWashed ? `${creditJoin.orphanWashed.rows}/${fmt(creditJoin.orphanWashed.members, 1)}` : 'n/a'}`
+      : '');
   const colMeta = w.ledgerColumns
     ? `# ledger_columns=${(w.ledgerColumns.rep_scores_ledger_entries || []).join('|')} attr_columns=${(w.ledgerColumns.attributions || []).join('|')}`
+      + ` credit_columns=${(w.ledgerColumns.credits || []).join('|') || 'none'}`
     : null;
   const typeMeta = w.cancelTypes
     ? `# ledger_types=${((w.cancelTypes.ledger || []).map((t) => `${t.type}:${t.rows}:${fmt(t.members, 1)}`).join('|'))}`
       + ` attr_types=${((w.cancelTypes.attribution || []).map((t) => `${t.type}:${t.rows}:${fmt(t.members, 1)}`).join('|'))}`
     : null;
-  const schemaMeta = `# schema_tables=${(w.schemaTables || []).join('|')} attribution_date_columns=${(w.attributionDateColumns || []).join('|') || 'none'}`;
+  const schemaMeta = `# schema_tables=${(w.schemaTables || []).join('|')} attribution_date_columns=${(w.attributionDateColumns || []).join('|') || 'none'}`
+    + (creditJoin ? ` credit_id_columns=${(creditJoin.idColumns || []).join('|') || 'none'}` : '');
   return [
     meta,
     ...(colMeta ? [colMeta] : []),

@@ -389,6 +389,108 @@ const noLifetime = netLedgerJournal(
 );
 assert.equal(totals(noLifetime.rows).cancelMembers, -2, "no lifetime totals means no guessing");
 
+// ---- Credit join wash (orphan / wrong-month) --------------------------------
+// The July dump's 28 export leftovers are almost all unresolved credit_ids.
+// When the live query sets credit_matched=false, those cancels must leave the
+// tile. Undefined credit_matched (join unavailable) must leave them alone so a
+// failed probe cannot zero attrition.
+const orphanCredit = netLedgerJournal(
+  [
+    {
+      ...line({
+        ledgerId: 665038,
+        attributionId: 76697,
+        members: -1,
+        sessions: -4,
+        date: "2026-07-01",
+        saleDate: "2026-06-01",
+        lifetimeMembers: 0,
+        lifetimeSessions: 0,
+      }),
+      credit_id: "8c7e9fa6-bd3b-4b24-bbbb-f7ad295ac4ba",
+      credit_matched: false,
+    },
+    {
+      ...line({
+        ledgerId: 675212,
+        attributionId: 83797,
+        members: -1,
+        sessions: -4,
+        date: "2026-07-31",
+        saleDate: "2026-07-09",
+        lifetimeMembers: 0,
+        lifetimeSessions: 0,
+      }),
+      credit_id: "10022870",
+      credit_matched: true,
+      credit_business_date: "2026-07-31",
+    },
+  ],
+  DISPLAY,
+  new Set(),
+  "2026-07"
+);
+assert.equal(
+  totals(orphanCredit.rows).cancelMembers,
+  -1,
+  "unresolved credit_id cancels are washed; resolved ones stay"
+);
+assert.equal(orphanCredit.washed.length, 1);
+assert.equal(orphanCredit.washed[0].reason, "orphan-credit");
+assert.equal(orphanCredit.washed[0].ledgerId, "665038");
+
+const wrongMonthCredit = netLedgerJournal(
+  [
+    {
+      ...line({
+        ledgerId: 669010,
+        attributionId: 78780,
+        members: -1,
+        sessions: -4,
+        date: "2026-07-12",
+        saleDate: "2026-06-12",
+        lifetimeMembers: 0,
+        lifetimeSessions: 0,
+      }),
+      credit_id: "e868bfb8-f8cd-47c0-a271-1bceae96f5c4",
+      credit_matched: true,
+      credit_business_date: "2026-06-12",
+    },
+  ],
+  DISPLAY,
+  new Set(),
+  "2026-07"
+);
+assert.equal(
+  totals(wrongMonthCredit.rows).cancelMembers,
+  -1,
+  "credit business day is diagnostic only until a column is proven against the export"
+);
+assert.equal(wrongMonthCredit.washed.length, 0);
+
+const noCreditSignal = netLedgerJournal(
+  [
+    line({
+      ledgerId: 665038,
+      attributionId: 76697,
+      members: -1,
+      sessions: -4,
+      date: "2026-07-01",
+      saleDate: "2026-06-01",
+      lifetimeMembers: 0,
+      lifetimeSessions: 0,
+    }),
+  ],
+  DISPLAY,
+  new Set(),
+  "2026-07"
+);
+assert.equal(
+  totals(noCreditSignal.rows).cancelMembers,
+  -1,
+  "without credit_matched the orphan-credit wash must not fire"
+);
+
 // ---- Poll ETags ------------------------------------------------------------
 // A compact poll and a full one carry the same totals but different bodies. If
 // they shared a tag, a tab that had polled compact and then needed line items
@@ -413,4 +515,4 @@ assert.notEqual(
   "a cancel moving must break the tag, or tiles freeze on a stale number"
 );
 
-console.log("ok — journal rows, cancel classification, month window, dedupe, line items, period duplicates, etags");
+console.log("ok — journal rows, cancel classification, month window, dedupe, line items, period duplicates, credit-join wash, etags");

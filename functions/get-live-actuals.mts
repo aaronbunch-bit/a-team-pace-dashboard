@@ -65,17 +65,17 @@ function monthBoundsCte(month: string, tz: string): string {
  * Four rewrites in a row all read the same -86.5 on screen, and there was no way
  * to tell a rule that had not worked from a build that had not shipped yet.
  */
-const LEDGER_RULE_VERSION = "created_at+scoring+live-attro+transfer-wash-v5+type-schema";
+const LEDGER_RULE_VERSION =
+  "created_at+scoring+live-attro+transfer-wash-v5+credit-join-v1";
 
 /**
  * Columns worth testing as the export's month key.
  *
- * The attr-dates dump scored every date-typed column on both tables: none of
- * them keeps the export's 58 / -50.5. The export's own `attribution_date` on
- * those 58 lines (e.g. 2026-07-06 for ledger 674865) matches none of the six
- * date fields we shipped — so that value is stored under a name or type the
- * date-typed probe never selected. This pass takes every scalar column whose
- * name looks like a date, plus every real date/timestamp column, ledger first.
+ * Ledger + attribution date columns all failed to separate the export's 58 /
+ * -50.5 from the 28 leftovers. The leftovers almost all carry a UUID
+ * `credit_id` (or blank); every numeric `credit_id` is in the export. The
+ * schema lists a `credits` table — join it, and prefer a date on that row as
+ * the business day the export calls `attribution_date`.
  */
 const MONTH_KEY_CANDIDATE_TYPES = new Set([
   "date",
@@ -123,7 +123,7 @@ const MONTH_KEY_NAME_RE =
   /(date|time|at$|_at$|when|scored|effective|business|period|month|day|on$)/i;
 
 /** Keeps the generated select (and the CSV) to a readable width. */
-const MONTH_KEY_CANDIDATE_LIMIT = 24;
+const MONTH_KEY_CANDIDATE_LIMIT = 32;
 
 type MonthKeyCandidate = {
   /** Alias used in SQL (`cand_…`) and in the CSV header. */
@@ -131,9 +131,44 @@ type MonthKeyCandidate = {
   /** Qualified column, e.g. `l.created_at` or `a.occurred_at`. */
   expr: string;
   type: string;
-  table: "rep_scores_ledger_entries" | "attributions";
+  table: "rep_scores_ledger_entries" | "attributions" | "credits";
   column: string;
 };
+
+/** How the live query matches `l.credit_id` onto `sales_attribution.credits`. */
+type CreditJoinPlan = {
+  enabled: boolean;
+  /** SQL boolean expression joining alias `c` to ledger `l`. */
+  onClause: string;
+  idColumns: string[];
+  /** Date/timestamp columns on credits, preferred first. */
+  dateColumns: { name: string; type: string }[];
+  /**
+   * Coalesce of preferred credit date columns → calendar day text in team TZ.
+   * Null when credits has no date-typed column we can read.
+   */
+  businessDateExpr: string | null;
+};
+
+/** Column names on `credits` that might equal `l.credit_id`. */
+const CREDIT_ID_COLUMN_RE = /^(id|uuid|guid|credit_id|external_id|public_id|source_id|.+_uuid)$/i;
+
+/** Prefer these credit dates as the export's `attribution_date`. */
+const CREDIT_BUSINESS_DATE_PRIORITY = [
+  "attribution_date",
+  "cancelled_at",
+  "canceled_at",
+  "cancellation_date",
+  "cancellation_at",
+  "effective_date",
+  "effective_at",
+  "occurred_at",
+  "posted_at",
+  "credit_date",
+  "business_date",
+  "scored_at",
+  "created_at",
+];
 
 type LedgerRow = {
   email: string;
@@ -164,6 +199,19 @@ type LedgerRow = {
   attr_type?: string;
   /** Optional link to a credit line; present on some cancels. */
   credit_id?: string;
+  /**
+   * True when `l.credit_id` resolved to a `credits` row. False when the join
+   * ran and found nothing (or credit_id was blank). Undefined when the credits
+   * join was not available — journal must not wash on an absent signal.
+   */
+  credit_matched?: boolean;
+  /**
+   * Preferred business day from the joined credits row (team TZ calendar day).
+   * When present and outside the window month, the cancel is washed the same
+   * way an unresolved credit_id is — the export windows on this day, not on
+   * `l.created_at`.
+   */
+  credit_business_date?: string;
   /**
    * Every date column on the ledger row, keyed by column name, so the month key
    * the export windows on can be named from evidence. Diagnostics only — no
@@ -217,6 +265,8 @@ type WashedCancel = {
   sessions: number;
   date: string;
   saleMonth: string;
+  /** transfer = same-write rebook; orphan-credit = no credits row; credit-month = credit day outside window. */
+  reason?: "transfer" | "orphan-credit" | "credit-month";
 };
 
 /**
@@ -572,6 +622,7 @@ export function netLedgerJournal(
               sessions: Number(row.sessions) || 0,
               date: String(row.attribution_date || "").slice(0, 10),
               saleMonth,
+              reason: "transfer",
             });
             continue;
           }
@@ -579,6 +630,43 @@ export function netLedgerJournal(
         }
         cancelLines = surviving;
       }
+    }
+
+    // Wash cancels the export never lists because their credit_id does not
+    // resolve to a `credits` row.
+    //
+    // Joined onto the July export by ledger_id: 28 of the 86 tile cancels
+    // (-24.0) are absent. 27 carry a UUID credit_id and one is blank; every
+    // numeric credit_id is in the export. The schema has a `credits` table and
+    // the ledger has `credit_id`. When the live query left-joins that table,
+    // unresolved cancels are dropped here. `credit_matched` stays undefined
+    // when the join was unavailable so older fixtures and a failed probe
+    // cannot zero the tile.
+    //
+    // Credit *dates* are dumped as month-key candidates but are not yet used
+    // to wash: if the only date on credits is created_at (= sale day), a
+    // prior-month keep the export dates into July would be dropped wrongly.
+    if (windowMonth && cancelLines.some((r) => r.credit_matched === false)) {
+      const surviving: LedgerRow[] = [];
+      for (const row of cancelLines) {
+        if (row.credit_matched === false) {
+          washedHere.push(row);
+          washed.push({
+            ledgerId: String(row.ledger_id || ""),
+            attributionId: String(row.attribution_id || ""),
+            clientId: String(row.client_id || ""),
+            repName: displayFor(row),
+            members: Number(row.members) || 0,
+            sessions: Number(row.sessions) || 0,
+            date: String(row.attribution_date || "").slice(0, 10),
+            saleMonth,
+            reason: "orphan-credit",
+          });
+          continue;
+        }
+        surviving.push(row);
+      }
+      cancelLines = surviving;
     }
 
     if (creditLines.length) {
@@ -724,6 +812,9 @@ export function cancelLineItems(
         ledgerType: String(row.ledger_type || "").trim(),
         attrType: String(row.attr_type || "").trim(),
         creditId: String(row.credit_id || "").trim(),
+        creditMatched:
+          row.credit_matched === undefined ? null : row.credit_matched === true,
+        creditBusinessDate: String(row.credit_business_date || "").slice(0, 10) || null,
         monthKeyCandidates: row.month_key_candidates || {},
       };
     })
@@ -763,20 +854,27 @@ function summarizeCancelsBySaleMonth(rows: LedgerRow[], month: string) {
 }
 
 /**
- * Schema probe: column lists, month-key candidates, every table in the
- * attribution schema, and any `attribution_date` column anywhere in the DB.
+ * Schema probe: ledger/attribution/credits columns, month-key candidates,
+ * every table in the attribution schema, and any `attribution_date` column
+ * anywhere in the DB.
  *
- * The col-probe dump proved the ledger and attributions tables have no
- * business-date column — the export's `attribution_date` is not stored on
- * either. The remaining on-row discriminator is `type`; the remaining
- * off-row lead is another table that actually has `attribution_date`.
+ * The col-probe dump proved ledger + attributions have no business-date column
+ * matching the export. `credits` is the remaining join via `l.credit_id`.
  */
 async function loadLedgerSchema(): Promise<{
   columns: Record<string, string[]> | null;
   candidates: MonthKeyCandidate[];
   tables: string[];
   attributionDateColumns: string[];
+  creditJoin: CreditJoinPlan;
 }> {
+  const emptyJoin: CreditJoinPlan = {
+    enabled: false,
+    onClause: "false",
+    idColumns: [],
+    dateColumns: [],
+    businessDateExpr: null,
+  };
   try {
     const cols = await runSupabaseSql<{
       table_name: string;
@@ -786,38 +884,64 @@ async function loadLedgerSchema(): Promise<{
 select table_name, column_name, data_type
 from information_schema.columns
 where table_schema = 'sales_attribution'
-  and table_name in ('rep_scores_ledger_entries', 'attributions')
+  and table_name in (
+    'rep_scores_ledger_entries', 'attributions', 'credits',
+    'sessions', 'calls', 'clients'
+  )
 order by
-  case when table_name = 'rep_scores_ledger_entries' then 0 else 1 end,
+  case table_name
+    when 'rep_scores_ledger_entries' then 0
+    when 'attributions' then 1
+    when 'credits' then 2
+    else 3
+  end,
   ordinal_position;
 `);
     const columns: Record<string, string[]> = {};
     const candidates: MonthKeyCandidate[] = [];
     const seen = new Set<string>();
+    const creditColRows: { name: string; type: string }[] = [];
     for (const c of cols) {
-      const table = String(c.table_name) as MonthKeyCandidate["table"];
+      const table = String(c.table_name);
       const name = String(c.column_name);
       const type = String(c.data_type);
       (columns[table] ||= []).push(`${name}:${type}`);
-      if (table !== "rep_scores_ledger_entries" && table !== "attributions") continue;
+      if (table === "credits") creditColRows.push({ name, type });
+      if (
+        table !== "rep_scores_ledger_entries" &&
+        table !== "attributions" &&
+        table !== "credits"
+      ) {
+        continue;
+      }
       if (MONTH_KEY_CANDIDATE_SKIP.has(name)) continue;
       if (!MONTH_KEY_CANDIDATE_TYPES.has(type)) continue;
       const isDateType = MONTH_KEY_DATE_TYPES.has(type);
       if (!isDateType && !MONTH_KEY_NAME_RE.test(name)) continue;
       if (!/^[a-z_][a-z0-9_]*$/.test(name)) continue;
-      const alias = table === "attributions" ? `a_${name}` : name;
+      const alias =
+        table === "attributions" ? `a_${name}` : table === "credits" ? `c_${name}` : name;
       if (seen.has(alias)) continue;
       if (candidates.length >= MONTH_KEY_CANDIDATE_LIMIT) continue;
       seen.add(alias);
-      const expr = table === "attributions" ? `a.${name}` : `l.${name}`;
-      candidates.push({ alias, expr, type, table, column: name });
+      const expr =
+        table === "attributions" ? `a.${name}` : table === "credits" ? `c.${name}` : `l.${name}`;
+      candidates.push({
+        alias,
+        expr,
+        type,
+        table: table as MonthKeyCandidate["table"],
+        column: name,
+      });
     }
     candidates.sort((a, b) => {
       const score = (c: MonthKeyCandidate) => {
         let s = 0;
         if (c.column === "attribution_date") s += 100;
+        if (c.table === "credits") s += 50;
         if (c.column.includes("attribution")) s += 40;
         if (c.column.includes("business") || c.column.includes("effective")) s += 30;
+        if (c.column.includes("cancel")) s += 25;
         if (c.table === "rep_scores_ledger_entries") s += 10;
         if (MONTH_KEY_DATE_TYPES.has(c.type)) s += 5;
         return -s;
@@ -860,11 +984,82 @@ order by table_schema, table_name, column_name;
       console.warn("get-live-actuals attribution_date search failed", err?.message || err);
     }
 
-    return { columns, candidates, tables, attributionDateColumns };
+    const creditJoin = buildCreditJoinPlan(creditColRows);
+
+    return { columns, candidates, tables, attributionDateColumns, creditJoin };
   } catch (err: any) {
     console.warn("get-live-actuals schema probe failed", err?.message || err);
-    return { columns: null, candidates: [], tables: [], attributionDateColumns: [] };
+    return {
+      columns: null,
+      candidates: [],
+      tables: [],
+      attributionDateColumns: [],
+      creditJoin: emptyJoin,
+    };
   }
+}
+
+/**
+ * Build a left-join plan for `sales_attribution.credits` from its columns.
+ *
+ * `l.credit_id` is text and holds both numeric CRM ids and UUIDs, so every
+ * id-shaped column on credits is OR'd into the ON clause via `::text`.
+ */
+function buildCreditJoinPlan(
+  creditCols: { name: string; type: string }[],
+  tz = TEAM_TIME_ZONE.replace(/'/g, "''")
+): CreditJoinPlan {
+  if (!creditCols.length) {
+    return {
+      enabled: false,
+      onClause: "false",
+      idColumns: [],
+      dateColumns: [],
+      businessDateExpr: null,
+    };
+  }
+  const idColumns = creditCols
+    .map((c) => c.name)
+    .filter((name) => CREDIT_ID_COLUMN_RE.test(name) && /^[a-z_][a-z0-9_]*$/.test(name));
+  // Always try `id` if present even when the regex somehow misses it.
+  if (!idColumns.includes("id") && creditCols.some((c) => c.name === "id")) {
+    idColumns.unshift("id");
+  }
+  const dateColumns = creditCols.filter(
+    (c) => MONTH_KEY_DATE_TYPES.has(c.type) && /^[a-z_][a-z0-9_]*$/.test(c.name) && c.name !== "deleted_at"
+  );
+  dateColumns.sort((a, b) => {
+    const rank = (name: string) => {
+      const i = CREDIT_BUSINESS_DATE_PRIORITY.indexOf(name);
+      return i === -1 ? 100 + name.length : i;
+    };
+    return rank(a.name) - rank(b.name) || a.name.localeCompare(b.name);
+  });
+
+  const idMatch =
+    idColumns.length > 0
+      ? idColumns.map((col) => `c.${col}::text = btrim(l.credit_id)`).join("\n      or ")
+      : "false";
+  const onClause = `(
+    nullif(btrim(coalesce(l.credit_id, '')), '') is not null
+    and (
+      ${idMatch}
+    )
+  )`;
+
+  const businessParts = dateColumns.map(({ name, type }) => {
+    if (type === "date") return `c.${name}::text`;
+    return `(c.${name} at time zone '${tz}')::date::text`;
+  });
+  const businessDateExpr = businessParts.length ? `coalesce(${businessParts.join(", ")})` : null;
+
+  return {
+    enabled: idColumns.length > 0,
+    onClause,
+    idColumns,
+    dateColumns,
+    businessDateExpr,
+  };
 }
 
 /**
@@ -1183,12 +1378,18 @@ export default async (req: Request, context: Context) => {
     // can be carried on the row and measured against the month. Best effort:
     // the query below runs with no candidates if this fails.
     const schema = await loadLedgerSchema();
-    const candidateColumns = schema.candidates;
+    const creditJoin = schema.creditJoin;
+    // Credits date candidates need the join; drop them when the join is off so
+    // the select list never references alias `c` without a FROM entry.
+    const candidateColumns = schema.candidates.filter(
+      (c) => c.table !== "credits" || creditJoin.enabled
+    );
     const candidateSelect = candidateColumns
       .map(({ alias, expr, type }) => {
         // Date-typed columns need the team zone; everything else is cast to text
         // and clipped to a calendar day so a text/numeric store of the export's
-        // attribution_date still scores.
+        // attribution_date still scores. Credits columns are null when the join
+        // misses — left() of null stays null and is dropped from candidates.
         const asDay = MONTH_KEY_DATE_TYPES.has(type)
           ? type === "date"
             ? `${expr}::text`
@@ -1200,6 +1401,20 @@ export default async (req: Request, context: Context) => {
     const candidateSelectFromWin = candidateColumns
       .map(({ alias }) => `  win."cand_${alias}"`)
       .join(",\n");
+
+    const creditHasDeletedAt = (schema.columns?.credits || []).some((c) =>
+      c.startsWith("deleted_at:")
+    );
+    const creditJoinSql = creditJoin.enabled
+      ? `left join sales_attribution.credits c
+    on ${creditJoin.onClause}${creditHasDeletedAt ? "\n   and c.deleted_at is null" : ""}`
+      : "";
+    const creditMatchedExpr =
+      creditJoin.enabled && creditJoin.idColumns.includes("id")
+        ? "(c.id is not null)"
+        : creditJoin.enabled
+          ? `(${creditJoin.idColumns.map((col) => `c.${col} is not null`).join(" or ") || "false"})`
+          : "null";
 
     // Did the ledger hand this sale to a different rep at the moment it wrote
     // this line? Transfers are written as one transaction — the losing rep's
@@ -1220,9 +1435,8 @@ export default async (req: Request, context: Context) => {
       )
       else false
     end as transferred_out`;
-    const sql = `
-with ${bounds},
-win as (
+
+    const winSelect = `
   select
     l.id as ledger_id,
     l.attribution_id,
@@ -1237,13 +1451,22 @@ win as (
     a.occurred_at as sale_occurred_at,
     (a.deleted_at is not null) as attribution_deleted,
     lower(f.email) as email,
-    f.name as manager_name,${transferredOut}${candidateSelect ? `,\n${candidateSelect}` : ""}
+    f.name as manager_name,${transferredOut}${
+      creditJoin.enabled
+        ? `,\n    ${creditMatchedExpr} as credit_matched${
+            creditJoin.businessDateExpr
+              ? `,\n    ${creditJoin.businessDateExpr} as credit_business_date`
+              : `,\n    null::text as credit_business_date`
+          }`
+        : ""
+    }${candidateSelect ? `,\n${candidateSelect}` : ""}
   from sales_attribution.rep_scores_ledger_entries l
   join sales_attribution.attributions a
     on a.id = l.attribution_id
   join sales_attribution.flex_team_members f
     on f.manager_id = l.manager_id
    and f.deleted_at is null
+  ${creditJoinSql}
   cross join bounds b
   where l.deleted_at is null
     and a.deleted_at is null
@@ -1251,7 +1474,12 @@ win as (
     and l.created_at <  b.month_end
     and a.occurred_at >= b.scoring_start
     and a.occurred_at <  b.month_end
-    and lower(f.email) in (${sqlStringList(emails)})
+    and lower(f.email) in (${sqlStringList(emails)})`;
+
+    const sql = `
+with ${bounds},
+win as (
+${winSelect}
 ),
 journals as (
   select distinct attribution_id, manager_id from win
@@ -1288,7 +1516,9 @@ select
   win.net_client_credit_amount::float8 as members,
   win.hours_amount::float8 as sessions,
   life.lifetime_members,
-  life.lifetime_sessions${candidateSelectFromWin ? `,\n${candidateSelectFromWin}` : ""}
+  life.lifetime_sessions${creditJoin.enabled ? `,\n  win.credit_matched,\n  win.credit_business_date` : ""}${
+      candidateSelectFromWin ? `,\n${candidateSelectFromWin}` : ""
+    }
 from win
 join life
   on life.attribution_id = win.attribution_id
@@ -1314,7 +1544,64 @@ select
   a.type as attr_type,
   l.credit_id,
   l.net_client_credit_amount::float8 as members,
-  l.hours_amount::float8 as sessions${candidateSelect ? `,\n${candidateSelect}` : ""}
+  l.hours_amount::float8 as sessions${
+    creditJoin.enabled
+      ? `,\n  ${creditMatchedExpr} as credit_matched${
+          creditJoin.businessDateExpr
+            ? `,\n  ${creditJoin.businessDateExpr} as credit_business_date`
+            : `,\n  null::text as credit_business_date`
+        }`
+      : ""
+  }${candidateSelect ? `,\n${candidateSelect}` : ""}
+from sales_attribution.rep_scores_ledger_entries l
+join sales_attribution.attributions a
+  on a.id = l.attribution_id
+join sales_attribution.flex_team_members f
+  on f.manager_id = l.manager_id
+ and f.deleted_at is null
+${creditJoinSql}
+cross join bounds b
+where l.deleted_at is null
+  and a.deleted_at is null
+  and l.created_at >= b.month_start
+  and l.created_at <  b.month_end
+  and a.occurred_at >= b.scoring_start
+  and a.occurred_at <  b.month_end
+  and lower(f.email) in (${sqlStringList(emails)})
+order by l.created_at asc, l.id asc;
+`;
+
+    const plainFallbackSql = `
+with ${bounds}
+select
+  lower(f.email) as email,
+  f.name as manager_name,
+  a.client_id,
+  l.id::text as ledger_id,
+  a.id::text as attribution_id,
+  l.manager_id::text as manager_id,
+  l.created_at::text as ledger_created_at,
+  (l.created_at at time zone '${tz}')::date::text as attribution_date,
+  (l.created_at at time zone '${tz}')::text as occurred_at,
+  (a.occurred_at at time zone '${tz}')::text as sale_occurred_at,
+  (a.deleted_at is not null) as attribution_deleted,${transferredOut},
+  l.type as ledger_type,
+  a.type as attr_type,
+  l.credit_id,
+  l.net_client_credit_amount::float8 as members,
+  l.hours_amount::float8 as sessions${
+    candidateColumns
+      .filter((c) => c.table !== "credits")
+      .map(({ alias, expr, type }) => {
+        const asDay = MONTH_KEY_DATE_TYPES.has(type)
+          ? type === "date"
+            ? `${expr}::text`
+            : `(${expr} at time zone '${tz}')::date::text`
+          : `left((${expr})::text, 10)`;
+        return `,\n  ${asDay} as "cand_${alias}"`;
+      })
+      .join("")
+  }
 from sales_attribution.rep_scores_ledger_entries l
 join sales_attribution.attributions a
   on a.id = l.attribution_id
@@ -1339,24 +1626,72 @@ order by l.created_at asc, l.id asc;
     // total can sit on screen for an hour looking like a fix that did not work.
     let rawRows: LedgerRow[];
     let lifetimeAvailable = true;
+    let creditJoinActive = creditJoin.enabled;
     try {
       rawRows = await runSupabaseSql<LedgerRow>(sql);
     } catch (enrichedErr: any) {
       console.error("get-live-actuals lifetime query failed, falling back", enrichedErr);
-      rawRows = await runSupabaseSql<LedgerRow>(fallbackSql);
-      lifetimeAvailable = false;
+      try {
+        rawRows = await runSupabaseSql<LedgerRow>(fallbackSql);
+        lifetimeAvailable = false;
+      } catch (fallbackErr: any) {
+        if (!creditJoin.enabled) throw fallbackErr;
+        console.error("get-live-actuals credit join failed, retrying without credits", fallbackErr);
+        creditJoinActive = false;
+        rawRows = await runSupabaseSql<LedgerRow>(plainFallbackSql);
+        lifetimeAvailable = false;
+      }
     }
     // Carry every candidate date onto the row so the journal, the payload and
     // the CSV all see the same values. Only keep values that look like a
     // calendar day — a name-matched integer column casting to "42" is noise.
     for (const row of rawRows) {
-      if (!candidateColumns.length) break;
       const dates: Record<string, string> = {};
       for (const { alias } of candidateColumns) {
+        if (!creditJoinActive && alias.startsWith("c_")) continue;
         const value = String((row as Record<string, unknown>)[`cand_${alias}`] ?? "").slice(0, 10);
         if (/^\d{4}-\d{2}-\d{2}$/.test(value)) dates[alias] = value;
       }
       row.month_key_candidates = dates;
+
+      if (!creditJoinActive) {
+        delete row.credit_matched;
+        delete row.credit_business_date;
+        continue;
+      }
+      // Normalize driver/boolean quirks from the SQL endpoint.
+      const rawMatch = (row as Record<string, unknown>).credit_matched;
+      if (rawMatch === true || rawMatch === "t" || rawMatch === "true" || rawMatch === 1) {
+        row.credit_matched = true;
+      } else if (rawMatch === false || rawMatch === "f" || rawMatch === "false" || rawMatch === 0) {
+        row.credit_matched = false;
+      } else if (rawMatch == null) {
+        // Blank credit_id → unmatched when the join ran.
+        row.credit_matched = false;
+      }
+      const biz = String(row.credit_business_date || "").slice(0, 10);
+      row.credit_business_date = /^\d{4}-\d{2}-\d{2}$/.test(biz) ? biz : undefined;
+    }
+
+    // Safety: if the join ran but matched nothing on cancels that have a
+    // credit_id, the ON clause is wrong — strip the signal so we don't wash
+    // the whole tile to zero.
+    if (creditJoinActive) {
+      const cancelLike = rawRows.filter(
+        (r) => (Number(r.members) || 0) < 0 || (Number(r.sessions) || 0) < 0
+      );
+      const withId = cancelLike.filter((r) => String(r.credit_id || "").trim());
+      const matched = withId.filter((r) => r.credit_matched === true);
+      if (withId.length > 0 && matched.length === 0) {
+        console.warn(
+          "get-live-actuals credit join matched 0 cancels with credit_id; disabling orphan-credit wash"
+        );
+        creditJoinActive = false;
+        for (const row of rawRows) {
+          delete row.credit_matched;
+          delete row.credit_business_date;
+        }
+      }
     }
 
     const deletedAttribution = summarizeRows(rawRows.filter((row) => !!row.attribution_deleted));
@@ -1369,6 +1704,11 @@ order by l.created_at asc, l.id asc;
     // Only the live month freezes a prelim snapshot on rollover. Fetching July
     // in August must not rewrite August's warm cache or prelim.
     const prelim = isCurrent ? await maybeFreezePrelimAndCache(actuals) : null;
+
+    const creditWash = reconciled.washed.filter(
+      (w) => w.reason === "orphan-credit" || w.reason === "credit-month"
+    );
+    const transferWashOnly = reconciled.washed.filter((w) => !w.reason || w.reason === "transfer");
 
     const fullPayload: Record<string, unknown> = {
       ok: true,
@@ -1407,6 +1747,17 @@ order by l.created_at asc, l.id asc;
           ledgerColumns: schema.columns,
           schemaTables: schema.tables,
           attributionDateColumns: schema.attributionDateColumns,
+          creditJoin: {
+            enabled: creditJoin.enabled,
+            active: creditJoinActive,
+            idColumns: creditJoin.idColumns,
+            dateColumns: creditJoin.dateColumns.map((c) => `${c.name}:${c.type}`),
+            orphanWashed: {
+              rows: creditWash.length,
+              members: creditWash.reduce((s, w) => s + w.members, 0),
+              sessions: creditWash.reduce((s, w) => s + w.sessions, 0),
+            },
+          },
           // What each of those columns would score as the month key. The one
           // that keeps ~58 lines in July is the column the export windows on.
           monthKeyCandidates: summarizeMonthKeyCandidates(rows, monthYmd),
@@ -1417,9 +1768,9 @@ order by l.created_at asc, l.id asc;
           // stayed wrong across several releases — so this is reported next to
           // the number it is supposed to move.
           transferWash: {
-            rows: reconciled.washed.length,
-            members: reconciled.washed.reduce((s, w) => s + w.members, 0),
-            sessions: reconciled.washed.reduce((s, w) => s + w.sessions, 0),
+            rows: transferWashOnly.length,
+            members: transferWashOnly.reduce((s, w) => s + w.members, 0),
+            sessions: transferWashOnly.reduce((s, w) => s + w.sessions, 0),
           },
           cancelsBySaleMonth: summarizeCancelsBySaleMonth(rows, monthYmd),
         },
