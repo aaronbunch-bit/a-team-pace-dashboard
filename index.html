@@ -10988,13 +10988,23 @@ function renderMonthKeyCandidates(w) {
   const el = document.getElementById('teamCancelsMonthKeys');
   if (!el) return;
   const cands = (w && w.monthKeyCandidates) || [];
-  if (!cands.length) { el.hidden = true; el.textContent = ''; return; }
+  const cols = (w && w.ledgerColumns) || null;
+  if (!cands.length && !cols) { el.hidden = true; el.textContent = ''; return; }
   const current = (w && w.monthKeyColumn) || '';
   const parts = cands.map((c) => {
     const mark = c.column === current ? ' (in use)' : '';
     return `${c.column}${mark}: ${c.rows} lines / ${fmt(c.members, 1)} members`;
   });
-  el.textContent = `Month-key candidates — ${parts.join(' · ')}.`;
+  let text = parts.length ? `Month-key candidates — ${parts.join(' · ')}.` : '';
+  // Full column list so a date stored under an unexpected type still shows up
+  // even if the candidate filter skipped it.
+  if (cols && cols.rep_scores_ledger_entries) {
+    text += `${text ? ' ' : ''}Ledger columns — ${cols.rep_scores_ledger_entries.join(', ')}.`;
+  }
+  if (cols && cols.attributions) {
+    text += `${text ? ' ' : ''}Attribution columns — ${cols.attributions.join(', ')}.`;
+  }
+  el.textContent = text;
   el.hidden = false;
 }
 
@@ -11048,7 +11058,10 @@ function cancelLinesCsv() {
   const wash = w.transferWash || null;
   const meta = `# rule=${w.rule || 'unknown'} month=${w.month || ''} lines=${rows.length} members=${fmt(totals.m, 1)} sessions=${fmt(totals.s, 1)}`
     + ` washed=${wash ? `${wash.rows}/${fmt(wash.members, 1)}` : 'n/a'}`;
-  return [meta, head.join(','), ...body.map((cols) => cols.join(','))].join('\n');
+  const colMeta = w.ledgerColumns
+    ? `# ledger_columns=${(w.ledgerColumns.rep_scores_ledger_entries || []).join('|')} attr_columns=${(w.ledgerColumns.attributions || []).join('|')}`
+    : null;
+  return [meta, ...(colMeta ? [colMeta] : []), head.join(','), ...body.map((cols) => cols.join(','))].join('\n');
 }
 
 function renderTeamCancelsTable() {
