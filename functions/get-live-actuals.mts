@@ -65,7 +65,28 @@ function monthBoundsCte(month: string, tz: string): string {
  * Four rewrites in a row all read the same -86.5 on screen, and there was no way
  * to tell a rule that had not worked from a build that had not shipped yet.
  */
-const LEDGER_RULE_VERSION = "created_at+scoring+live-attro+transfer-wash-v4";
+const LEDGER_RULE_VERSION = "created_at+scoring+live-attro+transfer-wash-v5";
+
+/**
+ * Ledger date columns worth testing as the export's month key, most likely
+ * first. The export windows July on a business date we do not read: joined on
+ * `ledger_id`, 58 of the 93 lines the tile counted are in the July export
+ * (-50.5, the number the reps reconcile against) and 25 are not — and those 25
+ * are indistinguishable from the 42 prior-month cancels the export *does* keep
+ * on every column we currently select. Rather than guess at a name again, every
+ * date column on the table is measured against the month and reported.
+ */
+const MONTH_KEY_CANDIDATE_TYPES = new Set([
+  "date",
+  "timestamp with time zone",
+  "timestamp without time zone",
+]);
+
+/** Never worth testing as a business date. */
+const MONTH_KEY_CANDIDATE_SKIP = new Set(["deleted_at"]);
+
+/** Keeps the generated select (and the CSV) to a readable width. */
+const MONTH_KEY_CANDIDATE_LIMIT = 12;
 
 type LedgerRow = {
   email: string;
@@ -83,6 +104,19 @@ type LedgerRow = {
   sale_occurred_at?: string;
   /** Upstream soft-deleted the attribution this line hangs off. */
   attribution_deleted?: boolean;
+  /**
+   * This negative line was written in the same breath as positive credit for a
+   * *different* rep on the same attribution — the sale moved, it was not lost.
+   * The export drops both halves of that swap; the pacer used to count the
+   * negative half as attrition.
+   */
+  transferred_out?: boolean;
+  /**
+   * Every date column on the ledger row, keyed by column name, so the month key
+   * the export windows on can be named from evidence. Diagnostics only — no
+   * total is computed from these.
+   */
+  month_key_candidates?: Record<string, string>;
   /**
    * Every line this attribution + manager has ever had, summed — including the
    * months outside this window. A journal can't legitimately net below zero, so
@@ -399,10 +433,13 @@ export function netLedgerJournal(
     // exists outside this window). An orphan cancel — a negative line with no
     // credit for this manager anywhere — nets below zero, and so does a
     // period-transfer duplicate. Drop cancel lines that fit inside that
-    // overshoot, oldest first, even when the journal only has one cancel: the
-    // single-line guard used to preserve orphans that the July export never
-    // counted (Amanda/Jordan SPIFF cancels against sales credited to other
-    // reps; ~-5.5 members of the -90.5 tile).
+    // overshoot, oldest first, even when the journal only has one cancel.
+    //
+    // This catches less than it reads like it should: every one of the 93 lines
+    // on the July tile has a lifetime of exactly zero, because a cancel always
+    // offsets its own rep's credit. Lifetime tells a double-charged journal
+    // apart from a sound one; it cannot tell a cancel the export counts apart
+    // from one it omits. `transferred_out` below is what does that.
     const lifetimeMembers = Number(classified[0].lifetime_members);
     const lifetimeSessions = Number(classified[0].lifetime_sessions);
     let overMembers = Number.isFinite(lifetimeMembers) ? Math.max(0, -lifetimeMembers) : 0;
@@ -442,14 +479,26 @@ export function netLedgerJournal(
     // older than the window. The rep-scores export shows neither: those lines
     // belong to the month the sale lived in.
     //
-    // Checked against the July export line by line: of the 44 prior-month
-    // cancels the export does count, not one has a credit inside the window,
-    // and all 41 the export omits do. Nothing is removed from the totals — the
+    // Joined onto the July export by ledger id: of the 42 prior-month cancels
+    // the export does count, not one has a credit inside the window. Nothing is
+    // removed from the totals — the
     // washed line is folded into the attribution's credit row — so this moves
     // the cancel tile without moving the members tile.
+    //
+    // A sale that moved to another rep has the same shape but no month change:
+    // the credit and the reversal are both written today, on today's sale. The
+    // export drops the losing rep's whole pair — it lists only the reps who
+    // hold the attribution now — so a same-month cancel is also washed when the
+    // ledger wrote positive credit for a different rep in the same breath
+    // (`transferred_out`). Joined onto the July export by ledger id, that flag
+    // covers exactly the 8 lines (-4.0) the export omits while this rep's other
+    // 16 same-month cancels — real attrition, still credited to them — are
+    // untouched.
     const saleMonth = String(classified[0].sale_occurred_at || "").slice(0, 7);
+    const priorMonthSale = !!(saleMonth && windowMonth && saleMonth < windowMonth);
+    const washable = (row: LedgerRow) => priorMonthSale || row.transferred_out === true;
     const washedHere: LedgerRow[] = [];
-    if (windowMonth && saleMonth && saleMonth < windowMonth && cancelLines.length) {
+    if (windowMonth && cancelLines.some(washable)) {
       let transferMembers = creditLines.reduce((sum, r) => sum + (Number(r.members) || 0), 0);
       let transferSessions = creditLines.reduce((sum, r) => sum + (Number(r.sessions) || 0), 0);
       if (transferMembers > EPSILON || transferSessions > EPSILON) {
@@ -457,7 +506,7 @@ export function netLedgerJournal(
         for (const row of cancelLines) {
           const lostMembers = -(Number(row.members) || 0);
           const lostSessions = -(Number(row.sessions) || 0);
-          if (cancelFitsPool(lostMembers, lostSessions, transferMembers, transferSessions)) {
+          if (washable(row) && cancelFitsPool(lostMembers, lostSessions, transferMembers, transferSessions)) {
             transferMembers = Math.max(0, transferMembers - lostMembers);
             transferSessions = Math.max(0, transferSessions - Math.min(lostSessions, transferSessions));
             washedHere.push(row);
@@ -515,87 +564,16 @@ export function netLedgerJournal(
     }
   }
 
-  // Second wash pass: the re-booking credit and the cancel sometimes land on
-  // *different* attributions for the same client + manager (a new attribution
-  // is opened for the re-booked sale, the cancel closes the old one). The
-  // per-journal wash above cannot see across that boundary. Checked against
-  // the July dump after v3 shipped: 16 same-attribution pairs washed, ~25
-  // prior-month cancels still on screen with no credit in their own journal —
-  // exactly the cross-attribution shape. Of the prior-month cancels the export
-  // keeps, none have any in-window credit for that client+manager, so washing
-  // across attributions cannot touch a cancel the export counts.
-  if (windowMonth) {
-    type CreditSlot = { row: LedgerRow; members: number; sessions: number };
-    const creditsByClientRep = new Map<string, CreditSlot[]>();
-    for (const row of kept) {
-      if (row.kind !== "credit") continue;
-      const members = Number(row.members) || 0;
-      const sessions = Number(row.sessions) || 0;
-      if (members <= EPSILON && sessions <= EPSILON) continue;
-      const key = `${String(row.client_id || "").trim()}|${displayFor(row)}`;
-      const bucket = creditsByClientRep.get(key);
-      const slot = { row, members, sessions };
-      if (bucket) bucket.push(slot);
-      else creditsByClientRep.set(key, [slot]);
-    }
-
-    const survivingKept: LedgerRow[] = [];
-    for (const row of kept) {
-      if (row.kind !== "cancel") {
-        survivingKept.push(row);
-        continue;
-      }
-      const saleMonth = String(row.sale_occurred_at || "").slice(0, 7);
-      if (!saleMonth || saleMonth >= windowMonth) {
-        survivingKept.push(row);
-        continue;
-      }
-      const key = `${String(row.client_id || "").trim()}|${displayFor(row)}`;
-      const pool = creditsByClientRep.get(key) || [];
-      const lostMembers = -(Number(row.members) || 0);
-      const lostSessions = -(Number(row.sessions) || 0);
-      let washedInto: CreditSlot | null = null;
-      for (const slot of pool) {
-        if (!cancelFitsPool(lostMembers, lostSessions, slot.members, slot.sessions)) continue;
-        // Fold the cancel into the credit the same way the per-journal wash
-        // does — members and sessions both move — so the pair still nets to
-        // whatever mismatch the two lines already had.
-        slot.row.members = (Number(slot.row.members) || 0) + (Number(row.members) || 0);
-        slot.row.sessions = (Number(slot.row.sessions) || 0) + (Number(row.sessions) || 0);
-        slot.members = Number(slot.row.members) || 0;
-        slot.sessions = Number(slot.row.sessions) || 0;
-        washedInto = slot;
-        break;
-      }
-      if (washedInto) {
-        washed.push({
-          ledgerId: String(row.ledger_id || ""),
-          attributionId: String(row.attribution_id || ""),
-          clientId: String(row.client_id || ""),
-          repName: displayFor(row),
-          members: Number(row.members) || 0,
-          sessions: Number(row.sessions) || 0,
-          date: String(row.attribution_date || "").slice(0, 10),
-          saleMonth,
-        });
-        continue;
-      }
-      survivingKept.push(row);
-    }
-
-    // Drop credit rows the wash drove to zero — they were pure re-bookings.
-    kept.length = 0;
-    for (const row of survivingKept) {
-      if (
-        row.kind === "credit" &&
-        Math.abs(Number(row.members) || 0) <= EPSILON &&
-        Math.abs(Number(row.sessions) || 0) <= EPSILON
-      ) {
-        continue;
-      }
-      kept.push(row);
-    }
-  }
+  // There is deliberately no wash across attributions.
+  //
+  // v4 added one, on the theory that the ~25 prior-month cancels left on the
+  // July tile were re-bookings whose credit had opened a *new* attribution for
+  // the same client and rep. It matched nothing, and joining the dump onto the
+  // export by ledger id says why: those 25 lines are simply not in the July
+  // export at any grain, and none of them has in-window credit for that client
+  // and rep on any attribution. They are a month-window artifact, not a
+  // re-booking. The export lists ledger rows and never nets across
+  // attributions, so neither does this.
 
   // Flag-only pass: same client + rep credited through separate attributions
   // that each still net positive.
@@ -656,11 +634,9 @@ export function cancelLineItems(
   };
 
   // Credit that sits inside this window, at both grains a re-booking could use.
-  // Shipped as diagnostics because the two wash rules built on this were tuned
-  // against an assumption rather than measured: 16 of 41 lines had a credit on
-  // their own attribution, and none of the remaining 25 had one at either
-  // grain. These columns are what tell those 25 apart from the 44 the export
-  // does count, without another round of guessing.
+  // Diagnostics: they proved that the 25 lines the export has no record of have
+  // no in-window credit at either grain, which is what retired the
+  // cross-attribution wash. They are reported, never counted.
   const creditByAttribution = new Map<string, number>();
   const creditByClientRep = new Map<string, number>();
   for (const row of rows) {
@@ -691,6 +667,8 @@ export function cancelLineItems(
         lifetimeMembers: Number.isFinite(lifetime) ? lifetime : null,
         attrWindowCredit: creditByAttribution.get(attrKey) || 0,
         clientRepWindowCredit: creditByClientRep.get(clientKey) || 0,
+        transferredOut: row.transferred_out === true,
+        monthKeyCandidates: row.month_key_candidates || {},
       };
     })
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
@@ -726,6 +704,78 @@ function summarizeCancelsBySaleMonth(rows: LedgerRow[], month: string) {
     priorMonthSale: summarizeRows(cancels.filter((r) => bucketOf(r) === "priorMonthSale")),
     olderSale: summarizeRows(cancels.filter((r) => bucketOf(r) === "olderSale")),
   };
+}
+
+/**
+ * The ledger's own column list, and the date columns worth testing as the
+ * export's month key.
+ *
+ * Read-only and best effort: an empty candidate list only costs the diagnostic,
+ * never the tiles.
+ */
+async function loadLedgerSchema(): Promise<{
+  columns: Record<string, string[]> | null;
+  candidates: { name: string; type: string }[];
+}> {
+  try {
+    const cols = await runSupabaseSql<{
+      table_name: string;
+      column_name: string;
+      data_type: string;
+    }>(`
+select table_name, column_name, data_type
+from information_schema.columns
+where table_schema = 'sales_attribution'
+  and table_name in ('rep_scores_ledger_entries', 'attributions')
+order by table_name, ordinal_position;
+`);
+    const columns: Record<string, string[]> = {};
+    const candidates: { name: string; type: string }[] = [];
+    for (const c of cols) {
+      const table = String(c.table_name);
+      const name = String(c.column_name);
+      const type = String(c.data_type);
+      (columns[table] ||= []).push(`${name}:${type}`);
+      if (table !== "rep_scores_ledger_entries") continue;
+      if (MONTH_KEY_CANDIDATE_SKIP.has(name)) continue;
+      if (!MONTH_KEY_CANDIDATE_TYPES.has(type)) continue;
+      // Interpolated into SQL, so only ever a plain identifier.
+      if (!/^[a-z_][a-z0-9_]*$/.test(name)) continue;
+      if (candidates.length >= MONTH_KEY_CANDIDATE_LIMIT) continue;
+      candidates.push({ name, type });
+    }
+    return { columns, candidates };
+  } catch (err: any) {
+    console.warn("get-live-actuals schema probe failed", err?.message || err);
+    return { columns: null, candidates: [] };
+  }
+}
+
+/**
+ * What each candidate date column would score if the month were keyed on it.
+ *
+ * The July tile counts 93 lines at -78.0. Joined onto the rep-scores export by
+ * `ledger_id`, 58 of them are in that export and total -50.5 — the number the
+ * reps reconcile against — so the export keeps a strict subset of what we
+ * count. `created_at`, the key we use now, keeps all 93; the export's real key
+ * keeps 66 (58 plus the 8 transfers the wash removes separately). Reporting the
+ * line count and member total per column turns "which column is it?" into a
+ * number to read off the panel instead of another release to guess at.
+ */
+function summarizeMonthKeyCandidates(rows: LedgerRow[], month: string) {
+  const cancels = rows.filter((r) => r.kind === "cancel");
+  const names = new Set<string>();
+  for (const row of cancels) {
+    for (const name of Object.keys(row.month_key_candidates || {})) names.add(name);
+  }
+  return [...names].sort().map((column) => {
+    const inMonth = cancels.filter((r) => (r.month_key_candidates || {})[column]?.startsWith(month));
+    return {
+      column,
+      ...summarizeRows(inMonth),
+      outOfMonthRows: cancels.length - inMonth.length,
+    };
+  });
 }
 
 function buildActuals(
@@ -989,6 +1039,43 @@ export default async (req: Request, context: Context) => {
     // `?month=` selects a closed month for Last-month views; default is today.
     const tz = TEAM_TIME_ZONE.replace(/'/g, "''");
     const bounds = monthBoundsCte(monthYmd, tz);
+
+    // Read the ledger's shape before querying it, so every date column it has
+    // can be carried on the row and measured against the month. Best effort:
+    // the query below runs with no candidates if this fails.
+    const schema = await loadLedgerSchema();
+    const candidateColumns = schema.candidates;
+    const candidateSelect = candidateColumns
+      .map(({ name, type }) => {
+        // A `date` column is already a calendar day; only a timestamp needs
+        // shifting into the team's zone before it becomes one.
+        const asDay = type === "date" ? `l.${name}::text` : `(l.${name} at time zone '${tz}')::date::text`;
+        return `  ${asDay} as "cand_${name}"`;
+      })
+      .join(",\n");
+    const candidateSelectFromWin = candidateColumns
+      .map(({ name }) => `  win."cand_${name}"`)
+      .join(",\n");
+
+    // Did the ledger hand this sale to a different rep at the moment it wrote
+    // this line? Transfers are written as one transaction — the losing rep's
+    // reversal and the winning rep's credit land together — so a positive line
+    // for another manager alongside this negative one is a move, not a loss.
+    // Scoped to negative lines: the tiles only ever ask this of a cancel.
+    const transferredOut = `
+    case
+      when l.net_client_credit_amount < 0 or l.hours_amount < 0 then exists (
+        select 1
+        from sales_attribution.rep_scores_ledger_entries t
+        where t.attribution_id = l.attribution_id
+          and t.deleted_at is null
+          and t.manager_id <> l.manager_id
+          and t.net_client_credit_amount > 0
+          and t.created_at between l.created_at - interval '5 seconds'
+                               and l.created_at + interval '5 seconds'
+      )
+      else false
+    end as transferred_out`;
     const sql = `
 with ${bounds},
 win as (
@@ -1003,7 +1090,7 @@ win as (
     a.occurred_at as sale_occurred_at,
     (a.deleted_at is not null) as attribution_deleted,
     lower(f.email) as email,
-    f.name as manager_name
+    f.name as manager_name,${transferredOut}${candidateSelect ? `,\n${candidateSelect}` : ""}
   from sales_attribution.rep_scores_ledger_entries l
   join sales_attribution.attributions a
     on a.id = l.attribution_id
@@ -1047,10 +1134,11 @@ select
   (win.created_at at time zone '${tz}')::text as occurred_at,
   (win.sale_occurred_at at time zone '${tz}')::text as sale_occurred_at,
   win.attribution_deleted,
+  win.transferred_out,
   win.net_client_credit_amount::float8 as members,
   win.hours_amount::float8 as sessions,
   life.lifetime_members,
-  life.lifetime_sessions
+  life.lifetime_sessions${candidateSelectFromWin ? `,\n${candidateSelectFromWin}` : ""}
 from win
 join life
   on life.attribution_id = win.attribution_id
@@ -1071,9 +1159,9 @@ select
   (l.created_at at time zone '${tz}')::date::text as attribution_date,
   (l.created_at at time zone '${tz}')::text as occurred_at,
   (a.occurred_at at time zone '${tz}')::text as sale_occurred_at,
-  (a.deleted_at is not null) as attribution_deleted,
+  (a.deleted_at is not null) as attribution_deleted,${transferredOut},
   l.net_client_credit_amount::float8 as members,
-  l.hours_amount::float8 as sessions
+  l.hours_amount::float8 as sessions${candidateSelect ? `,\n${candidateSelect}` : ""}
 from sales_attribution.rep_scores_ledger_entries l
 join sales_attribution.attributions a
   on a.id = l.attribution_id
@@ -1105,34 +1193,16 @@ order by l.created_at asc, l.id asc;
       rawRows = await runSupabaseSql<LedgerRow>(fallbackSql);
       lifetimeAvailable = false;
     }
-    // Which date column does the export actually window on?
-    //
-    // Our month key is l.created_at. Matched line by line against the July
-    // export, l.created_at equals the export's `update_timestamp` for 58 of 58
-    // cancels, and its `attribution_date` for only 20 of 58. So the export
-    // windows the month on a ledger business date we do not read: a June-dated
-    // line that was touched in July stays in June's export but lands in our
-    // July window. That is the shape of the 25 cancel lines still on the tile
-    // with no offsetting credit anywhere in the window.
-    //
-    // Ship the column list so the right column can be named from evidence
-    // instead of guessed at. Read-only, best effort, never fatal.
-    let ledgerColumns: Record<string, string[]> | null = null;
-    try {
-      const cols = await runSupabaseSql<{ table_name: string; column_name: string; data_type: string }>(`
-select table_name, column_name, data_type
-from information_schema.columns
-where table_schema = 'sales_attribution'
-  and table_name in ('rep_scores_ledger_entries', 'attributions')
-order by table_name, ordinal_position;
-`);
-      ledgerColumns = {};
-      for (const c of cols) {
-        const t = String(c.table_name);
-        (ledgerColumns[t] ||= []).push(`${c.column_name}:${c.data_type}`);
+    // Carry every candidate date onto the row so the journal, the payload and
+    // the CSV all see the same values.
+    for (const row of rawRows) {
+      if (!candidateColumns.length) break;
+      const dates: Record<string, string> = {};
+      for (const { name } of candidateColumns) {
+        const value = (row as Record<string, unknown>)[`cand_${name}`];
+        if (value) dates[name] = String(value).slice(0, 10);
       }
-    } catch (schemaErr: any) {
-      console.warn("get-live-actuals schema probe failed", schemaErr?.message || schemaErr);
+      row.month_key_candidates = dates;
     }
 
     const deletedAttribution = summarizeRows(rawRows.filter((row) => !!row.attribution_deleted));
@@ -1180,7 +1250,10 @@ order by table_name, ordinal_position;
           lifetimeAvailable,
           deletedAttribution,
           // Candidate month-key columns, so the next fix can name the right one.
-          ledgerColumns,
+          ledgerColumns: schema.columns,
+          // What each of those columns would score as the month key. The one
+          // that keeps 66 lines in July is the column the export windows on.
+          monthKeyCandidates: summarizeMonthKeyCandidates(rows, monthYmd),
           // Whether the period-transfer wash matched anything. A rule that
           // ships, deploys and quietly matches nothing is how the cancel tile
           // stayed wrong across several releases — so this is reported next to
