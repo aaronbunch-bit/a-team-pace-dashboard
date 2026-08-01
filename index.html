@@ -111,6 +111,13 @@
       <button class="theme-btn large" id="shoutoutSendBtn" type="button">📣 Shoutout</button>
     </div>
     <div class="landing-actions-group" id="landingNavActions">
+      <div class="ops-month-toggle" id="opsMonthToggle" hidden>
+        <span class="ops-month-toggle-label">Month</span>
+        <div class="ops-month-toggle-btns" role="group" aria-label="Dashboard month">
+          <button type="button" class="theme-btn ops-month-btn active" data-ops-month="current" id="opsMonthCurrentBtn">This month</button>
+          <button type="button" class="theme-btn ops-month-btn" data-ops-month="prior" id="opsMonthPriorBtn">Last month</button>
+        </div>
+      </div>
       <div class="header-dropdown" id="teamMenuWrap" style="display:none;">
         <button class="theme-btn large" id="teamMenuBtn" type="button" aria-haspopup="menu">👥 Team ▾</button>
         <div class="header-dropdown-menu" id="teamMenu" role="menu">
@@ -358,8 +365,9 @@
         </div>
         </div>
         <div class="pacer-tab-lastmonth" id="pacerTabLastMonth" style="display:none;">
-          <div class="meta-note" style="margin:0 0 12px;">Frozen snapshot of last month — not updated by new attributions.</div>
-          <div id="lastMonthFrozenBody"></div>
+          <!-- Last Month reuses Current-tab chrome (pace, activity, manual attro). -->
+          <div class="meta-note" id="lastMonthStatusNote" style="margin:0 0 12px;">Loading last month’s ledger…</div>
+          <div id="lastMonthFrozenBody" hidden></div>
         </div>
         <div class="pacer-tab-more" id="pacerTabMore">
           <div class="pacer-side-inline" id="pacerSideInline"></div>
@@ -963,7 +971,13 @@
     <div class="workspace-panel active" id="teamPanelCancels" data-team-panel="cancels">
       <div class="card ops-panel-shell">
         <h2>Cancels — team-wide</h2>
-        <div class="meta-note" style="margin:0 0 12px;">Negative ledger lines across the team for this month (and cancels of last month's sales that hit this month). Convert a cancel into a Manual Attribution correction without guessing the rep.</div>
+        <div class="ops-month-toggle ops-month-toggle-inline" id="cancelsMonthToggle" hidden>
+          <div class="ops-month-toggle-btns" role="group" aria-label="Cancels month">
+            <button type="button" class="theme-btn ops-month-btn active" data-ops-month="current">This month</button>
+            <button type="button" class="theme-btn ops-month-btn" data-ops-month="prior">Last month</button>
+          </div>
+        </div>
+        <div class="meta-note" style="margin:0 0 12px;">Negative ledger lines across the team. Use <b>Last month</b> to review the closed month (attro, cancels, and wash diagnostics) after the calendar rolls.</div>
         <div class="meta-note" id="teamCancelsWindowNote" style="margin:0 0 12px;" hidden></div>
         <div style="margin:0 0 12px;">
           <button type="button" class="theme-btn" style="margin-top:0;" id="teamCancelsCopyBtn">Copy these lines</button>
@@ -977,7 +991,13 @@
     <div class="workspace-panel" id="teamPanelGoals" data-team-panel="goals">
       <div class="card ops-panel-shell" id="teamPersonalGoalsCard">
         <h2>🎯 Personal month goals — team</h2>
-        <div class="meta-note" style="margin:0 0 12px;">Each rep sets a Total Average Attainment target (min 100%). Live progress updates here.</div>
+        <div class="ops-month-toggle ops-month-toggle-inline" id="goalsMonthToggle" hidden>
+          <div class="ops-month-toggle-btns" role="group" aria-label="Goals month">
+            <button type="button" class="theme-btn ops-month-btn active" data-ops-month="current">This month</button>
+            <button type="button" class="theme-btn ops-month-btn" data-ops-month="prior">Last month</button>
+          </div>
+        </div>
+        <div class="meta-note" style="margin:0 0 12px;">Each rep sets a Total Average Attainment target (min 100%). After month rollover, switch to <b>Last month</b> to keep prior goals visible until SIP is closed out — live actuals for the new month start at zero.</div>
         <div class="ops-list-head ops-goals"><span>Rep</span><span>Goal</span><span>Progress</span><span>Status</span></div>
         <div class="ops-list" id="teamPersonalGoalsBody"></div>
       </div>
@@ -2384,30 +2404,40 @@ function trackGoalMetTransitions(repRows) {
 
 function render() {
   syncRoleChrome();
-  const goals = loadGoals();
-  const actuals = loadActuals();
+  if (typeof syncOpsMonthToggleUI === 'function') syncOpsMonthToggleUI();
+  const priorOps = typeof viewingPriorMonthForOps === 'function' && viewingPriorMonthForOps();
+  const goals = priorOps ? loadViewGoals(false) : loadGoals();
+  const actuals = priorOps ? loadViewActuals(false) : loadActuals();
+  const approvedTotals = priorOps ? loadViewApprovedTotals(false) : (APPROVED_TOTALS || {});
   // Calendar day = America/Chicago today. Ledger asOf can still be yesterday
   // until the first sale posts — pace / Day X / Finish Line must not lag.
-  const cal = teamCalendarParts();
+  // When ops is flipped to last month, treat that month as fully elapsed.
+  const cal = priorOps ? viewCalendarParts(false) : teamCalendarParts();
   const { d, dim, expectedPct, elapsedFrac, monthName } = cal;
 
   const titleMonthEl = document.getElementById('titleMonth');
-  if (titleMonthEl) titleMonthEl.textContent = monthName;
+  if (titleMonthEl) {
+    titleMonthEl.textContent = priorOps
+      ? ((previousMonthKeyFromActuals() || {}).label || monthName)
+      : monthName;
+  }
 
   // Finish line card owns day/expected/as-of on Split layouts that show the
   // culture column — keep Classic's banner pills so OG stays intact.
   const layoutNow = document.body.dataset.layout || 'classic';
   const finishLineOwnsBanner = isSplitLayout(layoutNow);
   document.getElementById('banner').innerHTML = finishLineOwnsBanner ? '' : `
-    <div class="pill">Data as of <b>${actuals.asOf}</b>${lastLiveActualsOk ? ' · live' : ''}</div>
-    <div class="pill">Day <b>${d}</b> of ${dim} · ${monthName}</div>
-    <div class="pill">Expected pace <b>${expectedPct.toFixed(1)}%</b></div>
+    <div class="pill">Data as of <b>${actuals.asOf || '—'}</b>${priorOps ? ' · last month' : (lastLiveActualsOk ? ' · live' : '')}</div>
+    <div class="pill">${priorOps ? `<b>${monthName}</b> · closed` : `Day <b>${d}</b> of ${dim} · ${monthName}`}</div>
+    <div class="pill">${priorOps ? 'Expected pace <b>100%</b>' : `Expected pace <b>${expectedPct.toFixed(1)}%</b>`}</div>
   `;
   // Same info, condensed — shown only once the banner above scrolls out of view.
   // Always-on and centered in the mini-header (see .mini-header-datepace) —
   // this doesn't rotate with the other facts below since it's the one thing
   // that's true no matter when someone glances up.
-  document.getElementById('miniHeaderDatePace').innerHTML = `
+  document.getElementById('miniHeaderDatePace').innerHTML = priorOps ? `
+    <span><b>${monthName}</b> — last month view</span>
+  ` : `
     <span>${monthName} — Day <b>${d}</b> of ${dim}</span>
     <span> · </span>
     <span>Expected pace <b>${expectedPct.toFixed(1)}%</b></span>
@@ -2415,12 +2445,14 @@ function render() {
 
   let teamMembersActual = 0, teamMembersGoal = 0, teamSessionsActual = 0, teamSessionsGoal = 0;
   let teamMembersCancels = 0, teamSessionsCancels = 0;
+  const prevCtx = pacingContext;
+  pacingContext = 'ops';
   const repRows = getRoster().map((r, i) => {
     const g = goals[r.display] || { sessions: 0, members: 0, tag: '' };
     const raw = (actuals.perRep && actuals.perRep[r.display]) || { members: 0, sessions: 0 };
     // Fold in Aaron-approved manual attribution requests (see Manual Attribution
     // section below) — additive on top of live Supabase / ledger totals, never replacing them.
-    const approved = APPROVED_TOTALS[r.display] || { members: 0, sessions: 0 };
+    const approved = approvedTotals[r.display] || { members: 0, sessions: 0 };
     // Cancels come from the itemised lines when the server shipped them, so a
     // tile can never claim more attrition than the Cancels list can show.
     const cancels = (cancelTotalsByRep() || {})[r.display];
@@ -2446,6 +2478,7 @@ function render() {
     }
     return { rep: r, g, a, memMetric, sesMetric, composite, idx: i };
   }); // getRoster() already returns reps in alphabetical order
+  pacingContext = prevCtx;
 
   {
     // Top pacer, team-wide — computed off repRows directly rather than
@@ -6584,6 +6617,9 @@ document.querySelectorAll('#pacerLayoutTabs .pacer-layout-tab').forEach((btn) =>
     if (pacerTab === 'income' && currentBonusRep && typeof renderIncomePlanning === 'function') {
       renderIncomePlanning(currentBonusRep);
     }
+    if (typeof renderClientDetail === 'function') {
+      renderClientDetail({ preserveScroll: true });
+    }
   });
 });
 (function initTipPortal() {
@@ -9152,7 +9188,7 @@ function fillDetailActivity(repName) {
 
   detailContent.style.removeProperty('display');
   activityFilterRep = repName;
-  const actuals = loadActuals();
+  const actuals = viewingPriorMonthForDetail() ? loadViewActuals(true) : loadActuals();
   const items = (actuals.perRep && actuals.perRep[repName] && actuals.perRep[repName].items) || [];
   const sorted = items
     .map((it, idx) => ({ it, idx }))
@@ -9235,15 +9271,39 @@ function syncMetricsSidePanel(repName) {
   }
 }
 
-// Current-month actual/projected composite pacing for one rep — same numbers
-// (and same compositeOf() math) as their collapsed row on the main dashboard.
+// Context for computeRepPacing: landing uses 'ops' (honours the month toggle);
+// Individual Pacer uses 'detail' (Last Month tab forces prior). Default 'auto'
+// picks from the open UI so call sites that forget still behave.
+let pacingContext = 'auto';
+
+// Actual/projected composite pacing for one rep — same numbers (and same
+// compositeOf() math) as their collapsed row on the main dashboard.
 function computeRepPacing(repDisplay) {
-  const goals = loadGoals();
-  const actuals = loadActuals();
-  const { dim, d, elapsedFrac, expectedPct } = teamCalendarParts();
+  const overlayOpen = typeof document !== 'undefined'
+    && document.getElementById('clientDetailOverlay')?.classList.contains('open');
+  let forDetail = false;
+  let prior = false;
+  if (pacingContext === 'ops') {
+    prior = viewingPriorMonthForOps();
+  } else if (pacingContext === 'detail') {
+    forDetail = true;
+    prior = viewingPriorMonthForDetail();
+  } else if (pacingContext === 'live') {
+    prior = false;
+  } else if (overlayOpen && pacerShowsPriorMonth()) {
+    forDetail = true;
+    prior = true;
+  } else if (!overlayOpen && viewingPriorMonthForOps()) {
+    prior = true;
+  }
+  const goals = prior ? loadViewGoals(forDetail) : loadGoals();
+  const actuals = prior ? loadViewActuals(forDetail) : loadActuals();
+  const approvedMap = prior ? loadViewApprovedTotals(forDetail) : (APPROVED_TOTALS || {});
+  const cal = prior ? viewCalendarParts(forDetail) : teamCalendarParts();
+  const { dim, d, elapsedFrac, expectedPct } = cal;
   const g = goals[repDisplay] || { sessions: 0, members: 0 };
   const raw = (actuals.perRep && actuals.perRep[repDisplay]) || { members: 0, sessions: 0 };
-  const approved = APPROVED_TOTALS[repDisplay] || { members: 0, sessions: 0 };
+  const approved = approvedMap[repDisplay] || { members: 0, sessions: 0 };
   const memMetric = computeMetric(raw.members + approved.members, g.members, elapsedFrac);
   const sesMetric = computeMetric(raw.sessions + approved.sessions, g.sessions, elapsedFrac);
   return { ...compositeOf(memMetric, sesMetric), expectedPct, memMetric, sesMetric, calendarDay: d, calendarDim: dim };
@@ -9374,6 +9434,211 @@ function previousMonthKeyFromActuals() {
     label: prevDate.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
   };
 }
+
+// ---- Ops / Last-month viewing ------------------------------------------------
+// Admins and coaches can flip the landing page, Cancels panel, and Goals panel
+// to the closed month after calendar rollover. Individual Pacer's Last Month
+// tab uses the same prior-month ledger payload so it looks like Current
+// (attro, cancels, manual attro) instead of a frozen summary card.
+const OPS_MONTH_KEY = 'pace_dashboard_ops_month_v1';
+let opsMonthMode = (typeof localStorage !== 'undefined' && localStorage.getItem(OPS_MONTH_KEY) === 'prior')
+  ? 'prior'
+  : 'current';
+/** Cached prior-month live payload: actuals, cancels, approved totals, goals. */
+let PRIOR_MONTH_BUNDLE = null;
+let PRIOR_MONTH_FETCH = null;
+let PRIOR_APPROVED_TOTALS = {};
+let PRIOR_PERSONAL_GOALS_CACHE = {};
+let PRIOR_PERSONAL_GOALS_MONTH = '';
+
+function isPriorMonthMode() {
+  return opsMonthMode === 'prior';
+}
+function pacerShowsPriorMonth() {
+  return pacerTab === 'lastmonth';
+}
+/** Month key for landing / team workspace (ops toggle). */
+function opsViewMonthKey() {
+  if (!isPriorMonthMode()) return liveMonthKey();
+  return (previousMonthKeyFromActuals() || {}).key || liveMonthKey();
+}
+/**
+ * Month key for Individual Pacer content. Last Month tab always forces the
+ * prior month; otherwise follow the ops toggle when a coach flipped the
+ * landing view.
+ */
+function detailViewMonthKey() {
+  if (pacerShowsPriorMonth()) {
+    return (previousMonthKeyFromActuals() || {}).key || liveMonthKey();
+  }
+  return opsViewMonthKey();
+}
+function viewingPriorMonthForDetail() {
+  return detailViewMonthKey() !== liveMonthKey();
+}
+function viewingPriorMonthForOps() {
+  return opsViewMonthKey() !== liveMonthKey();
+}
+
+function loadViewActuals(forDetail) {
+  const prior = forDetail ? viewingPriorMonthForDetail() : viewingPriorMonthForOps();
+  if (prior && PRIOR_MONTH_BUNDLE && PRIOR_MONTH_BUNDLE.actuals) return PRIOR_MONTH_BUNDLE.actuals;
+  return loadActuals();
+}
+function loadViewApprovedTotals(forDetail) {
+  const prior = forDetail ? viewingPriorMonthForDetail() : viewingPriorMonthForOps();
+  if (prior) return PRIOR_APPROVED_TOTALS || {};
+  return APPROVED_TOTALS || {};
+}
+function loadViewGoals(forDetail) {
+  const prior = forDetail ? viewingPriorMonthForDetail() : viewingPriorMonthForOps();
+  if (!prior) return loadGoals();
+  const key = forDetail ? detailViewMonthKey() : opsViewMonthKey();
+  const snap = (loadPrelimSnapshots() || {})[key];
+  if (snap && snap.goals && Object.keys(snap.goals).length) return snap.goals;
+  if (PRIOR_MONTH_BUNDLE && PRIOR_MONTH_BUNDLE.goals) return PRIOR_MONTH_BUNDLE.goals;
+  // Keep last month's admin goals visible after rollover even before SIP —
+  // the live goals blob is not month-scoped, so current goals are the best
+  // stand-in until a prelim/SIP freeze exists.
+  return loadGoals();
+}
+function viewCalendarParts(forDetail) {
+  const prior = forDetail ? viewingPriorMonthForDetail() : viewingPriorMonthForOps();
+  if (!prior) return teamCalendarParts();
+  const key = forDetail ? detailViewMonthKey() : opsViewMonthKey();
+  const [y, m] = String(key).split('-').map(Number);
+  const dim = (y && m) ? new Date(y, m, 0).getDate() : 30;
+  const prev = previousMonthKeyFromActuals();
+  const monthName = prev && prev.key === key
+    ? prev.label.replace(/\s+\d+$/, '')
+    : (y && m ? new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'long' }) : 'Last');
+  return { dim, d: dim, elapsedFrac: 1, expectedPct: 100, monthName };
+}
+function loadViewCancelItems() {
+  if (viewingPriorMonthForOps() && PRIOR_MONTH_BUNDLE && Array.isArray(PRIOR_MONTH_BUNDLE.cancelItems)) {
+    return PRIOR_MONTH_BUNDLE.cancelItems;
+  }
+  return CANCEL_ITEMS;
+}
+function loadViewLedgerIntegrity() {
+  if (viewingPriorMonthForOps() && PRIOR_MONTH_BUNDLE && PRIOR_MONTH_BUNDLE.ledgerIntegrity) {
+    return PRIOR_MONTH_BUNDLE.ledgerIntegrity;
+  }
+  return LEDGER_INTEGRITY;
+}
+
+async function ensurePriorMonthBundle(opts) {
+  const prev = previousMonthKeyFromActuals();
+  if (!prev) return null;
+  const force = !!(opts && opts.fresh);
+  if (!force && PRIOR_MONTH_BUNDLE && PRIOR_MONTH_BUNDLE.month === prev.key) {
+    return PRIOR_MONTH_BUNDLE;
+  }
+  if (PRIOR_MONTH_FETCH && !force) return PRIOR_MONTH_FETCH;
+  PRIOR_MONTH_FETCH = (async () => {
+    const statusEl = document.getElementById('lastMonthStatusNote');
+    if (statusEl) {
+      statusEl.hidden = false;
+      statusEl.textContent = `Loading ${prev.label} ledger…`;
+    }
+    try {
+      const qs = `?month=${encodeURIComponent(prev.key)}&fresh=1`;
+      const data = await authedFetch('/api/actuals/live' + qs, { cache: 'no-store' });
+      let approved = {};
+      try {
+        const tot = await authedFetch(
+          '/api/attributions/approved-totals?month=' + encodeURIComponent(prev.key),
+          { cache: 'no-store' }
+        );
+        approved = (tot && tot.totals) || {};
+      } catch (_) {}
+      let personalGoals = {};
+      try {
+        const pg = await authedFetch(
+          '/api/personal-goals?month=' + encodeURIComponent(prev.key),
+          { cache: 'no-store' }
+        );
+        personalGoals = (pg && pg.goals) || {};
+        PRIOR_PERSONAL_GOALS_MONTH = (pg && pg.month) || prev.key;
+        PRIOR_PERSONAL_GOALS_CACHE = personalGoals;
+      } catch (_) {}
+      const snap = (loadPrelimSnapshots() || {})[prev.key] || {};
+      PRIOR_APPROVED_TOTALS = approved;
+      PRIOR_MONTH_BUNDLE = {
+        month: prev.key,
+        label: prev.label,
+        actuals: (data && data.actuals) || { asOf: '', perRep: {} },
+        cancelItems: (data && data.cancelItems) || [],
+        ledgerIntegrity: (data && data.ledgerIntegrity) || null,
+        approvedTotals: approved,
+        goals: snap.goals || null,
+        personalGoals,
+        rule: data && data.ledgerIntegrity && data.ledgerIntegrity.window
+          ? data.ledgerIntegrity.window.rule
+          : '',
+        fetchedAt: new Date().toISOString(),
+      };
+      if (data && data.prelim) PRELIM_CACHE = data.prelim;
+      if (statusEl) {
+        const n = (PRIOR_MONTH_BUNDLE.cancelItems || []).length;
+        const rule = PRIOR_MONTH_BUNDLE.rule ? ` · rule ${PRIOR_MONTH_BUNDLE.rule}` : '';
+        statusEl.textContent = `${prev.label} · ${n} cancel line${n === 1 ? '' : 's'}${rule}. Same layout as Current — attro, cancels, and manual attro.`;
+      }
+      return PRIOR_MONTH_BUNDLE;
+    } catch (err) {
+      console.warn('Could not load prior-month actuals', err);
+      if (statusEl) {
+        statusEl.textContent = 'Could not load last month’s ledger. ' + ((err && err.message) || '');
+      }
+      throw err;
+    } finally {
+      PRIOR_MONTH_FETCH = null;
+    }
+  })();
+  return PRIOR_MONTH_FETCH;
+}
+
+function syncOpsMonthToggleUI() {
+  const can = typeof canViewTeamDetails === 'function' && canViewTeamDetails();
+  const prev = previousMonthKeyFromActuals();
+  const show = !!(can && prev);
+  ['opsMonthToggle', 'cancelsMonthToggle', 'goalsMonthToggle'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.hidden = !show;
+  });
+  document.body.dataset.opsMonth = isPriorMonthMode() && prev ? 'prior' : 'current';
+  document.querySelectorAll('[data-ops-month]').forEach((btn) => {
+    const on = btn.getAttribute('data-ops-month') === opsMonthMode;
+    btn.classList.toggle('active', on);
+    if (btn.getAttribute('data-ops-month') === 'prior' && prev) {
+      btn.textContent = prev.label.replace(/\s+\d+$/, '') || 'Last month';
+    } else if (btn.getAttribute('data-ops-month') === 'current') {
+      btn.textContent = 'This month';
+    }
+  });
+  const priorBtn = document.getElementById('opsMonthPriorBtn');
+  if (priorBtn && prev) priorBtn.textContent = prev.label.split(' ')[0] || 'Last month';
+}
+
+async function setOpsMonthMode(mode) {
+  const next = mode === 'prior' ? 'prior' : 'current';
+  if (next === opsMonthMode && (next === 'current' || PRIOR_MONTH_BUNDLE)) {
+    syncOpsMonthToggleUI();
+    return;
+  }
+  opsMonthMode = next;
+  try { localStorage.setItem(OPS_MONTH_KEY, opsMonthMode); } catch (_) {}
+  syncOpsMonthToggleUI();
+  if (opsMonthMode === 'prior') {
+    try { await ensurePriorMonthBundle(); } catch (_) {}
+  }
+  if (typeof render === 'function') render();
+  if (typeof renderTeamCancelsTable === 'function') renderTeamCancelsTable();
+  if (typeof renderTeamPersonalGoalsTable === 'function') renderTeamPersonalGoalsTable();
+  if (typeof renderCancelsWindowNote === 'function') renderCancelsWindowNote();
+  if (typeof quietRefreshFromActuals === 'function') quietRefreshFromActuals();
+}
+
 function lastMonthFrozenSource(repDisplay) {
   const prev = previousMonthKeyFromActuals();
   if (!prev) return null;
@@ -9475,10 +9740,16 @@ function lastMonthFrozenHTML(repDisplay) {
 function syncLastMonthPacerTab(repDisplay) {
   const btn = document.getElementById('pacerTabLastMonthBtn');
   const body = document.getElementById('lastMonthFrozenBody');
-  const src = lastMonthFrozenSource(repDisplay);
-  if (btn) btn.hidden = !src;
-  if (body) body.innerHTML = lastMonthFrozenHTML(repDisplay);
-  if (!src && pacerTab === 'lastmonth') {
+  const prev = previousMonthKeyFromActuals();
+  // Always offer Last Month once a prior calendar month exists — the tab now
+  // loads the live ledger for that month (same chrome as Current), not only a
+  // SIP/prelim summary card.
+  if (btn) btn.hidden = !prev;
+  if (body) {
+    body.hidden = true;
+    body.innerHTML = '';
+  }
+  if (!prev && pacerTab === 'lastmonth') {
     pacerTab = 'current';
     applyLayout(document.body.dataset.layout || 'split-stack');
   }
@@ -9837,7 +10108,24 @@ function renderClientDetail(opts) {
   bodyEls.forEach(el => { el.style.removeProperty('display'); });
 
   {
+    const prev = previousMonthKeyFromActuals();
+    if (pacerShowsPriorMonth() && prev) {
+      if (!(PRIOR_MONTH_BUNDLE && PRIOR_MONTH_BUNDLE.month === prev.key)) {
+        const statusEl = document.getElementById('lastMonthStatusNote');
+        if (statusEl) {
+          statusEl.hidden = false;
+          statusEl.textContent = `Loading ${prev.label} ledger…`;
+        }
+        ensurePriorMonthBundle().then(() => {
+          if (pacerTab === 'lastmonth') renderClientDetail({ preserveScroll: true });
+        }).catch(() => {});
+        // Fall through with empty data so the chrome still paints while loading.
+      }
+    }
+    const prevCtx = pacingContext;
+    pacingContext = 'detail';
     const pacing = computeRepPacing(repName);
+    pacingContext = prevCtx;
     // Own Individual Pacer stays locked until a personal month goal is set.
     const gated = needsPersonalGoalGate(repName);
     if (gated) {
@@ -10209,6 +10497,17 @@ function renderTeamDetailsOverlay() {
 }
 window.addEventListener('hashchange', renderTeamDetailsOverlay);
 document.getElementById('teamDetailsBtn').addEventListener('click', () => { location.hash = 'team-details'; });
+
+document.addEventListener('click', (ev) => {
+  const btn = ev.target && ev.target.closest && ev.target.closest('[data-ops-month]');
+  if (!btn) return;
+  if (typeof canViewTeamDetails === 'function' && !canViewTeamDetails()) return;
+  const mode = btn.getAttribute('data-ops-month');
+  if (mode === 'prior' || mode === 'current') {
+    ev.preventDefault();
+    setOpsMonthMode(mode);
+  }
+});
 document.getElementById('teamDetailsBackBtn').addEventListener('click', () => {
   history.replaceState(null, '', location.pathname + location.search);
   renderTeamDetailsOverlay();
@@ -10556,10 +10855,11 @@ document.getElementById('ledgerExcludeSubmit')?.addEventListener('click', async 
 
 function computeTeamCancels() {
   const onRoster = new Set(getRoster().map(r => r.display));
+  const items = typeof loadViewCancelItems === 'function' ? loadViewCancelItems() : CANCEL_ITEMS;
   // Server-itemised cancel lines are authoritative: the tiles are totalled from
   // this same list, so a number on a tile can always be traced to rows here.
-  if (Array.isArray(CANCEL_ITEMS) && CANCEL_ITEMS.length) {
-    return CANCEL_ITEMS
+  if (Array.isArray(items) && items.length) {
+    return items
       .filter(it => onRoster.has(it.rep))
       .map(it => ({
         rep: it.rep,
@@ -10570,15 +10870,12 @@ function computeTeamCancels() {
       }))
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   }
-  const actuals = loadActuals();
+  const actuals = viewingPriorMonthForOps() ? loadViewActuals(false) : loadActuals();
   const rows = [];
   getRoster().forEach(r => {
     const raw = (actuals.perRep && actuals.perRep[r.display]) || {};
     (raw.items || []).forEach(it => {
       if (it.members >= 0 && it.sessions >= 0) return;
-      // Revisions never reach here — they're folded into their attribution's
-      // single credit row — so any negative row is real lost business. Older
-      // snapshots carry no `kind` and fall back to sign alone.
       if (it.kind && it.kind !== 'cancel') return;
       rows.push({ rep: r.display, clientId: it.clientId || '', date: it.date || '', members: it.members, sessions: it.sessions });
     });
@@ -10589,9 +10886,10 @@ function computeTeamCancels() {
 
 /** Per-rep cancel totals from the itemised lines, so tiles match the list. */
 function cancelTotalsByRep() {
+  const items = typeof loadViewCancelItems === 'function' ? loadViewCancelItems() : CANCEL_ITEMS;
   const totals = {};
-  if (!Array.isArray(CANCEL_ITEMS) || !CANCEL_ITEMS.length) return null;
-  for (const it of CANCEL_ITEMS) {
+  if (!Array.isArray(items) || !items.length) return null;
+  for (const it of items) {
     const bucket = (totals[it.rep] ||= { membersCancels: 0, sessionsCancels: 0 });
     bucket.membersCancels += Number(it.members) || 0;
     bucket.sessionsCancels += Number(it.sessions) || 0;
@@ -10614,7 +10912,9 @@ function cancelRowKey(row) { return row.date + '|' + row.clientId + '|' + row.re
 function renderCancelsWindowNote() {
   const note = document.getElementById('teamCancelsWindowNote');
   if (!note) return;
-  const w = (LEDGER_INTEGRITY && LEDGER_INTEGRITY.window) || null;
+  const w = (typeof loadViewLedgerIntegrity === 'function'
+    ? loadViewLedgerIntegrity()
+    : LEDGER_INTEGRITY)?.window || null;
   if (!w || !w.cancelsBySaleMonth) { note.hidden = true; return; }
   // A cancel total that can't be refreshed is worse than no total: say so where
   // the number is, not in a status line at the top of the page.
@@ -10665,8 +10965,10 @@ function renderCancelsWindowNote() {
  */
 function cancelLinesCsv() {
   const rows = computeTeamCancels();
-  const w = (LEDGER_INTEGRITY && LEDGER_INTEGRITY.window) || {};
-  const bySaleMonth = new Map((CANCEL_ITEMS || []).map((it) => [
+  const w = (typeof loadViewLedgerIntegrity === 'function'
+    ? loadViewLedgerIntegrity()
+    : LEDGER_INTEGRITY)?.window || {};
+  const bySaleMonth = new Map((loadViewCancelItems() || []).map((it) => [
     `${it.rep}|${it.clientId}|${it.date}|${it.members}|${it.sessions}`,
     it.saleMonth || '',
   ]));
@@ -10859,20 +11161,20 @@ async function refreshDetailAttributions(repName) {
     lastAttrRecords = records;
     lastAttrIsAdmin = !!isAdmin;
     lastAttrCanViewTeam = canViewTeam !== undefined ? !!canViewTeam : !!isAdmin;
-    const liveMonth = liveMonthKey();
+    const viewMonth = typeof detailViewMonthKey === 'function' ? detailViewMonthKey() : liveMonthKey();
     const mine = sortAttrRecords(
-      (records || []).filter((r) => r.repName === repName && attrMonthKey(r) === liveMonth)
+      (records || []).filter((r) => r.repName === repName && attrMonthKey(r) === viewMonth)
     );
     const pendingN = mine.filter((r) => r.status === 'pending').length;
     const actionedN = mine.length - pendingN;
     if (countEl) {
       countEl.textContent = mine.length
-        ? `${mine.length} this month` + (pendingN ? ` · ${pendingN} pending` : '')
+        ? `${mine.length} in ${viewMonth}` + (pendingN ? ` · ${pendingN} pending` : '')
         : '';
     }
     listEl.innerHTML = mine.length
       ? mine.map(detailAttrRowHTML).join('')
-      : `<div class="detail-attr-empty">No Manual Attribution requests this month.</div>`;
+      : `<div class="detail-attr-empty">No Manual Attribution requests for ${viewMonth}.</div>`;
     if (statusEl && actionedN) {
       statusEl.textContent = 'Approved and rejected stay here — tap a row for notes and links.';
     }
@@ -12973,6 +13275,14 @@ function liveMonthKey() {
   return teamTodayMonthKey();
 }
 function getPersonalGoal(repDisplay) {
+  if (typeof viewingPriorMonthForOps === 'function' && viewingPriorMonthForOps()
+      && PRIOR_PERSONAL_GOALS_MONTH === opsViewMonthKey()) {
+    return PRIOR_PERSONAL_GOALS_CACHE[repDisplay] || null;
+  }
+  if (typeof viewingPriorMonthForDetail === 'function' && viewingPriorMonthForDetail()
+      && PRIOR_PERSONAL_GOALS_MONTH === detailViewMonthKey()) {
+    return PRIOR_PERSONAL_GOALS_CACHE[repDisplay] || null;
+  }
   return PERSONAL_GOALS_CACHE[repDisplay] || null;
 }
 async function fetchPersonalGoals() {
@@ -12988,7 +13298,14 @@ async function fetchPersonalGoals() {
 function personalGoalProgress(repDisplay) {
   const goal = getPersonalGoal(repDisplay);
   if (!goal) return null;
+  const prevCtx = pacingContext;
+  // Team Goals panel follows the ops month toggle; Individual Pacer side panel
+  // follows the Last Month tab via auto/detail context.
+  if (isTeamWorkspaceHash && typeof isTeamWorkspaceHash === 'function' && isTeamWorkspaceHash()) {
+    pacingContext = 'ops';
+  }
   const pacing = computeRepPacing(repDisplay);
+  pacingContext = prevCtx;
   let current = null;
   let unit = '';
   if (goal.kind === 'compositePct') {
@@ -13338,9 +13655,10 @@ function syncRoleChrome() {
   const hint = document.getElementById('landingMenuHint');
   if (hint) hint.style.display = (team || admin || schedules) ? '' : 'none';
   const navGroup = document.getElementById('landingNavActions');
-  if (navGroup) navGroup.style.display = (team || admin || schedules) ? '' : 'none';
+  if (navGroup) navGroup.style.display = (team || admin || schedules || (typeof canViewTeamDetails === 'function' && canViewTeamDetails())) ? '' : 'none';
   const shoutHist = document.getElementById('viewShoutoutHistoryLink');
   if (shoutHist) shoutHist.style.display = admin ? '' : 'none';
+  if (typeof syncOpsMonthToggleUI === 'function') syncOpsMonthToggleUI();
   syncTeamWorkspaceChrome();
   syncAttrRepSelect();
   syncViewAsChrome();
@@ -13816,6 +14134,11 @@ async function boot() {
   APPROVED_TOTALS = approved;
   await fetchLiveActuals({ full: true });
   await Promise.all([fetchPersonalGoals(), fetchTeamSchedules()]);
+  if (typeof opsMonthMode !== 'undefined' && opsMonthMode === 'prior'
+      && typeof ensurePriorMonthBundle === 'function') {
+    try { await ensurePriorMonthBundle(); } catch (_) {}
+  }
+  if (typeof syncOpsMonthToggleUI === 'function') syncOpsMonthToggleUI();
   // UX preview: ensure the demo rep has a personal goal so the gate never blocks.
   if (isUxPreviewMode() && !getPersonalGoal(UX_PREVIEW_REP)) {
     PERSONAL_GOALS_CACHE[UX_PREVIEW_REP] = {
