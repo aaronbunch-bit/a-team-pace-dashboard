@@ -979,6 +979,7 @@
         </div>
         <div class="meta-note" style="margin:0 0 12px;">Negative ledger lines across the team. Use <b>Last month</b> to review the closed month (attro, cancels, and wash diagnostics) after the calendar rolls.</div>
         <div class="meta-note" id="teamCancelsWindowNote" style="margin:0 0 12px;" hidden></div>
+        <div class="meta-note" id="teamCancelsMonthKeys" style="margin:0 0 12px;" hidden></div>
         <div style="margin:0 0 12px;">
           <button type="button" class="theme-btn" style="margin-top:0;" id="teamCancelsCopyBtn">Copy these lines</button>
           <span class="meta-note" id="teamCancelsCopyStatus" style="margin-left:8px;"></span>
@@ -10972,6 +10973,30 @@ function renderCancelsWindowNote() {
   if (w.rule) parts.push(`rule ${w.rule}`);
   note.textContent = parts.join(' · ') + '.';
   note.hidden = false;
+  renderMonthKeyCandidates(w);
+}
+
+/**
+ * What every date column on the ledger would score as the month key.
+ *
+ * The July tile counts more lines than the rep-scores export does, and the two
+ * populations are identical on every column the pacer currently reads — so the
+ * export windows the month on a business date we do not. This lists each
+ * candidate column with the cancels it would keep, which names that column from
+ * a number on screen rather than another release spent guessing.
+ */
+function renderMonthKeyCandidates(w) {
+  const el = document.getElementById('teamCancelsMonthKeys');
+  if (!el) return;
+  const cands = (w && w.monthKeyCandidates) || [];
+  if (!cands.length) { el.hidden = true; el.textContent = ''; return; }
+  const current = (w && w.monthKeyColumn) || '';
+  const parts = cands.map((c) => {
+    const mark = c.column === current ? ' (in use)' : '';
+    return `${c.column}${mark}: ${c.rows} lines / ${fmt(c.members, 1)} members`;
+  });
+  el.textContent = `Month-key candidates — ${parts.join(' · ')}.`;
+  el.hidden = false;
 }
 
 /**
@@ -10993,9 +11018,14 @@ function cancelLinesCsv() {
     `${it.rep}|${it.clientId}|${it.date}|${it.members}|${it.sessions}`,
     it,
   ]));
+  // Every date column the ledger carries, so the month key the rep-scores
+  // export windows on can be read off a dump instead of guessed at.
+  const candidateCols = [...new Set((loadViewCancelItems() || [])
+    .flatMap((it) => Object.keys(it.monthKeyCandidates || {})))].sort();
   const head = [
     'date', 'rep', 'client_id', 'members', 'sessions', 'sale_month',
     'attribution_id', 'ledger_id', 'lifetime_members', 'attr_credit', 'client_rep_credit',
+    'transferred_out', ...candidateCols,
   ];
   const body = rows.map((r) => {
     const it = byKey.get(`${r.rep}|${r.clientId}|${r.date}|${r.members}|${r.sessions}`) || {};
@@ -11011,6 +11041,8 @@ function cancelLinesCsv() {
       it.lifetimeMembers === null || it.lifetimeMembers === undefined ? '' : it.lifetimeMembers,
       it.attrWindowCredit === undefined ? '' : it.attrWindowCredit,
       it.clientRepWindowCredit === undefined ? '' : it.clientRepWindowCredit,
+      it.transferredOut ? '1' : '0',
+      ...candidateCols.map((c) => (it.monthKeyCandidates || {})[c] || ''),
     ];
   });
   const totals = rows.reduce((a, r) => ({ m: a.m + r.members, s: a.s + r.sessions }), { m: 0, s: 0 });

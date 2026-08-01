@@ -242,6 +242,47 @@ const sameMonthCancel = netLedgerJournal(
 assert.equal(totals(sameMonthCancel.rows).cancelMembers, -1, "this month's sale cancelled this month is attrition");
 assert.equal(sameMonthCancel.washed.length, 0);
 
+// ---- Transfers to another rep -----------------------------------------------
+// The same shape as above — this month's sale, cancelled this month — but the
+// ledger handed the credit to a different rep in the same write. The sale was
+// not lost, it moved, and the rep-scores export lists only the reps holding the
+// attribution now: it drops both halves of the swap. Joined onto the July
+// export by ledger id, 8 lines (-4.0) were this, and every one of them was
+// otherwise indistinguishable from the 16 same-month cancels the export counts.
+const transferredOut = netLedgerJournal(
+  [
+    line({ ledgerId: 674101, attributionId: 84101, members: 0.5, sessions: 4, date: "2026-07-02" }),
+    {
+      ...line({ ledgerId: 674102, attributionId: 84101, members: -0.5, sessions: -4, date: "2026-07-24" }),
+      transferred_out: true,
+    },
+  ],
+  DISPLAY,
+  new Set(),
+  MONTH
+);
+assert.equal(totals(transferredOut.rows).cancelMembers, 0, "a sale handed to another rep is not attrition");
+assert.equal(totals(transferredOut.rows).members, 0, "and the pair still nets to zero — members do not move");
+assert.equal(transferredOut.washed.length, 1, "the transfer is reported, not silently dropped");
+
+// The flag alone is not enough: a transfer wash folds the cancel back into a
+// credit, so with nothing in the window to fold into the line stays. That is
+// what keeps the two same-rep period transfers in the July dump on the tile
+// rather than quietly disappearing into a rule that cannot account for them.
+const transferNoCredit = netLedgerJournal(
+  [
+    {
+      ...line({ ledgerId: 674103, attributionId: 84102, members: -0.5, sessions: -4, date: "2026-07-24", lifetimeMembers: 0, lifetimeSessions: 0 }),
+      transferred_out: true,
+    },
+  ],
+  DISPLAY,
+  new Set(),
+  MONTH
+);
+assert.equal(totals(transferNoCredit.rows).cancelMembers, -0.5, "no in-window credit, nothing to wash into");
+assert.equal(transferNoCredit.washed.length, 0);
+
 // Membership fits, sessions don't: still wash. The first wash release required
 // both dimensions and left 25 of 41 period-transfer lines on the tile because
 // a 0.5/2 re-booking credit could not absorb a 0.5/8 cancel on the session side.
@@ -257,21 +298,25 @@ const mismatchWash = netLedgerJournal(
 assert.equal(totals(mismatchWash.rows).cancelMembers, 0, "member fit is enough to wash a transfer");
 assert.equal(mismatchWash.washed.length, 1);
 
-// Re-booking credit on a new attribution, cancel on the old one — same client
-// and manager. The per-journal wash cannot see this; the cross-attribution
-// pass has to. ~25 of the July leftovers were this shape.
+// Credit on one attribution, a prior-month cancel on another, same client and
+// rep. v4 washed this pair, guessing the ~25 leftover July lines were
+// re-bookings that had opened a new attribution. Joined onto the export by
+// ledger id, none of those 25 has in-window credit at any grain — the rule
+// matched nothing in production and the shape it was built for does not exist.
+// A second sale to a client who also cancelled is the shape that *does* exist,
+// and both halves of it are real.
 const crossAttr = netLedgerJournal(
   [
     line({ ledgerId: 673601, attributionId: 83601, members: 1, sessions: 8, date: "2026-07-12", saleDate: "2026-07-12", clientId: "900001" }),
-    line({ ledgerId: 673602, attributionId: 83602, members: -1, sessions: -8, date: "2026-07-12", saleDate: "2026-06-20", clientId: "900001" }),
+    line({ ledgerId: 673602, attributionId: 83602, members: -1, sessions: -8, date: "2026-07-12", saleDate: "2026-06-20", clientId: "900001", lifetimeMembers: 0, lifetimeSessions: 0 }),
   ],
   DISPLAY,
   new Set(),
   MONTH
 );
-assert.equal(totals(crossAttr.rows).cancelMembers, 0, "cross-attribution transfer is washed");
-assert.equal(totals(crossAttr.rows).members, 0, "and members still net to zero");
-assert.equal(crossAttr.washed.length, 1);
+assert.equal(totals(crossAttr.rows).cancelMembers, -1, "a cancel on another attribution is still a cancel");
+assert.equal(totals(crossAttr.rows).members, 0, "the new sale and the old cancel net out, as the export has them");
+assert.equal(crossAttr.washed.length, 0, "nothing is washed across attributions");
 
 // Orphan whose lifetime overshoots members but not sessions — still drop.
 // The SPIFF cancels (Amanda/Jordan against someone else's sale) were surviving
