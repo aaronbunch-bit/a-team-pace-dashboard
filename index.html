@@ -145,7 +145,7 @@
           <div class="nav-menu-label">Admin tools</div>
           <button class="theme-btn nav-menu-item admin" id="footerGoalsBtn" type="button" role="menuitem">
             <span class="nav-menu-icon" aria-hidden="true">📊</span>
-            <span class="nav-menu-text"><strong>Monthly goals</strong><small>Sessions, members &amp; tags</small></span>
+            <span class="nav-menu-text"><strong>Monthly Quotas</strong><small>Sessions, members &amp; tags</small></span>
           </button>
           <button class="theme-btn nav-menu-item admin" id="footerAdminSettingsBtn" type="button" role="menuitem">
             <span class="nav-menu-icon" aria-hidden="true">🛠️</span>
@@ -161,7 +161,7 @@
     <!-- Hidden tour fallback anchor (Tools mega-menu removed — one primary nav). -->
     <span class="landing-actions-cluster" id="myPacerShoutoutCluster" style="display:none;" aria-hidden="true"></span>
   </div>
-  <div class="landing-menu-hint" id="landingMenuHint" style="display:none;">Use <b>Team</b> for contests &amp; ops · <b>Admin</b> for goals &amp; access · open a rep below for Individual Pacer.</div>
+  <div class="landing-menu-hint" id="landingMenuHint" style="display:none;">Use <b>Team</b> for contests &amp; ops · <b>Admin</b> for quotas &amp; access · open a rep below for Individual Pacer.</div>
   </div>
 
   <div class="landing-region landing-region-status" id="landingStatus">
@@ -977,7 +977,7 @@
             <button type="button" class="ops-month-btn" data-ops-month="prior" aria-pressed="false">Last month</button>
           </div>
         </div>
-        <div class="meta-note" style="margin:0 0 12px;">Negative ledger lines across the team. Use <b>Last month</b> to review the closed month (attro, cancels, and wash diagnostics) after the calendar rolls.</div>
+        <div class="meta-note" style="margin:0 0 12px;">Negative ledger lines across the team. Switch months to review the closed month (attro, cancels, and wash diagnostics) after the calendar rolls.</div>
         <div class="meta-note" id="teamCancelsWindowNote" style="margin:0 0 12px;" hidden></div>
         <div class="meta-note" id="teamCancelsMonthKeys" style="margin:0 0 12px;" hidden></div>
         <div style="margin:0 0 12px;">
@@ -999,7 +999,7 @@
             <button type="button" class="ops-month-btn" data-ops-month="prior" aria-pressed="false">Last month</button>
           </div>
         </div>
-        <div class="meta-note" style="margin:0 0 12px;">Each rep sets a Total Average Attainment target (min 100%). After month rollover, switch to <b>Last month</b> to keep prior goals visible until SIP is closed out — live actuals for the new month start at zero.</div>
+        <div class="meta-note" style="margin:0 0 12px;">Each rep sets a Total Average Attainment target (min 100%). After month rollover, switch to the previous month to keep prior goals visible until SIP is closed out — live actuals for the new month start at zero.</div>
         <div class="ops-list-head ops-goals"><span>Rep</span><span>Goal</span><span>Progress</span><span>Status</span></div>
         <div class="ops-list" id="teamPersonalGoalsBody"></div>
       </div>
@@ -1115,12 +1115,12 @@
       <button class="theme-btn page-back-btn" id="goalsBackBtn" type="button">← Dashboard</button>
       <div style="min-width:0;flex:1 1 auto;">
         <span class="page-kicker">Admin tools</span>
-        <h2>Edit Monthly Goals</h2>
+        <h2>Edit Monthly Quotas</h2>
       </div>
     </div>
     <div class="ops-page-intro">
       <span class="ops-intro-mark">Roster &amp; targets</span>
-      <p>Set monthly goals and each rep's current compensation level. Level selects the standard OTE; admins can override OTE when needed.</p>
+      <p>Set monthly quotas and each rep's current compensation level. Level selects the standard OTE; admins can override OTE when needed.</p>
     </div>
     <div class="ops-subtabs" id="goalsSubtabs" role="tablist">
       <button type="button" class="ops-subtab active" data-goals-tab="roster" role="tab" aria-selected="true">Active roster<small>Goals grid</small></button>
@@ -1149,7 +1149,7 @@
         <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Level</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Individual Pacer access)</div><div>Cap bonus @ 200%</div></div>
         <div id="goalsForm"></div>
         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px;">
-          <button id="saveGoals">Save goals</button>
+          <button id="saveGoals">Save quotas</button>
           <span class="field-toggle-tag" id="toggleAdvancedFields">+ Tag / Email / Cap</span>
         </div>
         <div class="meta-note">PT: $500 OTE (no leveling planner) · L1: $41,600 salary / $1,000 OTE · L2: $50,000 / $1,333 · L3: $60,000 / $1,667. Changing Level fills the standard OTE; OTE remains editable. ✕ removes someone (restorable in Removed).</div>
@@ -1557,18 +1557,26 @@ let SIP_TEAM_ROLLUP = {"2024-04":{sA:2952.6,sG:2891.0,mA:697.0,mG:504.0},"2024-0
 // fetchDashboardData() near the bottom of this file, which overwrites this
 // with the real shared roster once one exists.
 let ROSTER_CACHE = ROSTER.map(r => Object.assign({ active: true }, r));
+// Per-month roster archives — who belonged on the team in each YYYY-MM. Without
+// this, removing someone in the new month also erased them from last month's
+// boards. Populated from /api/dashboard/data and /api/roster/update.
+let ROSTER_MONTHS_CACHE = {};
 // Full universe of people ever on the roster (base + added), ignoring the
 // hide-list. Used by the "Removed people" restore UI, which needs to show
 // hidden entries too.
 function getFullRoster() { return ROSTER_CACHE; }
 function loadRemovedRoster() { return ROSTER_CACHE.filter(r => !r.active).map(r => r.display); }
+function loadRosterMonths() { return ROSTER_MONTHS_CACHE || {}; }
 async function saveRoster(newRoster) {
-  await authedFetch('/api/roster/update', {
+  const result = await authedFetch('/api/roster/update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ roster: newRoster }),
   });
   ROSTER_CACHE = newRoster;
+  if (result && result.rosterMonths && typeof result.rosterMonths === 'object') {
+    ROSTER_MONTHS_CACHE = result.rosterMonths;
+  }
 }
 // Permanent primary admin. Listed admins (ADMIN_LIST_CACHE) get the same access.
 const ADMIN_EMAIL = 'aaron.bunch@varsitytutors.com';
@@ -1631,6 +1639,42 @@ function getRoster() {
   // restored from the removed-people list, lands in their correct spot instead
   // of just tacking onto the end.
   return getFullRoster().filter(r => r.active).sort((a, b) => a.display.localeCompare(b.display));
+}
+/**
+ * Active reps for a given month. Live month uses today's roster; closed months
+ * prefer the month archive so a removal now does not erase last month's board.
+ * Before any archive exists, fall back to everyone on the document as active.
+ */
+function getRosterForMonth(monthKey) {
+  const key = String(monthKey || '');
+  if (!key || key === liveMonthKey()) return getRoster();
+  const archived = loadRosterMonths()[key];
+  if (Array.isArray(archived) && archived.length) {
+    return archived
+      .filter((r) => r && r.active !== false)
+      .slice()
+      .sort((a, b) => a.display.localeCompare(b.display));
+  }
+  return getFullRoster()
+    .map((r) => Object.assign({}, r, { active: true }))
+    .sort((a, b) => a.display.localeCompare(b.display));
+}
+/** Roster for the current ops / detail month view. */
+function getViewRoster(forDetail) {
+  const prior = forDetail
+    ? (typeof viewingPriorMonthForDetail === 'function' && viewingPriorMonthForDetail())
+    : (typeof viewingPriorMonthForOps === 'function' && viewingPriorMonthForOps());
+  if (!prior) return getRoster();
+  const key = forDetail
+    ? (typeof detailViewMonthKey === 'function' ? detailViewMonthKey() : liveMonthKey())
+    : (typeof opsViewMonthKey === 'function' ? opsViewMonthKey() : liveMonthKey());
+  return getRosterForMonth(key);
+}
+/** Short month name for a YYYY-MM key ("2026-08" → "August"). */
+function monthNameFromKey(monthKey) {
+  const [y, m] = String(monthKey || '').split('-').map(Number);
+  if (!(y && m)) return '';
+  return new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'long' });
 }
 
 function loadJSON(key, fallback) {
@@ -2509,7 +2553,7 @@ function render() {
   let teamMembersCancels = 0, teamSessionsCancels = 0;
   const prevCtx = pacingContext;
   pacingContext = 'ops';
-  const repRows = getRoster().map((r, i) => {
+  const repRows = getViewRoster(false).map((r, i) => {
     const g = goals[r.display] || { sessions: 0, members: 0, tag: '' };
     const raw = (actuals.perRep && actuals.perRep[r.display]) || { members: 0, sessions: 0 };
     // Fold in Aaron-approved manual attribution requests (see Manual Attribution
@@ -5173,16 +5217,20 @@ function syncGoalsEditMonthUI() {
   // Nothing to edit for last month until there is a last month.
   wrap.hidden = !prev;
   if (!prev && goalsEditMonthMode === 'prior') goalsEditMonthMode = 'current';
+  const currentLabel = monthNameFromKey(liveMonthKey()) || 'Current';
+  const priorLabel = prev ? (prev.label.replace(/\s+\d+$/, '') || 'Previous') : 'Previous';
   wrap.querySelectorAll('[data-goals-month]').forEach(btn => {
-    const on = btn.getAttribute('data-goals-month') === goalsEditMonthMode;
+    const mode = btn.getAttribute('data-goals-month');
+    const on = mode === goalsEditMonthMode;
     btn.classList.toggle('active', on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.textContent = mode === 'prior' ? priorLabel : currentLabel;
   });
   const note = document.getElementById('goalsEditMonthNote');
   if (note) {
     note.textContent = goalsEditMonthMode === 'prior'
-      ? `Editing ${(prev && prev.label) || 'last month'} only — this month's quotas are untouched.`
-      : "Editing this month only — last month's quotas stay frozen at what they were.";
+      ? `Editing ${priorLabel} only — ${currentLabel}'s quotas are untouched.`
+      : `Editing ${currentLabel} only — ${priorLabel}'s quotas stay frozen at what they were.`;
   }
 }
 function setGoalsEditMonthMode(mode) {
@@ -5202,8 +5250,10 @@ function renderGoalsForm() {
   // switch to writing last month's numbers.
   const goals = goalsForMonth(goalsEditMonthKey());
   // A rep removed from the roster this month still had a quota last month, so
-  // the prior-month grid lists whoever that month's quotas name as well.
-  const rosterRows = getRoster();
+  // the prior-month grid lists whoever that month's roster / quotas name.
+  const rosterRows = goalsEditMonthMode === 'prior'
+    ? getRosterForMonth(goalsEditMonthKey())
+    : getRoster();
   const named = new Set(rosterRows.map(r => r.display));
   const extra = goalsEditMonthMode === 'prior'
     ? Object.keys(goals || {}).filter(name => !named.has(name)).sort().map(display => ({ display }))
@@ -5317,7 +5367,7 @@ document.getElementById('saveGoals').addEventListener('click', async (e) => {
     await saveGoals(goals, month);
     render();
   } catch (err) {
-    alert('Could not save goals: ' + err.message);
+    alert('Could not save quotas: ' + err.message);
   } finally {
     btn.disabled = false;
   }
@@ -5353,7 +5403,7 @@ document.getElementById('addPersonBtn').addEventListener('click', async (e) => {
     const newRoster = getFullRoster().concat([{ display: name, csv: name.toLowerCase(), active: true }]);
     await saveRoster(newRoster);
     input.value = '';
-    statusEl.textContent = `Added ${name} — set their goals below, then click Save goals.`;
+    statusEl.textContent = `Added ${name} — set their quotas below, then click Save quotas.`;
     statusEl.style.color = '#16a34a';
     renderGoalsForm();
     render();
@@ -6128,7 +6178,7 @@ function repSipMonthCardHTML(m, csvKey, repDisplay) {
          <div class="mini-earnings-num">$${fmt(e.earnings, 2)}</div>
          ${e.capped ? '<div class="mini-earnings-capped">Capped at 200% of OTE</div>' : ''}
        </div>`
-    : `<div class="meta-note" style="margin:10px 0 0; font-size:10.5px;">Set OTE on <a href="#edit-goals">Edit Monthly Goals</a> to see SIP payout for this month.</div>`;
+    : `<div class="meta-note" style="margin:10px 0 0; font-size:10.5px;">Set OTE on <a href="#edit-goals">Edit Monthly Quotas</a> to see SIP payout for this month.</div>`;
   return `
     <div class="metric-box">
       <div class="metric-box-head">
@@ -6220,7 +6270,7 @@ function renderRepSipRange() {
          <div class="mini-earnings-num">$${fmt(totalSip, 2)}</div>
          <div class="mini-earnings-capped">$${fmt(sipMonths ? totalSip / sipMonths : 0, 2)} avg/mo across ${sipMonths} month${sipMonths === 1 ? '' : 's'}${anyCapped ? ' · some months capped at 200%' : ''}</div>
        </div>`
-    : `<div class="meta-note" style="margin-top:10px; font-size:10.5px;">Set OTE on <a href="#edit-goals">Edit Monthly Goals</a> to see SIP payout for this range.</div>`;
+    : `<div class="meta-note" style="margin-top:10px; font-size:10.5px;">Set OTE on <a href="#edit-goals">Edit Monthly Quotas</a> to see SIP payout for this range.</div>`;
 
   el.innerHTML = `
     <div class="metric-box">
@@ -9713,19 +9763,18 @@ function syncOpsMonthToggleUI() {
   // Body carries the view state under its own attribute name. It must NOT be
   // the same attribute the buttons use: `[data-ops-month]` would then match
   // <body>, and the textContent write below would replace the entire page with
-  // the string "This month".
+  // the month label.
   document.body.dataset.opsMonthView = isPriorMonthMode() && prev ? 'prior' : 'current';
+  const currentLabel = monthNameFromKey(liveMonthKey()) || 'Current';
+  const priorLabel = prev ? (prev.label.replace(/\s+\d+$/, '') || 'Previous') : 'Previous';
   // Class-scoped so the selector can only ever reach the toggle buttons.
   document.querySelectorAll('button.ops-month-btn[data-ops-month]').forEach((btn) => {
     const mode = btn.getAttribute('data-ops-month');
     const on = mode === opsMonthMode;
     btn.classList.toggle('active', on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    if (mode === 'prior') {
-      btn.textContent = prev ? (prev.label.replace(/\s+\d+$/, '') || 'Last month') : 'Last month';
-    } else if (mode === 'current') {
-      btn.textContent = 'This month';
-    }
+    if (mode === 'prior') btn.textContent = priorLabel;
+    else if (mode === 'current') btn.textContent = currentLabel;
   });
 }
 
@@ -10033,7 +10082,7 @@ function bonusPayoutHTML(repDisplay) {
     ? `<div class="bonus-level-toggle" role="group" aria-label="Payout level scenario">${levelButtons}</div>`
     : '';
   return `
-    ${noOte ? `<div class="meta-note" style="margin-top:0; color:#dc2626; font-size:10.5px;">No Monthly OTE set yet — add one on <a href="#edit-goals">Edit Monthly Goals</a>.</div>` : ''}
+    ${noOte ? `<div class="meta-note" style="margin-top:0; color:#dc2626; font-size:10.5px;">No Monthly OTE set yet — add one on <a href="#edit-goals">Edit Monthly Quotas</a>.</div>` : ''}
     ${levelToggle}
     <div class="bonus-hero">
       <div class="bonus-hero-label">Projected Payout</div>
@@ -11564,13 +11613,15 @@ function quietRefreshFromActuals() {
     else {
       // Keep boards / recognition / finish line accurate without full rebind.
       try {
-        const goals = loadGoals();
-        const actuals = loadActuals();
-        const cal = teamCalendarParts();
-        const repRows = getRoster().map((r, i) => {
+        const priorOps = typeof viewingPriorMonthForOps === 'function' && viewingPriorMonthForOps();
+        const goals = priorOps ? loadViewGoals(false) : loadGoals();
+        const actuals = priorOps ? loadViewActuals(false) : loadActuals();
+        const approvedTotals = priorOps ? loadViewApprovedTotals(false) : (APPROVED_TOTALS || {});
+        const cal = priorOps ? viewCalendarParts(false) : teamCalendarParts();
+        const repRows = getViewRoster(false).map((r, i) => {
           const g = goals[r.display] || { sessions: 0, members: 0, tag: '' };
           const raw = (actuals.perRep && actuals.perRep[r.display]) || { members: 0, sessions: 0 };
-          const approved = APPROVED_TOTALS[r.display] || { members: 0, sessions: 0 };
+          const approved = approvedTotals[r.display] || { members: 0, sessions: 0 };
           const a = { ...raw, members: raw.members + approved.members, sessions: raw.sessions + approved.sessions };
           const memMetric = computeMetric(a.members, g.members, cal.elapsedFrac);
           const sesMetric = computeMetric(a.sessions, g.sessions, cal.elapsedFrac);
@@ -11594,6 +11645,8 @@ function patchLandingPaceNumbers() {
   const list = document.getElementById('repList');
   const teamCard = document.getElementById('teamCard');
   if (!list || !teamCard || !list.children.length) return false;
+  // Prior-month view can change who is on the board (archived roster); rebuild.
+  if (typeof viewingPriorMonthForOps === 'function' && viewingPriorMonthForOps()) return false;
   const goals = loadGoals();
   const actuals = loadActuals();
   const cal = teamCalendarParts();
@@ -11928,6 +11981,7 @@ async function fetchDashboardData() {
   try {
     const data = await authedFetch('/api/dashboard/data', { cache: 'no-store' });
     if (data.roster) ROSTER_CACHE = data.roster;
+    if (data.rosterMonths && typeof data.rosterMonths === 'object') ROSTER_MONTHS_CACHE = data.rosterMonths;
     if (data.goals) GOALS_CACHE = normalizeGoalsDoc(data.goals);
     if (data.goalsMonths && typeof data.goalsMonths === 'object') GOALS_MONTHS_CACHE = data.goalsMonths;
     // Prefer whatever Blobs has until/unless live Supabase overwrites in boot().
@@ -13614,7 +13668,7 @@ async function savePersonalGoalFromGate() {
 function renderTeamPersonalGoalsTable() {
   const tbody = document.getElementById('teamPersonalGoalsBody');
   if (!tbody) return;
-  const rows = getRoster().map((r) => {
+  const rows = getViewRoster(false).map((r) => {
     const progress = personalGoalProgress(r.display);
     if (!progress) {
       return `<div class="ops-list-row ops-goals">
