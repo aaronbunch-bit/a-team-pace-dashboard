@@ -2248,20 +2248,6 @@
     color: #fff !important;
     border-color: #16a34a !important;
   }
-  .schedule-wrap-side {
-    overflow-x: auto; max-width: 100%;
-  }
-  .schedule-grid-compact {
-    font-size: 11px;
-  }
-  .schedule-grid-compact th.sched-name-col,
-  .schedule-grid-compact .sched-name {
-    min-width: 96px; font-size: 11px;
-  }
-  .schedule-grid-compact .sched-cell-ro {
-    min-width: 36px; padding: 4px 2px; font-size: 10px;
-  }
-  .team-schedule-side-content.collapsed { display: none; }
   .personal-goal-side-content { margin-top: 8px; }
   .personal-goal-side-content.collapsed { display: none; }
   .personal-goal-gate-backdrop.open { display: flex; }

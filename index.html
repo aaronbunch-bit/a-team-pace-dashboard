@@ -133,12 +133,9 @@
             <span class="nav-menu-icon" aria-hidden="true">🎯</span>
             <span class="nav-menu-text"><strong>Personal month goals</strong><small>See who’s set targets</small></span>
           </button>
-          <button class="theme-btn nav-menu-item" id="teamScheduleBtn" type="button" role="menuitem" style="display:none;">
-            <span class="nav-menu-icon" aria-hidden="true">📅</span>
-            <span class="nav-menu-text"><strong>Weekly schedules</strong><small>Shifts, Off days &amp; capacity</small></span>
-          </button>
         </div>
       </div>
+      <button class="theme-btn large" id="landingSchedulesBtn" type="button" style="display:none;">📅 Schedules</button>
       <div class="header-dropdown" id="adminMenuWrap" style="display:none;">
         <button class="theme-btn large" id="adminMenuBtn" type="button" aria-haspopup="menu">⚙️ Admin ▾</button>
         <div class="header-dropdown-menu" id="adminMenu" role="menu">
@@ -161,7 +158,7 @@
     <!-- Hidden tour fallback anchor (Tools mega-menu removed — one primary nav). -->
     <span class="landing-actions-cluster" id="myPacerShoutoutCluster" style="display:none;" aria-hidden="true"></span>
   </div>
-  <div class="landing-menu-hint" id="landingMenuHint" style="display:none;">Use <b>Team</b> for contests &amp; ops · <b>Admin</b> for quotas &amp; access · open a rep below for Individual Pacer.</div>
+  <div class="landing-menu-hint" id="landingMenuHint" style="display:none;">Use <b>Team</b> for contests &amp; ops · <b>Schedules</b> for shifts · <b>Admin</b> for quotas &amp; access · open a rep below for Individual Pacer.</div>
   </div>
 
   <div class="landing-region landing-region-status" id="landingStatus">
@@ -409,11 +406,6 @@
             <span class="side-chevron" id="rankSideChevron">▾</span>
           </div>
           <div id="rankSideContent" class="rank-side-content"></div>
-          <div class="metrics-side-section-head" id="teamScheduleSideToggle">
-            <span class="metrics-side-title" style="margin-bottom:0;">📅 Team Schedule</span>
-            <span class="side-chevron" id="teamScheduleSideChevron">▾</span>
-          </div>
-          <div id="teamScheduleSideContent" class="team-schedule-side-content"></div>
           <div class="metrics-side-section-head" id="liveMetricsSideToggle" style="display:none;">
             <span class="metrics-side-title" style="margin-bottom:0;">📡 Live Metrics</span>
             <span class="side-chevron" id="liveMetricsSideChevron">▾</span>
@@ -1104,10 +1096,10 @@
         </select>
       </label>
     </div>
-    <label style="display:block; margin-top:10px;">Comments <span style="color:#dc2626;">(required)</span>
-      <textarea id="cancelConvertComments" style="height:70px;" placeholder="Why this cancel should be reversed as a Manual Attribution — required."></textarea>
+    <label style="display:block; margin-top:10px;">Approval notes <span style="color:#dc2626;">(required)</span>
+      <textarea id="cancelConvertComments" style="height:70px;" placeholder="Why this cancel should be reversed — saved as the approver note on the Manual Attribution."></textarea>
     </label>
-    <button type="button" class="celebration-modal-close" id="cancelConvertSubmit" style="margin-top:12px;">Submit request</button>
+    <button type="button" class="celebration-modal-close" id="cancelConvertSubmit" style="margin-top:12px;">Approve &amp; move</button>
     <button type="button" class="celebration-modal-mute" id="cancelConvertCancel">Cancel</button>
     <div class="meta-note" id="cancelConvertStatus"></div>
   </div>
@@ -9426,6 +9418,13 @@ function detailClientIdCellHTML(rawId) {
   const href = 'https://www.varsitytutors.com/clients/' + encodeURIComponent(id);
   return `<a class="detail-client-link" href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer" title="Open client ${escapeAttr(id)}">${escapeHtml(id)}</a>`;
 }
+/** Client page URL for Manual Attribution rows — prefer stored link, else build from clientId. */
+function attrClientPageUrl(r) {
+  const link = String((r && r.clientLink) || '').trim();
+  if (link) return link;
+  const id = String((r && r.clientId) || '').trim();
+  return id ? ('https://www.varsitytutors.com/clients/' + encodeURIComponent(id)) : '';
+}
 function detailRowHTML(it) {
   const client = (it && (it.clientId || it.client_id)) || '—';
   const members = it ? Number(it.members) || 0 : 0;
@@ -9519,10 +9518,6 @@ function syncMetricsSidePanel(repName) {
     document.getElementById('rankSideContent')?.classList.toggle('collapsed', rankSideCollapsed);
     const rankEl = document.getElementById('rankSideContent');
     if (rankEl) rankEl.innerHTML = rankSideContentHTML(repName);
-    document.getElementById('teamScheduleSideChevron')?.classList.toggle('collapsed', teamScheduleSideCollapsed);
-    document.getElementById('teamScheduleSideContent')?.classList.toggle('collapsed', teamScheduleSideCollapsed);
-    const schedEl = document.getElementById('teamScheduleSideContent');
-    if (schedEl) schedEl.innerHTML = teamScheduleSideHTML();
     document.getElementById('paceNeedSideToggle')?.classList.toggle('is-collapsed', paceNeedSideCollapsed);
     document.getElementById('paceNeedSideChevron')?.classList.toggle('collapsed', paceNeedSideCollapsed);
     document.getElementById('paceNeedSideContent')?.classList.toggle('collapsed', paceNeedSideCollapsed);
@@ -9637,41 +9632,6 @@ function liveMetricsSideHTML(repDisplay) {
   const fmtRate = (v) => (v === null ? '—' : fmt(v, 1) + '%');
   return `
     <div class="metrics-side-item"><span class="metrics-side-label has-tip" data-tip="Membership refunds ÷ (members sold + membership refunds) this month">Refund rate (MTD)</span><span class="metrics-side-val">${fmtRate(mtdRate)}</span></div>`;
-}
-
-/**
- * Full-team weekly schedule in Individual Pacer — visible to every signed-in
- * teammate (not coach/admin gated). Edit stays on Team → Schedules.
- */
-function teamScheduleSideHTML() {
-  const reps = getRoster();
-  if (!reps.length) {
-    return `<div class="meta-note" style="margin:0;">No roster yet.</div>`;
-  }
-  const head = SCHEDULE_DAY_LABELS.map((lab) => `<th>${lab}</th>`).join('');
-  const rows = reps.map((r, idx) => {
-    const color = SCHED_ROW_COLORS[idx % SCHED_ROW_COLORS.length];
-    const saved = (TEAM_SCHEDULES_CACHE.reps || {})[r.display] || emptyScheduleRow();
-    const cells = SCHEDULE_DAY_KEYS.map((k) => {
-      const val = saved[k] || '';
-      const off = /^off$/i.test(String(val).trim());
-      const shown = String(val || '—').replace(/</g, '&lt;');
-      return `<td><div class="sched-cell-ro${off ? ' is-off' : ''}" style="--sched-bg:${color};">${shown}</div></td>`;
-    }).join('');
-    return `<tr>
-      <td><div class="sched-name" style="background:${color};">${escapeHtml(r.display)}</div></td>
-      ${cells}
-    </tr>`;
-  }).join('');
-  return `
-    <div class="meta-note" style="margin:0 0 8px;">Everyone’s typical weekly shifts. Open the full board to edit (coaches/admins).</div>
-    <div class="schedule-wrap schedule-wrap-side">
-      <table class="schedule-grid schedule-grid-compact">
-        <thead><tr><th class="sched-name-col">Rep</th>${head}</tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-    <button type="button" class="theme-btn" id="openTeamScheduleFromPacer" style="margin-top:8px;">Open full team schedule</button>`;
 }
 
 // Content for the collapsible "Team Standings" sidebar section (collapsed by
@@ -10360,8 +10320,6 @@ const BONUS_SIDE_COLLAPSED_KEY = 'pace_dashboard_bonus_side_collapsed_v1';
 let bonusSideCollapsed = loadJSON(BONUS_SIDE_COLLAPSED_KEY, false); // default open
 const RANK_SIDE_COLLAPSED_KEY = 'pace_dashboard_rank_side_collapsed_v1';
 let rankSideCollapsed = loadJSON(RANK_SIDE_COLLAPSED_KEY, true);
-const TEAM_SCHEDULE_SIDE_COLLAPSED_KEY = 'pace_dashboard_team_schedule_side_collapsed_v1';
-let teamScheduleSideCollapsed = loadJSON(TEAM_SCHEDULE_SIDE_COLLAPSED_KEY, false);
 const PACE_NEED_SIDE_COLLAPSED_KEY = 'pace_dashboard_pace_need_side_collapsed_v1';
 let paceNeedSideCollapsed = loadJSON(PACE_NEED_SIDE_COLLAPSED_KEY, false);
 const PERSONAL_GOAL_SIDE_COLLAPSED_KEY_V2 = 'pace_dashboard_personal_goal_side_collapsed_v2';
@@ -10538,12 +10496,6 @@ document.getElementById('detailBackBtn').addEventListener('click', () => {
 // Side-panel section heads — delegated so sticky-tab overlays / re-renders
 // can't leave orphaned listeners, and so nested toggle buttons don't break expand.
 document.getElementById('metricsSidePanel')?.addEventListener('click', (e) => {
-  const openSched = e.target.closest('#openTeamScheduleFromPacer');
-  if (openSched) {
-    e.preventDefault();
-    location.hash = 'team-schedule';
-    return;
-  }
   if (e.target.closest('[data-pace-need-target]')) return;
   const head = e.target.closest('.metrics-side-section-head');
   if (!head || !document.getElementById('metricsSidePanel')?.contains(head)) return;
@@ -10569,11 +10521,6 @@ document.getElementById('metricsSidePanel')?.addEventListener('click', (e) => {
     saveJSON(RANK_SIDE_COLLAPSED_KEY, rankSideCollapsed);
     document.getElementById('rankSideChevron')?.classList.toggle('collapsed', rankSideCollapsed);
     document.getElementById('rankSideContent')?.classList.toggle('collapsed', rankSideCollapsed);
-  } else if (id === 'teamScheduleSideToggle') {
-    teamScheduleSideCollapsed = !teamScheduleSideCollapsed;
-    saveJSON(TEAM_SCHEDULE_SIDE_COLLAPSED_KEY, teamScheduleSideCollapsed);
-    document.getElementById('teamScheduleSideChevron')?.classList.toggle('collapsed', teamScheduleSideCollapsed);
-    document.getElementById('teamScheduleSideContent')?.classList.toggle('collapsed', teamScheduleSideCollapsed);
   } else if (id === 'liveMetricsSideToggle') {
     liveMetricsSideCollapsed = !liveMetricsSideCollapsed;
     saveJSON(LIVE_METRICS_SIDE_COLLAPSED_KEY, liveMetricsSideCollapsed);
@@ -11491,7 +11438,7 @@ document.getElementById('cancelConvertBackdrop').addEventListener('click', (e) =
 document.getElementById('cancelConvertSubmit').addEventListener('click', async (e) => {
   const status = document.getElementById('cancelConvertStatus');
   const comments = document.getElementById('cancelConvertComments').value.trim();
-  if (!comments) { status.textContent = 'Comments are required.'; return; }
+  if (!comments) { status.textContent = 'Approval notes are required.'; return; }
   const membersVal = document.getElementById('cancelConvertMembers').value;
   const membersNum = Math.round((parseFloat(membersVal) || 0) * 100) / 100;
   if (!(membersNum === 0 || membersNum === 0.5 || membersNum === 1)) {
@@ -11505,9 +11452,14 @@ document.getElementById('cancelConvertSubmit').addEventListener('click', async (
     status.textContent = 'Sessions and/or members are required.';
     return;
   }
+  const clientId = document.getElementById('cancelConvertClientId').value;
   const payload = {
+    source: 'cancel-conversion',
     repName: document.getElementById('cancelConvertRep').value,
-    clientId: document.getElementById('cancelConvertClientId').value,
+    clientId,
+    clientLink: clientId
+      ? ('https://www.varsitytutors.com/clients/' + encodeURIComponent(String(clientId).trim()))
+      : '',
     saleDate: document.getElementById('cancelConvertDate').value,
     members,
     sessions,
@@ -11516,7 +11468,7 @@ document.getElementById('cancelConvertSubmit').addEventListener('click', async (
   };
   const btn = e.currentTarget;
   btn.disabled = true;
-  status.textContent = 'Submitting…';
+  status.textContent = 'Approving…';
   try {
     await submitAttributionAsAdmin(payload);
     const key = document.getElementById('cancelConvertBackdrop').dataset.rowKey;
@@ -11524,6 +11476,7 @@ document.getElementById('cancelConvertSubmit').addEventListener('click', async (
     document.getElementById('cancelConvertBackdrop').classList.remove('open');
     renderTeamCancelsTable();
     refreshTeamAttributions();
+    if (typeof showPaceToast === 'function') showPaceToast('Approved ✓', 'Cancel moved to Manual Attribution');
   } catch (err) {
     status.textContent = 'Error: ' + err.message;
   } finally {
@@ -12438,9 +12391,10 @@ function scopedAttrRecords(records) {
 }
 
 function attrLinkCell(r) {
-  const link = r.clientLink
-    ? `<a href="${escapeAttr(r.clientLink)}" target="_blank" rel="noopener">View page</a>`
-    : (r.clientId || '—'); // clientId is a fallback for any older pre-redesign records
+  const url = attrClientPageUrl(r);
+  const link = url
+    ? `<a href="${escapeAttr(url)}" target="_blank" rel="noopener">View page</a>`
+    : '—';
   if (!canEditAttrClientLink(r)) return link;
   return `<span class="attr-link-cell">${link}<button type="button" class="theme-btn attr-edit-link-btn" data-edit-attr-link="${escapeAttr(r.id)}" title="Update client page link">Edit</button></span>`;
 }
@@ -12614,11 +12568,8 @@ function attrSubmitterInfoHTML(r) {
   return `<button type="button" class="attr-info-btn has-tip" data-tip="${escapeAttr(tip)}" title="${escapeAttr(tip)}" aria-label="${escapeAttr(tip)}">i</button>`;
 }
 function attrClientLinkHTML(r) {
-  const url = String(r.clientLink || '').trim();
-  if (!url) {
-    if (r.clientId) return escapeHtml(String(r.clientId));
-    return '—';
-  }
+  const url = attrClientPageUrl(r);
+  if (!url) return '—';
   return `
     <div class="attr-link-toolbar">
       <a class="attr-client-url" href="${escapeAttr(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>
@@ -12863,12 +12814,8 @@ function csvEscapeAttr(value) {
   return s;
 }
 function attrExportNotes(r) {
-  const parts = [];
-  if (r.comments) parts.push(String(r.comments).trim());
-  if (r.reviewComment) parts.push('Admin: ' + String(r.reviewComment).trim());
-  if (r.submittedAt) parts.push('Submitted ' + formatAttrTimestamp(r.submittedAt));
-  if (r.reviewedAt) parts.push((r.status === 'approved' ? 'Approved ' : 'Reviewed ') + formatAttrTimestamp(r.reviewedAt));
-  return parts.filter(Boolean).join(' | ');
+  // CSV Notes = approver note only — no submitter comments or timestamps.
+  return String((r && r.reviewComment) || '').trim();
 }
 function approvedAttrRecordsForExport() {
   const monthFilter = document.getElementById('attrMonthFilter')?.value || 'all';
@@ -12898,7 +12845,7 @@ function buildApprovedAttrCsv(records) {
     '', // ISC gross not captured in Manual Attribution
     '', // Net bookings $ not captured in Manual Attribution
     attrExportReasonLabel(r.adjustmentReason || r.reason),
-    r.clientLink || '',
+    attrClientPageUrl(r),
     attrExportNotes(r),
   ]);
   return [headers, ...rows].map((row) => row.map(csvEscapeAttr).join(',')).join('\r\n') + '\r\n';
@@ -14097,7 +14044,7 @@ document.getElementById('rampCheckBackdrop').addEventListener('click', (e) => {
   if (e.target.id === 'rampCheckBackdrop') e.currentTarget.classList.remove('open');
 });
 document.getElementById('teamPersonalGoalsBtn').addEventListener('click', () => { location.hash = 'team-goals'; });
-document.getElementById('teamScheduleBtn')?.addEventListener('click', () => { location.hash = 'team-schedule'; });
+document.getElementById('landingSchedulesBtn')?.addEventListener('click', () => { location.hash = 'team-schedule'; });
 document.getElementById('openMyPacerBtn')?.addEventListener('click', () => {
   const me = ownRepDisplayName();
   if (me) location.hash = 'individual-pacer=' + encodeURIComponent(me);
@@ -14200,24 +14147,23 @@ function syncRoleChrome() {
   const schedules = canViewTeamSchedules();
   const myPacer = !!ownRepDisplayName();
   const teamMenu = document.getElementById('teamMenuWrap');
-  // Team menu opens for coaches OR anyone who can view schedules (schedules lives inside it).
-  if (teamMenu) teamMenu.style.display = (team || schedules) ? '' : 'none';
+  // Team menu is coach/admin ops — schedules are a standalone landing button.
+  if (teamMenu) teamMenu.style.display = team ? '' : 'none';
   const adminMenu = document.getElementById('adminMenuWrap');
   if (adminMenu) adminMenu.style.display = admin ? '' : 'none';
-  // Tools mega-menu removed — Team + Admin menus are the only nav dropdowns.
   // Coach-only items inside Team menu
   ['teamDetailsBtn', 'teamPersonalGoalsBtn', 'teamContestsBtn'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.style.display = team ? '' : 'none';
   });
-  const schedBtn = document.getElementById('teamScheduleBtn');
+  const schedBtn = document.getElementById('landingSchedulesBtn');
   if (schedBtn) schedBtn.style.display = schedules ? '' : 'none';
   const myPacerBtn = document.getElementById('openMyPacerBtn');
   if (myPacerBtn) myPacerBtn.style.display = myPacer ? '' : 'none';
   const hint = document.getElementById('landingMenuHint');
   if (hint) hint.style.display = (team || admin || schedules) ? '' : 'none';
   const navGroup = document.getElementById('landingNavActions');
-  if (navGroup) navGroup.style.display = (team || admin || schedules || (typeof canViewTeamDetails === 'function' && canViewTeamDetails())) ? '' : 'none';
+  if (navGroup) navGroup.style.display = (team || admin || schedules) ? '' : 'none';
   const shoutHist = document.getElementById('viewShoutoutHistoryLink');
   if (shoutHist) shoutHist.style.display = admin ? '' : 'none';
   if (typeof syncOpsMonthToggleUI === 'function') syncOpsMonthToggleUI();
