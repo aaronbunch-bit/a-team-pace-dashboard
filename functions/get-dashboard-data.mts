@@ -3,6 +3,7 @@ import { getStore } from "@netlify/blobs";
 import { requireSignedIn } from "./_shared/identity.mts";
 import { resolveAccess } from "./_shared/access.mts";
 import { GOALS_MONTHS_KEY, GOALS_MONTHS_STORE, isMonthKey } from "./_shared/goals.mts";
+import { ROSTER_MONTHS_KEY, ROSTER_MONTHS_STORE, normalizeRosterEntries } from "./_shared/roster-months.mts";
 
 function redactCompensation(goals: any, viewerEmail: string, fullAccess: boolean) {
   if (!goals || typeof goals !== "object" || fullAccess) return goals || null;
@@ -58,8 +59,10 @@ export default async (req: Request, context: Context) => {
   // Quotas as they stood in each closed month, so a last-month view reads that
   // month's numbers instead of whatever is set today.
   const goalsMonthsStore = getStore(GOALS_MONTHS_STORE);
+  // Who was on the team in each closed month — same idea for roster removals.
+  const rosterMonthsStore = getStore(ROSTER_MONTHS_STORE);
 
-  const [roster, goals, actuals, prelim, admins, coaches, sipExtra, goalsMonths] = await Promise.all([
+  const [roster, goals, actuals, prelim, admins, coaches, sipExtra, goalsMonths, rosterMonths] = await Promise.all([
     rosterStore.get("current", { type: "json" }),
     goalsStore.get("current", { type: "json" }),
     actualsStore.get("current", { type: "json" }),
@@ -68,6 +71,7 @@ export default async (req: Request, context: Context) => {
     coachListStore.get("current", { type: "json" }),
     sipExtraStore.get("current", { type: "json" }),
     goalsMonthsStore.get(GOALS_MONTHS_KEY, { type: "json" }),
+    rosterMonthsStore.get(ROSTER_MONTHS_KEY, { type: "json" }),
   ]);
   const safeGoals = redactCompensation(goals, viewerEmail, !!access?.isFullAdmin);
   const safeGoalsMonths = goalsMonths && typeof goalsMonths === "object" && !Array.isArray(goalsMonths)
@@ -78,6 +82,13 @@ export default async (req: Request, context: Context) => {
             month,
             redactCompensation(doc, viewerEmail, !!access?.isFullAdmin),
           ])
+      )
+    : {};
+  const safeRosterMonths = rosterMonths && typeof rosterMonths === "object" && !Array.isArray(rosterMonths)
+    ? Object.fromEntries(
+        Object.entries(rosterMonths as Record<string, any>)
+          .filter(([month, list]) => isMonthKey(month) && Array.isArray(list))
+          .map(([month, list]) => [month, normalizeRosterEntries(list)])
       )
     : {};
   const safePrelim = prelim && typeof prelim === "object"
@@ -95,6 +106,7 @@ export default async (req: Request, context: Context) => {
   return new Response(
     JSON.stringify({
       roster: roster || null,
+      rosterMonths: safeRosterMonths,
       goals: safeGoals,
       goalsMonths: safeGoalsMonths,
       actuals: actuals || null,
