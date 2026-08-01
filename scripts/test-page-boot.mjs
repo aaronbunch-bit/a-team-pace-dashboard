@@ -73,7 +73,13 @@ function makeNode(id = "") {
     checked: false,
     hidden: false,
     disabled: false,
-    style: new Proxy({}, { get: () => "", set: () => true }),
+    style: new Proxy(
+      {
+        setProperty() {}, removeProperty() {}, getPropertyValue: () => "",
+        getPropertyPriority: () => "", item: () => "", length: 0,
+      },
+      { get: (t, k) => (k in t ? t[k] : ""), set: () => true }
+    ),
     dataset: {},
     classList: {
       add() {}, remove() {}, toggle() {}, contains: () => false, replace() {},
@@ -127,8 +133,21 @@ function makeNode(id = "") {
   return node;
 }
 
+/**
+ * Every id that actually exists in the markup.
+ *
+ * getElementById has to be faithful — returning a node for ids the page does
+ * not contain is what let a real crash through: the script does
+ * `document.getElementById('x').addEventListener(...)` in plenty of places, and
+ * a permissive stub turns a browser TypeError into a silent pass.
+ */
+const realIds = new Set();
+for (const m of html.matchAll(/\sid\s*=\s*"([^"]+)"/g)) realIds.add(m[1]);
+for (const m of html.matchAll(/\sid\s*=\s*'([^']+)'/g)) realIds.add(m[1]);
+
 const nodes = new Map();
 const nodeFor = (id) => {
+  if (!realIds.has(id)) return null;
   if (!nodes.has(id)) nodes.set(id, makeNode(id));
   return nodes.get(id);
 };
@@ -145,6 +164,27 @@ function makeStorage() {
   };
 }
 
+/**
+ * Writes to <body>.textContent / innerHTML delete the whole page.
+ *
+ * Shipped once: an attribute selector matched <body> as well as the buttons it
+ * meant to match, and the loop assigned textContent — so the entire document
+ * became one word. Record it here instead of letting it pass.
+ */
+const bodyWipes = [];
+const bodyNode = makeNode("body");
+for (const prop of ["textContent", "innerHTML", "innerText"]) {
+  let stored = "";
+  Object.defineProperty(bodyNode, prop, {
+    configurable: true,
+    get: () => stored,
+    set(v) {
+      stored = v;
+      bodyWipes.push(`document.body.${prop} = ${JSON.stringify(String(v).slice(0, 60))}`);
+    },
+  });
+}
+
 const documentStub = {
   readyState: "loading",
   title: "",
@@ -153,7 +193,7 @@ const documentStub = {
   visibilityState: "visible",
   documentElement: makeNode("html"),
   head: makeNode("head"),
-  body: makeNode("body"),
+  body: bodyNode,
   currentScript: makeNode(),
   getElementById: (id) => nodeFor(String(id)),
   querySelector: () => makeNode(),
@@ -223,7 +263,10 @@ const windowStub = {
   requestIdleCallback: () => 0,
   fetch: () => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}), text: () => Promise.resolve("") }),
   alert() {}, confirm: () => true, prompt: () => null,
-  getComputedStyle: () => new Proxy({}, { get: () => "" }),
+  getComputedStyle: () => new Proxy(
+    { getPropertyValue: () => "", getPropertyPriority: () => "", item: () => "", length: 0 },
+    { get: (t, k) => (k in t ? t[k] : "") }
+  ),
   IntersectionObserver: class { observe() {} unobserve() {} disconnect() {} takeRecords() { return []; } },
   ResizeObserver: class { observe() {} unobserve() {} disconnect() {} },
   MutationObserver: class { observe() {} disconnect() {} takeRecords() { return []; } },
@@ -338,7 +381,77 @@ assert.ok(
   "the Google sign-in button must get its click handler wired"
 );
 
+/**
+ * The render pass, with no data loaded.
+ *
+ * A signed-in browser calls these after boot(); if one throws, the dashboard
+ * paints nothing and the page looks blank even though the top-level pass was
+ * fine. They must all survive empty caches — that is also the state every tab
+ * is in for the first moment after load, and after a failed fetch.
+ */
+const renderPasses = [
+  "syncRoleChrome",
+  "syncOpsMonthToggleUI",
+  "render",
+  "renderClientDetail",
+  "renderTeamCancelsTable",
+  "renderCancelsWindowNote",
+  "renderTeamPersonalGoalsTable",
+  "renderTeamDetailsOverlay",
+];
+const renderFailures = [];
+for (const name of renderPasses) {
+  const fn = context[name];
+  if (typeof fn !== "function") continue;
+  try {
+    fn.call(context);
+  } catch (err) {
+    renderFailures.push({ name, err });
+  }
+}
+if (renderFailures.length) {
+  for (const { name, err } of renderFailures) {
+    console.error(`\n${name}() threw with empty caches:\n`);
+    console.error(err?.stack || String(err));
+    const line = Number(/index\.html-inline\.js:(\d+)/.exec(err?.stack || "")?.[1] || 0);
+    if (line) {
+      const lines = script.split("\n");
+      const from = Math.max(0, line - 4);
+      console.error("\nSource around inline line " + line + ":");
+      lines.slice(from, line + 3).forEach((l, i) => {
+        const n = from + i + 1;
+        console.error(`${n === line ? ">>" : "  "} ${n}: ${l}`);
+      });
+    }
+  }
+}
+assert.deepEqual(
+  renderFailures.map((f) => f.name),
+  [],
+  "the render pass must not throw with empty caches"
+);
+
+if (bodyWipes.length) {
+  console.error("\nSomething wrote to <body> in a way that deletes the page:\n");
+  bodyWipes.forEach((w) => console.error("  " + w));
+}
+assert.deepEqual(bodyWipes, [], "nothing may assign textContent/innerHTML on <body>");
+
+// A toggle that is `hidden` in the markup must stay hidden: a CSS `display`
+// on the same element beats the attribute, which is how an ops-only control
+// ended up as the only visible thing on a blank page.
+const css = readFileSync(resolve(here, "..", "assets", "app.css"), "utf8");
+for (const cls of ["ops-month-toggle"]) {
+  const rule = new RegExp(`\\.${cls}\\s*\\{[^}]*display\\s*:`, "m");
+  if (rule.test(css)) {
+    assert.ok(
+      new RegExp(`\\.${cls}\\[hidden\\]|\\[hidden\\]\\s*\\{[^}]*display\\s*:\\s*none`, "m").test(css),
+      `.${cls} sets display, so it needs a [hidden] rule or it renders while hidden`
+    );
+  }
+}
+
 console.log(
   `ok — index.html top-level pass completes (${script.split("\n").length} lines), ` +
-    "Google sign-in wired, month-view helpers defined"
+    "Google sign-in wired, render pass survives empty caches"
 );
