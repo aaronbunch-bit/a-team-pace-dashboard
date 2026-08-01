@@ -4,10 +4,11 @@
   "description": "A-Team pace dashboard — static site + Netlify Functions (Identity + Blobs)",
   "private": true,
   "scripts": {
-    "test": "npm run test:ledger && npm run test:export-join && npm run test:goals-months && npm run test:roster-months && npm run test:badge-day && npm run test:boot && npm run test:browser",
+    "test": "npm run test:ledger && npm run test:export-join && npm run test:goals-months && npm run test:roster-months && npm run test:month-scope && npm run test:badge-day && npm run test:boot && npm run test:browser",
     "test:ledger": "node --experimental-strip-types --no-warnings scripts/test-ledger-journal.mjs",
     "test:goals-months": "node --experimental-strip-types --no-warnings scripts/test-goals-months.mjs",
     "test:roster-months": "node --experimental-strip-types --no-warnings scripts/test-roster-months.mjs",
+    "test:month-scope": "node --experimental-strip-types --no-warnings scripts/test-month-scope.mjs",
     "test:badge-day": "node --experimental-strip-types --no-warnings scripts/test-badge-day.mjs",
     "test:export-join": "node --experimental-strip-types --no-warnings scripts/verify-export-ledger-join.mjs",
     "test:boot": "node scripts/test-page-boot.mjs",

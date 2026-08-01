@@ -1,4 +1,5 @@
 import { getStore } from "@netlify/blobs";
+import { teamTodayMonthKey } from "./time.mts";
 
 /**
  * Pacer-side stand-in for a Supabase soft-delete.
@@ -13,9 +14,23 @@ import { getStore } from "@netlify/blobs";
 export const LEDGER_EXCLUSIONS_STORE = "ledger-exclusions";
 export const LEDGER_EXCLUSIONS_KEY = "current";
 
-/** Store + key of the warm live-actuals response cache (see get-live-actuals). */
+/** Store + key prefix of the warm live-actuals response cache (see get-live-actuals). */
 export const LIVE_ACTUALS_STORE = "actuals";
 export const LIVE_ACTUALS_CACHE_KEY = "live-response-v1";
+
+/**
+ * Warm-cache key for one Chicago calendar month.
+ *
+ * Always includes the month. A bare `live-response-v1` key used to be shared by
+ * whichever month was "current," so a July response warm at 11:59pm could be
+ * served as August's live feed for up to a minute after midnight — July cancels
+ * on August pacers.
+ */
+export function liveActualsCacheKey(month: string): string {
+  const m = String(month || "").trim();
+  if (/^\d{4}-\d{2}$/.test(m)) return `${LIVE_ACTUALS_CACHE_KEY}:${m}`;
+  return `${LIVE_ACTUALS_CACHE_KEY}:${teamTodayMonthKey()}`;
+}
 
 export type LedgerExclusion = {
   ledgerId: string;
@@ -71,12 +86,19 @@ export async function saveLedgerExclusionList(list: LedgerExclusion[]): Promise<
 
 /**
  * Drop the warm live-actuals cache so an exclusion takes effect on the next
- * poll instead of up to 20s later.
+ * poll instead of up to a minute later.
  */
 export async function invalidateLiveActualsCache(): Promise<void> {
-  try {
-    await getStore(LIVE_ACTUALS_STORE).delete(LIVE_ACTUALS_CACHE_KEY);
-  } catch {
-    // Best effort — the cache expires on its own shortly after.
-  }
+  const store = getStore(LIVE_ACTUALS_STORE);
+  const live = teamTodayMonthKey();
+  const [y, m] = live.split("-").map(Number);
+  const prior = m === 1
+    ? `${y - 1}-12`
+    : `${y}-${String(m - 1).padStart(2, "0")}`;
+  const keys = [
+    LIVE_ACTUALS_CACHE_KEY, // legacy unscoped key
+    liveActualsCacheKey(live),
+    liveActualsCacheKey(prior),
+  ];
+  await Promise.all(keys.map((key) => store.delete(key).catch(() => {})));
 }
