@@ -296,6 +296,31 @@ const noWindow = netLedgerJournal(
 );
 assert.equal(totals(noWindow.rows).cancelMembers, -1, "the wash is opt-in");
 
+// Cancel line items carry the per-line facts a dump needs to be joined onto a
+// rep-scores export, and adding them must not change what the tiles total.
+{
+  const diagRows = netLedgerJournal(
+    [
+      line({ ledgerId: 674001, attributionId: 84001, members: 1, sessions: 8, date: "2026-07-04", clientId: "910001" }),
+      line({ ledgerId: 674002, attributionId: 84001, members: -1, sessions: -8, date: "2026-07-28", clientId: "910001", lifetimeMembers: 0, lifetimeSessions: 0 }),
+    ],
+    DISPLAY,
+    new Set()
+  ).rows;
+  const diag = cancelLineItems(diagRows, DISPLAY);
+  assert.equal(diag.length, 1, "one cancel line");
+  assert.equal(diag[0].attributionId, "84001");
+  assert.equal(diag[0].ledgerId, "674002");
+  assert.equal(diag[0].lifetimeMembers, 0, "lifetime rides along for the dump");
+  assert.equal(diag[0].attrWindowCredit, 1, "credit on this attribution inside the window");
+  assert.equal(diag[0].clientRepWindowCredit, 1, "credit for this client+rep inside the window");
+  assert.equal(
+    diag.reduce((s, d) => s + d.members, 0),
+    -1,
+    "diagnostics do not change what the cancel lines total"
+  );
+}
+
 // Drop no more than the overshoot: two cancels, only one line too many.
 const partialOvershoot = netLedgerJournal(
   [
