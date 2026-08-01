@@ -10977,13 +10977,12 @@ function renderCancelsWindowNote() {
 }
 
 /**
- * What every date column on the ledger would score as the month key.
+ * What every date column on the ledger and attributions tables would score as
+ * the month key.
  *
- * The July tile counts more lines than the rep-scores export does, and the two
- * populations are identical on every column the pacer currently reads — so the
- * export windows the month on a business date we do not. This lists each
- * candidate column with the cancels it would keep, which names that column from
- * a number on screen rather than another release spent guessing.
+ * The July tile still counts more lines than the rep-scores export does, and
+ * the two ledger date columns keep every leftover. Attribution dates are the
+ * next candidates — the column that keeps ~58 lines is the export's month key.
  */
 function renderMonthKeyCandidates(w) {
   const el = document.getElementById('teamCancelsMonthKeys');
