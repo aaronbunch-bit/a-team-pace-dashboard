@@ -1937,6 +1937,26 @@ let pacerTab = 'current';
 let boardSurface = 'leaders';
 let pacerChrome = resolveSavedPacerChrome();
 
+// ---- Ops / Last-month view state -------------------------------------------
+// Declared here, above initLayout() below, because applyLayout() -> syncRoleChrome()
+// -> syncOpsMonthToggleUI() runs during the very first top-level pass. `let` in
+// the temporal dead zone throws a ReferenceError that aborts the whole inline
+// script — which takes the Google sign-in handler with it. Keep this block
+// above the first executed statement, not next to the functions that use it.
+const OPS_MONTH_KEY = 'pace_dashboard_ops_month_v1';
+let opsMonthMode = (typeof localStorage !== 'undefined' && localStorage.getItem(OPS_MONTH_KEY) === 'prior')
+  ? 'prior'
+  : 'current';
+/** Cached prior-month live payload: actuals, cancels, approved totals, goals. */
+let PRIOR_MONTH_BUNDLE = null;
+let PRIOR_MONTH_FETCH = null;
+let PRIOR_APPROVED_TOTALS = {};
+let PRIOR_PERSONAL_GOALS_CACHE = {};
+let PRIOR_PERSONAL_GOALS_MONTH = '';
+// Context for computeRepPacing: 'ops' follows the month toggle, 'detail'
+// follows the Individual Pacer tab, 'auto' infers from the open UI.
+let pacingContext = 'auto';
+
 function syncSplitPanelCollapsed() {
   const collapsed = localStorage.getItem(SPLIT_PANEL_KEY) === 'collapsed';
   document.body.classList.toggle('split-panel-collapsed', collapsed);
@@ -9271,13 +9291,9 @@ function syncMetricsSidePanel(repName) {
   }
 }
 
-// Context for computeRepPacing: landing uses 'ops' (honours the month toggle);
-// Individual Pacer uses 'detail' (Last Month tab forces prior). Default 'auto'
-// picks from the open UI so call sites that forget still behave.
-let pacingContext = 'auto';
-
 // Actual/projected composite pacing for one rep — same numbers (and same
 // compositeOf() math) as their collapsed row on the main dashboard.
+// `pacingContext` (declared near the top of this script) selects the month.
 function computeRepPacing(repDisplay) {
   const overlayOpen = typeof document !== 'undefined'
     && document.getElementById('clientDetailOverlay')?.classList.contains('open');
@@ -9440,16 +9456,9 @@ function previousMonthKeyFromActuals() {
 // to the closed month after calendar rollover. Individual Pacer's Last Month
 // tab uses the same prior-month ledger payload so it looks like Current
 // (attro, cancels, manual attro) instead of a frozen summary card.
-const OPS_MONTH_KEY = 'pace_dashboard_ops_month_v1';
-let opsMonthMode = (typeof localStorage !== 'undefined' && localStorage.getItem(OPS_MONTH_KEY) === 'prior')
-  ? 'prior'
-  : 'current';
-/** Cached prior-month live payload: actuals, cancels, approved totals, goals. */
-let PRIOR_MONTH_BUNDLE = null;
-let PRIOR_MONTH_FETCH = null;
-let PRIOR_APPROVED_TOTALS = {};
-let PRIOR_PERSONAL_GOALS_CACHE = {};
-let PRIOR_PERSONAL_GOALS_MONTH = '';
+//
+// State (opsMonthMode, PRIOR_*) is declared near the top of this script, above
+// the first top-level applyLayout() call — see the note there.
 
 function isPriorMonthMode() {
   return opsMonthMode === 'prior';
