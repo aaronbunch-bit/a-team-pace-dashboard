@@ -7,11 +7,57 @@ import {
   LIVE_ACTUALS_CACHE_KEY,
   loadLedgerExclusionIds,
 } from "./_shared/ledger-exclusions.mts";
-import { TEAM_TIME_ZONE, clampAsOfToTeamToday, teamTodayYmd } from "./_shared/time.mts";
+import { TEAM_TIME_ZONE, clampAsOfToTeamToday, teamTodayYmd, teamTodayMonthKey } from "./_shared/time.mts";
 
 /** Shared warm cache so N open tabs don't each hit Supabase every poll. */
 const LIVE_CACHE_TTL_MS = 60_000;
+/** Closed months do not change — keep them warm longer than the live month. */
+const HISTORICAL_CACHE_TTL_MS = 10 * 60_000;
 const LIVE_CACHE_KEY = LIVE_ACTUALS_CACHE_KEY;
+
+function isMonthKey(value: string): boolean {
+  return /^\d{4}-\d{2}$/.test(value);
+}
+
+/** Previous calendar month for a `YYYY-MM` key. */
+function priorMonthKey(month: string): string {
+  const [y, m] = month.split("-").map((n) => Number(n));
+  if (!y || !m) return "";
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
+}
+
+/**
+ * Resolve the month the caller wants to see.
+ *
+ * `?month=YYYY-MM` opens a closed (or still-current) month for the landing
+ * Last-month toggle, the Individual Pacer Last Month tab, and the Team
+ * Cancels/Goals prior-month views. Anything else falls back to today in
+ * Chicago so a typo cannot query an unbounded window.
+ */
+function resolveRequestedMonth(url: URL): { month: string; isCurrent: boolean } {
+  const current = teamTodayMonthKey();
+  const raw = String(url.searchParams.get("month") || "").trim();
+  if (isMonthKey(raw)) return { month: raw, isCurrent: raw === current };
+  return { month: current, isCurrent: true };
+}
+
+function liveCacheKeyFor(month: string, isCurrent: boolean): string {
+  return isCurrent ? LIVE_CACHE_KEY : `${LIVE_CACHE_KEY}:${month}`;
+}
+
+/**
+ * SQL bounds for one Chicago calendar month: ledger lines created in the
+ * month, sales that occurred in that month or the one before (scoring range).
+ */
+function monthBoundsCte(month: string, tz: string): string {
+  // month is validated YYYY-MM before it reaches here.
+  return `bounds as (
+  select
+    (timestamp '${month}-01' at time zone '${tz}') as month_start,
+    ((timestamp '${month}-01' at time zone '${tz}') + interval '1 month') as month_end,
+    ((timestamp '${month}-01' at time zone '${tz}') - interval '1 month') as scoring_start
+)`;
+}
 
 /**
  * Counting rule the tiles were built with, shown on the Cancels panel.
@@ -631,13 +677,6 @@ function summarizeRows(rows: LedgerRow[]): RowSummary {
   };
 }
 
-/** Previous calendar month for a `YYYY-MM` key. */
-function priorMonthKey(month: string): string {
-  const [y, m] = month.split("-").map((n) => Number(n));
-  if (!y || !m) return "";
-  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
-}
-
 /**
  * Cancels split by how old the sale behind them is. The export's July cancels
  * are -14.0/-108 against July sales and -36.5/-228 against June sales, so this
@@ -865,6 +904,9 @@ export default async (req: Request, context: Context) => {
   const url = new URL(req.url);
   const compact = url.searchParams.get("compact") === "1";
   const bypassCache = url.searchParams.get("fresh") === "1";
+  const { month: monthYmd, isCurrent } = resolveRequestedMonth(url);
+  const cacheKey = liveCacheKeyFor(monthYmd, isCurrent);
+  const cacheTtlMs = isCurrent ? LIVE_CACHE_TTL_MS : HISTORICAL_CACHE_TTL_MS;
   const ifNoneMatch = String(req.headers.get("if-none-match") || "").trim();
 
   const finish = (payload: Record<string, unknown>) => {
@@ -892,10 +934,10 @@ export default async (req: Request, context: Context) => {
     const cacheStore = getStore("actuals");
     if (!bypassCache) {
       try {
-        const cached = (await cacheStore.get(LIVE_CACHE_KEY, { type: "json" })) as LiveCacheDoc | null;
+        const cached = (await cacheStore.get(cacheKey, { type: "json" })) as LiveCacheDoc | null;
         if (cached?.payload && Number(cached.fetchedAtMs) > 0) {
           const age = Date.now() - Number(cached.fetchedAtMs);
-          if (age >= 0 && age < LIVE_CACHE_TTL_MS) {
+          if (age >= 0 && age < cacheTtlMs) {
             return finish({ ...cached.payload, cacheHit: true, cacheAgeMs: age });
           }
         }
@@ -913,31 +955,13 @@ export default async (req: Request, context: Context) => {
       });
     }
 
-    // Current calendar month in America/Chicago (CST/CDT) — team business day.
-    //
-    // Matched against a live dump of the cancel tile (109 lines / -90.5 members)
-    // diffed against the July rep-scores export:
-    //
-    // 1. Month key is l.created_at — the export's attribution_date.
-    // 2. The sale (a.occurred_at) is this month or the prior one (scoring range).
-    // 3. a.deleted_at IS NULL — the export only lists live attributions.
-    //    Without (3), 41 June-sale cancels whose clients appear nowhere in the
-    //    July export (soft-deleted upstream, -34.5 members) inflate the tile.
-    //    We previously removed this filter thinking it hid real cancels; the
-    //    dump proves those "hidden" lines are exactly the ones the export omits.
-    //
-    // Orphan cancels (negative lifetime, no credit for this manager) are dropped
-    // in netLedgerJournal — another ~-5.5 members of SPIFF cancels against sales
-    // credited to other reps that the export never counted.
+    // Month key is l.created_at; sale (a.occurred_at) is this month or the prior
+    // one. Soft-deleted attributions and orphan/transfer washes run in JS.
+    // `?month=` selects a closed month for Last-month views; default is today.
     const tz = TEAM_TIME_ZONE.replace(/'/g, "''");
-    const monthYmd = teamTodayYmd().slice(0, 7);
+    const bounds = monthBoundsCte(monthYmd, tz);
     const sql = `
-with bounds as (
-  select
-    (date_trunc('month', (now() at time zone '${tz}')) at time zone '${tz}') as month_start,
-    ((date_trunc('month', (now() at time zone '${tz}')) + interval '1 month') at time zone '${tz}') as month_end,
-    ((date_trunc('month', (now() at time zone '${tz}')) - interval '1 month') at time zone '${tz}') as scoring_start
-),
+with ${bounds},
 win as (
   select
     l.id as ledger_id,
@@ -1005,14 +1029,8 @@ join life
 order by win.created_at asc, win.ledger_id asc;
 `;
 
-    // Same window, without the lifetime pass — only used if the query above fails.
     const fallbackSql = `
-with bounds as (
-  select
-    (date_trunc('month', (now() at time zone '${tz}')) at time zone '${tz}') as month_start,
-    ((date_trunc('month', (now() at time zone '${tz}')) + interval '1 month') at time zone '${tz}') as month_end,
-    ((date_trunc('month', (now() at time zone '${tz}')) - interval '1 month') at time zone '${tz}') as scoring_start
-)
+with ${bounds}
 select
   lower(f.email) as email,
   f.name as manager_name,
@@ -1065,7 +1083,9 @@ order by l.created_at asc, l.id asc;
     const built = buildActuals(rows, emailToDisplay);
     const actuals = { asOf: built.asOf, perRep: built.perRep };
     const cancelItems = cancelLineItems(rows, emailToDisplay);
-    const prelim = await maybeFreezePrelimAndCache(actuals);
+    // Only the live month freezes a prelim snapshot on rollover. Fetching July
+    // in August must not rewrite August's warm cache or prelim.
+    const prelim = isCurrent ? await maybeFreezePrelimAndCache(actuals) : null;
 
     const fullPayload: Record<string, unknown> = {
       ok: true,
@@ -1075,6 +1095,8 @@ order by l.created_at asc, l.id asc;
       rawRowCount: rawRows.length,
       matchedRows: built.matchedRows,
       unmatchedManagers: built.unmatchedManagers,
+      viewMonth: monthYmd,
+      viewMonthIsCurrent: isCurrent,
       // Surfaced rather than silently absorbed — if upstream duplication gets
       // worse, Ops should be able to see it.
       ledgerIntegrity: {
@@ -1120,7 +1142,7 @@ order by l.created_at asc, l.id asc;
     if (prelim) fullPayload.prelim = prelim;
 
     try {
-      await cacheStore.setJSON(LIVE_CACHE_KEY, {
+      await cacheStore.setJSON(cacheKey, {
         fetchedAtMs: Date.now(),
         payload: fullPayload,
       } satisfies LiveCacheDoc);

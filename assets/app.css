@@ -296,6 +296,32 @@
   .landing-actions-group .header-dropdown > .theme-btn.large {
     box-shadow: none;
   }
+  .ops-month-toggle {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 4px 6px 4px 12px; border-radius: 999px;
+    background: rgba(15, 23, 42, 0.04); border: 1px solid rgba(148,163,184,0.28);
+  }
+  body.dark .ops-month-toggle {
+    background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12);
+  }
+  .ops-month-toggle-label {
+    font-size: 11px; font-weight: 800; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--text-muted);
+  }
+  .ops-month-toggle-btns { display: inline-flex; gap: 4px; }
+  .ops-month-btn {
+    margin-top: 0 !important; padding: 7px 12px !important; font-size: 12.5px !important;
+    border-radius: 999px !important; box-shadow: none !important;
+  }
+  .ops-month-btn.active {
+    background: #0f172a !important; color: #fff !important; border-color: #0f172a !important;
+  }
+  body.dark .ops-month-btn.active {
+    background: #f8fafc !important; color: #0f172a !important; border-color: #f8fafc !important;
+  }
+  .ops-month-toggle-inline {
+    margin: 0 0 12px; border-radius: 14px; padding: 8px 10px;
+  }
   .landing-menu-hint {
     max-width: 520px; margin-left: auto; margin-right: auto;
   }
@@ -724,12 +750,14 @@
   body[data-pacer-chrome="tabs"][data-pacer-tab="current"] .pacer-tab-lastmonth,
   body[data-pacer-chrome="tabs"][data-pacer-tab="current"] .pacer-tab-more,
   body[data-pacer-chrome="tabs"][data-pacer-tab="current"] #clientDetailHistoryBlock { display: none !important; }
+  body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .pacer-tab-pace { display: block !important; }
   body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .pacer-tab-lastmonth { display: block !important; }
-  body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .pacer-tab-pace,
   body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .pacer-tab-more,
-  body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] #metricsStyleToggleWrap,
   body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] #clientDetailHistoryBlock { display: none !important; }
-  body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .detail-page-grid { grid-template-columns: 1fr; }
+  /* Keep the side panel on Last Month — same chrome as Current. */
+  body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .detail-page-grid {
+    grid-template-columns: minmax(0, 1fr) 240px;
+  }
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .pacer-tab-pace,
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .pacer-tab-lastmonth,
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .pacer-tab-more,
@@ -749,8 +777,7 @@
     max-height: calc(100vh - 80px); overflow: auto;
     pointer-events: auto;
   }
-  body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .metrics-side-panel,
-  body[data-pacer-chrome="tabs"][data-pacer-tab="lastmonth"] .metrics-side-panel { position: static; max-height: none; }
+  body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] .metrics-side-panel { position: static; max-height: none; }
   /* Historical: open charts immediately; collapse chrome is optional. */
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] #historyCollapseBody { display: block !important; }
   body[data-pacer-chrome="tabs"][data-pacer-tab="historical"] #historyCollapseBody.collapsed { display: block !important; }
