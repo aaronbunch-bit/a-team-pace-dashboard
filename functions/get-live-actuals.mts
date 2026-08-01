@@ -66,16 +66,17 @@ function monthBoundsCte(month: string, tz: string): string {
  * to tell a rule that had not worked from a build that had not shipped yet.
  */
 const LEDGER_RULE_VERSION =
-  "created_at+scoring+live-attro+transfer-wash-v5+credit-join-v1";
+  "credit-occurred-month-v2+scoring+live-attro+transfer-wash-v5+credit-join";
 
 /**
  * Columns worth testing as the export's month key.
  *
- * Ledger + attribution date columns all failed to separate the export's 58 /
- * -50.5 from the 28 leftovers. The leftovers almost all carry a UUID
- * `credit_id` (or blank); every numeric `credit_id` is in the export. The
- * schema lists a `credits` table — join it, and prefer a date on that row as
- * the business day the export calls `attribution_date`.
+ * Settled: the export's `attribution_date` is `credits.occurred_at`, reached
+ * through `rep_scores_ledger_entries.credit_id`. Joining the July dump onto
+ * the July export by ledger id, filtering cancels to credit month = July
+ * returns exactly the export's 58 lines / -50.5 — the same set, no line in one
+ * and not the other. Ledger and attribution date columns stay in the dump as
+ * evidence, not as the key.
  */
 const MONTH_KEY_CANDIDATE_TYPES = new Set([
   "date",
@@ -148,6 +149,11 @@ type CreditJoinPlan = {
    * Null when credits has no date-typed column we can read.
    */
   businessDateExpr: string | null;
+  /**
+   * Same preference order as a timestamp, for comparing against the month
+   * bounds. Null when credits has no usable date column.
+   */
+  businessAtExpr: string | null;
 };
 
 /** Column names on `credits` that might equal `l.credit_id`. */
@@ -265,8 +271,10 @@ type WashedCancel = {
   sessions: number;
   date: string;
   saleMonth: string;
-  /** transfer = same-write rebook; orphan-credit = no credits row; credit-month = credit day outside window. */
+  /** transfer = same-write rebook; orphan-credit = no credits row; credit-month = credit occurred in another month. */
   reason?: "transfer" | "orphan-credit" | "credit-month";
+  /** For credit-month: the month the export files this cancel under. */
+  creditMonth?: string;
 };
 
 /**
@@ -632,25 +640,44 @@ export function netLedgerJournal(
       }
     }
 
-    // Wash cancels the export never lists because their credit_id does not
-    // resolve to a `credits` row.
+    // Put every cancel in the month its credit occurred in, which is the month
+    // the rep-scores export puts it in.
     //
-    // Joined onto the July export by ledger_id: 28 of the 86 tile cancels
-    // (-24.0) are absent. 27 carry a UUID credit_id and one is blank; every
-    // numeric credit_id is in the export. The schema has a `credits` table and
-    // the ledger has `credit_id`. When the live query left-joins that table,
-    // unresolved cancels are dropped here. `credit_matched` stays undefined
-    // when the join was unavailable so older fixtures and a failed probe
-    // cannot zero the tile.
+    // `credits.occurred_at` *is* the export's `attribution_date`: joining the
+    // July dump onto the July export by ledger id, the cancels whose credit
+    // occurred in July are exactly the export's 58 lines / -50.5 — no line in
+    // one set and not the other. Keying on `l.created_at` (when the reversal
+    // was written) dragged 27 June-credit cancels, -23.5, into July.
     //
-    // Credit *dates* are dumped as month-key candidates but are not yet used
-    // to wash: if the only date on credits is created_at (= sale day), a
-    // prior-month keep the export dates into July would be dropped wrongly.
-    if (windowMonth && cancelLines.some((r) => r.credit_matched === false)) {
+    // The live query already windows on this, so in the normal path nothing
+    // reaches here. It runs anyway because a cached payload, the no-credits
+    // fallback query or a replayed dump can still carry out-of-month lines,
+    // and the tile must read the same number whichever produced it.
+    //
+    // A credit-month line is *removed*, not folded into the attribution's
+    // credit: it belongs to another month, so its value must not be netted
+    // against a credit that belongs to this one. An unresolved credit_id
+    // (`credit_matched === false`) is folded, like a transfer — the export has
+    // no such row at all. `credit_matched` stays undefined when the join is
+    // unavailable, so a failed probe cannot zero the tile.
+    const creditMonthOf = (row: LedgerRow) => {
+      if (row.credit_matched !== true) return "";
+      const day = String(row.credit_business_date || "").slice(0, 10);
+      return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day.slice(0, 7) : "";
+    };
+    const outOfCreditMonth = (row: LedgerRow) => {
+      const month = creditMonthOf(row);
+      return !!month && month !== windowMonth;
+    };
+    if (
+      windowMonth &&
+      cancelLines.some((r) => r.credit_matched === false || outOfCreditMonth(r))
+    ) {
       const surviving: LedgerRow[] = [];
       for (const row of cancelLines) {
-        if (row.credit_matched === false) {
-          washedHere.push(row);
+        const orphan = row.credit_matched === false;
+        if (orphan || outOfCreditMonth(row)) {
+          if (orphan) washedHere.push(row);
           washed.push({
             ledgerId: String(row.ledger_id || ""),
             attributionId: String(row.attribution_id || ""),
@@ -660,7 +687,8 @@ export function netLedgerJournal(
             sessions: Number(row.sessions) || 0,
             date: String(row.attribution_date || "").slice(0, 10),
             saleMonth,
-            reason: "orphan-credit",
+            reason: orphan ? "orphan-credit" : "credit-month",
+            creditMonth: creditMonthOf(row) || undefined,
           });
           continue;
         }
@@ -796,10 +824,21 @@ export function cancelLineItems(
       const attrKey = `${String(row.attribution_id || "")}|${String(row.manager_id || "")}`;
       const clientKey = `${String(row.client_id || "").trim()}|${rep}`;
       const lifetime = Number(row.lifetime_members);
+      // The export dates a cancel by its credit's `occurred_at`, so the list
+      // and a rep-scores export line up row for row. The day the reversal was
+      // written stays on the row as `ledgerDate` for anyone reconciling the
+      // ledger itself.
+      const ledgerDay = String(row.attribution_date || "").slice(0, 10);
+      const businessDay = String(row.credit_business_date || "").slice(0, 10);
+      const shownDate =
+        row.credit_matched === true && /^\d{4}-\d{2}-\d{2}$/.test(businessDay)
+          ? businessDay
+          : ledgerDay;
       return {
         rep,
         clientId: String(row.client_id || "").trim(),
-        date: String(row.attribution_date || "").slice(0, 10),
+        date: shownDate,
+        ledgerDate: ledgerDay,
         members: Math.min(Number(row.members) || 0, 0),
         sessions: Math.min(Number(row.sessions) || 0, 0),
         saleMonth: String(row.sale_occurred_at || "").slice(0, 7),
@@ -874,6 +913,7 @@ async function loadLedgerSchema(): Promise<{
     idColumns: [],
     dateColumns: [],
     businessDateExpr: null,
+    businessAtExpr: null,
   };
   try {
     const cols = await runSupabaseSql<{
@@ -1016,6 +1056,7 @@ function buildCreditJoinPlan(
       idColumns: [],
       dateColumns: [],
       businessDateExpr: null,
+      businessAtExpr: null,
     };
   }
   const idColumns = creditCols
@@ -1053,12 +1094,30 @@ function buildCreditJoinPlan(
   });
   const businessDateExpr = businessParts.length ? `coalesce(${businessParts.join(", ")})` : null;
 
+  // Raw timestamp behind the same preference order, for windowing the month.
+  // The day text above is for display; the month test must compare timestamps
+  // against the bounds CTE so a cancel written after month end still lands in
+  // the month its credit occurred in.
+  const timestampParts = dateColumns
+    .filter(({ type }) => type !== "date")
+    .map(({ name }) => `c.${name}`);
+  const dateOnlyParts = dateColumns
+    .filter(({ type }) => type === "date")
+    .map(({ name }) => `(c.${name}::timestamp at time zone '${tz}')`);
+  const allParts = [...timestampParts, ...dateOnlyParts];
+  const businessAtExpr = allParts.length
+    ? allParts.length === 1
+      ? allParts[0]
+      : `coalesce(${allParts.join(", ")})`
+    : null;
+
   return {
     enabled: idColumns.length > 0,
     onClause,
     idColumns,
     dateColumns,
     businessDateExpr,
+    businessAtExpr,
   };
 }
 
@@ -1416,6 +1475,26 @@ export default async (req: Request, context: Context) => {
           ? `(${creditJoin.idColumns.map((col) => `c.${col} is not null`).join(" or ") || "false"})`
           : "null";
 
+    // Which timestamp decides the month a line belongs to.
+    //
+    // For a cancel it is `credits.occurred_at` — the export's
+    // `attribution_date`. Joining the July dump onto the July rep-scores
+    // export by ledger id, cancels whose credit occurred in July are exactly
+    // the export's 58 lines / -50.5: same set both ways. `l.created_at` (when
+    // the reversal was *written*) put 27 June-credit cancels, -23.5, into July.
+    //
+    // Credit lines keep `l.created_at`. A sale's credit row is written with
+    // the sale, so the two agree there, and moving the members tile is not
+    // something a cancel-parity fix should do on an unproven hunch.
+    const monthKeyExpr =
+      creditJoin.enabled && creditJoin.businessAtExpr
+        ? `(case
+      when l.net_client_credit_amount < 0 or l.hours_amount < 0
+        then coalesce(${creditJoin.businessAtExpr}, l.created_at)
+      else l.created_at
+    end)`
+        : "l.created_at";
+
     // Did the ledger hand this sale to a different rep at the moment it wrote
     // this line? Transfers are written as one transaction — the losing rep's
     // reversal and the winning rep's credit land together — so a positive line
@@ -1470,8 +1549,8 @@ export default async (req: Request, context: Context) => {
   cross join bounds b
   where l.deleted_at is null
     and a.deleted_at is null
-    and l.created_at >= b.month_start
-    and l.created_at <  b.month_end
+    and ${monthKeyExpr} >= b.month_start
+    and ${monthKeyExpr} <  b.month_end
     and a.occurred_at >= b.scoring_start
     and a.occurred_at <  b.month_end
     and lower(f.email) in (${sqlStringList(emails)})`;
@@ -1563,8 +1642,8 @@ ${creditJoinSql}
 cross join bounds b
 where l.deleted_at is null
   and a.deleted_at is null
-  and l.created_at >= b.month_start
-  and l.created_at <  b.month_end
+  and ${monthKeyExpr} >= b.month_start
+  and ${monthKeyExpr} <  b.month_end
   and a.occurred_at >= b.scoring_start
   and a.occurred_at <  b.month_end
   and lower(f.email) in (${sqlStringList(emails)})
@@ -1705,9 +1784,8 @@ order by l.created_at asc, l.id asc;
     // in August must not rewrite August's warm cache or prelim.
     const prelim = isCurrent ? await maybeFreezePrelimAndCache(actuals) : null;
 
-    const creditWash = reconciled.washed.filter(
-      (w) => w.reason === "orphan-credit" || w.reason === "credit-month"
-    );
+    const orphanWash = reconciled.washed.filter((w) => w.reason === "orphan-credit");
+    const creditMonthWash = reconciled.washed.filter((w) => w.reason === "credit-month");
     const transferWashOnly = reconciled.washed.filter((w) => !w.reason || w.reason === "transfer");
 
     const fullPayload: Record<string, unknown> = {
@@ -1733,7 +1811,7 @@ order by l.created_at asc, l.id asc;
           // with the fix?" is answerable from the dashboard instead of from
           // deploy timestamps.
           rule: LEDGER_RULE_VERSION,
-          monthKeyColumn: "created_at",
+          monthKeyColumn: "credits.occurred_at (cancels), created_at (credits)",
           scoringRange: "current_and_prior_month",
           month: monthYmd,
           rawRows: rawRows.length,
@@ -1753,9 +1831,18 @@ order by l.created_at asc, l.id asc;
             idColumns: creditJoin.idColumns,
             dateColumns: creditJoin.dateColumns.map((c) => `${c.name}:${c.type}`),
             orphanWashed: {
-              rows: creditWash.length,
-              members: creditWash.reduce((s, w) => s + w.members, 0),
-              sessions: creditWash.reduce((s, w) => s + w.sessions, 0),
+              rows: orphanWash.length,
+              members: orphanWash.reduce((s, w) => s + w.members, 0),
+              sessions: orphanWash.reduce((s, w) => s + w.sessions, 0),
+            },
+            // Cancels the query itself windowed out because their credit
+            // occurred in another month. Normally zero — the SQL window has
+            // already applied the same rule — so a non-zero count means a
+            // cached or fallback payload was corrected in the journal.
+            creditMonthWashed: {
+              rows: creditMonthWash.length,
+              members: creditMonthWash.reduce((s, w) => s + w.members, 0),
+              sessions: creditMonthWash.reduce((s, w) => s + w.sessions, 0),
             },
           },
           // What each of those columns would score as the month key. The one

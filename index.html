@@ -11051,7 +11051,8 @@ function cancelLinesCsv() {
   const head = [
     'date', 'rep', 'client_id', 'members', 'sessions', 'sale_month',
     'attribution_id', 'ledger_id', 'lifetime_members', 'attr_credit', 'client_rep_credit',
-    'transferred_out', 'ledger_type', 'attr_type', 'credit_id', 'credit_matched', 'credit_business_date', ...candidateCols,
+    'transferred_out', 'ledger_type', 'attr_type', 'credit_id', 'credit_matched', 'credit_business_date',
+    'ledger_date', ...candidateCols,
   ];
   const body = rows.map((r) => {
     const it = byKey.get(`${r.rep}|${r.clientId}|${r.date}|${r.members}|${r.sessions}`) || {};
@@ -11073,6 +11074,7 @@ function cancelLinesCsv() {
       it.creditId || '',
       it.creditMatched === null || it.creditMatched === undefined ? '' : (it.creditMatched ? '1' : '0'),
       it.creditBusinessDate || '',
+      it.ledgerDate || '',
       ...candidateCols.map((c) => (it.monthKeyCandidates || {})[c] || ''),
     ];
   });
@@ -11084,6 +11086,7 @@ function cancelLinesCsv() {
     + (creditJoin
       ? ` credit_join=${creditJoin.active ? 'on' : (creditJoin.enabled ? 'disabled' : 'off')}`
         + ` orphan_credit=${creditJoin.orphanWashed ? `${creditJoin.orphanWashed.rows}/${fmt(creditJoin.orphanWashed.members, 1)}` : 'n/a'}`
+        + ` credit_month=${creditJoin.creditMonthWashed ? `${creditJoin.creditMonthWashed.rows}/${fmt(creditJoin.creditMonthWashed.members, 1)}` : 'n/a'}`
       : '');
   const colMeta = w.ledgerColumns
     ? `# ledger_columns=${(w.ledgerColumns.rep_scores_ledger_entries || []).join('|')} attr_columns=${(w.ledgerColumns.attributions || []).join('|')}`
