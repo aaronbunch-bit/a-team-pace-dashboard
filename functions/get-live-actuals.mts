@@ -3,6 +3,11 @@ import { getStore } from "@netlify/blobs";
 import { requireSignedIn } from "./_shared/identity.mts";
 import { runSupabaseSql, supabaseConfig } from "./_shared/supabase.mts";
 import { loadGoalsByMonth, saveGoalsByMonth } from "./_shared/goals.mts";
+import {
+  loadRosterByMonth,
+  normalizeRosterEntries,
+  saveRosterByMonth,
+} from "./_shared/roster-months.mts";
 import { FALLBACK_ROSTER_EMAILS } from "./_shared/roster.mts";
 import {
   LIVE_ACTUALS_CACHE_KEY,
@@ -1278,6 +1283,21 @@ async function maybeFreezePrelimAndCache(actuals: { asOf: string; perRep: Record
       }
     } catch (err: any) {
       console.warn("get-live-actuals goals-month freeze failed", err?.message || err);
+    }
+
+    // Same for roster: removing someone in the new month must not erase them
+    // from the closed month's boards.
+    try {
+      const roster = normalizeRosterEntries(
+        await getStore("roster").get("current", { type: "json" })
+      );
+      const byMonth = await loadRosterByMonth();
+      if (!byMonth[oldMonth] && roster.length) {
+        byMonth[oldMonth] = roster.map((r) => ({ ...r, active: true }));
+        await saveRosterByMonth(byMonth);
+      }
+    } catch (err: any) {
+      console.warn("get-live-actuals roster-month freeze failed", err?.message || err);
     }
   }
 
