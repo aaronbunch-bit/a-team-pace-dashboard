@@ -296,6 +296,9 @@
   .landing-actions-group .header-dropdown > .theme-btn.large {
     box-shadow: none;
   }
+  /* `hidden` has to win: this control is ops-only, and a bare `display` here
+     overrides the attribute's default and leaves it as the one visible thing. */
+  .ops-month-toggle[hidden] { display: none !important; }
   .ops-month-toggle {
     display: inline-flex; align-items: center; gap: 8px;
     padding: 4px 6px 4px 12px; border-radius: 999px;
