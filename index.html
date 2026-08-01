@@ -112,10 +112,9 @@
     </div>
     <div class="landing-actions-group" id="landingNavActions">
       <div class="ops-month-toggle" id="opsMonthToggle" hidden>
-        <span class="ops-month-toggle-label">Month</span>
-        <div class="ops-month-toggle-btns" role="group" aria-label="Dashboard month">
-          <button type="button" class="theme-btn ops-month-btn active" data-ops-month="current" id="opsMonthCurrentBtn">This month</button>
-          <button type="button" class="theme-btn ops-month-btn" data-ops-month="prior" id="opsMonthPriorBtn">Last month</button>
+        <div class="ops-month-seg" role="group" aria-label="Dashboard month">
+          <button type="button" class="ops-month-btn active" data-ops-month="current" id="opsMonthCurrentBtn" aria-pressed="true">This month</button>
+          <button type="button" class="ops-month-btn" data-ops-month="prior" id="opsMonthPriorBtn" aria-pressed="false">Last month</button>
         </div>
       </div>
       <div class="header-dropdown" id="teamMenuWrap" style="display:none;">
@@ -972,9 +971,10 @@
       <div class="card ops-panel-shell">
         <h2>Cancels — team-wide</h2>
         <div class="ops-month-toggle ops-month-toggle-inline" id="cancelsMonthToggle" hidden>
-          <div class="ops-month-toggle-btns" role="group" aria-label="Cancels month">
-            <button type="button" class="theme-btn ops-month-btn active" data-ops-month="current">This month</button>
-            <button type="button" class="theme-btn ops-month-btn" data-ops-month="prior">Last month</button>
+          <span class="ops-month-toggle-label">Showing</span>
+          <div class="ops-month-seg" role="group" aria-label="Cancels month">
+            <button type="button" class="ops-month-btn active" data-ops-month="current" aria-pressed="true">This month</button>
+            <button type="button" class="ops-month-btn" data-ops-month="prior" aria-pressed="false">Last month</button>
           </div>
         </div>
         <div class="meta-note" style="margin:0 0 12px;">Negative ledger lines across the team. Use <b>Last month</b> to review the closed month (attro, cancels, and wash diagnostics) after the calendar rolls.</div>
@@ -992,9 +992,10 @@
       <div class="card ops-panel-shell" id="teamPersonalGoalsCard">
         <h2>🎯 Personal month goals — team</h2>
         <div class="ops-month-toggle ops-month-toggle-inline" id="goalsMonthToggle" hidden>
-          <div class="ops-month-toggle-btns" role="group" aria-label="Goals month">
-            <button type="button" class="theme-btn ops-month-btn active" data-ops-month="current">This month</button>
-            <button type="button" class="theme-btn ops-month-btn" data-ops-month="prior">Last month</button>
+          <span class="ops-month-toggle-label">Showing</span>
+          <div class="ops-month-seg" role="group" aria-label="Goals month">
+            <button type="button" class="ops-month-btn active" data-ops-month="current" aria-pressed="true">This month</button>
+            <button type="button" class="ops-month-btn" data-ops-month="prior" aria-pressed="false">Last month</button>
           </div>
         </div>
         <div class="meta-note" style="margin:0 0 12px;">Each rep sets a Total Average Attainment target (min 100%). After month rollover, switch to <b>Last month</b> to keep prior goals visible until SIP is closed out — live actuals for the new month start at zero.</div>
@@ -9623,7 +9624,9 @@ function syncOpsMonthToggleUI() {
   // Class-scoped so the selector can only ever reach the toggle buttons.
   document.querySelectorAll('button.ops-month-btn[data-ops-month]').forEach((btn) => {
     const mode = btn.getAttribute('data-ops-month');
-    btn.classList.toggle('active', mode === opsMonthMode);
+    const on = mode === opsMonthMode;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     if (mode === 'prior') {
       btn.textContent = prev ? (prev.label.replace(/\s+\d+$/, '') || 'Last month') : 'Last month';
     } else if (mode === 'current') {
@@ -10982,19 +10985,34 @@ function cancelLinesCsv() {
   const w = (typeof loadViewLedgerIntegrity === 'function'
     ? loadViewLedgerIntegrity()
     : LEDGER_INTEGRITY)?.window || {};
-  const bySaleMonth = new Map((loadViewCancelItems() || []).map((it) => [
+  // Per-line facts, keyed the same way the tiles are totalled. attribution_id
+  // and ledger_id let a dump be joined straight onto a rep-scores export;
+  // lifetime and the two window-credit columns are what separate a cancel the
+  // export counts from one it omits.
+  const byKey = new Map((loadViewCancelItems() || []).map((it) => [
     `${it.rep}|${it.clientId}|${it.date}|${it.members}|${it.sessions}`,
-    it.saleMonth || '',
+    it,
   ]));
-  const head = ['date', 'rep', 'client_id', 'members', 'sessions', 'sale_month'];
-  const body = rows.map((r) => [
-    r.date,
-    r.rep,
-    r.clientId,
-    r.members,
-    r.sessions,
-    bySaleMonth.get(`${r.rep}|${r.clientId}|${r.date}|${r.members}|${r.sessions}`) || '',
-  ]);
+  const head = [
+    'date', 'rep', 'client_id', 'members', 'sessions', 'sale_month',
+    'attribution_id', 'ledger_id', 'lifetime_members', 'attr_credit', 'client_rep_credit',
+  ];
+  const body = rows.map((r) => {
+    const it = byKey.get(`${r.rep}|${r.clientId}|${r.date}|${r.members}|${r.sessions}`) || {};
+    return [
+      r.date,
+      r.rep,
+      r.clientId,
+      r.members,
+      r.sessions,
+      it.saleMonth || '',
+      it.attributionId || '',
+      it.ledgerId || '',
+      it.lifetimeMembers === null || it.lifetimeMembers === undefined ? '' : it.lifetimeMembers,
+      it.attrWindowCredit === undefined ? '' : it.attrWindowCredit,
+      it.clientRepWindowCredit === undefined ? '' : it.clientRepWindowCredit,
+    ];
+  });
   const totals = rows.reduce((a, r) => ({ m: a.m + r.members, s: a.s + r.sessions }), { m: 0, s: 0 });
   const wash = w.transferWash || null;
   const meta = `# rule=${w.rule || 'unknown'} month=${w.month || ''} lines=${rows.length} members=${fmt(totals.m, 1)} sessions=${fmt(totals.s, 1)}`
