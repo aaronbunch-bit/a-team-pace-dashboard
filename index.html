@@ -409,6 +409,11 @@
             <span class="side-chevron" id="rankSideChevron">▾</span>
           </div>
           <div id="rankSideContent" class="rank-side-content"></div>
+          <div class="metrics-side-section-head" id="teamScheduleSideToggle">
+            <span class="metrics-side-title" style="margin-bottom:0;">📅 Team Schedule</span>
+            <span class="side-chevron" id="teamScheduleSideChevron">▾</span>
+          </div>
+          <div id="teamScheduleSideContent" class="team-schedule-side-content"></div>
           <div class="metrics-side-section-head" id="liveMetricsSideToggle" style="display:none;">
             <span class="metrics-side-title" style="margin-bottom:0;">📡 Live Metrics</span>
             <span class="side-chevron" id="liveMetricsSideChevron">▾</span>
@@ -1150,6 +1155,7 @@
         <div id="goalsForm"></div>
         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px;">
           <button id="saveGoals">Save quotas</button>
+          <span class="meta-note" id="goalsSaveStatus" style="margin:0;"></span>
           <span class="field-toggle-tag" id="toggleAdvancedFields">+ Tag / Email / Cap</span>
         </div>
         <div class="meta-note">PT: $500 OTE (no leveling planner) · L1: $41,600 salary / $1,000 OTE · L2: $50,000 / $1,333 · L3: $60,000 / $1,667. Changing Level fills the standard OTE; OTE remains editable. ✕ removes someone (restorable in Removed).</div>
@@ -1742,8 +1748,17 @@ function formatTeamYmdLabel(ymd) {
 function badgeTodayYmd(date) {
   return teamTodayYmd(date);
 }
+/** Previous Central calendar day — not browser-local Date math. */
+function shiftCentralYmd(ymd, n) {
+  const [y, m, d] = String(ymd || '').slice(0, 10).split('-').map(Number);
+  if (!(y && m && d)) return '';
+  // 17:00 UTC ≈ midday Central — stays on the intended Chicago calendar day.
+  const probe = new Date(Date.UTC(y, m - 1, d, 17, 0, 0));
+  probe.setUTCDate(probe.getUTCDate() + n);
+  return ymdInTimeZone(probe, TEAM_TIME_ZONE);
+}
 function badgeYesterdayYmd(date) {
-  return shiftDateStr(badgeTodayYmd(date), -1);
+  return shiftCentralYmd(badgeTodayYmd(date), -1);
 }
 
 const COMP_LEVELS = Object.freeze({
@@ -2361,8 +2376,8 @@ function buildNowBoxHTML(label, mm, expectedPct, uid, curDay, curDim) {
         <span class="status-pill small ${st.cls} has-tip" data-tip="${st.tip}">${st.label}</span>
       </div>
       <div class="metric-hero">
-        <span class="metric-hero-num" style="${heroStyle}">${mm.currentPct === null ? '—' : fmt(mm.currentPct,0) + '%'}</span>
-        <span class="metric-hero-sub">${mm.goalIsZero ? 'no goal set' : fmt(mm.actual,1) + ' of ' + fmt(mm.goal, mm.goal % 1 === 0 ? 0 : 1) + ' so far'}</span>
+        <span class="metric-hero-num" style="${heroStyle}">${mm.goalIsZero ? fmt(mm.actual, 1) : (mm.currentPct === null ? '—' : fmt(mm.currentPct,0) + '%')}</span>
+        <span class="metric-hero-sub">${mm.goalIsZero ? 'actual (no goal set)' : fmt(mm.actual,1) + ' of ' + fmt(mm.goal, mm.goal % 1 === 0 ? 0 : 1) + ' so far'}</span>
       </div>
       <div class="mini-bar-track">
         <div class="mini-bar-fill${st.special ? ' bar-shimmer' : ''}" data-mini="${uid}" style="background:${st.barGrad};"></div>
@@ -2592,17 +2607,15 @@ function render() {
     const memMetric = computeMetric(a.members, g.members, elapsedFrac);
     const sesMetric = computeMetric(a.sessions, g.sessions, elapsedFrac);
     const composite = compositeOf(memMetric, sesMetric);
-    // "No Goal" reps (no Sessions goal AND no Members goal set) never roll into
-    // the team total — neither their actual sales/cancels nor their (zero) goal —
-    // so a person who hasn't had goals set yet can't dilute or inflate the team's
-    // pace numbers. Matches the same goalIsZero condition that drives their own
-    // "No Goal" badge/composite display.
-    if (!composite.goalIsZero) {
-      teamMembersActual += a.members; teamMembersGoal += g.members;
-      teamSessionsActual += a.sessions; teamSessionsGoal += g.sessions;
-      teamMembersCancels += (a.membersCancels || 0);
-      teamSessionsCancels += (a.sessionsCancels || 0);
-    }
+    // Always count actuals/cancels toward the team total — even with no goal or
+    // a 0 goal — so production still shows on the landing board and team card.
+    // Goals only roll in when set (> 0), so "No Goal" does not dilute % targets.
+    teamMembersActual += a.members;
+    teamSessionsActual += a.sessions;
+    teamMembersCancels += (a.membersCancels || 0);
+    teamSessionsCancels += (a.sessionsCancels || 0);
+    if ((Number(g.members) || 0) > 0) teamMembersGoal += g.members;
+    if ((Number(g.sessions) || 0) > 0) teamSessionsGoal += g.sessions;
     return { rep: r, g, a, memMetric, sesMetric, composite, idx: i };
   }); // getRoster() already returns reps in alphabetical order
   pacingContext = prevCtx;
@@ -2765,9 +2778,16 @@ function render() {
 
     animateBarWidth(document.querySelector(`[data-bar="${uid}"]`), row.composite.current ?? 0, 150 + order * 60);
     if (row.composite.goalIsZero) {
+      // Still show production on the landing row when no monthly goal is set.
       const numEl = document.querySelector(`[data-num="${uid}"]`);
-      if (numEl) numEl.textContent = '—';
+      if (numEl) {
+        numEl.textContent = `${fmt(row.a.members, 1)}M · ${fmt(row.a.sessions, 1)}S`;
+        numEl.style.fontSize = '13px';
+        numEl.title = 'Net members · net sessions (no goal set)';
+      }
     } else {
+      const numEl = document.querySelector(`[data-num="${uid}"]`);
+      if (numEl) { numEl.style.fontSize = ''; numEl.title = ''; }
       animateNumber(document.querySelector(`[data-num="${uid}"]`), row.composite.current ?? 0, 150 + order * 60);
     }
 
@@ -3666,8 +3686,12 @@ function compositePctAsOf(repDisplay, cutoffDateStr) {
 }
 
 // Plain calendar-day arithmetic on a 'YYYY-MM-DD' string — n may be negative.
+// Prefer shiftCentralYmd for badge / "yesterday" logic so month boundaries stay
+// on the America/Chicago calendar even when the browser is in another zone.
 function shiftDateStr(dateStr, n) {
-  const [y, m, d] = dateStr.split('-').map(Number);
+  const central = shiftCentralYmd(dateStr, n);
+  if (central) return central;
+  const [y, m, d] = String(dateStr || '').split('-').map(Number);
   const dt = new Date(y, m - 1, d + n);
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
 }
@@ -4206,9 +4230,48 @@ function manualBadgesHTML(repDisplay) {
 // as new badges get added. `firstTo100Champion` is passed in (rather than
 // recomputed here) since it's team-wide and the landing page's forEach loop
 // already computes it once outside the per-rep work.
+/**
+ * Sale line items for one rep that may span the live month and a closed month.
+ * On Aug 1, July 31 sales live in prelim / prior-month bundle — not live items.
+ */
+function repSaleItemsForBadgeLookup(repDisplay) {
+  const out = [];
+  const seen = new Set();
+  const merge = (items) => {
+    (items || []).forEach((it) => {
+      if (!it || !it.date) return;
+      const k = [it.date, it.clientId || '', it.members, it.sessions, it.occurredAt || ''].join('|');
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push(it);
+    });
+  };
+  merge(((loadActuals().perRep || {})[repDisplay] || {}).items);
+  const prelim = loadPrelimSnapshots() || {};
+  Object.keys(prelim).forEach((month) => {
+    const snap = prelim[month];
+    if (snap && snap.perRep && snap.perRep[repDisplay]) merge(snap.perRep[repDisplay].items);
+  });
+  if (PRIOR_MONTH_BUNDLE && PRIOR_MONTH_BUNDLE.actuals && PRIOR_MONTH_BUNDLE.actuals.perRep) {
+    const row = PRIOR_MONTH_BUNDLE.actuals.perRep[repDisplay];
+    if (row) merge(row.items);
+  }
+  return out;
+}
+/** True when we have a ledger source that could contain sales for that day. */
+function hasSalesCoverageForDate(dateStr) {
+  const month = String(dateStr || '').slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(month)) return false;
+  if (month === liveMonthKey()) return true;
+  if ((loadPrelimSnapshots() || {})[month]) return true;
+  if (PRIOR_MONTH_BUNDLE && PRIOR_MONTH_BUNDLE.month === month) return true;
+  return false;
+}
 function countPositiveSalesOnDate(repDisplay, dateStr) {
-  const items = ((loadActuals().perRep || {})[repDisplay] || {}).items || [];
-  return items.filter((it) => it && it.date === dateStr && ((Number(it.members) || 0) > 0 || (Number(it.sessions) || 0) > 0)).length;
+  return repSaleItemsForBadgeLookup(repDisplay).filter((it) => (
+    it && it.date === dateStr
+    && ((Number(it.members) || 0) > 0 || (Number(it.sessions) || 0) > 0)
+  )).length;
 }
 function hasHatTrickToday(repDisplay) {
   const today = badgeTodayYmd();
@@ -4258,6 +4321,10 @@ function hasReboundToday(repDisplay) {
   const yest = badgeYesterdayYmd();
   // Skip if their typical weekly schedule marks yesterday as Off.
   if (isRepScheduledOff(repDisplay, yest)) return false;
+  // Without yesterday's month data, "0 sales yesterday" is a false zero —
+  // especially on the 1st when last month's items aren't in the live feed.
+  // Fail closed: no Rebound until we can see yesterday's ledger.
+  if (!hasSalesCoverageForDate(yest)) return false;
   return countPositiveSalesOnDate(repDisplay, yest) === 0 && countPositiveSalesOnDate(repDisplay, today) > 0;
 }
 
@@ -4265,11 +4332,11 @@ function hasReboundToday(repDisplay) {
 function getNightOwlChampion() {
   const yest = badgeYesterdayYmd();
   if (!yest) return null;
+  if (!hasSalesCoverageForDate(yest)) return null;
   let best = null;
   let bestAt = '';
   getRoster().forEach((r, rIdx) => {
-    const items = ((loadActuals().perRep || {})[r.display] || {}).items || [];
-    items.forEach((it, idx) => {
+    repSaleItemsForBadgeLookup(r.display).forEach((it, idx) => {
       if (!it || it.date !== yest) return;
       if ((Number(it.members) || 0) <= 0 && (Number(it.sessions) || 0) <= 0) return;
       const at = it.occurredAt || `${it.date}T${String(rIdx).padStart(3, '0')}${String(idx).padStart(5, '0')}`;
@@ -4510,9 +4577,10 @@ function buildMiniHeaderMessages({ repRows, eligible, topRow, dim, d, monthName 
   {
     let mA = 0, mG = 0, sA = 0, sG = 0;
     repRows.forEach((r) => {
-      if (r.composite.goalIsZero) return;
-      mA += r.a.members; mG += r.g.members;
-      sA += r.a.sessions; sG += r.g.sessions;
+      mA += r.a.members;
+      sA += r.a.sessions;
+      if ((Number(r.g.members) || 0) > 0) mG += r.g.members;
+      if ((Number(r.g.sessions) || 0) > 0) sG += r.g.sessions;
     });
     const memPct = mG > 0 ? (mA / mG) * 100 : null;
     const sesPct = sG > 0 ? (sA / sG) * 100 : null;
@@ -4808,16 +4876,16 @@ document.getElementById('badgeBankList').addEventListener('click', async (e) => 
     const key = saveTipBtn.getAttribute('data-save-badge-tip');
     const input = document.querySelector(`[data-tip-input="${key}"]`);
     const tip = input ? String(input.value || '').trim() : '';
-    saveTipBtn.disabled = true;
     try {
-      await saveBadgeTip(key, tip);
-      renderBadgeBank();
-      render();
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      saveTipBtn.disabled = false;
-    }
+      await withSaveFeedback({
+        btn: saveTipBtn,
+        run: async () => {
+          await saveBadgeTip(key, tip);
+          renderBadgeBank();
+          render();
+        },
+      });
+    } catch (_) { /* feedback handled */ }
     return;
   }
   const btn = e.target.closest('[data-delete-badge]');
@@ -5383,14 +5451,19 @@ document.getElementById('saveGoals').addEventListener('click', async (e) => {
     else goals[name][field] = parseFloat(input.value) || 0;
   });
   const btn = e.currentTarget;
-  btn.disabled = true;
+  const statusEl = document.getElementById('goalsSaveStatus');
   try {
-    await saveGoals(goals, month);
-    render();
+    await withSaveFeedback({
+      btn,
+      statusEl,
+      toast: false,
+      run: async () => {
+        await saveGoals(goals, month);
+        render();
+      },
+    });
   } catch (err) {
-    alert('Could not save quotas: ' + err.message);
-  } finally {
-    btn.disabled = false;
+    if (!statusEl) alert('Could not save quotas: ' + err.message);
   }
 });
 
@@ -8686,28 +8759,30 @@ document.getElementById('contestEditSave')?.addEventListener('click', async () =
     wheelSkin: document.getElementById('contestEditWheelSkin')?.value || 'classic',
   };
   const btn = document.getElementById('contestEditSave');
-  if (btn) btn.disabled = true;
   try {
-    const { contest } = await authedFetch('/api/contests/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+    await withSaveFeedback({
+      btn,
+      statusEl: status,
+      toast: false,
+      restoreMs: 900,
+      run: async () => {
+        const { contest } = await authedFetch('/api/contests/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        setTimeout(async () => {
+          closeContestEditModal();
+          contestArenaTab = 'live';
+          await refreshContestsUi();
+          if (contest?.id) {
+            contestViewId = contest.id;
+            openContestOverlay(contest.id);
+          }
+        }, 700);
+      },
     });
-    closeContestEditModal();
-    contestArenaTab = 'live';
-    await refreshContestsUi();
-    if (contest?.id) {
-      contestViewId = contest.id;
-      openContestOverlay(contest.id);
-    }
-  } catch (err) {
-    if (status) {
-      status.textContent = err.message || 'Could not save contest';
-      status.style.color = '#dc2626';
-    }
-  } finally {
-    if (btn) btn.disabled = false;
-  }
+  } catch (_) { /* status set by withSaveFeedback */ }
 });
 
 document.querySelectorAll('[data-contest-tab]').forEach((tab) => {
@@ -9444,6 +9519,10 @@ function syncMetricsSidePanel(repName) {
     document.getElementById('rankSideContent')?.classList.toggle('collapsed', rankSideCollapsed);
     const rankEl = document.getElementById('rankSideContent');
     if (rankEl) rankEl.innerHTML = rankSideContentHTML(repName);
+    document.getElementById('teamScheduleSideChevron')?.classList.toggle('collapsed', teamScheduleSideCollapsed);
+    document.getElementById('teamScheduleSideContent')?.classList.toggle('collapsed', teamScheduleSideCollapsed);
+    const schedEl = document.getElementById('teamScheduleSideContent');
+    if (schedEl) schedEl.innerHTML = teamScheduleSideHTML();
     document.getElementById('paceNeedSideToggle')?.classList.toggle('is-collapsed', paceNeedSideCollapsed);
     document.getElementById('paceNeedSideChevron')?.classList.toggle('collapsed', paceNeedSideCollapsed);
     document.getElementById('paceNeedSideContent')?.classList.toggle('collapsed', paceNeedSideCollapsed);
@@ -9558,6 +9637,41 @@ function liveMetricsSideHTML(repDisplay) {
   const fmtRate = (v) => (v === null ? '—' : fmt(v, 1) + '%');
   return `
     <div class="metrics-side-item"><span class="metrics-side-label has-tip" data-tip="Membership refunds ÷ (members sold + membership refunds) this month">Refund rate (MTD)</span><span class="metrics-side-val">${fmtRate(mtdRate)}</span></div>`;
+}
+
+/**
+ * Full-team weekly schedule in Individual Pacer — visible to every signed-in
+ * teammate (not coach/admin gated). Edit stays on Team → Schedules.
+ */
+function teamScheduleSideHTML() {
+  const reps = getRoster();
+  if (!reps.length) {
+    return `<div class="meta-note" style="margin:0;">No roster yet.</div>`;
+  }
+  const head = SCHEDULE_DAY_LABELS.map((lab) => `<th>${lab}</th>`).join('');
+  const rows = reps.map((r, idx) => {
+    const color = SCHED_ROW_COLORS[idx % SCHED_ROW_COLORS.length];
+    const saved = (TEAM_SCHEDULES_CACHE.reps || {})[r.display] || emptyScheduleRow();
+    const cells = SCHEDULE_DAY_KEYS.map((k) => {
+      const val = saved[k] || '';
+      const off = /^off$/i.test(String(val).trim());
+      const shown = String(val || '—').replace(/</g, '&lt;');
+      return `<td><div class="sched-cell-ro${off ? ' is-off' : ''}" style="--sched-bg:${color};">${shown}</div></td>`;
+    }).join('');
+    return `<tr>
+      <td><div class="sched-name" style="background:${color};">${escapeHtml(r.display)}</div></td>
+      ${cells}
+    </tr>`;
+  }).join('');
+  return `
+    <div class="meta-note" style="margin:0 0 8px;">Everyone’s typical weekly shifts. Open the full board to edit (coaches/admins).</div>
+    <div class="schedule-wrap schedule-wrap-side">
+      <table class="schedule-grid schedule-grid-compact">
+        <thead><tr><th class="sched-name-col">Rep</th>${head}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <button type="button" class="theme-btn" id="openTeamScheduleFromPacer" style="margin-top:8px;">Open full team schedule</button>`;
 }
 
 // Content for the collapsible "Team Standings" sidebar section (collapsed by
@@ -10246,6 +10360,8 @@ const BONUS_SIDE_COLLAPSED_KEY = 'pace_dashboard_bonus_side_collapsed_v1';
 let bonusSideCollapsed = loadJSON(BONUS_SIDE_COLLAPSED_KEY, false); // default open
 const RANK_SIDE_COLLAPSED_KEY = 'pace_dashboard_rank_side_collapsed_v1';
 let rankSideCollapsed = loadJSON(RANK_SIDE_COLLAPSED_KEY, true);
+const TEAM_SCHEDULE_SIDE_COLLAPSED_KEY = 'pace_dashboard_team_schedule_side_collapsed_v1';
+let teamScheduleSideCollapsed = loadJSON(TEAM_SCHEDULE_SIDE_COLLAPSED_KEY, false);
 const PACE_NEED_SIDE_COLLAPSED_KEY = 'pace_dashboard_pace_need_side_collapsed_v1';
 let paceNeedSideCollapsed = loadJSON(PACE_NEED_SIDE_COLLAPSED_KEY, false);
 const PERSONAL_GOAL_SIDE_COLLAPSED_KEY_V2 = 'pace_dashboard_personal_goal_side_collapsed_v2';
@@ -10422,6 +10538,12 @@ document.getElementById('detailBackBtn').addEventListener('click', () => {
 // Side-panel section heads — delegated so sticky-tab overlays / re-renders
 // can't leave orphaned listeners, and so nested toggle buttons don't break expand.
 document.getElementById('metricsSidePanel')?.addEventListener('click', (e) => {
+  const openSched = e.target.closest('#openTeamScheduleFromPacer');
+  if (openSched) {
+    e.preventDefault();
+    location.hash = 'team-schedule';
+    return;
+  }
   if (e.target.closest('[data-pace-need-target]')) return;
   const head = e.target.closest('.metrics-side-section-head');
   if (!head || !document.getElementById('metricsSidePanel')?.contains(head)) return;
@@ -10447,6 +10569,11 @@ document.getElementById('metricsSidePanel')?.addEventListener('click', (e) => {
     saveJSON(RANK_SIDE_COLLAPSED_KEY, rankSideCollapsed);
     document.getElementById('rankSideChevron')?.classList.toggle('collapsed', rankSideCollapsed);
     document.getElementById('rankSideContent')?.classList.toggle('collapsed', rankSideCollapsed);
+  } else if (id === 'teamScheduleSideToggle') {
+    teamScheduleSideCollapsed = !teamScheduleSideCollapsed;
+    saveJSON(TEAM_SCHEDULE_SIDE_COLLAPSED_KEY, teamScheduleSideCollapsed);
+    document.getElementById('teamScheduleSideChevron')?.classList.toggle('collapsed', teamScheduleSideCollapsed);
+    document.getElementById('teamScheduleSideContent')?.classList.toggle('collapsed', teamScheduleSideCollapsed);
   } else if (id === 'liveMetricsSideToggle') {
     liveMetricsSideCollapsed = !liveMetricsSideCollapsed;
     saveJSON(LIVE_METRICS_SIDE_COLLAPSED_KEY, liveMetricsSideCollapsed);
@@ -10621,8 +10748,8 @@ document.getElementById('attrPageTabs')?.addEventListener('click', (e) => {
 });
 
 // ---------- Team workspace overlay (#team-details / #team-goals / #team-schedule / #team-attr) ----------
-// Admin/coach-only view — tabs use replaceState so Back always returns to the
-// dashboard instead of walking through every tab click.
+// Cancels/goals/attr/dupes are coach/admin. Schedules are viewable by every
+// signed-in teammate; only coaches/admins can edit.
 function setTeamWorkspaceTab(tab) {
   const allowed = ['cancels', 'goals', 'schedule', 'attr', 'dupes'];
   const active = allowed.includes(tab) ? tab : 'cancels';
@@ -10787,12 +10914,12 @@ function renderTeamScheduleEditor() {
 async function saveTeamScheduleFromEditor() {
   const status = document.getElementById('teamScheduleStatus');
   const wrap = document.getElementById('teamScheduleWrap');
+  const btn = document.getElementById('saveTeamScheduleBtn');
   if (!wrap) return;
   if (!canEditTeamSchedules()) {
     status.textContent = 'View only — coaches and admins can edit schedules.';
     return;
   }
-  status.textContent = 'Saving…';
   const reps = {};
   getRoster().forEach((r) => { reps[r.display] = emptyScheduleRow(); });
   wrap.querySelectorAll('input.sched-cell').forEach((input) => {
@@ -10807,22 +10934,26 @@ async function saveTeamScheduleFromEditor() {
     dailyGoals[input.getAttribute('data-goal-day')] = Number(input.value) || 0;
   });
   try {
-    const data = await authedFetch('/api/team-schedules/update', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reps, dailyGoals }),
+    await withSaveFeedback({
+      btn,
+      statusEl: status,
+      toast: false,
+      run: async () => {
+        const data = await authedFetch('/api/team-schedules/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reps, dailyGoals }),
+        });
+        TEAM_SCHEDULES_CACHE = {
+          reps: data.reps || reps,
+          dailyGoals: data.dailyGoals || dailyGoals,
+          updatedAt: data.updatedAt,
+        };
+        renderTeamScheduleEditor();
+        quietRefreshFromActuals();
+      },
     });
-    TEAM_SCHEDULES_CACHE = {
-      reps: data.reps || reps,
-      dailyGoals: data.dailyGoals || dailyGoals,
-      updatedAt: data.updatedAt,
-    };
-    status.textContent = 'Saved.';
-    renderTeamScheduleEditor();
-    quietRefreshFromActuals();
-  } catch (e) {
-    status.textContent = 'Error: ' + e.message;
-  }
+  } catch (_) { /* status set by withSaveFeedback */ }
 }
 document.getElementById('saveTeamScheduleBtn')?.addEventListener('click', saveTeamScheduleFromEditor);
 
@@ -11698,11 +11829,11 @@ function patchLandingPaceNumbers() {
     const memMetric = computeMetric(a.members, g.members, cal.elapsedFrac);
     const sesMetric = computeMetric(a.sessions, g.sessions, cal.elapsedFrac);
     const composite = compositeOf(memMetric, sesMetric);
-    if (!composite.goalIsZero) {
-      teamMembersActual += a.members; teamMembersGoal += g.members;
-      teamSessionsActual += a.sessions; teamSessionsGoal += g.sessions;
-    }
-    return { rep: r, composite, memMetric, sesMetric, uid: headers[i].getAttribute('data-toggle') };
+    teamMembersActual += a.members;
+    teamSessionsActual += a.sessions;
+    if ((Number(g.members) || 0) > 0) teamMembersGoal += g.members;
+    if ((Number(g.sessions) || 0) > 0) teamSessionsGoal += g.sessions;
+    return { rep: r, a, composite, memMetric, sesMetric, uid: headers[i].getAttribute('data-toggle') };
   });
 
   // Verify card order still matches roster display names when available.
@@ -11753,7 +11884,17 @@ function patchLandingPaceNumbers() {
       bar.style.width = Math.min(100, Math.max(0, row.composite.current ?? 0)) + '%';
     }
     const num = list.querySelector(`[data-num="${uid}"]`);
-    if (num) num.textContent = row.composite.goalIsZero ? '—' : fmt(row.composite.current ?? 0, 0) + '%';
+    if (num) {
+      if (row.composite.goalIsZero) {
+        num.textContent = `${fmt(row.a.members, 1)}M · ${fmt(row.a.sessions, 1)}S`;
+        num.style.fontSize = '13px';
+        num.title = 'Net members · net sessions (no goal set)';
+      } else {
+        num.style.fontSize = '';
+        num.title = '';
+        num.textContent = fmt(row.composite.current ?? 0, 0) + '%';
+      }
+    }
   });
 
   const titleMonthEl = document.getElementById('titleMonth');
@@ -13568,37 +13709,36 @@ document.getElementById('attrEditSave')?.addEventListener('click', async () => {
   const validated = validateManualAttrEdit();
   if (!validated || !attrEditPendingId) return;
   const btn = document.getElementById('attrEditSave');
-  if (btn) btn.disabled = true;
   try {
-    const { record, approvedEdited } = await authedFetch('/api/attributions/update', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: attrEditPendingId, ...validated }),
+    await withSaveFeedback({
+      btn,
+      statusEl: status,
+      toast: false,
+      restoreMs: 900,
+      run: async () => {
+        const { record, approvedEdited } = await authedFetch('/api/attributions/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: attrEditPendingId, ...validated }),
+        });
+        applyAttrRecordLocally(record);
+        renderMyAttributionsTable();
+        if (document.getElementById('teamDetailsOverlay')?.classList.contains('open')) {
+          await refreshTeamAttributions();
+        }
+        if (document.getElementById('clientDetailOverlay')?.classList.contains('open')) {
+          const rep = currentBonusRep || activityFilterRep;
+          if (rep) await refreshDetailAttributions(rep);
+        }
+        if (approvedEdited || record?.status === 'approved') {
+          APPROVED_TOTALS = await fetchApprovedTotals();
+          if (typeof render === 'function') render();
+        }
+        refreshMyAttributions();
+        setTimeout(() => closeAttrEditModal(), 700);
+      },
     });
-    applyAttrRecordLocally(record);
-    closeAttrEditModal();
-    renderMyAttributionsTable();
-    if (document.getElementById('teamDetailsOverlay')?.classList.contains('open')) {
-      await refreshTeamAttributions();
-    }
-    if (document.getElementById('clientDetailOverlay')?.classList.contains('open')) {
-      const rep = currentBonusRep || activityFilterRep;
-      if (rep) await refreshDetailAttributions(rep);
-    }
-    if (approvedEdited || record?.status === 'approved') {
-      APPROVED_TOTALS = await fetchApprovedTotals();
-      if (typeof render === 'function') render();
-    }
-    // Background refresh in case Blob list lags.
-    refreshMyAttributions();
-  } catch (err) {
-    if (status) {
-      status.textContent = err.message || 'Could not save changes';
-      status.style.color = '#dc2626';
-    }
-  } finally {
-    if (btn) btn.disabled = false;
-  }
+  } catch (_) { /* status set by withSaveFeedback */ }
 });
 document.getElementById('attrEditCancel')?.addEventListener('click', closeAttrEditModal);
 document.getElementById('attrEditBackdrop')?.addEventListener('click', (e) => {
@@ -13723,6 +13863,7 @@ function closePersonalGoalGate() {
 async function savePersonalGoalFromGate() {
   const backdrop = document.getElementById('personalGoalGateBackdrop');
   const status = document.getElementById('personalGoalGateStatus');
+  const btn = document.getElementById('personalGoalGateSave');
   const rep = backdrop.dataset.rep || ownRepDisplayName();
   // Total Average Attainment % only — Members/Sessions unit goals are retired.
   const kind = 'compositePct';
@@ -13731,20 +13872,27 @@ async function savePersonalGoalFromGate() {
   if (!Number.isFinite(target)) { status.textContent = 'Enter a Total Average Attainment %.'; return; }
   if (target < 100) { status.textContent = 'Goal cannot be less than 100%.'; return; }
   if (target > 250) { status.textContent = 'Goal cannot be more than 250%.'; return; }
-  status.textContent = 'Saving…';
   try {
-    const data = await authedFetch('/api/personal-goals/set', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rep, kind, target, month: liveMonthKey() }),
+    await withSaveFeedback({
+      btn,
+      statusEl: status,
+      toast: false,
+      restoreMs: 900,
+      run: async () => {
+        const data = await authedFetch('/api/personal-goals/set', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rep, kind, target, month: liveMonthKey() }),
+        });
+        PERSONAL_GOALS_CACHE = data.goals || Object.assign({}, PERSONAL_GOALS_CACHE, { [rep]: data.goal });
+        setTimeout(() => {
+          closePersonalGoalGate();
+          renderClientDetail();
+          if (isTeamWorkspaceHash()) renderTeamPersonalGoalsTable();
+        }, 700);
+      },
     });
-    PERSONAL_GOALS_CACHE = data.goals || Object.assign({}, PERSONAL_GOALS_CACHE, { [rep]: data.goal });
-    closePersonalGoalGate();
-    renderClientDetail();
-    if (isTeamWorkspaceHash()) renderTeamPersonalGoalsTable();
-  } catch (e) {
-    status.textContent = 'Error: ' + e.message;
-  }
+  } catch (_) { /* status set by withSaveFeedback */ }
 }
 function renderTeamPersonalGoalsTable() {
   const tbody = document.getElementById('teamPersonalGoalsBody');
@@ -13790,6 +13938,71 @@ function showPaceToast(title, sub) {
   el.innerHTML = `${title}${sub ? `<span class="pace-toast-sub">${sub}</span>` : ''}`;
   stack.appendChild(el);
   setTimeout(() => { el.remove(); }, 5200);
+}
+/**
+ * Consistent save UX: button → Saving… → Saved ✓ (+ optional status/toast).
+ * Use for every durable write so clicks always give visual feedback.
+ */
+async function withSaveFeedback(opts) {
+  const {
+    btn,
+    statusEl,
+    run,
+    savingLabel = 'Saving…',
+    savedLabel = 'Saved ✓',
+    toast = true,
+    restoreMs = 1600,
+  } = opts || {};
+  const button = btn || null;
+  const status = statusEl || null;
+  const origText = button ? button.textContent : '';
+  if (button) {
+    button.disabled = true;
+    button.classList.add('is-saving');
+    button.classList.remove('is-saved');
+    if (!button.dataset.saveLabel) button.dataset.saveLabel = origText;
+    button.textContent = savingLabel;
+  }
+  if (status) {
+    status.textContent = savingLabel;
+    status.style.color = '';
+  }
+  try {
+    const result = await run();
+    if (button) {
+      button.classList.remove('is-saving');
+      button.classList.add('is-saved');
+      button.textContent = savedLabel;
+    }
+    if (status) {
+      status.textContent = savedLabel;
+      status.style.color = '#16a34a';
+    } else if (toast && typeof showPaceToast === 'function') {
+      showPaceToast(savedLabel);
+    }
+    setTimeout(() => {
+      if (button) {
+        button.disabled = false;
+        button.classList.remove('is-saving', 'is-saved');
+        button.textContent = button.dataset.saveLabel || origText;
+      }
+      if (status && status.textContent === savedLabel) status.textContent = '';
+    }, restoreMs);
+    return result;
+  } catch (err) {
+    if (button) {
+      button.disabled = false;
+      button.classList.remove('is-saving', 'is-saved');
+      button.textContent = button.dataset.saveLabel || origText;
+    }
+    if (status) {
+      status.textContent = (err && err.message) || 'Could not save';
+      status.style.color = '#dc2626';
+    } else if (toast && typeof showPaceToast === 'function') {
+      showPaceToast('Could not save', (err && err.message) || '');
+    }
+    throw err;
+  }
 }
 function maybeTradeUpToast(repDisplay) {
   if (ownRepDisplayName() !== repDisplay) return;
@@ -13935,7 +14148,7 @@ function canViewTeamDetails() {
   if (!email) return false;
   return isAdminEmail(email) || isLimitedAdminEmail(email);
 }
-/** Every signed-in teammate (and View-as of any roster person) can open schedules. */
+/** Every signed-in teammate can view everyone's weekly schedule (edit stays coach/admin). */
 function canViewTeamSchedules() {
   if (isUxPreviewMode()) return true;
   if (getViewAsRepRaw()) return true;
@@ -14483,7 +14696,11 @@ async function boot() {
   APPROVED_TOTALS = approved;
   await fetchLiveActuals({ full: true });
   await Promise.all([fetchPersonalGoals(), fetchTeamSchedules()]);
-  if (typeof opsMonthMode !== 'undefined' && opsMonthMode === 'prior'
+  // Prefetch last month whenever "yesterday" falls in it (month crossover),
+  // so Rebound / Night Owl can see July 31 sales on Aug 1.
+  const yest = typeof badgeYesterdayYmd === 'function' ? badgeYesterdayYmd() : '';
+  const needPriorForBadges = !!(yest && yest.slice(0, 7) !== liveMonthKey());
+  if ((needPriorForBadges || (typeof opsMonthMode !== 'undefined' && opsMonthMode === 'prior'))
       && typeof ensurePriorMonthBundle === 'function') {
     try { await ensurePriorMonthBundle(); } catch (_) {}
   }
