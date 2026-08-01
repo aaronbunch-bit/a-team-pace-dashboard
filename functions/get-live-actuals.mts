@@ -650,18 +650,47 @@ export function cancelLineItems(
   rows: LedgerRow[],
   emailToDisplay: Record<string, string>
 ) {
+  const repOf = (row: LedgerRow) => {
+    const email = safeEmail(row.email);
+    return (email && emailToDisplay[email]) || String(row.manager_name || "Unknown rep");
+  };
+
+  // Credit that sits inside this window, at both grains a re-booking could use.
+  // Shipped as diagnostics because the two wash rules built on this were tuned
+  // against an assumption rather than measured: 16 of 41 lines had a credit on
+  // their own attribution, and none of the remaining 25 had one at either
+  // grain. These columns are what tell those 25 apart from the 44 the export
+  // does count, without another round of guessing.
+  const creditByAttribution = new Map<string, number>();
+  const creditByClientRep = new Map<string, number>();
+  for (const row of rows) {
+    const members = Number(row.members) || 0;
+    if (members <= 0) continue;
+    const attrKey = `${String(row.attribution_id || "")}|${String(row.manager_id || "")}`;
+    const clientKey = `${String(row.client_id || "").trim()}|${repOf(row)}`;
+    creditByAttribution.set(attrKey, (creditByAttribution.get(attrKey) || 0) + members);
+    creditByClientRep.set(clientKey, (creditByClientRep.get(clientKey) || 0) + members);
+  }
+
   return rows
     .filter((row) => row.kind === "cancel")
     .map((row) => {
-      const email = safeEmail(row.email);
+      const rep = repOf(row);
+      const attrKey = `${String(row.attribution_id || "")}|${String(row.manager_id || "")}`;
+      const clientKey = `${String(row.client_id || "").trim()}|${rep}`;
+      const lifetime = Number(row.lifetime_members);
       return {
-        rep: (email && emailToDisplay[email]) || String(row.manager_name || "Unknown rep"),
+        rep,
         clientId: String(row.client_id || "").trim(),
         date: String(row.attribution_date || "").slice(0, 10),
         members: Math.min(Number(row.members) || 0, 0),
         sessions: Math.min(Number(row.sessions) || 0, 0),
         saleMonth: String(row.sale_occurred_at || "").slice(0, 7),
         ledgerId: String(row.ledger_id || "").trim(),
+        attributionId: String(row.attribution_id || "").trim(),
+        lifetimeMembers: Number.isFinite(lifetime) ? lifetime : null,
+        attrWindowCredit: creditByAttribution.get(attrKey) || 0,
+        clientRepWindowCredit: creditByClientRep.get(clientKey) || 0,
       };
     })
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
@@ -1076,6 +1105,36 @@ order by l.created_at asc, l.id asc;
       rawRows = await runSupabaseSql<LedgerRow>(fallbackSql);
       lifetimeAvailable = false;
     }
+    // Which date column does the export actually window on?
+    //
+    // Our month key is l.created_at. Matched line by line against the July
+    // export, l.created_at equals the export's `update_timestamp` for 58 of 58
+    // cancels, and its `attribution_date` for only 20 of 58. So the export
+    // windows the month on a ledger business date we do not read: a June-dated
+    // line that was touched in July stays in June's export but lands in our
+    // July window. That is the shape of the 25 cancel lines still on the tile
+    // with no offsetting credit anywhere in the window.
+    //
+    // Ship the column list so the right column can be named from evidence
+    // instead of guessed at. Read-only, best effort, never fatal.
+    let ledgerColumns: Record<string, string[]> | null = null;
+    try {
+      const cols = await runSupabaseSql<{ table_name: string; column_name: string; data_type: string }>(`
+select table_name, column_name, data_type
+from information_schema.columns
+where table_schema = 'sales_attribution'
+  and table_name in ('rep_scores_ledger_entries', 'attributions')
+order by table_name, ordinal_position;
+`);
+      ledgerColumns = {};
+      for (const c of cols) {
+        const t = String(c.table_name);
+        (ledgerColumns[t] ||= []).push(`${c.column_name}:${c.data_type}`);
+      }
+    } catch (schemaErr: any) {
+      console.warn("get-live-actuals schema probe failed", schemaErr?.message || schemaErr);
+    }
+
     const deletedAttribution = summarizeRows(rawRows.filter((row) => !!row.attribution_deleted));
     const exclusions = await loadLedgerExclusionIds();
     const reconciled = netLedgerJournal(rawRows, emailToDisplay, exclusions, monthYmd);
@@ -1120,6 +1179,8 @@ order by l.created_at asc, l.id asc;
           ).length,
           lifetimeAvailable,
           deletedAttribution,
+          // Candidate month-key columns, so the next fix can name the right one.
+          ledgerColumns,
           // Whether the period-transfer wash matched anything. A rule that
           // ships, deploys and quietly matches nothing is how the cancel tile
           // stayed wrong across several releases — so this is reported next to
