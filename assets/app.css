@@ -1055,19 +1055,29 @@
     font-size: 10.5px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em;
   }
   .pgc-card-body {
-    position: relative; overflow: hidden; display: grid; gap: 2px;
-    padding: 12px; border-radius: 12px;
+    position: relative; overflow: hidden; display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+    gap: 8px; padding: 8px; border-radius: 12px;
     background:
       radial-gradient(circle at 100% 0%, rgba(124,58,237,.18), transparent 48%),
       var(--metric-box-bg);
     border: 1px solid var(--divider);
   }
-  .pgc-card-body strong {
-    font-size: 28px; line-height: 1; font-weight: 950; letter-spacing: -.04em;
+  .pgc-card-metric {
+    min-width: 0; padding: 7px 8px; border-radius: 9px;
+    background: color-mix(in srgb, var(--card-bg) 58%, transparent);
+  }
+  .pgc-card-metric strong {
+    display: block; font-size: 23px; line-height: 1; font-weight: 950; letter-spacing: -.04em;
     color: var(--text); font-variant-numeric: tabular-nums;
   }
-  .pgc-card-body span { font-size: 12px; font-weight: 850; color: var(--text-muted); }
-  .pgc-card-body small { font-size: 10px; font-weight: 700; color: var(--text-faint); }
+  .pgc-card-metric strong em { font-size: .58em; font-style: normal; margin-left: 1px; }
+  .pgc-card-metric span {
+    display: block; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 11px; font-weight: 850; color: var(--text-muted);
+  }
+  .pgc-card-body.is-empty { display: block; padding: 11px 12px; }
+  .pgc-card-empty { font-size: 11px; font-weight: 750; color: var(--text-faint); }
 
   /* —— Live Contest sticky ticker (thin, top of every page) —— */
   html {
@@ -3804,14 +3814,18 @@
   }
   .goal-grid { display: grid; grid-template-columns: 1fr 0.6fr 0.6fr 0.48fr 0.65fr 0.8fr 1.1fr 0.55fr 0.75fr; gap: 8px; align-items: center; margin-bottom: 6px; font-size: 13px; }
   .pgc-admin-editor {
-    display: grid; grid-template-columns: minmax(180px, 1fr) minmax(150px, .8fr) minmax(110px, .45fr);
-    gap: 12px; align-items: end; margin: 0 0 14px; padding: 12px 14px;
+    display: grid; gap: 10px; margin: 0 0 14px; padding: 12px 14px;
     border: 1px solid var(--card-border); border-radius: 14px;
     background: linear-gradient(135deg, var(--glass), var(--glass-soft));
   }
-  .pgc-admin-editor > div { align-self: center; }
+  .pgc-admin-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .pgc-admin-editor strong { display: block; font-size: 13px; font-weight: 900; color: var(--text); }
   .pgc-admin-editor span { display: block; margin-top: 3px; font-size: 11px; font-weight: 650; color: var(--text-faint); }
+  .pgc-admin-rows { display: grid; gap: 8px; }
+  .pgc-admin-row {
+    display: grid; grid-template-columns: minmax(160px, 1fr) minmax(110px, .35fr) 32px;
+    gap: 9px; align-items: end;
+  }
   .pgc-admin-editor label {
     display: flex; flex-direction: column; gap: 5px;
     font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--text-faint);
@@ -3820,7 +3834,22 @@
     width: 100%; padding: 8px 10px; border: 1px solid var(--card-border);
     border-radius: 9px; background: var(--card-bg); color: var(--text); font: inherit;
   }
-  @media (max-width: 720px) { .pgc-admin-editor { grid-template-columns: 1fr; } }
+  .pgc-percent-input { position: relative; }
+  .pgc-percent-input input { padding-right: 28px; }
+  .pgc-percent-input span {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    margin: 0; font-weight: 900; color: var(--text-muted); pointer-events: none;
+  }
+  .pgc-remove-btn {
+    width: 32px; height: 34px; border: 1px solid var(--card-border); border-radius: 9px;
+    background: var(--card-bg); color: var(--text-muted); font-size: 20px; cursor: pointer;
+  }
+  .pgc-remove-btn:hover { color: var(--status-danger); border-color: var(--status-danger); }
+  .pgc-admin-empty { padding: 6px 0; font-size: 11px; font-weight: 700; color: var(--text-faint); }
+  @media (max-width: 720px) {
+    .pgc-admin-heading { align-items: flex-start; }
+    .pgc-admin-row { grid-template-columns: 1fr minmax(90px, .4fr) 32px; }
+  }
   /* Default view: Tag / Email / Cap columns (cells 6-8) hidden behind the
      "Show advanced fields" toggle on Edit Monthly Goals — those are set-once
      fields, unlike Sessions/Members which get touched every month.
