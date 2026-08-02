@@ -10378,6 +10378,7 @@ function renderClientDetail(opts) {
   restrictedNote.style.display = 'none';
   // Clear any leftover inline display so tab CSS can own visibility.
   bodyEls.forEach(el => { el.style.removeProperty('display'); });
+  ensureLiveActualsLineItems();
 
   {
     const prev = previousMonthKeyFromActuals();
@@ -11688,9 +11689,22 @@ let liveActualsTimer = null;
 let lastLiveActualsOk = false;
 let liveActualsInFlight = null;
 let liveActualsVisibilityBound = false;
-let liveActualsEtag = '';
+// Compact and full payloads carry different bodies, so their ETags are tracked
+// apart: sending a compact tag on a full request (or the reverse) either wastes
+// a round trip or, worse, 304s a view that needs the line items.
+let liveActualsEtagFull = '';
+let liveActualsEtagCompact = '';
 let liveActualsUnchangedStreak = 0;
 let liveActualsPollDelayMs = LIVE_ACTUALS_POLL_MS;
+
+function liveActualsEtagFor(wantFull) {
+  return (wantFull ? liveActualsEtagFull : liveActualsEtagCompact) || '';
+}
+function setLiveActualsEtag(wantFull, tag) {
+  if (!tag) return;
+  if (wantFull) liveActualsEtagFull = tag;
+  else liveActualsEtagCompact = tag;
+}
 
 function actualsDigest(actuals) {
   if (!actuals || !actuals.perRep) return '';
@@ -11701,6 +11715,26 @@ function actualsDigest(actuals) {
       (Number(r.membersCancels) || 0) + ':' + (Number(r.sessionsCancels) || 0) + ':' +
       (Array.isArray(r.items) ? r.items.length : 0);
   }).join(',');
+}
+
+let liveActualsItemsRequested = false;
+/**
+ * The pacer's Activity tables need per-sale lines, but background polls are
+ * compact. Pull the full feed once when a line-item view opens without them
+ * instead of waiting out the poll interval.
+ */
+function ensureLiveActualsLineItems() {
+  if (liveActualsItemsRequested) return;
+  if (actualsCarryItems(ACTUALS_CACHE)) return;
+  liveActualsItemsRequested = true;
+  fetchLiveActuals({ full: true })
+    .then((result) => {
+      if (result === 'changed' && typeof quietRefreshFromActuals === 'function') {
+        quietRefreshFromActuals();
+      }
+    })
+    .catch(() => {})
+    .finally(() => { liveActualsItemsRequested = false; });
 }
 
 /** Prefer compact polls (no per-sale items) unless a view needs line items. */
@@ -11714,6 +11748,13 @@ function liveActualsNeedsFullItems() {
   }
   if (document.getElementById('clientDetailOverlay')?.classList.contains('open')) return true;
   return false;
+}
+
+/** True when at least one rep row in this payload carries its line items. */
+function actualsCarryItems(actuals) {
+  const per = actuals && actuals.perRep;
+  if (!per) return false;
+  return Object.keys(per).some((name) => Array.isArray(per[name] && per[name].items));
 }
 
 function mergeLiveActualsPreserveItems(nextActuals) {
@@ -11910,7 +11951,9 @@ function writeSharedLiveActuals(data, wantFull) {
     };
     localStorage.setItem(LIVE_ACTUALS_SHARE_KEY, JSON.stringify({
       fetchedAtMs: Date.now(),
-      etag: liveActualsEtag || '',
+      etag: liveActualsEtagFor(wantFull),
+      // Readers need to know whether this share can feed a line-item view.
+      hasItems: !!wantFull,
       viewMonth: data.viewMonth || liveMonthKey(),
       actuals,
       cancelItems: Array.isArray(data.cancelItems) ? data.cancelItems : [],
@@ -11952,7 +11995,11 @@ function applyLiveActualsPayload(data, wantFull, prevDigest) {
     console.warn('Ignoring live actuals for', payloadMonth, '— live month is', liveMonthKey());
     return 'ignored';
   }
-  ACTUALS_CACHE = wantFull ? data.actuals : mergeLiveActualsPreserveItems(data.actuals);
+  // Merge on every payload, full or compact. A full payload always carries an
+  // items array per rep, so the merge is a no-op there; a compact one (or a
+  // sibling tab's compact share) would otherwise blank the Individual Pacer's
+  // attribution and refund tables while the totals kept reading correctly.
+  ACTUALS_CACHE = mergeLiveActualsPreserveItems(data.actuals);
   if (data.prelim) PRELIM_CACHE = data.prelim;
   if (Array.isArray(data.cancelItems)) CANCEL_ITEMS = data.cancelItems;
   if (data.ledgerIntegrity && !data.ledgerIntegrity.compact) {
@@ -11993,9 +12040,12 @@ async function fetchLiveActuals(opts) {
       const isLeader = claimLiveActualsLeadership();
       if (!isLeader) {
         const shared = readSharedLiveActuals(liveActualsPollDelayMs);
-        if (shared) {
-          if (shared.etag) liveActualsEtag = shared.etag;
-          return applyLiveActualsPayload({ ...shared, sharedHit: true }, wantFull, prevDigest);
+        // Siblings only share compact actuals, so a view that needs line items
+        // (an open Individual Pacer) has to go to the network for them.
+        const sharedFull = !!(shared && (shared.hasItems || actualsCarryItems(shared.actuals)));
+        if (shared && (sharedFull || !wantFull)) {
+          setLiveActualsEtag(sharedFull, shared.etag);
+          return applyLiveActualsPayload({ ...shared, sharedHit: true }, sharedFull, prevDigest);
         }
       }
     } else {
@@ -12009,7 +12059,12 @@ async function fetchLiveActuals(opts) {
     if (opts && opts.fresh) params.push('fresh=1');
     const qs = params.length ? '?' + params.join('&') : '';
     const headers = {};
-    if (liveActualsEtag && !(opts && opts.fresh)) headers['If-None-Match'] = liveActualsEtag;
+    // A 304 keeps whatever is cached, so never conditional-GET the line items
+    // we don't already hold — that is how the pacer ended up with totals and an
+    // empty attributions table.
+    const canReuseEtag = !(opts && opts.fresh) && (!wantFull || actualsCarryItems(ACTUALS_CACHE));
+    const etag = canReuseEtag ? liveActualsEtagFor(wantFull) : '';
+    if (etag) headers['If-None-Match'] = etag;
     const data = await authedFetch('/api/actuals/live' + qs, {
       cache: 'no-store',
       headers,
@@ -12023,7 +12078,7 @@ async function fetchLiveActuals(opts) {
       }
       return 'unchanged';
     }
-    if (data && data.__etag) liveActualsEtag = data.__etag;
+    if (data && data.__etag) setLiveActualsEtag(wantFull, data.__etag);
     const result = applyLiveActualsPayload(data, wantFull, prevDigest);
     writeSharedLiveActuals(data, wantFull);
     return result;
@@ -12091,8 +12146,9 @@ function startLiveActualsPolling() {
         const doc = JSON.parse(ev.newValue);
         if (!doc || !doc.actuals) return;
         const prev = actualsDigest(ACTUALS_CACHE);
-        const result = applyLiveActualsPayload({ ...doc, sharedHit: true }, false, prev);
-        if (doc.etag) liveActualsEtag = doc.etag;
+        const docFull = !!(doc.hasItems || actualsCarryItems(doc.actuals));
+        const result = applyLiveActualsPayload({ ...doc, sharedHit: true }, docFull, prev);
+        setLiveActualsEtag(docFull, doc.etag);
         if (result === 'changed') quietRefreshFromActuals();
       } catch (_) { /* ignore */ }
     });
@@ -12123,7 +12179,8 @@ function refreshForTeamCalendarDay() {
     PRIOR_MONTH_BUNDLE = null;
     PRIOR_APPROVED_TOTALS = {};
     PRIOR_MONTH_FETCH = null;
-    liveActualsEtag = '';
+    liveActualsEtagFull = '';
+    liveActualsEtagCompact = '';
     try { localStorage.removeItem(LIVE_ACTUALS_SHARE_KEY); } catch (_) {}
   }
 
