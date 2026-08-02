@@ -12,6 +12,17 @@
     --metric-box-bg: #fafaff;
     --divider: #f0eef9;
     --shadow: rgba(90,70,160,0.08);
+    --status-success: #15803d;
+    --status-danger: #b91c1c;
+    --status-warning: #a16207;
+    --status-info: #4f46e5;
+    --status-na: #8b879f;
+    --chart-primary: #7c3aed;
+    --chart-primary-fill: rgba(124,58,237,0.12);
+    --chart-grid: rgba(90,70,160,0.12);
+    --glass-strong: rgba(255,255,255,0.82);
+    --glass: rgba(255,255,255,0.62);
+    --glass-soft: rgba(255,255,255,0.38);
   }
   body.dark {
     --bg: #131120;
@@ -25,6 +36,17 @@
     --metric-box-bg: #1a1729;
     --divider: #2c2844;
     --shadow: rgba(0,0,0,0.45);
+    --status-success: #4ade80;
+    --status-danger: #f87171;
+    --status-warning: #fbbf24;
+    --status-info: #a5b4fc;
+    --status-na: #918ca9;
+    --chart-primary: #a78bfa;
+    --chart-primary-fill: rgba(167,139,250,0.18);
+    --chart-grid: rgba(169,165,196,0.16);
+    --glass-strong: rgba(30,27,48,0.92);
+    --glass: rgba(30,27,48,0.76);
+    --glass-soft: rgba(26,23,41,0.55);
   }
   * { box-sizing: border-box; }
   html { overflow-x: clip; }
@@ -36,6 +58,20 @@
     padding: 28px;
     transition: background 0.25s ease, color 0.25s ease;
     overflow-x: clip;
+  }
+  /* Theme changes should feel like one coherent surface instead of the page
+     background fading while cards, tabs and controls snap independently. */
+  .card, .theme-btn, .pill, .mini-header, .detail-header, .ops-page-intro,
+  .ops-panel-shell, .ops-list-row, .workspace-tabs, .workspace-tab,
+  .attr-page-tabs, .attr-page-tab, .attr-form-card, .attr-field input,
+  .attr-field select, .attr-field textarea, .attr-credit-row, .metric-box,
+  .metrics-side-panel, .login-gate-panel {
+    transition:
+      background-color 0.25s ease,
+      background 0.25s ease,
+      border-color 0.25s ease,
+      color 0.25s ease,
+      box-shadow 0.25s ease;
   }
   /* A happy medium between the original 900px (too cramped once Client
      Detail got its own wider layout) and a brief detour to 1360px to match
@@ -2308,7 +2344,7 @@
   .shoutout-item-meta { font-size: 10px; font-weight: 700; color: var(--text-faint); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.03em; }
   .shoutout-item-text { font-size: 13px; color: var(--text); line-height: 1.5; }
   .shoutout-remove-btn { float: right; background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 12px; }
-  .shoutout-remove-btn:hover { color: #dc2626; }
+  .shoutout-remove-btn:hover { color: var(--status-danger); }
   .field-toggle-tag {
     display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 700;
     color: var(--text-faint); background: var(--metric-box-bg); border: 1px solid var(--card-border);
@@ -2337,7 +2373,7 @@
   .st-ontrack { background: linear-gradient(90deg,#60a5fa,#6366f1); }
   .st-behind { background: linear-gradient(90deg,#fb923c,#f97316); }
   .st-far { background: linear-gradient(90deg,#f87171,#dc2626); }
-  .st-na { background: #c7c5d6; }
+  .st-na { background: var(--status-na); }
   .st-gradient { background: linear-gradient(90deg, #f472b6, #a855f7 35%, #6366f1 65%, #38bdf8); }
   .st-l2 { background: linear-gradient(90deg,#a78bfa,#7c3aed); }
   .st-gold { background: linear-gradient(90deg,#fbbf24,#f59e0b); }
@@ -2992,7 +3028,13 @@
   .attr-form-actions #attrEditSave {
     margin-top: 0;
     min-width: 160px;
+    border: 0;
+    color: #fff;
+    background: linear-gradient(100deg, #7c3aed, #6366f1 58%, #0ea5e9);
+    box-shadow: 0 6px 18px rgba(99,102,241,0.24);
   }
+  .attr-form-actions #submitAttribution:hover,
+  .attr-form-actions #attrEditSave:hover { filter: brightness(1.06); }
   #attrSubmitStatus, #attrEditStatus { margin: 0; flex: 1 1 180px; }
   .attr-rep-wrap { margin: 0; }
   .attr-rep-wrap .meta-note { margin: 2px 0 0; }
@@ -3345,12 +3387,9 @@
   .ops-page-intro {
     display: grid; gap: 6px; margin: 0 0 18px;
     padding: 16px 18px; border-radius: 16px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(255,255,255,0.35));
+    background: linear-gradient(135deg, var(--glass-strong), var(--glass-soft));
     border: 1px solid var(--card-border);
     animation: opsIntroIn 0.45s ease both;
-  }
-  body.dark .ops-page-intro {
-    background: linear-gradient(135deg, rgba(30,27,48,0.85), rgba(26,23,41,0.55));
   }
   .ops-page-intro p {
     margin: 0; font-size: 13.5px; font-weight: 600; color: var(--text-muted); line-height: 1.45;
@@ -3365,11 +3404,8 @@
   }
   #teamDetailsOverlay .workspace-tabs {
     display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; margin: 0 0 18px;
-    border-radius: 16px; background: rgba(255,255,255,0.55);
+    border-radius: 16px; background: var(--glass);
     border: 1px solid var(--card-border); box-shadow: none;
-  }
-  body.dark #teamDetailsOverlay .workspace-tabs {
-    background: rgba(15, 23, 42, 0.45);
   }
   #teamDetailsOverlay .workspace-tab {
     flex: 1 1 140px; border-radius: 12px; border: 0; background: transparent;
@@ -3392,7 +3428,7 @@
     position: absolute; top: 8px; right: 8px;
     min-width: 18px; height: 18px; padding: 0 5px;
     display: grid; place-items: center;
-    border-radius: 999px; background: #dc2626; color: #fff;
+    border-radius: 999px; background: var(--status-danger); color: #fff;
     font-size: 10px; font-weight: 900; line-height: 1;
   }
   .workspace-tab-badge[hidden] { display: none; }
@@ -3410,11 +3446,8 @@
   }
   .ops-panel-shell {
     border-radius: 18px; padding: 18px 18px 16px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.78), rgba(255,255,255,0.5));
+    background: linear-gradient(180deg, var(--glass-strong), var(--glass));
     border: 1px solid var(--card-border);
-  }
-  body.dark .ops-panel-shell {
-    background: linear-gradient(180deg, rgba(30,27,48,0.9), rgba(26,23,41,0.7));
   }
   .ops-panel-shell > h2 {
     margin: 0 0 6px; font-size: 17px; font-weight: 900; letter-spacing: -0.02em;
@@ -3425,28 +3458,16 @@
   #adminSettingsOverlay .card,
   #sipOverlay .detail-page > .card {
     border-radius: 16px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.82), rgba(255,255,255,0.55));
+    background: linear-gradient(180deg, var(--glass-strong), var(--glass));
     box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
-  }
-  body.dark #teamDetailsOverlay .workspace-panel > .card,
-  body.dark #goalsOverlay .detail-page > .card,
-  body.dark #adminSettingsOverlay .card,
-  body.dark #sipOverlay .detail-page > .card {
-    background: linear-gradient(180deg, rgba(30,27,48,0.92), rgba(26,23,41,0.72));
   }
   #teamDetailsOverlay .detail-header,
   #goalsOverlay .detail-header,
   #adminSettingsOverlay .detail-header,
   #sipOverlay .detail-header {
     border-color: transparent;
-    background: linear-gradient(120deg, rgba(255,255,255,0.78), rgba(255,255,255,0.4));
+    background: linear-gradient(120deg, var(--glass-strong), var(--glass-soft));
     animation: opsIntroIn 0.4s ease both;
-  }
-  body.dark #teamDetailsOverlay .detail-header,
-  body.dark #goalsOverlay .detail-header,
-  body.dark #adminSettingsOverlay .detail-header,
-  body.dark #sipOverlay .detail-header {
-    background: linear-gradient(120deg, rgba(30,27,48,0.92), rgba(26,23,41,0.65));
   }
   #teamDetailsOverlay .page-kicker { color: var(--ops-accent); }
   #goalsOverlay .page-kicker,
@@ -3459,11 +3480,8 @@
     display: grid; gap: 6px 14px; align-items: center;
     padding: 12px 14px; border-radius: 14px;
     border: 1px solid var(--card-border);
-    background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.28));
+    background: linear-gradient(180deg, var(--glass), var(--glass-soft));
     animation: opsPanelIn 0.3s ease both;
-  }
-  body.dark .ops-list-row {
-    background: linear-gradient(180deg, rgba(30,27,48,0.72), rgba(26,23,41,0.5));
   }
   .ops-list-row.ops-cancels {
     grid-template-columns: minmax(90px, 0.9fr) minmax(100px, 1.2fr) minmax(80px, 0.9fr) auto auto minmax(140px, 1.2fr);
@@ -3525,19 +3543,13 @@
   #goalsOverlay .goal-grid:not(.header) {
     padding: 10px 12px; margin-bottom: 8px; border-radius: 12px;
     border: 1px solid var(--card-border);
-    background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.28));
-  }
-  body.dark #goalsOverlay .goal-grid:not(.header) {
-    background: linear-gradient(180deg, rgba(30,27,48,0.7), rgba(26,23,41,0.5));
+    background: linear-gradient(180deg, var(--glass), var(--glass-soft));
   }
   #adminSettingsOverlay .badge-bank-item {
     display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap;
     padding: 12px 14px; border-radius: 14px; margin-bottom: 8px;
     border: 1px solid var(--card-border);
-    background: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.22));
-  }
-  body.dark #adminSettingsOverlay .badge-bank-item {
-    background: linear-gradient(180deg, rgba(30,27,48,0.7), rgba(26,23,41,0.48));
+    background: linear-gradient(180deg, var(--glass), var(--glass-soft));
   }
   #sipOverlay .sip-section-title {
     margin: 0 0 8px; font-size: 17px; font-weight: 900; letter-spacing: -0.02em;
@@ -3760,7 +3772,20 @@
   }
   .detail-page { max-width: 1080px; margin: 0 auto; padding: 26px 20px 48px; }
   #manualAttroOverlay {
-    background: var(--bg);
+    --ops-accent: #7c3aed;
+    background:
+      radial-gradient(ellipse 70% 40% at 12% 0%, rgba(124,58,237,0.16), transparent 56%),
+      radial-gradient(ellipse 55% 34% at 100% 24%, rgba(14,165,233,0.11), transparent 52%),
+      radial-gradient(ellipse 45% 28% at 40% 100%, rgba(244,114,182,0.08), transparent 55%),
+      var(--bg);
+  }
+  body.dark #manualAttroOverlay {
+    --ops-accent: #a78bfa;
+    background:
+      radial-gradient(ellipse 70% 40% at 12% 0%, rgba(167,139,250,0.14), transparent 56%),
+      radial-gradient(ellipse 55% 34% at 100% 24%, rgba(56,189,248,0.09), transparent 52%),
+      radial-gradient(ellipse 45% 28% at 40% 100%, rgba(244,114,182,0.07), transparent 55%),
+      var(--bg);
   }
   #manualAttroOverlay .detail-page {
     max-width: 920px;
@@ -3785,12 +3810,9 @@
   .detail-header {
     display: flex; align-items: center; gap: 12px 16px; margin-bottom: 18px; flex-wrap: wrap;
     padding: 12px 14px; border-radius: 18px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.72), rgba(248,250,252,0.55));
+    background: linear-gradient(135deg, var(--glass-strong), var(--glass));
     border: 1px solid var(--card-border);
     box-shadow: 0 8px 24px rgba(15,23,42,0.05);
-  }
-  body.dark .detail-header {
-    background: linear-gradient(135deg, rgba(30,27,48,0.9), rgba(26,23,41,0.75));
   }
   .detail-header h2 {
     font-size: clamp(18px, 2.4vw, 22px); margin: 0; font-weight: 900;
