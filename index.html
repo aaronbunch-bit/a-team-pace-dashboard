@@ -164,6 +164,15 @@
   <div class="landing-region landing-region-status" id="landingStatus">
   <div class="pill-row" id="banner"></div>
   </div>
+  <div class="ops-month-loading-shell" id="opsMonthLoadingShell" aria-live="polite" aria-busy="true">
+    <div class="ops-month-loading-title" id="opsMonthLoadingTitle">Loading month…</div>
+    <div class="ops-month-skeleton-grid">
+      <div class="ops-month-skeleton-card wide"></div>
+      <div class="ops-month-skeleton-card"></div>
+      <div class="ops-month-skeleton-card"></div>
+      <div class="ops-month-skeleton-card"></div>
+    </div>
+  </div>
 
   <!-- Two-column grid ends at the bottom of the team card — the leaderboard
        sidebar rides alongside A-Team Total only. Sort toggle + rep list live
@@ -188,6 +197,10 @@
       <div class="culture-card finish-line-card" id="finishLineCard">
         <div class="culture-card-title">Finish line</div>
         <div class="finish-line-grid" id="finishLineGrid"></div>
+      </div>
+      <div class="culture-card pgc-card" id="pgcCard">
+        <div class="culture-card-title">pGC</div>
+        <div class="pgc-card-body" id="pgcCardBody"></div>
       </div>
       <div class="leaderboard-panel">
         <div class="leaderboard-tabs" id="leaderboardTabs">
@@ -297,6 +310,10 @@
         <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="lastmonth" id="pacerTabLastMonthBtn" hidden>Last Month</button>
         <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="historical">Historical</button>
         <button type="button" class="pacer-layout-tab" role="tab" aria-selected="false" data-pacer-tab="income" id="pacerTabIncomeBtn">Income Planning</button>
+      </div>
+      <div class="pacer-tab-side-label" aria-hidden="true">
+        <span>At a glance</span>
+        <small>Goals · payout · pace</small>
       </div>
     </div>
 
@@ -1146,6 +1163,18 @@
           </div>
           <span class="meta-note" id="goalsEditMonthNote" style="margin:0;"></span>
         </div>
+        <div class="pgc-admin-editor">
+          <div>
+            <strong>Landing pGC</strong>
+            <span>Name and numeric value shown below Finish Line for this month.</span>
+          </div>
+          <label>pGC name
+            <input type="text" id="pgcLabelInput" maxlength="80" placeholder="e.g. High School">
+          </label>
+          <label>Number
+            <input type="number" id="pgcValueInput" min="0" step="any" inputmode="decimal" value="0">
+          </label>
+        </div>
         <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Level</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Individual Pacer access)</div><div>Cap bonus @ 200%</div><div class="has-tip" data-tip="When checked, this person’s members, sessions, approved attributions, and refunds do not count toward A-Team Total for this month. Their own Individual Pacer is unchanged.">Excluded from roll-up</div></div>
         <div id="goalsForm"></div>
         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px;">
@@ -1821,9 +1850,33 @@ let GOALS_CACHE = normalizeGoalsDoc(DEFAULT_GOALS);
 // The live `goals` document only says what they are today, so without this a
 // change to this month's quotas rewrote last month's page too.
 let GOALS_MONTHS_CACHE = {};
+let TEAM_MONTH_SETTINGS_CACHE = {};
 let ACTUALS_CACHE = Object.assign({}, DEFAULT_ACTUALS);
 function loadGoals() { return GOALS_CACHE; }
 function loadGoalsMonths() { return GOALS_MONTHS_CACHE || {}; }
+function normalizeTeamMonthSetting(raw) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const value = Number(source.pgcValue);
+  return {
+    pgcLabel: String(source.pgcLabel || '').trim().slice(0, 80),
+    pgcValue: Number.isFinite(value) ? Math.max(0, value) : 0,
+  };
+}
+function teamMonthSettingForMonth(monthKey) {
+  return normalizeTeamMonthSetting((TEAM_MONTH_SETTINGS_CACHE || {})[String(monthKey || '')]);
+}
+async function saveTeamMonthSetting(month, setting) {
+  const normalized = normalizeTeamMonthSetting(setting);
+  const result = await authedFetch('/api/team-month-settings/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ month, ...normalized }),
+  });
+  TEAM_MONTH_SETTINGS_CACHE = result && result.settings && typeof result.settings === 'object'
+    ? result.settings
+    : { ...TEAM_MONTH_SETTINGS_CACHE, [month]: normalized };
+  return normalized;
+}
 /**
  * The quotas that were in force in `monthKey`.
  *
@@ -2094,6 +2147,7 @@ let PRIOR_MONTH_FETCH = null;
 let PRIOR_APPROVED_TOTALS = {};
 let PRIOR_PERSONAL_GOALS_CACHE = {};
 let PRIOR_PERSONAL_GOALS_MONTH = '';
+let opsMonthSwitchToken = 0;
 // Context for computeRepPacing: 'ops' follows the month toggle, 'detail'
 // follows the Individual Pacer tab, 'auto' infers from the open UI.
 let pacingContext = 'auto';
@@ -2355,6 +2409,10 @@ function computeMetric(actual, goal, elapsedFrac) {
 function animateBarWidth(el, targetPct, delayMs) {
   if (!el) return;
   const clamped = Math.max(0, Math.min(targetPct, 100));
+  if (document.body.classList.contains('ops-month-instant')) {
+    el.style.width = clamped + '%';
+    return;
+  }
   el.style.width = '0%';
   setTimeout(() => { el.style.width = clamped + '%'; }, delayMs || 0);
 }
@@ -2362,6 +2420,10 @@ function animateBarWidth(el, targetPct, delayMs) {
 function animateNumber(el, target, delayMs, suffix) {
   if (!el) return;
   suffix = suffix || '%';
+  if (document.body.classList.contains('ops-month-instant')) {
+    el.textContent = fmt(target, 1) + suffix;
+    return;
+  }
   setTimeout(() => {
     const start = performance.now();
     const duration = 900;
@@ -2838,7 +2900,11 @@ function render() {
 
   renderLeaderboards(repRows);
   renderImprovedBoards();
-  renderGoalsForm();
+  // The quota grid is large and admin-only; rebuilding it on every landing
+  // poll/month toggle adds noticeable latency for a surface that is closed.
+  if (document.getElementById('goalsOverlay')?.classList.contains('open')) {
+    renderGoalsForm();
+  }
   renderCultureSide(repRows, teamComposite, expectedPct, cal.ymd, monthName, d, dim);
   syncLandingGridHeight();
   syncLandingBoardsScrollCap();
@@ -3485,6 +3551,15 @@ function renderCultureSide(repRows, teamComposite, expectedPct, calendarYmd, mon
       <div class="finish-line-stat"><b>${dateLabel}</b><span>Today</span></div>
       <div class="finish-line-stat"><b>${daysLeft}</b><span>Days left in the month</span></div>
       <div class="finish-line-stat"><b>${fmt(expectedPct, 1)}%</b><span>End of day pace</span></div>`;
+  }
+  const pgcBody = document.getElementById('pgcCardBody');
+  if (pgcBody) {
+    const setting = teamMonthSettingForMonth(opsViewMonthKey());
+    const label = setting.pgcLabel || 'Not configured';
+    pgcBody.innerHTML = `
+      <strong>${escapeHtml(fmt(setting.pgcValue, 1))}</strong>
+      <span>${escapeHtml(label)}</span>
+      <small>${escapeHtml(monthName || monthNameFromKey(opsViewMonthKey()) || '')}</small>`;
   }
   renderRecognitionWall();
 }
@@ -5352,10 +5427,19 @@ function setGoalsEditMonthMode(mode) {
   renderGoalsForm();
 }
 
+function renderPgcEditor() {
+  const setting = teamMonthSettingForMonth(goalsEditMonthKey());
+  const label = document.getElementById('pgcLabelInput');
+  const value = document.getElementById('pgcValueInput');
+  if (label) label.value = setting.pgcLabel;
+  if (value) value.value = String(setting.pgcValue);
+}
+
 function renderGoalsForm() {
   const container = document.getElementById('goalsForm');
   container.innerHTML = '';
   syncGoalsEditMonthUI();
+  renderPgcEditor();
   // The grid follows its own month toggle, not the landing page's: an admin
   // reviewing last month's board should not have the quota editor silently
   // switch to writing last month's numbers.
@@ -5481,7 +5565,12 @@ document.getElementById('saveGoals').addEventListener('click', async (e) => {
       statusEl,
       toast: false,
       run: async () => {
-        await saveGoals(goals, month);
+        const pgcLabel = document.getElementById('pgcLabelInput')?.value || '';
+        const pgcValue = document.getElementById('pgcValueInput')?.value || '0';
+        await Promise.all([
+          saveGoals(goals, month),
+          saveTeamMonthSetting(month, { pgcLabel, pgcValue }),
+        ]);
         render();
       },
     });
@@ -9213,6 +9302,7 @@ function renderGoalsOverlay() {
     }
     overlay.classList.add('open');
     if (settings) settings.classList.remove('open');
+    if (typeof renderGoalsForm === 'function') renderGoalsForm();
     window.scrollTo(0, 0);
   } else if (location.hash === '#admin-settings' || location.hash === '#shoutout-history') {
     if (denyHashIfUnauthorized(isRealAdmin())) {
@@ -9899,25 +9989,23 @@ async function ensurePriorMonthBundle(opts) {
     }
     try {
       const qs = `?month=${encodeURIComponent(prev.key)}&fresh=1`;
-      const data = await authedFetch('/api/actuals/live' + qs, { cache: 'no-store' });
-      let approved = {};
-      try {
-        const tot = await authedFetch(
+      // Ledger, approvals and personal goals are independent. Fetching them in
+      // parallel removes two serial network waits from the first month switch.
+      const [data, tot, pg] = await Promise.all([
+        authedFetch('/api/actuals/live' + qs, { cache: 'no-store' }),
+        authedFetch(
           '/api/attributions/approved-totals?month=' + encodeURIComponent(prev.key),
           { cache: 'no-store' }
-        );
-        approved = (tot && tot.totals) || {};
-      } catch (_) {}
-      let personalGoals = {};
-      try {
-        const pg = await authedFetch(
+        ).catch(() => null),
+        authedFetch(
           '/api/personal-goals?month=' + encodeURIComponent(prev.key),
           { cache: 'no-store' }
-        );
-        personalGoals = (pg && pg.goals) || {};
-        PRIOR_PERSONAL_GOALS_MONTH = (pg && pg.month) || prev.key;
-        PRIOR_PERSONAL_GOALS_CACHE = personalGoals;
-      } catch (_) {}
+        ).catch(() => null),
+      ]);
+      const approved = (tot && tot.totals) || {};
+      const personalGoals = (pg && pg.goals) || {};
+      PRIOR_PERSONAL_GOALS_MONTH = (pg && pg.month) || prev.key;
+      PRIOR_PERSONAL_GOALS_CACHE = personalGoals;
       const snap = (loadPrelimSnapshots() || {})[prev.key] || {};
       PRIOR_APPROVED_TOTALS = approved;
       PRIOR_MONTH_BUNDLE = {
@@ -9986,17 +10074,36 @@ async function setOpsMonthMode(mode) {
     syncOpsMonthToggleUI();
     return;
   }
+  const token = ++opsMonthSwitchToken;
   opsMonthMode = next;
   try { localStorage.setItem(OPS_MONTH_KEY, opsMonthMode); } catch (_) {}
   syncOpsMonthToggleUI();
-  if (opsMonthMode === 'prior') {
-    try { await ensurePriorMonthBundle(); } catch (_) {}
+  const needsLoad = opsMonthMode === 'prior'
+    && !(PRIOR_MONTH_BUNDLE && PRIOR_MONTH_BUNDLE.month === opsViewMonthKey());
+  if (needsLoad) {
+    const prev = previousMonthKeyFromActuals();
+    document.body.classList.add('ops-month-loading');
+    const loadingTitle = document.getElementById('opsMonthLoadingTitle');
+    if (loadingTitle) loadingTitle.textContent = `Loading ${(prev && prev.label) || 'last month'}…`;
+    try {
+      await ensurePriorMonthBundle();
+    } catch (_) {
+      if (token === opsMonthSwitchToken) {
+        opsMonthMode = 'current';
+        try { localStorage.setItem(OPS_MONTH_KEY, opsMonthMode); } catch (_) {}
+        syncOpsMonthToggleUI();
+      }
+    } finally {
+      if (token === opsMonthSwitchToken) document.body.classList.remove('ops-month-loading');
+    }
   }
+  if (token !== opsMonthSwitchToken) return;
+  document.body.classList.add('ops-month-instant');
   if (typeof render === 'function') render();
   if (typeof renderTeamCancelsTable === 'function') renderTeamCancelsTable();
   if (typeof renderTeamPersonalGoalsTable === 'function') renderTeamPersonalGoalsTable();
   if (typeof renderCancelsWindowNote === 'function') renderCancelsWindowNote();
-  if (typeof quietRefreshFromActuals === 'function') quietRefreshFromActuals();
+  requestAnimationFrame(() => document.body.classList.remove('ops-month-instant'));
 }
 
 function lastMonthFrozenSource(repDisplay) {
@@ -10869,6 +10976,13 @@ document.addEventListener('click', (ev) => {
   if (mode === 'prior' || mode === 'current') {
     ev.preventDefault();
     setOpsMonthMode(mode);
+  }
+});
+document.addEventListener('pointerover', (ev) => {
+  const btn = ev.target && ev.target.closest && ev.target.closest('button.ops-month-btn[data-ops-month="prior"]');
+  if (!btn || (typeof canViewTeamDetails === 'function' && !canViewTeamDetails())) return;
+  if (!(PRIOR_MONTH_BUNDLE && PRIOR_MONTH_BUNDLE.month === opsViewMonthKey())) {
+    ensurePriorMonthBundle().catch(() => {});
   }
 });
 document.getElementById('teamDetailsBackBtn').addEventListener('click', () => {
@@ -12314,6 +12428,9 @@ async function fetchDashboardData() {
     if (data.rosterMonths && typeof data.rosterMonths === 'object') ROSTER_MONTHS_CACHE = data.rosterMonths;
     if (data.goals) GOALS_CACHE = normalizeGoalsDoc(data.goals);
     if (data.goalsMonths && typeof data.goalsMonths === 'object') GOALS_MONTHS_CACHE = data.goalsMonths;
+    if (data.teamMonthSettings && typeof data.teamMonthSettings === 'object') {
+      TEAM_MONTH_SETTINGS_CACHE = data.teamMonthSettings;
+    }
     // Prefer whatever Blobs has until/unless live Supabase overwrites in boot().
     if (data.actuals) ACTUALS_CACHE = data.actuals;
     if (data.prelim) PRELIM_CACHE = data.prelim;
@@ -14827,6 +14944,13 @@ async function boot() {
   if ((needPriorForBadges || (typeof opsMonthMode !== 'undefined' && opsMonthMode === 'prior'))
       && typeof ensurePriorMonthBundle === 'function') {
     try { await ensurePriorMonthBundle(); } catch (_) {}
+  } else if (typeof canViewTeamDetails === 'function' && canViewTeamDetails()
+      && typeof ensurePriorMonthBundle === 'function') {
+    // Warm last month after the current dashboard paints so the first toggle
+    // is usually instant, without blocking boot for everyone.
+    const warmPrior = () => ensurePriorMonthBundle().catch(() => {});
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(warmPrior, { timeout: 2500 });
+    else setTimeout(warmPrior, 800);
   }
   if (typeof syncOpsMonthToggleUI === 'function') syncOpsMonthToggleUI();
   // UX preview: ensure the demo rep has a personal goal so the gate never blocks.
