@@ -25,29 +25,108 @@
     --glass-soft: rgba(255,255,255,0.38);
   }
   body.dark {
-    --bg: #131120;
-    --text: #f1eefb;
-    --text-muted: #a9a5c4;
-    --text-faint: #86819f;
-    --card-bg: #1e1b30;
-    --card-border: #2c2844;
-    --pill-border: #322e4a;
-    --track-bg: #2a2640;
-    --metric-box-bg: #1a1729;
-    --divider: #2c2844;
+    --bg: #171426;
+    --text: #fbfaff;
+    /* Muted text still has to be readable. Keep it lavender rather than gray
+       so hierarchy survives without dropping contrast on a dark surface. */
+    --text-muted: #d4cfe5;
+    --text-faint: #b4aecb;
+    --card-bg: #242039;
+    --card-border: #403959;
+    --pill-border: #4a4265;
+    --track-bg: #332e4b;
+    --metric-box-bg: #1e1b30;
+    --divider: #403959;
     --shadow: rgba(0,0,0,0.45);
     --status-success: #4ade80;
     --status-danger: #f87171;
     --status-warning: #fbbf24;
     --status-info: #a5b4fc;
     --status-na: #918ca9;
-    --chart-primary: #a78bfa;
-    --chart-primary-fill: rgba(167,139,250,0.18);
-    --chart-grid: rgba(169,165,196,0.16);
-    --glass-strong: rgba(30,27,48,0.92);
-    --glass: rgba(30,27,48,0.76);
-    --glass-soft: rgba(26,23,41,0.55);
+    --chart-primary: #c4b5fd;
+    --chart-primary-fill: rgba(196,181,253,0.20);
+    --chart-grid: rgba(212,207,229,0.19);
+    --glass-strong: rgba(36,32,57,0.94);
+    --glass: rgba(36,32,57,0.80);
+    --glass-soft: rgba(30,27,48,0.64);
+    --accent-readable: #c4b5fd;
+    --accent-readable-strong: #ddd6fe;
+    --accent-wash: rgba(196,181,253,0.16);
   }
+  body.dark .detail-client-link,
+  body.dark .attr-client-url,
+  body.dark .attr-link-cell a,
+  body.dark .attr-approval-meta-val a {
+    color: var(--accent-readable);
+  }
+  body.dark .detail-client-link:hover,
+  body.dark .attr-client-url:hover,
+  body.dark .attr-link-cell a:hover,
+  body.dark .attr-approval-meta-val a:hover {
+    color: var(--accent-readable-strong);
+  }
+  /* Purple text that works on white can disappear into the dark violet chrome.
+     Lift those foreground accents while preserving saturated purple for fills. */
+  body.dark .personal-best-badge,
+  body.dark .hat-trick-badge,
+  body.dark .session-view-as .view-as-chip,
+  body.dark .detail-panel-myattr .detail-panel-title,
+  body.dark .session-bar [data-view-as-revert],
+  body.dark .income-eyebrow,
+  body.dark .income-clearance-line b,
+  body.dark .income-hero-metric span,
+  body.dark .income-track-meta strong,
+  body.dark .income-months-panel > summary::after,
+  body.dark .income-month-row.l2 .income-month-pct strong {
+    color: var(--accent-readable);
+  }
+  body.dark .personal-best-badge,
+  body.dark .hat-trick-badge,
+  body.dark .session-view-as .view-as-chip {
+    background: var(--accent-wash);
+    border-color: rgba(196,181,253,0.28);
+  }
+  body.dark .chart-mode-btn:hover,
+  body.dark .sort-mode-btn:hover,
+  body.dark .client-detail-btn:hover,
+  body.dark .preset-btn:hover,
+  body.dark .detail-client-link:hover {
+    color: var(--accent-readable-strong);
+    border-color: var(--accent-readable);
+  }
+  body.dark .detail-client-link { color: var(--accent-readable); }
+  body.dark .session-bar [data-view-as-revert] {
+    background: var(--accent-wash);
+  }
+  body.dark .session-bar [data-view-as-revert]:hover {
+    color: var(--accent-readable-strong);
+    background: rgba(196,181,253,0.24);
+  }
+  body.dark .income-planning-card.meets .income-eyebrow,
+  body.dark .income-planning-card.meets .income-clearance-line,
+  body.dark .income-planning-card.meets .income-clearance-line b,
+  body.dark .income-planning-card.meets .income-hero-metric strong,
+  body.dark .income-planning-card.meets .income-hero-metric span,
+  body.dark .income-planning-card.meets .income-track-meta strong {
+    color: var(--status-success);
+  }
+  body.dark .attr-page-tab.active,
+  body.dark .attr-seg-btn.active {
+    background: linear-gradient(135deg, #8b5cf6, #4f7cff);
+    color: #fff;
+  }
+  /* Save/validation messages are assigned inline by several legacy handlers.
+     Override their serialized colors in dark mode so success, warning and
+     error copy cannot fall back to low-contrast light-theme shades. */
+  body.dark [style*="color: rgb(22, 163, 74)"],
+  body.dark [style*="color:#16a34a"],
+  body.dark [style*="color: #16a34a"] { color: var(--status-success) !important; }
+  body.dark [style*="color: rgb(220, 38, 38)"],
+  body.dark [style*="color:#dc2626"],
+  body.dark [style*="color: #dc2626"] { color: var(--status-danger) !important; }
+  body.dark [style*="color: rgb(180, 83, 9)"],
+  body.dark [style*="color:#b45309"],
+  body.dark [style*="color: #b45309"] { color: var(--status-warning) !important; }
   * { box-sizing: border-box; }
   html { overflow-x: clip; }
   body {
@@ -2590,8 +2669,8 @@
     font-weight: 700;
     color: var(--text-faint);
   }
-  .attr-age-chip.age-aging { color: #b45309; }
-  .attr-age-chip.age-stale { color: #b91c1c; }
+  .attr-age-chip.age-aging { color: var(--status-warning); }
+  .attr-age-chip.age-stale { color: var(--status-danger); }
   .attr-approval-credit {
     display: flex;
     flex-wrap: wrap;
@@ -2771,7 +2850,7 @@
   .attr-inline-decision-status {
     font-size: 12px;
     font-weight: 700;
-    color: #dc2626;
+    color: var(--status-danger);
   }
   .attr-page-tab-count.attr-count-bump {
     animation: attrCountBump 0.45s ease;
@@ -2829,9 +2908,9 @@
     flex: none;
     background: var(--text-faint);
   }
-  .detail-attr-row.is-approved .detail-attr-dot { background: #16a34a; }
-  .detail-attr-row.is-rejected .detail-attr-dot { background: #dc2626; }
-  .detail-attr-row.is-pending .detail-attr-dot { background: #ca8a04; }
+  .detail-attr-row.is-approved .detail-attr-dot { background: var(--status-success); }
+  .detail-attr-row.is-rejected .detail-attr-dot { background: var(--status-danger); }
+  .detail-attr-row.is-pending .detail-attr-dot { background: var(--status-warning); }
   .detail-attr-row-main {
     flex: 1 1 auto;
     min-width: 0;

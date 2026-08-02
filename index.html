@@ -797,6 +797,9 @@
             <div class="meta-note" style="margin:4px 0 0;" id="attrPendingNote">Open requests waiting for an admin decision.</div>
           </div>
           <div class="attr-queue-filters">
+            <label>Month
+              <select id="attrPendingMonthFilter"></select>
+            </label>
             <label>Sort
               <select id="attrPendingSortSelect" class="attr-sort-select">
                 <option value="newest">Newest</option>
@@ -12575,13 +12578,22 @@ function attrMonthLabel(key) {
 }
 
 function populateAttrMonthFilter(records) {
-  const sel = document.getElementById('attrMonthFilter');
-  if (!sel) return;
-  const prevVal = sel.value;
-  const months = Array.from(new Set(records.map(attrMonthKey).filter(Boolean))).sort().reverse();
-  sel.innerHTML = '<option value="all">All time</option>' +
-    months.map(k => `<option value="${k}">${attrMonthLabel(k)}</option>`).join('');
-  sel.value = (prevVal && (prevVal === 'all' || months.includes(prevVal))) ? prevVal : 'all';
+  const currentMonth = teamTodayMonthKey();
+  const months = Array.from(new Set(
+    [currentMonth].concat(records.map(attrMonthKey).filter(Boolean))
+  )).sort().reverse();
+  ['attrPendingMonthFilter', 'attrMonthFilter'].forEach((id) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const prevVal = sel.value;
+    sel.innerHTML = months.map(k => `<option value="${k}">${attrMonthLabel(k)}</option>`).join('') +
+      '<option value="all">All time</option>';
+    // First load defaults both queues to the current Central month. Once a user
+    // changes a filter, refreshes preserve that choice while it remains valid.
+    sel.value = (prevVal && (prevVal === 'all' || months.includes(prevVal)))
+      ? prevVal
+      : currentMonth;
+  });
 }
 
 // Skeleton placeholder rows for a table mid-fetch — see .skeleton-bar.
@@ -12641,11 +12653,16 @@ function attrAgeChipHTML(r) {
 }
 
 function pendingAttrRecords() {
-  return sortAttrRecords(scopedAttrRecords().filter((r) => r.status === 'pending'));
+  const monthFilter = document.getElementById('attrPendingMonthFilter')?.value || teamTodayMonthKey();
+  return sortAttrRecords(scopedAttrRecords().filter((r) => {
+    if (r.status !== 'pending') return false;
+    if (monthFilter !== 'all' && attrMonthKey(r) !== monthFilter) return false;
+    return true;
+  }));
 }
 function actionedAttrRecords() {
   const statusFilter = document.getElementById('attrActionedStatusFilter')?.value || 'all';
-  const monthFilter = document.getElementById('attrMonthFilter')?.value || 'all';
+  const monthFilter = document.getElementById('attrMonthFilter')?.value || teamTodayMonthKey();
   return sortAttrRecords(scopedAttrRecords().filter((r) => {
     if (r.status !== 'approved' && r.status !== 'rejected') return false;
     if (statusFilter !== 'all' && r.status !== statusFilter) return false;
@@ -12839,7 +12856,7 @@ function attrRequestCardHTML(r, mode) {
 function attrEmptyStateHTML(kind) {
   if (kind === 'pending') {
     return `<div class="attr-approvals-empty">
-      <p>Nothing pending — you’re caught up.</p>
+      <p>Nothing pending in this month — you’re caught up.</p>
       <button type="button" class="theme-btn" data-attr-goto="actioned">View Actioned</button>
     </div>`;
   }
@@ -12931,6 +12948,7 @@ async function refreshMyAttributions() {
 }
 
 document.getElementById('attrMonthFilter')?.addEventListener('change', renderActionedAttrQueue);
+document.getElementById('attrPendingMonthFilter')?.addEventListener('change', renderPendingApprovalsTable);
 document.getElementById('attrActionedStatusFilter')?.addEventListener('change', renderActionedAttrQueue);
 document.querySelectorAll('.attr-sort-select').forEach((sel) => {
   sel.addEventListener('change', () => {
@@ -12978,7 +12996,7 @@ function attrExportNotes(r) {
   return String((r && r.reviewComment) || '').trim();
 }
 function approvedAttrRecordsForExport() {
-  const monthFilter = document.getElementById('attrMonthFilter')?.value || 'all';
+  const monthFilter = document.getElementById('attrMonthFilter')?.value || teamTodayMonthKey();
   return scopedAttrRecords().filter((r) => {
     if (!r || r.status !== 'approved') return false;
     if (monthFilter !== 'all' && attrMonthKey(r) !== monthFilter) return false;
@@ -13021,7 +13039,7 @@ async function downloadApprovedAttrCsv() {
     await appAlert('No approved requests in the selected month filter to export.');
     return;
   }
-  const monthFilter = document.getElementById('attrMonthFilter')?.value || 'all';
+  const monthFilter = document.getElementById('attrMonthFilter')?.value || teamTodayMonthKey();
   const stamp = monthFilter === 'all' ? teamTodayMonthKey() : monthFilter;
   const csv = buildApprovedAttrCsv(records);
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
