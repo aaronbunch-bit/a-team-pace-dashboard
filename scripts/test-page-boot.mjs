@@ -490,6 +490,86 @@ assert.equal(
   "UTC midnight must not pull a Central July sale into August's list"
 );
 
+/**
+ * Compact live polls must never blank the Individual Pacer's line items.
+ *
+ * Background polls ask for `compact=1` (totals only, no per-sale rows) and
+ * sibling tabs share that same compact document. Applying one of those over the
+ * cache used to replace the full rep rows wholesale, so Activity kept showing
+ * correct Members/Sessions totals above an "No attributions" table until the
+ * next full poll — or forever, in a tab that never won poll leadership.
+ */
+assert.equal(typeof context.applyLiveActualsPayload, "function", "applyLiveActualsPayload must exist");
+assert.equal(typeof context.actualsCarryItems, "function", "actualsCarryItems must exist");
+{
+  const month = context.liveMonthKey();
+  const asOf = `${month}-15`;
+  const full = {
+    viewMonth: month,
+    actuals: {
+      asOf,
+      perRep: {
+        "Becky Ruffer": {
+          members: 3,
+          sessions: 20,
+          membersCancels: 0,
+          sessionsCancels: 0,
+          items: [
+            { clientId: "111", members: 2, sessions: 12, date: asOf },
+            { clientId: "222", members: 1, sessions: 8, date: asOf },
+          ],
+        },
+      },
+    },
+  };
+  const compact = {
+    viewMonth: month,
+    actuals: {
+      asOf,
+      perRep: {
+        "Becky Ruffer": { members: 4, sessions: 24, membersCancels: 0, sessionsCancels: 0 },
+      },
+    },
+  };
+
+  assert.ok(context.actualsCarryItems(full.actuals), "a full payload carries line items");
+  assert.ok(!context.actualsCarryItems(compact.actuals), "a compact payload carries none");
+
+  context.applyLiveActualsPayload(full, true, "");
+  assert.equal(
+    context.loadActuals().perRep["Becky Ruffer"].items.length,
+    2,
+    "a full payload loads the line items"
+  );
+
+  // The compact poll's own path, and the sibling-share path that passed
+  // wantFull=true with an items-less document.
+  for (const wantFull of [false, true]) {
+    context.applyLiveActualsPayload(compact, wantFull, "");
+    const row = context.loadActuals().perRep["Becky Ruffer"];
+    assert.equal(row.members, 4, "compact totals still apply");
+    assert.equal(
+      row.items.length,
+      2,
+      `a compact payload must keep the cached line items (wantFull=${wantFull})`
+    );
+  }
+
+  // A rep the payload knows nothing about gets an empty list, never undefined:
+  // the Activity tables read `.items` directly.
+  context.applyLiveActualsPayload(
+    {
+      viewMonth: month,
+      actuals: { asOf, perRep: { "New Hire": { members: 0, sessions: 0 } } },
+    },
+    false,
+    ""
+  );
+  const newHire = context.loadActuals().perRep["New Hire"];
+  assert.ok(Array.isArray(newHire.items), "an unknown rep still gets an items array");
+  assert.equal(newHire.items.length, 0, "an unknown rep gets an empty item list");
+}
+
 if (bodyWipes.length) {
   console.error("\nSomething wrote to <body> in a way that deletes the page:\n");
   bodyWipes.forEach((w) => console.error("  " + w));
@@ -512,5 +592,6 @@ for (const cls of ["ops-month-toggle"]) {
 
 console.log(
   `ok — index.html top-level pass completes (${script.split("\n").length} lines), ` +
-    "Google sign-in wired, render pass survives empty caches, quota grid switches month"
+    "Google sign-in wired, render pass survives empty caches, quota grid switches month, " +
+    "compact polls keep pacer line items"
 );
