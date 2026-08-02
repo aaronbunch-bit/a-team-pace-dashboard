@@ -4,6 +4,11 @@ import { requireSignedIn } from "./_shared/identity.mts";
 import { resolveAccess } from "./_shared/access.mts";
 import { GOALS_MONTHS_KEY, GOALS_MONTHS_STORE, isMonthKey } from "./_shared/goals.mts";
 import { ROSTER_MONTHS_KEY, ROSTER_MONTHS_STORE, normalizeRosterEntries } from "./_shared/roster-months.mts";
+import {
+  TEAM_MONTH_SETTINGS_KEY,
+  TEAM_MONTH_SETTINGS_STORE,
+  normalizeTeamMonthSettingsDoc,
+} from "./_shared/team-month-settings.mts";
 
 function redactCompensation(goals: any, viewerEmail: string, fullAccess: boolean) {
   if (!goals || typeof goals !== "object" || fullAccess) return goals || null;
@@ -61,8 +66,9 @@ export default async (req: Request, context: Context) => {
   const goalsMonthsStore = getStore(GOALS_MONTHS_STORE);
   // Who was on the team in each closed month — same idea for roster removals.
   const rosterMonthsStore = getStore(ROSTER_MONTHS_STORE);
+  const teamMonthSettingsStore = getStore(TEAM_MONTH_SETTINGS_STORE);
 
-  const [roster, goals, actuals, prelim, admins, coaches, sipExtra, goalsMonths, rosterMonths] = await Promise.all([
+  const [roster, goals, actuals, prelim, admins, coaches, sipExtra, goalsMonths, rosterMonths, teamMonthSettings] = await Promise.all([
     rosterStore.get("current", { type: "json" }),
     goalsStore.get("current", { type: "json" }),
     actualsStore.get("current", { type: "json" }),
@@ -72,6 +78,7 @@ export default async (req: Request, context: Context) => {
     sipExtraStore.get("current", { type: "json" }),
     goalsMonthsStore.get(GOALS_MONTHS_KEY, { type: "json" }),
     rosterMonthsStore.get(ROSTER_MONTHS_KEY, { type: "json" }),
+    teamMonthSettingsStore.get(TEAM_MONTH_SETTINGS_KEY, { type: "json" }),
   ]);
   const safeGoals = redactCompensation(goals, viewerEmail, !!access?.isFullAdmin);
   const safeGoalsMonths = goalsMonths && typeof goalsMonths === "object" && !Array.isArray(goalsMonths)
@@ -109,6 +116,7 @@ export default async (req: Request, context: Context) => {
       rosterMonths: safeRosterMonths,
       goals: safeGoals,
       goalsMonths: safeGoalsMonths,
+      teamMonthSettings: normalizeTeamMonthSettingsDoc(teamMonthSettings),
       actuals: actuals || null,
       prelim: safePrelim || null,
       admins: admins || [],

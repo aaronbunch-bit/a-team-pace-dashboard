@@ -179,6 +179,7 @@
   body.motion-static .my-pacer-btn,
   body.motion-static .bar-shimmer,
   body.motion-static .skeleton-bar,
+  body.motion-static .ops-month-skeleton-card,
   body.motion-static .double-goal-glow,
   body.motion-static .double-goal-glow-subtle,
   body.motion-static .goal-met-pulse,
@@ -186,6 +187,10 @@
   body.motion-static .shoutout-modal-glow::before,
   body.motion-static .rep-badges-ticker.is-scrolling .rep-badges-track {
     animation: none !important;
+  }
+  body.motion-static .header-aura {
+    transform: translateY(-50%);
+    background-position: 50% 50%;
   }
   /* Prefer reduced motion OS setting even before JS applies .motion-static */
   @media (prefers-reduced-motion: reduce) {
@@ -195,6 +200,7 @@
     .my-pacer-btn,
     .bar-shimmer,
     .skeleton-bar,
+    .ops-month-skeleton-card,
     .double-goal-glow,
     .double-goal-glow-subtle,
     .goal-met-pulse,
@@ -246,6 +252,8 @@
     background-size: 300% 100%;
     filter: blur(55px);
     pointer-events: none;
+    /* Keep the aura centered even when Freeze removes its animation. */
+    transform: translateY(-50%);
     animation: auraSweep 18s linear infinite, auraBob 7s ease-in-out infinite;
   }
   .landing-region-title {
@@ -401,15 +409,21 @@
   }
   .landing-actions-group {
     display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    padding: 6px; border-radius: 999px;
-    background: rgba(148,163,184,0.1); border: 1px solid rgba(148,163,184,0.16);
+    padding: 4px; border-radius: 999px;
+    background: transparent; border: 1px solid transparent;
   }
   body.dark .landing-actions-group {
-    background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08);
+    background: transparent; border-color: transparent;
   }
   .landing-actions-group .theme-btn.large,
   .landing-actions-group .header-dropdown > .theme-btn.large {
-    box-shadow: none;
+    border-color: color-mix(in srgb, var(--pill-border) 78%, var(--text-faint));
+    box-shadow: 0 4px 12px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.28);
+  }
+  .landing-actions-row .theme-btn.large:hover {
+    opacity: 1;
+    filter: brightness(1.04);
+    transform: translateY(-1px);
   }
   /* `hidden` has to win: this control is ops-only, and a bare `display` here
      overrides the attribute's default and leaves it as the one visible thing. */
@@ -464,6 +478,26 @@
     box-shadow: 0 1px 3px rgba(244,114,182,0.45);
   }
   .ops-month-toggle-inline { margin: 0 0 14px; }
+  .ops-month-loading-shell { display: none; margin: 10px 0 18px; }
+  body.ops-month-loading .ops-month-loading-shell { display: block; }
+  body.ops-month-loading .landing-region-left,
+  body.ops-month-loading #landingReps { display: none !important; }
+  .ops-month-loading-title {
+    margin-bottom: 10px; font-size: 12px; font-weight: 850; color: var(--text-muted);
+  }
+  .ops-month-skeleton-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .ops-month-skeleton-card {
+    min-height: 116px; border-radius: 16px; border: 1px solid var(--card-border);
+    background: linear-gradient(100deg, var(--metric-box-bg) 25%, var(--card-bg) 45%, var(--metric-box-bg) 65%);
+    background-size: 220% 100%; animation: skeletonShimmer 1.15s linear infinite;
+  }
+  .ops-month-skeleton-card.wide { grid-column: 1 / -1; min-height: 154px; }
+  @media (max-width: 700px) {
+    .ops-month-skeleton-grid { grid-template-columns: 1fr; }
+    .ops-month-skeleton-card.wide { grid-column: auto; }
+  }
   .landing-menu-hint {
     max-width: 520px; margin-left: auto; margin-right: auto;
   }
@@ -734,7 +768,7 @@
     display: flex;
     flex: 1;
     min-width: 0;
-    max-width: calc(100% - 264px); /* leave room for the 240px side panel + gap */
+    max-width: calc(100% - 264px); /* paired with the sidebar label below */
     gap: 2px;
     padding: 4px;
     border-radius: 12px;
@@ -742,8 +776,20 @@
     border: 1px solid var(--card-border);
     pointer-events: auto;
   }
+  .pacer-tab-side-label {
+    width: 240px; flex: 0 0 240px; align-self: stretch;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 6px 12px; border-radius: 12px;
+    background: var(--metric-box-bg); border: 1px solid var(--card-border);
+    color: var(--text);
+  }
+  .pacer-tab-side-label span {
+    font-size: 11px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase;
+  }
+  .pacer-tab-side-label small { margin-top: 2px; font-size: 10px; font-weight: 650; color: var(--text-faint); }
   @media (max-width: 900px) {
     .pacer-tab-track { max-width: 100%; }
+    .pacer-tab-side-label { display: none; }
   }
   #doubleGoalBanner {
     margin: 0 0 12px;
@@ -1008,6 +1054,20 @@
   .finish-line-stat span {
     font-size: 10.5px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em;
   }
+  .pgc-card-body {
+    position: relative; overflow: hidden; display: grid; gap: 2px;
+    padding: 12px; border-radius: 12px;
+    background:
+      radial-gradient(circle at 100% 0%, rgba(124,58,237,.18), transparent 48%),
+      var(--metric-box-bg);
+    border: 1px solid var(--divider);
+  }
+  .pgc-card-body strong {
+    font-size: 28px; line-height: 1; font-weight: 950; letter-spacing: -.04em;
+    color: var(--text); font-variant-numeric: tabular-nums;
+  }
+  .pgc-card-body span { font-size: 12px; font-weight: 850; color: var(--text-muted); }
+  .pgc-card-body small { font-size: 10px; font-weight: 700; color: var(--text-faint); }
 
   /* —— Live Contest sticky ticker (thin, top of every page) —— */
   html {
@@ -3743,6 +3803,24 @@
     background: var(--card-bg);
   }
   .goal-grid { display: grid; grid-template-columns: 1fr 0.6fr 0.6fr 0.48fr 0.65fr 0.8fr 1.1fr 0.55fr 0.75fr; gap: 8px; align-items: center; margin-bottom: 6px; font-size: 13px; }
+  .pgc-admin-editor {
+    display: grid; grid-template-columns: minmax(180px, 1fr) minmax(150px, .8fr) minmax(110px, .45fr);
+    gap: 12px; align-items: end; margin: 0 0 14px; padding: 12px 14px;
+    border: 1px solid var(--card-border); border-radius: 14px;
+    background: linear-gradient(135deg, var(--glass), var(--glass-soft));
+  }
+  .pgc-admin-editor > div { align-self: center; }
+  .pgc-admin-editor strong { display: block; font-size: 13px; font-weight: 900; color: var(--text); }
+  .pgc-admin-editor span { display: block; margin-top: 3px; font-size: 11px; font-weight: 650; color: var(--text-faint); }
+  .pgc-admin-editor label {
+    display: flex; flex-direction: column; gap: 5px;
+    font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--text-faint);
+  }
+  .pgc-admin-editor input {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--card-border);
+    border-radius: 9px; background: var(--card-bg); color: var(--text); font: inherit;
+  }
+  @media (max-width: 720px) { .pgc-admin-editor { grid-template-columns: 1fr; } }
   /* Default view: Tag / Email / Cap columns (cells 6-8) hidden behind the
      "Show advanced fields" toggle on Edit Monthly Goals — those are set-once
      fields, unlike Sessions/Members which get touched every month.
