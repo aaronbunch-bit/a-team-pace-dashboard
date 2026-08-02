@@ -491,6 +491,31 @@ assert.equal(
 );
 
 /**
+ * Pending and Actioned Manual Attribution queues start on the current Central
+ * month. Both still offer All time, and a refresh preserves a user's choice.
+ */
+assert.equal(typeof context.populateAttrMonthFilter, "function", "month filter population must exist");
+{
+  const current = context.teamTodayMonthKey();
+  const pendingMonth = documentStub.getElementById("attrPendingMonthFilter");
+  const actionedMonth = documentStub.getElementById("attrMonthFilter");
+  context.populateAttrMonthFilter([
+    { saleDate: `${current}-01` },
+    { saleDate: "2020-01-15" },
+  ]);
+  assert.equal(pendingMonth.value, current, "Pending defaults to the current month");
+  assert.equal(actionedMonth.value, current, "Actioned defaults to the current month");
+  assert.match(pendingMonth.innerHTML, /value="all"/, "Pending still offers All time");
+  assert.match(actionedMonth.innerHTML, /value="all"/, "Actioned still offers All time");
+
+  pendingMonth.value = "all";
+  actionedMonth.value = "all";
+  context.populateAttrMonthFilter([{ saleDate: `${current}-02` }]);
+  assert.equal(pendingMonth.value, "all", "Pending preserves an explicit All time choice");
+  assert.equal(actionedMonth.value, "all", "Actioned preserves an explicit All time choice");
+}
+
+/**
  * Compact live polls must never blank the Individual Pacer's line items.
  *
  * Background polls ask for `compact=1` (totals only, no per-sale rows) and
