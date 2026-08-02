@@ -783,7 +783,7 @@
               BUCA / Class Wallet: after approval you can still update the client page link from the Actioned queue once you have the final URL.
             </div>
             <div class="attr-form-actions">
-              <button type="button" id="submitAttribution">Submit request</button>
+              <button type="button" class="theme-btn" id="submitAttribution">Submit request</button>
               <div class="meta-note" id="attrSubmitStatus"></div>
             </div>
           </div>
@@ -1960,15 +1960,37 @@ function applyExtraSipHistory() {
 
 // ---------- Theme ----------
 function applyTheme(theme) {
-  document.body.classList.toggle('dark', theme === 'dark');
+  const resolved = theme === 'dark' ? 'dark' : 'light';
+  document.body.classList.toggle('dark', resolved === 'dark');
+  // Native controls, scrollbars, date inputs and the login gate should use the
+  // same chrome as the app, not stay light while the dashboard is dark.
+  document.documentElement.style.colorScheme = resolved;
+  document.documentElement.dataset.theme = resolved;
   const btn = document.getElementById('themeToggle');
-  if (btn) btn.textContent = theme === 'dark' ? '☀️ Light' : '🌙 Dark';
+  if (btn) {
+    btn.textContent = resolved === 'dark' ? '☀️ Light' : '🌙 Dark';
+    btn.setAttribute('aria-pressed', resolved === 'dark' ? 'true' : 'false');
+    btn.setAttribute('aria-label', resolved === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+    btn.title = resolved === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+  }
+  if (window.__paceThemeReady && typeof refreshThemeSensitiveUI === 'function') {
+    refreshThemeSensitiveUI();
+  }
 }
 (function initTheme() {
-  const saved = localStorage.getItem(THEME_KEY) || 'light';
-  applyTheme(saved);
+  const saved = localStorage.getItem(THEME_KEY);
+  const systemDark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  applyTheme(saved === 'dark' || saved === 'light' ? saved : (systemDark ? 'dark' : 'light'));
+  window.__paceThemeReady = true;
+  // Follow OS changes only until the user makes an explicit choice.
+  const query = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+  if (query && typeof query.addEventListener === 'function') {
+    query.addEventListener('change', (event) => {
+      if (!localStorage.getItem(THEME_KEY)) applyTheme(event.matches ? 'dark' : 'light');
+    });
+  }
 })();
-document.getElementById('themeToggle').addEventListener('click', () => {
+document.getElementById('themeToggle')?.addEventListener('click', () => {
   const isDark = document.body.classList.contains('dark');
   const next = isDark ? 'light' : 'dark';
   localStorage.setItem(THEME_KEY, next);
@@ -5795,10 +5817,43 @@ function renderSipRange() {
   renderSipChart(slice, avg);
 }
 
+function themeCssValue(name, fallback) {
+  try {
+    const value = getComputedStyle(document.body).getPropertyValue(name).trim();
+    return value || fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+function chartThemePalette() {
+  return {
+    text: themeCssValue('--text-muted', '#6b6b80'),
+    faint: themeCssValue('--text-faint', '#9a97ad'),
+    grid: themeCssValue('--chart-grid', 'rgba(90,70,160,0.12)'),
+    primary: themeCssValue('--chart-primary', '#7c3aed'),
+    primaryFill: themeCssValue('--chart-primary-fill', 'rgba(124,58,237,0.12)'),
+    success: themeCssValue('--status-success', '#15803d'),
+    danger: themeCssValue('--status-danger', '#b91c1c'),
+    warning: themeCssValue('--status-warning', '#a16207'),
+    card: themeCssValue('--card-bg', '#ffffff'),
+    border: themeCssValue('--card-border', '#f0eef9'),
+  };
+}
+function chartScaleTheme(palette, title, tickExtra) {
+  return {
+    ticks: { color: palette.faint, ...(tickExtra || {}) },
+    grid: { color: palette.grid, drawBorder: false },
+    border: { color: palette.border },
+    title: { display: !!title, text: title || '', color: palette.text },
+  };
+}
+
 let sipChartInstance = null;
+let sipChartLastArgs = null;
 // slice: array of SIP_HISTORY month objects to plot (defaults to full history).
 // rangeAvg: the raw-totals composite % for the selected range, drawn as a red dotted line.
 function renderSipChart(slice, rangeAvg) {
+  sipChartLastArgs = [slice, rangeAvg];
   const ctx = document.getElementById('sipChart');
   if (!ctx) return;
   const paint = () => {
@@ -5809,6 +5864,7 @@ function renderSipChart(slice, rangeAvg) {
       const a = monthAttainment(m);
       return a.compositePct === null ? null : Math.round(a.compositePct * 10) / 10;
     });
+    const palette = chartThemePalette();
     if (sipChartInstance) sipChartInstance.destroy();
     sipChartInstance = new Chart(ctx, {
     type: 'line',
@@ -5817,22 +5873,31 @@ function renderSipChart(slice, rangeAvg) {
       datasets: [{
         label: 'Team attainment %',
         data,
-        borderColor: '#7c3aed',
-        backgroundColor: 'rgba(124,58,237,0.12)',
+        borderColor: palette.primary,
+        backgroundColor: palette.primaryFill,
         fill: true,
         tension: 0.3,
         pointRadius: 3,
-        pointBackgroundColor: '#7c3aed',
+        pointBackgroundColor: palette.primary,
         spanGaps: true
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: palette.card,
+          titleColor: palette.text,
+          bodyColor: palette.text,
+          borderColor: palette.border,
+          borderWidth: 1,
+        },
+      },
       scales: {
-        x: { ticks: { maxRotation: 60, minRotation: 60, font: { size: 9 } } },
-        y: { title: { display: true, text: 'Attainment %' } }
+        x: chartScaleTheme(palette, '', { maxRotation: 60, minRotation: 60, font: { size: 9 } }),
+        y: chartScaleTheme(palette, 'Attainment %')
       }
     },
     plugins: [{
@@ -5840,9 +5905,9 @@ function renderSipChart(slice, rangeAvg) {
       afterDraw(chart) {
         const { ctx, chartArea, scales } = chart;
         if (!chartArea) return;
-        const lines = [[110, '#7c3aed', 'L2 · 110%', [5, 4]], [120, '#f59e0b', 'L3 · 120%', [5, 4]]];
+        const lines = [[110, palette.primary, 'L2 · 110%', [5, 4]], [120, palette.warning, 'L3 · 120%', [5, 4]]];
         if (rangeAvg !== null && rangeAvg !== undefined) {
-          lines.push([rangeAvg, '#dc2626', `Range avg · ${fmt(rangeAvg,1)}%`, [2, 3]]);
+          lines.push([rangeAvg, palette.danger, `Range avg · ${fmt(rangeAvg,1)}%`, [2, 3]]);
         }
         lines.forEach(([val, color, label, dash]) => {
           const y = scales.y.getPixelForValue(val);
@@ -6416,8 +6481,10 @@ if (!String(repSortMode).includes(':')) {
   repSortMode = repSortMode === 'attainment' ? 'attainment:desc' : 'name:asc';
 }
 let repChartMode = loadJSON(REP_CHART_MODE_KEY, 'attainment');
+let repSipChartLastArgs = null;
 
 function renderRepSipChart(slice, csvKey, rangeAvg, repDisplay) {
+  repSipChartLastArgs = [slice, csvKey, rangeAvg, repDisplay];
   const ctx = document.getElementById('repSipChart');
   if (!ctx) return;
   const partTime = isPartTimeLevel(loadGoals()[repDisplay]?.level);
@@ -6434,8 +6501,11 @@ function renderRepSipChart(slice, csvKey, rangeAvg, repDisplay) {
       }
       return a.compositePct === null ? null : Math.round(a.compositePct * 10) / 10;
     });
-    const lineColor = isEarnings ? '#16a34a' : '#7c3aed';
-    const fillColor = isEarnings ? 'rgba(22,163,74,0.14)' : 'rgba(124,58,237,0.12)';
+    const palette = chartThemePalette();
+    const lineColor = isEarnings ? palette.success : palette.primary;
+    const fillColor = isEarnings
+      ? (document.body.classList.contains('dark') ? 'rgba(74,222,128,0.16)' : 'rgba(21,128,61,0.12)')
+      : palette.primaryFill;
     if (repSipChartInstance) repSipChartInstance.destroy();
     repSipChartInstance = new Chart(ctx, {
     type: 'line',
@@ -6456,12 +6526,21 @@ function renderRepSipChart(slice, csvKey, rangeAvg, repDisplay) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: palette.card,
+          titleColor: palette.text,
+          bodyColor: palette.text,
+          borderColor: palette.border,
+          borderWidth: 1,
+        },
+      },
       scales: {
-        x: { ticks: { maxRotation: 60, minRotation: 60, font: { size: 9 } } },
+        x: chartScaleTheme(palette, '', { maxRotation: 60, minRotation: 60, font: { size: 9 } }),
         y: isEarnings
-          ? { title: { display: true, text: 'Earnings ($)' }, ticks: { callback: (v) => '$' + Number(v).toLocaleString() } }
-          : { title: { display: true, text: 'Attainment %' } }
+          ? chartScaleTheme(palette, 'Earnings ($)', { callback: (v) => '$' + Number(v).toLocaleString() })
+          : chartScaleTheme(palette, 'Attainment %')
       }
     },
     plugins: (partTime || isEarnings || !repChartThresholdsOn) ? [] : [{
@@ -6469,9 +6548,9 @@ function renderRepSipChart(slice, csvKey, rangeAvg, repDisplay) {
       afterDraw(chart) {
         const { ctx, chartArea, scales } = chart;
         if (!chartArea) return;
-        const lines = [[115, '#7c3aed', 'L2 · 115%', [5, 4]], [150, '#f59e0b', 'L3 · 150%', [5, 4]]];
+        const lines = [[115, palette.primary, 'L2 · 115%', [5, 4]], [150, palette.warning, 'L3 · 150%', [5, 4]]];
         if (rangeAvg !== null && rangeAvg !== undefined) {
-          lines.push([rangeAvg, '#dc2626', `Range avg · ${fmt(rangeAvg,1)}%`, [2, 3]]);
+          lines.push([rangeAvg, palette.danger, `Range avg · ${fmt(rangeAvg,1)}%`, [2, 3]]);
         }
         // Draw every visible line's dash first, then label at most ONE of
         // them below — two thresholds close in value (e.g. 115% and a 113%
@@ -6517,6 +6596,12 @@ function renderRepSipChart(slice, csvKey, rangeAvg, repDisplay) {
   else if (typeof window.__ensureChartJs === 'function') {
     window.__ensureChartJs().then(paint).catch(() => {});
   }
+}
+
+/** Repaint canvases after a theme toggle; CSS variables cannot recolor pixels already drawn. */
+function refreshThemeSensitiveUI() {
+  if (sipChartInstance && sipChartLastArgs) renderSipChart(...sipChartLastArgs);
+  if (repSipChartInstance && repSipChartLastArgs) renderRepSipChart(...repSipChartLastArgs);
 }
 
 // Only the months where this rep actually has a row in SIP_HISTORY. Used for
