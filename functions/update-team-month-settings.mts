@@ -4,7 +4,7 @@ import { requireAdmin } from "./_shared/access.mts";
 import { isMonthKey } from "./_shared/goals.mts";
 import {
   loadTeamMonthSettings,
-  normalizeTeamMonthSetting,
+  normalizeTeamMonthSettingForSave,
   saveTeamMonthSettings,
 } from "./_shared/team-month-settings.mts";
 
@@ -30,7 +30,9 @@ export default async (req: Request, context: Context) => {
   }
 
   const settings = await loadTeamMonthSettings();
-  settings[month] = normalizeTeamMonthSetting({
+  settings[month] = normalizeTeamMonthSettingForSave({
+    pgcMetrics: body?.pgcMetrics,
+    // Legacy single-metric payloads still accepted during rollout.
     pgcLabel: body?.pgcLabel,
     pgcValue: body?.pgcValue,
   });

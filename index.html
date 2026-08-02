@@ -1164,16 +1164,14 @@
           <span class="meta-note" id="goalsEditMonthNote" style="margin:0;"></span>
         </div>
         <div class="pgc-admin-editor">
-          <div>
-            <strong>Landing pGC</strong>
-            <span>Name and numeric value shown below Finish Line for this month.</span>
+          <div class="pgc-admin-heading">
+            <div>
+              <strong>Landing pGC metrics</strong>
+              <span>Add the percentages shown below Finish Line for this month.</span>
+            </div>
+            <button type="button" class="theme-btn" id="addPgcMetricBtn">+ Add pGC</button>
           </div>
-          <label>pGC name
-            <input type="text" id="pgcLabelInput" maxlength="80" placeholder="e.g. High School">
-          </label>
-          <label>Number
-            <input type="number" id="pgcValueInput" min="0" step="any" inputmode="decimal" value="0">
-          </label>
+          <div class="pgc-admin-rows" id="pgcMetricRows"></div>
         </div>
         <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Level</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Individual Pacer access)</div><div>Cap bonus @ 200%</div><div class="has-tip" data-tip="When checked, this person’s members, sessions, approved attributions, and refunds do not count toward A-Team Total for this month. Their own Individual Pacer is unchanged.">Excluded from roll-up</div></div>
         <div id="goalsForm"></div>
@@ -1856,11 +1854,20 @@ function loadGoals() { return GOALS_CACHE; }
 function loadGoalsMonths() { return GOALS_MONTHS_CACHE || {}; }
 function normalizeTeamMonthSetting(raw) {
   const source = raw && typeof raw === 'object' ? raw : {};
-  const value = Number(source.pgcValue);
-  return {
-    pgcLabel: String(source.pgcLabel || '').trim().slice(0, 80),
-    pgcValue: Number.isFinite(value) ? Math.max(0, value) : 0,
-  };
+  const rawMetrics = Array.isArray(source.pgcMetrics)
+    ? source.pgcMetrics
+    : ((source.pgcLabel || Number(source.pgcValue))
+      ? [{ label: source.pgcLabel, percent: source.pgcValue }]
+      : []);
+  return { pgcMetrics: rawMetrics.slice(0, 12).map((rawMetric) => {
+    const metric = rawMetric && typeof rawMetric === 'object' ? rawMetric : {};
+    const percent = Number(metric.percent);
+    return {
+      id: String(metric.id || `pgc_${Math.random().toString(36).slice(2, 10)}`).slice(0, 40),
+      label: String(metric.label || '').trim().slice(0, 80),
+      percent: Number.isFinite(percent) ? Math.min(100, Math.max(0, percent)) : 0,
+    };
+  }) };
 }
 function teamMonthSettingForMonth(monthKey) {
   return normalizeTeamMonthSetting((TEAM_MONTH_SETTINGS_CACHE || {})[String(monthKey || '')]);
@@ -1870,7 +1877,7 @@ async function saveTeamMonthSetting(month, setting) {
   const result = await authedFetch('/api/team-month-settings/update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ month, ...normalized }),
+    body: JSON.stringify({ month, pgcMetrics: normalized.pgcMetrics }),
   });
   TEAM_MONTH_SETTINGS_CACHE = result && result.settings && typeof result.settings === 'object'
     ? result.settings
@@ -3555,11 +3562,15 @@ function renderCultureSide(repRows, teamComposite, expectedPct, calendarYmd, mon
   const pgcBody = document.getElementById('pgcCardBody');
   if (pgcBody) {
     const setting = teamMonthSettingForMonth(opsViewMonthKey());
-    const label = setting.pgcLabel || 'Not configured';
-    pgcBody.innerHTML = `
-      <strong>${escapeHtml(fmt(setting.pgcValue, 1))}</strong>
-      <span>${escapeHtml(label)}</span>
-      <small>${escapeHtml(monthName || monthNameFromKey(opsViewMonthKey()) || '')}</small>`;
+    const metrics = setting.pgcMetrics.filter(metric => metric.label || metric.percent !== 0);
+    pgcBody.classList.toggle('is-empty', metrics.length === 0);
+    pgcBody.innerHTML = metrics.length
+      ? metrics.map(metric => `
+          <div class="pgc-card-metric">
+            <strong>${escapeHtml(fmt(metric.percent, 1))}<em>%</em></strong>
+            <span>${escapeHtml(metric.label || 'pGC')}</span>
+          </div>`).join('')
+      : '<span class="pgc-card-empty">No pGC metrics configured</span>';
   }
   renderRecognitionWall();
 }
@@ -5429,11 +5440,58 @@ function setGoalsEditMonthMode(mode) {
 
 function renderPgcEditor() {
   const setting = teamMonthSettingForMonth(goalsEditMonthKey());
-  const label = document.getElementById('pgcLabelInput');
-  const value = document.getElementById('pgcValueInput');
-  if (label) label.value = setting.pgcLabel;
-  if (value) value.value = String(setting.pgcValue);
+  const rows = document.getElementById('pgcMetricRows');
+  if (!rows) return;
+  rows.innerHTML = setting.pgcMetrics.length
+    ? setting.pgcMetrics.map(metric => `
+        <div class="pgc-admin-row" data-pgc-id="${escapeHtml(metric.id)}">
+          <label>pGC name
+            <input type="text" data-pgc-field="label" maxlength="80" value="${escapeHtml(metric.label)}" placeholder="e.g. High School">
+          </label>
+          <label>Percent
+            <div class="pgc-percent-input">
+              <input type="number" data-pgc-field="percent" min="0" max="100" step="any" inputmode="decimal" value="${escapeHtml(String(metric.percent))}">
+              <span>%</span>
+            </div>
+          </label>
+          <button type="button" class="pgc-remove-btn" data-remove-pgc aria-label="Remove ${escapeHtml(metric.label || 'pGC metric')}">×</button>
+        </div>`).join('')
+    : '<div class="pgc-admin-empty">No pGC metrics yet. Add one to show it on the landing page.</div>';
 }
+
+function readPgcMetricsFromEditor() {
+  return Array.from(document.querySelectorAll('#pgcMetricRows .pgc-admin-row')).map(row => ({
+    id: row.getAttribute('data-pgc-id') || `pgc_${Math.random().toString(36).slice(2, 10)}`,
+    label: row.querySelector('[data-pgc-field="label"]')?.value || '',
+    percent: row.querySelector('[data-pgc-field="percent"]')?.value || '0',
+  }));
+}
+
+document.getElementById('addPgcMetricBtn').addEventListener('click', () => {
+  const month = goalsEditMonthKey();
+  const setting = teamMonthSettingForMonth(month);
+  if (setting.pgcMetrics.length >= 12) return;
+  TEAM_MONTH_SETTINGS_CACHE = {
+    ...TEAM_MONTH_SETTINGS_CACHE,
+    [month]: { pgcMetrics: [...readPgcMetricsFromEditor(), {
+      id: `pgc_${Math.random().toString(36).slice(2, 10)}`,
+      label: '',
+      percent: 0,
+    }] },
+  };
+  renderPgcEditor();
+  document.querySelector('#pgcMetricRows .pgc-admin-row:last-child [data-pgc-field="label"]')?.focus();
+});
+
+document.getElementById('pgcMetricRows').addEventListener('click', (event) => {
+  const remove = event.target.closest('[data-remove-pgc]');
+  if (!remove) return;
+  remove.closest('.pgc-admin-row')?.remove();
+  const rows = document.getElementById('pgcMetricRows');
+  if (rows && !rows.querySelector('.pgc-admin-row')) {
+    rows.innerHTML = '<div class="pgc-admin-empty">No pGC metrics yet. Add one to show it on the landing page.</div>';
+  }
+});
 
 function renderGoalsForm() {
   const container = document.getElementById('goalsForm');
@@ -5565,11 +5623,10 @@ document.getElementById('saveGoals').addEventListener('click', async (e) => {
       statusEl,
       toast: false,
       run: async () => {
-        const pgcLabel = document.getElementById('pgcLabelInput')?.value || '';
-        const pgcValue = document.getElementById('pgcValueInput')?.value || '0';
+        const pgcMetrics = readPgcMetricsFromEditor();
         await Promise.all([
           saveGoals(goals, month),
-          saveTeamMonthSetting(month, { pgcLabel, pgcValue }),
+          saveTeamMonthSetting(month, { pgcMetrics }),
         ]);
         render();
       },
