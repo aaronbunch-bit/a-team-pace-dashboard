@@ -11489,6 +11489,12 @@ function renderCancelsWindowNote() {
   if (wash && wash.rows) {
     parts.push(`${wash.rows} prior-month re-booking${wash.rows === 1 ? '' : 's'} washed (${lost(wash)} not counted as attrition)`);
   }
+  // Credit re-booked from an earlier month. Counted there, not here — otherwise
+  // a client who bought and refunded last month adds pace to this one.
+  const rebooked = (w.creditJoin && w.creditJoin.rebookedCreditWashed) || null;
+  if (rebooked && rebooked.rows) {
+    parts.push(`${rebooked.rows} re-booked credit line${rebooked.rows === 1 ? '' : 's'} left to an earlier month (${fmt(rebooked.members, 1)}M · ${fmt(rebooked.sessions, 1)}S)`);
+  }
   const soft = (w.deletedAttribution && w.deletedAttribution.rows) || 0;
   if (soft) parts.push(`${soft} line${soft === 1 ? '' : 's'} on soft-deleted attributions`);
   if (w.lifetimeAvailable === false) parts.push('lifetime check unavailable — cancels may be over-counted');
@@ -11575,7 +11581,7 @@ function cancelLinesCsv() {
     'date', 'rep', 'client_id', 'members', 'sessions', 'sale_month',
     'attribution_id', 'ledger_id', 'lifetime_members', 'attr_credit', 'client_rep_credit',
     'transferred_out', 'ledger_type', 'attr_type', 'credit_id', 'credit_matched', 'credit_business_date',
-    'ledger_date', ...candidateCols,
+    'credit_occurred_date', 'ledger_date', ...candidateCols,
   ];
   const body = rows.map((r) => {
     const it = byKey.get(`${r.rep}|${r.clientId}|${r.date}|${r.members}|${r.sessions}`) || {};
@@ -11597,6 +11603,7 @@ function cancelLinesCsv() {
       it.creditId || '',
       it.creditMatched === null || it.creditMatched === undefined ? '' : (it.creditMatched ? '1' : '0'),
       it.creditBusinessDate || '',
+      it.creditOccurredDate || '',
       it.ledgerDate || '',
       ...candidateCols.map((c) => (it.monthKeyCandidates || {})[c] || ''),
     ];
@@ -11610,6 +11617,7 @@ function cancelLinesCsv() {
       ? ` credit_join=${creditJoin.active ? 'on' : (creditJoin.enabled ? 'disabled' : 'off')}`
         + ` orphan_credit=${creditJoin.orphanWashed ? `${creditJoin.orphanWashed.rows}/${fmt(creditJoin.orphanWashed.members, 1)}` : 'n/a'}`
         + ` credit_month=${creditJoin.creditMonthWashed ? `${creditJoin.creditMonthWashed.rows}/${fmt(creditJoin.creditMonthWashed.members, 1)}` : 'n/a'}`
+        + ` rebooked_credit=${creditJoin.rebookedCreditWashed ? `${creditJoin.rebookedCreditWashed.rows}/${fmt(creditJoin.rebookedCreditWashed.members, 1)}` : 'n/a'}`
       : '');
   const colMeta = w.ledgerColumns
     ? `# ledger_columns=${(w.ledgerColumns.rep_scores_ledger_entries || []).join('|')} attr_columns=${(w.ledgerColumns.attributions || []).join('|')}`
