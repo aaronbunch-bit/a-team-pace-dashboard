@@ -557,6 +557,173 @@ assert.equal(
   "without credit_matched the orphan-credit wash must not fire"
 );
 
+// ---- Re-booked credit (positive line earned in another month) ----------------
+// Client 8561610: credited 0.5/2 on 7/2 and refunded 7/3, so the journal is zero
+// over its lifetime and July already accounts for both halves. The ledger then
+// re-booked the credit in August. Keyed on `l.created_at` that rebook landed in
+// August while its reversal — keyed on the credit — stayed in July, so August
+// counted +0.5/2 for a client who bought nothing in August.
+const rebookedCredit = netLedgerJournal(
+  [
+    {
+      ...line({
+        ledgerId: 681101,
+        attributionId: 85101,
+        members: 0.5,
+        sessions: 2,
+        date: "2026-08-04",
+        saleDate: "2026-07-02",
+        clientId: "8561610",
+        lifetimeMembers: 0,
+        lifetimeSessions: 0,
+      }),
+      credit_matched: true,
+      credit_business_date: "2026-07-03",
+      credit_occurred_date: "2026-07-02",
+    },
+  ],
+  DISPLAY,
+  new Set(),
+  "2026-08"
+);
+assert.equal(totals(rebookedCredit.rows).members, 0, "a July credit must not score in August");
+assert.equal(totals(rebookedCredit.rows).sessions, 0);
+assert.equal(rebookedCredit.washed.length, 1);
+assert.equal(rebookedCredit.washed[0].reason, "rebooked-credit");
+assert.equal(rebookedCredit.washed[0].creditMonth, "2026-07", "and it is reported against July");
+
+// The ordinary case must be untouched: a credit earned this month scores now.
+const inMonthCreditLine = netLedgerJournal(
+  [
+    {
+      ...line({
+        ledgerId: 681201,
+        attributionId: 85201,
+        members: 1,
+        sessions: 8,
+        date: "2026-08-05",
+        lifetimeMembers: 1,
+        lifetimeSessions: 8,
+      }),
+      credit_matched: true,
+      credit_business_date: "2026-08-05",
+      credit_occurred_date: "2026-08-05",
+    },
+  ],
+  DISPLAY,
+  new Set(),
+  "2026-08"
+);
+assert.equal(totals(inMonthCreditLine.rows).members, 1, "this month's credit still scores");
+assert.equal(inMonthCreditLine.washed.length, 0);
+
+// A credit cancelled in a later month is still the month it was earned in. The
+// cancellation columns are excluded from the occurrence date for this reason —
+// keying on them would delete August credit the moment it was refunded.
+const cancelledLater = netLedgerJournal(
+  [
+    {
+      ...line({
+        ledgerId: 681301,
+        attributionId: 85301,
+        members: 1,
+        sessions: 8,
+        date: "2026-08-06",
+        lifetimeMembers: 0,
+        lifetimeSessions: 0,
+      }),
+      credit_matched: true,
+      credit_business_date: "2026-09-04",
+      credit_occurred_date: "2026-08-06",
+    },
+  ],
+  DISPLAY,
+  new Set(),
+  "2026-08"
+);
+assert.equal(totals(cancelledLater.rows).members, 1, "a later refund must not unbook August credit");
+assert.equal(cancelledLater.washed.length, 0);
+
+// Fail-safe: with no resolved credits row the wash must not fire, so an
+// unavailable join can never delete credit.
+const rebookNoSignal = netLedgerJournal(
+  [
+    line({
+      ledgerId: 681401,
+      attributionId: 85401,
+      members: 0.5,
+      sessions: 2,
+      date: "2026-08-04",
+      saleDate: "2026-07-02",
+      lifetimeMembers: 0,
+      lifetimeSessions: 0,
+    }),
+  ],
+  DISPLAY,
+  new Set(),
+  "2026-08"
+);
+assert.equal(
+  totals(rebookNoSignal.rows).members,
+  0.5,
+  "without a credits row the credit stands — a failed probe must not zero pace"
+);
+
+// A revision of a re-booked credit goes with it, or the month is left holding a
+// negative credit row for business that belongs to another month.
+const rebookedWithRevision = netLedgerJournal(
+  [
+    {
+      ...line({
+        ledgerId: 681501,
+        attributionId: 85501,
+        members: 1,
+        sessions: 8,
+        date: "2026-08-04",
+        saleDate: "2026-07-02",
+        lifetimeMembers: 0,
+        lifetimeSessions: 0,
+      }),
+      credit_matched: true,
+      credit_occurred_date: "2026-07-02",
+    },
+    {
+      ...line({
+        ledgerId: 681502,
+        attributionId: 85501,
+        members: -1,
+        sessions: -8,
+        date: "2026-08-04",
+        saleDate: "2026-07-02",
+        lifetimeMembers: 0,
+        lifetimeSessions: 0,
+      }),
+      credit_matched: true,
+      credit_occurred_date: "2026-07-02",
+    },
+    {
+      ...line({
+        ledgerId: 681503,
+        attributionId: 85501,
+        members: 0.5,
+        sessions: 2,
+        date: "2026-08-04",
+        saleDate: "2026-07-02",
+        lifetimeMembers: 0,
+        lifetimeSessions: 0,
+      }),
+      credit_matched: true,
+      credit_occurred_date: "2026-07-02",
+    },
+  ],
+  DISPLAY,
+  new Set(),
+  "2026-08"
+);
+assert.equal(totals(rebookedWithRevision.rows).members, 0, "the whole re-booked journal leaves August");
+assert.equal(totals(rebookedWithRevision.rows).sessions, 0);
+assert.equal(rebookedWithRevision.rows.length, 0);
+
 // ---- Poll ETags ------------------------------------------------------------
 // A compact poll and a full one carry the same totals but different bodies. If
 // they shared a tag, a tab that had polled compact and then needed line items
@@ -581,4 +748,4 @@ assert.notEqual(
   "a cancel moving must break the tag, or tiles freeze on a stale number"
 );
 
-console.log("ok — journal rows, cancel classification, month window, dedupe, line items, period duplicates, credit-join wash, etags");
+console.log("ok — journal rows, cancel classification, month window, dedupe, line items, period duplicates, credit-join wash, re-booked credit, etags");
