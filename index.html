@@ -12278,15 +12278,66 @@ function applyLiveActualsPayload(data, wantFull, prevDigest) {
   lastLiveActualsOk = true;
   const statusEl = document.getElementById('liveActualsStatus');
   if (statusEl) {
-    statusEl.textContent = `Live Supabase feed OK · as of ${data.actuals.asOf}` +
-      (data.matchedRows != null ? ` · ${data.matchedRows} ledger rows` : '') +
-      (data.cacheHit ? ' · cached' : '') +
-      (data.sharedHit ? ' · sibling tab' : '') +
-      (data.notModified ? ' · unchanged' : '') +
-      (data.fetchedAt ? ` · synced ${new Date(data.fetchedAt).toLocaleTimeString()}` : '');
-    statusEl.style.color = '#16a34a';
+    // Salvaged numbers are real but not current, so this must never read as a
+    // healthy sync — the age is the whole point.
+    if (data.stale) {
+      const ageMs = Date.now() - Number(data.fetchedAtMs || 0);
+      const mins = Number.isFinite(ageMs) && ageMs >= 0 ? Math.round(ageMs / 60000) : null;
+      statusEl.textContent = 'Live Supabase feed unavailable — showing the last numbers that loaded'
+        + (mins != null ? `, from ${mins} min ago` : '')
+        + ` · as of ${data.actuals.asOf}`
+        + (data.staleReason ? ` · ${data.staleReason}` : '');
+      statusEl.style.color = '#b45309';
+    } else {
+      statusEl.textContent = `Live Supabase feed OK · as of ${data.actuals.asOf}` +
+        (data.matchedRows != null ? ` · ${data.matchedRows} ledger rows` : '') +
+        (data.cacheHit ? ' · cached' : '') +
+        (data.sharedHit ? ' · sibling tab' : '') +
+        (data.notModified ? ' · unchanged' : '') +
+        (data.fetchedAt ? ` · synced ${new Date(data.fetchedAt).toLocaleTimeString()}` : '');
+      statusEl.style.color = '#16a34a';
+    }
   }
   return actualsDigest(ACTUALS_CACHE) === prevDigest ? 'unchanged' : 'changed';
+}
+
+/**
+ * Delays between live-feed attempts. Short on purpose.
+ *
+ * The 500 this recovers from comes back in well under a second and never reaches
+ * the function's own error handling, so a retry is usually answered normally.
+ * Two extra attempts cost a few seconds; not retrying costs the floor its numbers
+ * until the next poll, 90 seconds later — or, on a page load, leaves every tile
+ * reading 0.0%.
+ */
+const LIVE_ACTUALS_RETRY_DELAYS_MS = [1200, 3500];
+
+async function fetchLiveActualsWithRetry(path, opts) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await authedFetch(path, opts);
+    } catch (e) {
+      const status = Number(e && e.status);
+      // A 4xx is an answer, not a hiccup — signed out, bad month, bad request.
+      // Anything 5xx, or a bare network failure, is worth another try.
+      const retryable = (!status || status >= 500) && e.message !== 'Not signed in';
+      if (!retryable || attempt >= LIVE_ACTUALS_RETRY_DELAYS_MS.length) throw e;
+      console.warn(`Live actuals attempt ${attempt + 1} failed — retrying`, e.message);
+      await new Promise((resolve) => setTimeout(resolve, LIVE_ACTUALS_RETRY_DELAYS_MS[attempt]));
+    }
+  }
+}
+
+/** Does the in-memory feed already hold real numbers for the live month? */
+function actualsHaveLiveMonthNumbers() {
+  const cache = ACTUALS_CACHE;
+  if (!cache || !cache.perRep) return false;
+  const month = actualsMonthKey(cache);
+  if (month && month !== liveMonthKey()) return false;
+  return Object.values(cache.perRep).some((row) => (
+    Number(row && row.members) || Number(row && row.sessions)
+    || Number(row && row.membersCancels) || Number(row && row.sessionsCancels)
+  ));
 }
 
 async function fetchLiveActuals(opts) {
@@ -12332,7 +12383,7 @@ async function fetchLiveActuals(opts) {
     const canReuseEtag = !(opts && opts.fresh) && (!wantFull || actualsCarryItems(ACTUALS_CACHE));
     const etag = canReuseEtag ? liveActualsEtagFor(wantFull) : '';
     if (etag) headers['If-None-Match'] = etag;
-    const data = await authedFetch('/api/actuals/live' + qs, {
+    const data = await fetchLiveActualsWithRetry('/api/actuals/live' + qs, {
       cache: 'no-store',
       headers,
       acceptNotModified: true,
@@ -12352,6 +12403,29 @@ async function fetchLiveActuals(opts) {
   } catch (e) {
     lastLiveActualsOk = false;
     console.warn('Could not load live Supabase actuals', e);
+    // Fall back to this browser's own last good feed, however old it is.
+    //
+    // The Blobs/CSV actuals the banner used to point at are empty for a month
+    // whose only writer is this feed, so a failed load painted every rep 0.0% and
+    // every board "No data yet" — which reads as "nobody sold anything today"
+    // rather than "the feed is down". The last real numbers with an age on them
+    // are strictly better. Month-gated inside readSharedLiveActuals, so this can
+    // never paint last month's totals onto this month's pacer.
+    if (!actualsHaveLiveMonthNumbers()) {
+      const salvage = readSharedLiveActuals(Infinity);
+      if (salvage) {
+        const salvageFull = !!(salvage.hasItems || actualsCarryItems(salvage.actuals));
+        const applied = applyLiveActualsPayload({
+          ...salvage,
+          stale: true,
+          staleReason: (e && e.message) || 'live feed unavailable',
+        }, salvageFull, prevDigest);
+        // Real numbers, but not current — every "live" badge must still say so.
+        lastLiveActualsOk = false;
+        if (applied === 'changed') return 'changed';
+        return 'error';
+      }
+    }
     if (statusEl) {
       statusEl.textContent = 'Live Supabase feed unavailable — showing last Blobs/CSV actuals. ' +
         ((e && e.message) || 'Sign-in required');
@@ -12544,11 +12618,32 @@ async function authedFetch(path, options) {
   if (acceptNotModified && res.status === 304) {
     return { __notModified: true, __etag: res.headers.get('ETag') || '' };
   }
-  const data = await res.json().catch(() => ({}));
+  // Read the body once as text so a non-JSON failure keeps its message. Every
+  // error the API raises deliberately is JSON carrying `error`; a function that
+  // crashed before reaching its own error handling returns whatever the platform
+  // wrote, often plain text. Parsing straight to JSON threw that away and left
+  // only "Request failed (500)" to go on.
+  const raw = await res.text().catch(() => '');
+  let data = {};
+  if (raw) {
+    try {
+      data = JSON.parse(raw);
+    } catch (_) {
+      data = {};
+    }
+  }
   if (!res.ok) {
-    const err = new Error(data.error || ('Request failed (' + res.status + ')'));
+    const detail = (data && (data.error || data.errorMessage || data.errorType))
+      || raw.trim().slice(0, 300)
+      || 'Request failed';
+    // Netlify stamps every request with an id. Quoting it turns "it broke for one
+    // rep" into a single log lookup.
+    const requestId = res.headers.get('x-nf-request-id') || '';
+    const err = new Error(`${detail} (${res.status})${requestId ? ` · request ${requestId}` : ''}`);
     err.status = res.status;
     err.payload = data;
+    err.bodyText = raw;
+    err.requestId = requestId;
     throw err;
   }
   if (acceptNotModified) {
