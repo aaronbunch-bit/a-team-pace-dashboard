@@ -14799,27 +14799,50 @@ function identityEmail(user) {
   return '';
 }
 
+/**
+ * Which account is signed in.
+ *
+ * Returns `{ email }` when the address is known and `{ unknown: true }` when it
+ * could not be read. Those are different answers and the caller must treat them
+ * differently: this used to return `''` for both, and since `''` does not end in
+ * the company domain, a lookup that merely failed was handled as though Google
+ * had returned somebody else's account — session wiped, token revoked.
+ *
+ * Not every Identity record carries the address inline, so for some people every
+ * sign-in depends on the two fallbacks below. Both touch the network, so a single
+ * blip is enough. They are retried before giving up.
+ */
 async function resolveIdentityEmail(user) {
-  let email = identityEmail(user);
-  if (email) return email;
-  if (!user || typeof user.jwt !== 'function') return '';
-  try {
-    const token = await user.jwt();
-    const payload = decodeJwtPayload(token);
-    email = String(payload && (payload.email || (payload.user_metadata && payload.user_metadata.email)) || '')
-      .trim().toLowerCase();
-    if (email.includes('@')) return email;
+  const inline = identityEmail(user);
+  if (inline) return { email: inline };
+  if (!user || typeof user.jwt !== 'function') return { unknown: true };
 
-    const res = await fetch(IDENTITY_API + '/user', {
-      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      email = identityEmail(data);
-      if (email) return email;
+  const attempts = [0, 400, 1200];
+  for (let i = 0; i < attempts.length; i++) {
+    if (attempts[i]) await new Promise((resolve) => setTimeout(resolve, attempts[i]));
+    try {
+      // Note: gotrue refreshes the token here when it is close to expiring, which
+      // is why a failure on this path shows up in the Identity log as a refresh.
+      const token = await user.jwt();
+      const payload = decodeJwtPayload(token);
+      const claimed = String(payload && (payload.email || (payload.user_metadata && payload.user_metadata.email)) || '')
+        .trim().toLowerCase();
+      if (claimed.includes('@')) return { email: claimed };
+
+      const res = await fetch(IDENTITY_API + '/user', {
+        headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+      });
+      if (res.ok) {
+        const fromProfile = identityEmail(await res.json());
+        if (fromProfile) return { email: fromProfile };
+      }
+      // A 401 means this session is genuinely finished, so stop retrying it.
+      if (res.status === 401) return { unknown: true, expired: true };
+    } catch (_) {
+      // Network blip — fall through to the next attempt.
     }
-  } catch (_) {}
-  return '';
+  }
+  return { unknown: true };
 }
 
 function showLoginGateError(message) {
@@ -14966,16 +14989,30 @@ async function acceptIdentityUser(user) {
     lockAppToLoginGate();
     return;
   }
-  const email = await resolveIdentityEmail(user);
-  if (!email.endsWith(ALLOWED_EMAIL_DOMAIN)) {
+  const resolved = await resolveIdentityEmail(user);
+
+  // Could not read the address. The gate stays shut — the domain is unconfirmed,
+  // so letting anyone through would be worse — but the session is left alone.
+  // Wiping it here is what revoked a valid token and, because the refresh token
+  // went with it, left nothing to recover from: every reload started over and
+  // ended the same way.
+  if (resolved.unknown) {
+    lockAppToLoginGate();
+    showLoginGateError(
+      resolved.expired
+        ? 'Your session expired. Press Continue with Google to sign back in.'
+        : 'Could not confirm your account with Netlify Identity just now. This is usually temporary — press Continue with Google to retry. You do not need to clear your browser.'
+    );
+    return;
+  }
+
+  // A known address from outside the company is a real refusal, so clearing the
+  // session is the right thing to do here.
+  if (!resolved.email.endsWith(ALLOWED_EMAIL_DOMAIN)) {
     lockAppToLoginGate();
     clearGoTrueStorage();
     safeIdentityLogout();
-    if (!email) {
-      showLoginGateError('Sign-in did not return an email. Use Continue with Google again and choose your @varsitytutors.com account.');
-    } else {
-      showLoginGateError('Google used ' + email + ', which is not allowed. Choose your @varsitytutors.com account on Google’s screen.');
-    }
+    showLoginGateError('Google used ' + resolved.email + ', which is not allowed. Choose your @varsitytutors.com account on Google’s screen.');
     return;
   }
   revealAppAfterLogin(user);

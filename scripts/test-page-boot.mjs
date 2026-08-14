@@ -763,6 +763,126 @@ assert.equal(typeof context.actualsCarryItems, "function", "actualsCarryItems mu
   }
 }
 
+/**
+ * A sign-in the app cannot confirm must not destroy the session.
+ *
+ * Chris's Identity log showed the same four events every time, inside one minute:
+ * logged in, refreshed token, revoked token, logged out — and then nothing, ever.
+ * `resolveIdentityEmail` returned `''` whenever its lookup failed, `''` does not
+ * end in the company domain, so the app took the wrong-account branch and wiped
+ * the session. `clearGoTrueStorage` took the refresh token with it, so there was
+ * nothing left to refresh and every reload repeated it.
+ *
+ * Not every Identity record carries the address inline, so for some people that
+ * network lookup runs on every single sign-in. One blip was enough to lock them
+ * out until somebody re-authorised through Google.
+ */
+{
+  assert.equal(typeof context.acceptIdentityUser, "function", "the login gate must exist");
+  assert.equal(typeof context.resolveIdentityEmail, "function");
+
+  const originalFetch = context.fetch;
+  const originalSetTimeout = context.setTimeout;
+  // The harness's timers never fire, and the retries await one.
+  context.setTimeout = (fn) => { Promise.resolve().then(fn); return 0; };
+
+  // Identity is provisioned and Google is on — the state a real browser is in.
+  // Otherwise the gate short-circuits on an earlier branch and this proves nothing.
+  assert.equal(typeof context.applyIdentityBackendDiagnosis, "function");
+  context.applyIdentityBackendDiagnosis({ status: "ready", settings: { external: { google: true } } });
+
+  const revoked = [];
+  context.netlifyIdentity.logout = () => { revoked.push("logout"); return Promise.resolve(); };
+  const gateError = () => documentStub.getElementById("loginGateError").textContent;
+
+  // The shared stub's classList is a no-op, so "did the dashboard open?" needs a
+  // real one here or the assertion measures nothing.
+  const stubClassList = documentStub.body.classList;
+  const classes = new Set();
+  documentStub.body.classList = {
+    add: (c) => classes.add(c),
+    remove: (c) => classes.delete(c),
+    toggle: (c, on) => (on === undefined ? (classes.has(c) ? classes.delete(c) : classes.add(c)) : (on ? classes.add(c) : classes.delete(c))),
+    contains: (c) => classes.has(c),
+    replace: () => {},
+  };
+  const appIsOpen = () => classes.has("app-ready");
+
+  // A user record with no inline address is the shape that forces the fallbacks.
+  const noInlineEmail = { jwt: () => Promise.resolve("h.e30.s"), user_metadata: {}, app_metadata: {} };
+  const jsonRes = (status, body) => Promise.resolve({
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.resolve(body),
+  });
+
+  try {
+    // 1. Identity unreachable. The session must survive.
+    context.localStorage.setItem("gotrue.user", "session-token");
+    revoked.length = 0;
+    context.fetch = () => Promise.reject(new Error("ECONNREFUSED"));
+    await context.acceptIdentityUser(noInlineEmail);
+    assert.deepEqual(revoked, [], "an unreadable address must not revoke the token");
+    assert.equal(
+      context.localStorage.getItem("gotrue.user"),
+      "session-token",
+      "and must not wipe the refresh token — that is what made it unrecoverable"
+    );
+    assert.match(gateError(), /usually temporary/, "the message must not blame the account");
+    assert.match(
+      gateError(),
+      /do not need to clear/i,
+      "and must say so, since clearing the browser is exactly what this cost people"
+    );
+
+    // 2. A transient blip must heal itself rather than needing a person.
+    revoked.length = 0;
+    let calls = 0;
+    context.fetch = () => {
+      calls += 1;
+      if (calls === 1) return Promise.reject(new Error("ECONNRESET"));
+      return jsonRes(200, { email: "christopher.jones@varsitytutors.com" });
+    };
+    await context.acceptIdentityUser(noInlineEmail);
+    assert.ok(calls >= 2, "the lookup is retried");
+    assert.deepEqual(revoked, [], "a retry that succeeds must not have revoked anything");
+    assert.ok(appIsOpen(), "and the dashboard opens once the address is confirmed");
+
+    // 3. A genuinely wrong account is still refused, and cleared.
+    revoked.length = 0;
+    context.localStorage.setItem("gotrue.user", "session-token");
+    context.fetch = () => jsonRes(200, { email: "chris@gmail.com" });
+    await context.acceptIdentityUser(noInlineEmail);
+    assert.deepEqual(revoked, ["logout"], "an outside address must still be signed out");
+    assert.equal(
+      context.localStorage.getItem("gotrue.user"),
+      null,
+      "and its session cleared"
+    );
+    assert.match(gateError(), /chris@gmail\.com/, "naming the address that was refused");
+
+    // 4. A 401 is a finished session, not a blip: say so, and stop retrying.
+    revoked.length = 0;
+    calls = 0;
+    context.fetch = () => { calls += 1; return jsonRes(401, {}); };
+    await context.acceptIdentityUser(noInlineEmail);
+    assert.equal(calls, 1, "a 401 must not be retried");
+    assert.match(gateError(), /expired/i, "and must read as an expired session");
+
+    // 5. The normal case: an inline address needs no network at all.
+    revoked.length = 0;
+    context.fetch = () => Promise.reject(new Error("must not be called"));
+    await context.acceptIdentityUser({ email: "becky.ruffer@varsitytutors.com" });
+    assert.ok(appIsOpen(), "an inline company address opens the dashboard without a lookup");
+    assert.deepEqual(revoked, []);
+  } finally {
+    context.fetch = originalFetch;
+    context.setTimeout = originalSetTimeout;
+    documentStub.body.classList = stubClassList;
+    context.localStorage.removeItem("gotrue.user");
+  }
+}
+
 if (bodyWipes.length) {
   console.error("\nSomething wrote to <body> in a way that deletes the page:\n");
   bodyWipes.forEach((w) => console.error("  " + w));
