@@ -3,6 +3,7 @@ import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
 import { resolveAccess } from "./_shared/access.mts";
 import { resolveRepNameFromEmail } from "./_shared/roster.mts";
+import { withApiErrors } from "./_shared/api-errors.mts";
 
 // Visibility:
 //   - Full admins (Aaron + admin-list) and Sales Coaches see every rep's
@@ -11,7 +12,7 @@ import { resolveRepNameFromEmail } from "./_shared/roster.mts";
 //     roster display name (so admin/coach on-behalf submits still land in
 //     that rep's Pending / Actioned queues).
 // Approve/reject UI (`isAdmin`) is full admins only — coaches stay read-only.
-export default async (req: Request, context: Context) => {
+export default withApiErrors("list-attributions", async (req: Request, context: Context) => {
   const user = await getIdentityUser(req, context);
   if (!user || !user.email) {
     return new Response(JSON.stringify({ error: "Not signed in" }), { status: 401 });
@@ -48,7 +49,7 @@ export default async (req: Request, context: Context) => {
       headers: { "Content-Type": "application/json" },
     }
   );
-};
+});
 
 export const config: Config = {
   path: "/api/attributions/list",
