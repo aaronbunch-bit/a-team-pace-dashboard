@@ -1,6 +1,13 @@
 [functions]
   directory = "functions"
 
+# Pin the runtime. Nothing here specified a Node version, so builds and functions
+# ran on whatever Netlify's default happened to be that day — a version that can
+# move without a commit on our side, and take every function with it. 22 is what
+# the test suite runs on locally (the scripts need >=22.6 for type stripping).
+[build.environment]
+  NODE_VERSION = "22"
+
 # Dashboard APIs require Netlify Identity (Google, @varsitytutors.com).
 # Optional hardening: set JWT_SECRET (or NETLIFY_IDENTITY_JWT_SECRET) in the
 # site env to the Identity JWT secret so Bearer tokens are HMAC-verified

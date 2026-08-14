@@ -1,6 +1,7 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { requireSignedIn } from "./_shared/identity.mts";
+import { withApiErrors } from "./_shared/api-errors.mts";
 
 // Identity-gated (@varsitytutors.com). Badge toggles / assignments are
 // team-internal UI state — not for anonymous URL scrapers.
@@ -20,7 +21,7 @@ const DEFAULT_TOGGLES = {
   bestPaceDay: true,
 };
 
-export default async (req: Request, context: Context) => {
+export default withApiErrors("get-badges-data", async (req: Request, context: Context) => {
   const auth = await requireSignedIn(req, context);
   if (auth.response) return auth.response;
 
@@ -67,7 +68,7 @@ export default async (req: Request, context: Context) => {
     status: 200,
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
-};
+});
 
 export const config: Config = {
   path: "/api/badges/data",

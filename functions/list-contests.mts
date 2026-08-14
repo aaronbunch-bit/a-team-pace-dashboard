@@ -3,8 +3,9 @@ import { getStore } from "@netlify/blobs";
 import { requireSignedIn } from "./_shared/identity.mts";
 import { resolveAccess } from "./_shared/access.mts";
 import { CONTEST_STORE, publicContest, type ContestRecord } from "./_shared/contest.mts";
+import { withApiErrors } from "./_shared/api-errors.mts";
 
-export default async (req: Request, context: Context) => {
+export default withApiErrors("list-contests", async (req: Request, context: Context) => {
   const auth = await requireSignedIn(req, context);
   if (auth.response) return auth.response;
 
@@ -45,7 +46,7 @@ export default async (req: Request, context: Context) => {
       headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
     }
   );
-};
+});
 
 export const config: Config = {
   path: "/api/contests/list",
