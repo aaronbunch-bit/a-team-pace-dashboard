@@ -104,9 +104,13 @@ export async function getIdentityUser(req: Request, context: Context): Promise<I
 
   const secret = jwtSecret();
   let payload: Record<string, any> | null = null;
+  // Whether the signature was actually checked, or the claims are still just
+  // text the caller supplied. Decoding a JWT proves nothing about who sent it.
+  let signatureVerified = false;
   if (secret) {
     payload = verifyHs256Jwt(token, secret);
     if (!payload) return null;
+    signatureVerified = true;
   } else {
     payload = decodeJwtPayload(token);
     if (!payload) return null;
@@ -125,6 +129,10 @@ export async function getIdentityUser(req: Request, context: Context): Promise<I
   };
 
   const siteUrl = (context.site?.url || new URL(req.url).origin).replace(/\/$/, "");
+  // Did Identity itself vouch for this token? Not just enrichment — when the
+  // signature was never checked, this is the only thing standing between a
+  // forged token and the whole dashboard.
+  let identityConfirmed = false;
   try {
     const res = await fetch(`${siteUrl}/.netlify/identity/user`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -138,12 +146,25 @@ export async function getIdentityUser(req: Request, context: Context): Promise<I
         email: profileEmail || email,
       };
       email = normalizeEmail(user.email);
+      identityConfirmed = true;
     }
   } catch {
-    // JWT claims are enough when the user endpoint is unreachable.
-    // Set JWT_SECRET (Netlify Identity JWT secret) so tokens are HMAC-verified
-    // even when this enrichment call fails.
+    // Unreachable Identity is handled by the check below, not by trusting the
+    // token. This used to swallow the failure and accept the claims as-is.
   }
+
+  // Fail closed on an unverified token.
+  //
+  // Without JWT_SECRET the signature is not checked, and this call failing was
+  // treated as "close enough" — so a hand-written JWT naming any
+  // @varsitytutors.com address was accepted as that person. `requireAdmin` reads
+  // the same email, so naming the admin address granted write access as well:
+  // roster, quotas, approvals, ledger exclusions. Nothing about the request had
+  // to come from a real session.
+  //
+  // Set JWT_SECRET (the Netlify Identity JWT secret) and the signature is
+  // verified locally, which is both stricter and cheaper than this round trip.
+  if (!signatureVerified && !identityConfirmed) return null;
 
   if (!isUsableEmail(email)) return null;
   user.email = email;
