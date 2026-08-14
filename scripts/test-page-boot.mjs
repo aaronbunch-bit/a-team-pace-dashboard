@@ -595,6 +595,174 @@ assert.equal(typeof context.actualsCarryItems, "function", "actualsCarryItems mu
   assert.equal(newHire.items.length, 0, "an unknown rep gets an empty item list");
 }
 
+/**
+ * A failed live feed must retry, and must never leave the board reading zeros.
+ *
+ * The failure this covers was a 500 returned by the platform in ~80ms, before
+ * the function's own error handling ran, so the body was plain text with no
+ * `error` field in it. Three things went wrong at once: the dashboard reported
+ * only "Request failed (500)" because it parsed the body as JSON and threw the
+ * text away, one bad response was accepted as final until the next poll 90
+ * seconds later, and the Blobs/CSV fallback it fell back to is empty for a month
+ * whose only writer is this feed — so every rep read 0.0% and every board said
+ * "No data yet".
+ */
+{
+  const month = context.liveMonthKey();
+  const asOf = `${month}-14`;
+
+  const res = (status, body, contentType, headers = {}) => ({
+    ok: status >= 200 && status < 300,
+    status,
+    headers: {
+      get: (name) => {
+        const key = String(name).toLowerCase();
+        if (key === "content-type") return contentType;
+        return headers[key] ?? null;
+      },
+    },
+    text: () => Promise.resolve(body),
+    json: () => Promise.resolve(JSON.parse(body)),
+  });
+  const crash = (headers) =>
+    res(500, "Runtime.ImportModuleError: Cannot find module 'x'", "text/plain", headers);
+  const feed = (perRep) =>
+    res(200, JSON.stringify({ viewMonth: month, actuals: { asOf, perRep } }), "application/json");
+
+  // The harness's timers never fire, and the retry helper awaits one.
+  const originalSetTimeout = context.setTimeout;
+  const originalFetch = context.fetch;
+  const originalCurrentUser = context.netlifyIdentity.currentUser;
+  context.setTimeout = (fn) => { Promise.resolve().then(fn); return 0; };
+  context.netlifyIdentity.currentUser = () => ({ jwt: () => Promise.resolve("test-token") });
+
+  try {
+    assert.equal(typeof context.fetchLiveActualsWithRetry, "function", "the retry helper must exist");
+
+    // A crashed function returns no `error` field, so the status, the body text
+    // and Netlify's request id are all the report there is. Throwing them away
+    // is why this took three rounds of back-and-forth to place.
+    context.fetch = () => Promise.resolve(crash({ "x-nf-request-id": "01M00JJ1JSNA7" }));
+    await assert.rejects(
+      () => context.authedFetch("/api/actuals/live"),
+      (err) => {
+        assert.match(err.message, /Runtime\.ImportModuleError/, "keeps a non-JSON body");
+        assert.match(err.message, /\(500\)/, "names the status");
+        assert.match(err.message, /01M00JJ1JSNA7/, "quotes the request id");
+        assert.equal(err.status, 500);
+        return true;
+      }
+    );
+
+    // Two bad instances then a good one: the poll recovers on its own.
+    let calls = 0;
+    context.fetch = () => {
+      calls += 1;
+      if (calls < 3) return Promise.resolve(crash());
+      return Promise.resolve(feed({ "Becky Ruffer": { members: 2, sessions: 9 } }));
+    };
+    let recovered = null;
+    let recoverErr = null;
+    try {
+      recovered = await context.fetchLiveActualsWithRetry("/api/actuals/live?compact=1", {
+        acceptNotModified: true,
+      });
+    } catch (err) {
+      recoverErr = err;
+    }
+    assert.equal(
+      recoverErr,
+      null,
+      `a 5xx must be retried, not accepted as final — got ${recoverErr && recoverErr.message}`
+    );
+    assert.equal(calls, 3, "and it retries until an instance answers");
+    assert.equal(recovered.actuals.perRep["Becky Ruffer"].members, 2);
+
+    // A 4xx is an answer, not a hiccup — retrying a signed-out session just
+    // delays the sign-in prompt.
+    calls = 0;
+    context.fetch = () => {
+      calls += 1;
+      return Promise.resolve(res(401, JSON.stringify({ error: "Sign in required" }), "application/json"));
+    };
+    await assert.rejects(
+      () => context.fetchLiveActualsWithRetry("/api/actuals/live"),
+      /Sign in required/
+    );
+    assert.equal(calls, 1, "a 401 must not be retried");
+
+    // The salvage path: the feed is down for every attempt, but this browser
+    // already holds real numbers for this month, so they stay on screen.
+    assert.equal(typeof context.actualsHaveLiveMonthNumbers, "function");
+    context.localStorage.setItem(
+      "pace_live_actuals_share_v1",
+      JSON.stringify({
+        fetchedAtMs: Date.now() - 20 * 60_000,
+        viewMonth: month,
+        hasItems: true,
+        actuals: {
+          asOf,
+          perRep: {
+            "Becky Ruffer": {
+              members: 5,
+              sessions: 31,
+              membersCancels: 0,
+              sessionsCancels: 0,
+              items: [{ clientId: "8561610", members: 5, sessions: 31, date: asOf }],
+            },
+          },
+        },
+      })
+    );
+    // Start from nothing, the way a page load that fails its first fetch does.
+    context.applyLiveActualsPayload({ viewMonth: month, actuals: { asOf, perRep: {} } }, true, "");
+    assert.ok(!context.actualsHaveLiveMonthNumbers(), "starting with an empty month");
+
+    context.fetch = () => Promise.resolve(crash());
+    const status = documentStub.getElementById("liveActualsStatus");
+    await context.fetchLiveActuals({ full: true });
+
+    assert.equal(
+      context.loadActuals().perRep["Becky Ruffer"]?.members,
+      5,
+      "a failed load must fall back to the last numbers this browser had, not zeros"
+    );
+    assert.ok(context.actualsHaveLiveMonthNumbers(), "the board is no longer blank");
+    assert.match(
+      status.textContent,
+      /last numbers that loaded/,
+      "and it must say the numbers are not current"
+    );
+    assert.match(status.textContent, /20 min ago/, "with their age, so nobody reads them as live");
+
+    // Salvaged numbers are real but stale: nothing may badge them as live.
+    assert.equal(context.lastLiveActualsOk, undefined, "lastLiveActualsOk is script-local");
+    assert.doesNotMatch(status.textContent, /feed OK/, "a stale read is not a healthy sync");
+
+    // Stale data must never cross a month boundary.
+    context.localStorage.setItem(
+      "pace_live_actuals_share_v1",
+      JSON.stringify({
+        fetchedAtMs: Date.now(),
+        viewMonth: "2020-01",
+        actuals: { asOf: "2020-01-15", perRep: { "Becky Ruffer": { members: 99, sessions: 99 } } },
+      })
+    );
+    context.applyLiveActualsPayload({ viewMonth: month, actuals: { asOf, perRep: {} } }, true, "");
+    await context.fetchLiveActuals({ full: true });
+    assert.notEqual(
+      context.loadActuals().perRep["Becky Ruffer"]?.members,
+      99,
+      "another month's share must never be salvaged onto this month's pacer"
+    );
+  } finally {
+    context.setTimeout = originalSetTimeout;
+    context.fetch = originalFetch;
+    context.netlifyIdentity.currentUser = originalCurrentUser;
+    context.localStorage.removeItem("pace_live_actuals_share_v1");
+  }
+}
+
 if (bodyWipes.length) {
   console.error("\nSomething wrote to <body> in a way that deletes the page:\n");
   bodyWipes.forEach((w) => console.error("  " + w));
