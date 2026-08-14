@@ -4,6 +4,7 @@ import { requireSignedIn } from "./_shared/identity.mts";
 import { resolveAccess } from "./_shared/access.mts";
 import { GOALS_MONTHS_KEY, GOALS_MONTHS_STORE, isMonthKey } from "./_shared/goals.mts";
 import { ROSTER_MONTHS_KEY, ROSTER_MONTHS_STORE, normalizeRosterEntries } from "./_shared/roster-months.mts";
+import { withApiErrors } from "./_shared/api-errors.mts";
 import {
   TEAM_MONTH_SETTINGS_KEY,
   TEAM_MONTH_SETTINGS_STORE,
@@ -43,7 +44,7 @@ function redactCompensation(goals: any, viewerEmail: string, fullAccess: boolean
 // field here means "nothing saved yet" and the front end's own cache just
 // keeps showing its baked-in default until the first real write happens
 // (Save Goals / Add Person / Update Actuals) — see fetchDashboardData().
-export default async (req: Request, context: Context) => {
+export default withApiErrors("get-dashboard-data", async (req: Request, context: Context) => {
   const auth = await requireSignedIn(req, context);
   if (auth.response) return auth.response;
   const viewerEmail = String(auth.user?.email || "").trim().toLowerCase();
@@ -130,7 +131,7 @@ export default async (req: Request, context: Context) => {
       headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
     }
   );
-};
+});
 
 export const config: Config = {
   path: "/api/dashboard/data",

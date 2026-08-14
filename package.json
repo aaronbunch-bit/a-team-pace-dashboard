@@ -4,8 +4,9 @@
   "description": "A-Team pace dashboard — static site + Netlify Functions (Identity + Blobs)",
   "private": true,
   "scripts": {
-    "test": "npm run test:identity && npm run test:ledger && npm run test:ledger-sql && npm run test:export-join && npm run test:goals-months && npm run test:team-month-settings && npm run test:roster-months && npm run test:month-scope && npm run test:badge-day && npm run test:boot && npm run test:browser",
+    "test": "npm run test:identity && npm run test:api-errors && npm run test:ledger && npm run test:ledger-sql && npm run test:export-join && npm run test:goals-months && npm run test:team-month-settings && npm run test:roster-months && npm run test:month-scope && npm run test:badge-day && npm run test:boot && npm run test:browser",
     "test:identity": "node --experimental-strip-types --no-warnings scripts/test-identity-gate.mjs",
+    "test:api-errors": "node --experimental-strip-types --no-warnings scripts/test-api-error-envelope.mjs",
     "test:ledger": "node --experimental-strip-types --no-warnings scripts/test-ledger-journal.mjs",
     "test:ledger-sql": "node --experimental-strip-types --no-warnings scripts/test-ledger-sql.mjs",
     "test:sql:install": "npm i --no-save pg-query-emscripten",
