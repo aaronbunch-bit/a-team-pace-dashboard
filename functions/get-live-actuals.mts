@@ -1,6 +1,7 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { requireSignedIn } from "./_shared/identity.mts";
+import { withApiErrors } from "./_shared/api-errors.mts";
 import { runSupabaseSql, supabaseConfig } from "./_shared/supabase.mts";
 import { loadGoalsByMonth, saveGoalsByMonth } from "./_shared/goals.mts";
 import {
@@ -1530,7 +1531,12 @@ function stripIntegrityForCompact(payload: Record<string, unknown>) {
   };
 }
 
-export default async (req: Request, context: Context) => {
+// Wrapped like every other read endpoint. The internal try/catch below still
+// answers 502 for a Supabase or Blobs failure with the reason attached; this
+// wrapper covers the part that sits *outside* it — the method check, the
+// Identity gate and the month parse — which previously escaped uncaught and
+// came back as a bare platform 500 with no body and nothing in the log.
+export default withApiErrors("get-live-actuals", async (req: Request, context: Context) => {
   if (req.method !== "GET") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
   }
@@ -2080,7 +2086,7 @@ order by l.created_at asc, l.id asc;
       { status: 502, headers: { "Content-Type": "application/json" } }
     );
   }
-};
+});
 
 export const config: Config = {
   path: "/api/actuals/live",

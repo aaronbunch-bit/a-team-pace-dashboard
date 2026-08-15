@@ -4412,7 +4412,7 @@ function isRepScheduledOff(repDisplay, dateStr) {
 }
 async function fetchTeamSchedules() {
   try {
-    const data = await authedFetch('/api/team-schedules', { cache: 'no-store' });
+    const data = await authedFetchRetry('/api/team-schedules', { cache: 'no-store' }, 'Team schedules');
     TEAM_SCHEDULES_CACHE = {
       reps: (data && data.reps) || {},
       dailyGoals: (data && data.dailyGoals) || {},
@@ -10049,14 +10049,16 @@ async function ensurePriorMonthBundle(opts) {
       // Ledger, approvals and personal goals are independent. Fetching them in
       // parallel removes two serial network waits from the first month switch.
       const [data, tot, pg] = await Promise.all([
-        authedFetch('/api/actuals/live' + qs, { cache: 'no-store' }),
-        authedFetch(
+        authedFetchRetry('/api/actuals/live' + qs, { cache: 'no-store' }, 'Prior month ledger'),
+        authedFetchRetry(
           '/api/attributions/approved-totals?month=' + encodeURIComponent(prev.key),
-          { cache: 'no-store' }
+          { cache: 'no-store' },
+          'Prior month approvals'
         ).catch(() => null),
-        authedFetch(
+        authedFetchRetry(
           '/api/personal-goals?month=' + encodeURIComponent(prev.key),
-          { cache: 'no-store' }
+          { cache: 'no-store' },
+          'Prior month goals'
         ).catch(() => null),
       ]);
       const approved = (tot && tot.totals) || {};
@@ -11778,7 +11780,7 @@ async function refreshTeamAttributions() {
   tbody.innerHTML = `<div class="ops-list-row"><div class="ops-list-v muted">Loading…</div></div>`;
   if (status) status.textContent = '';
   try {
-    const { canViewTeam, isAdmin, records } = await authedFetch('/api/attributions/list');
+    const { canViewTeam, isAdmin, records } = await authedFetchRetry('/api/attributions/list', undefined, 'Attributions');
     lastAttrRecords = records;
     lastAttrIsAdmin = !!isAdmin;
     lastAttrCanViewTeam = canViewTeam !== undefined ? !!canViewTeam : !!isAdmin;
@@ -11814,7 +11816,7 @@ async function refreshDetailAttributions(repName) {
   if (countEl) countEl.textContent = '';
   if (statusEl) statusEl.textContent = '';
   try {
-    const { isAdmin, canViewTeam, records } = await authedFetch('/api/attributions/list');
+    const { isAdmin, canViewTeam, records } = await authedFetchRetry('/api/attributions/list', undefined, 'Attributions');
     lastAttrRecords = records;
     lastAttrIsAdmin = !!isAdmin;
     lastAttrCanViewTeam = canViewTeam !== undefined ? !!canViewTeam : !!isAdmin;
@@ -11899,9 +11901,10 @@ async function fetchApprovedTotals(monthKey) {
     // Always pin the month explicitly so a client/server clock skew cannot
     // silently pull last month's approved credits into this month's pacers.
     const month = String(monthKey || '') || liveMonthKey();
-    const data = await authedFetch(
+    const data = await authedFetchRetry(
       '/api/attributions/approved-totals?month=' + encodeURIComponent(month),
-      { cache: 'no-store' }
+      { cache: 'no-store' },
+      'Approved totals'
     );
     return data.totals || {};
   } catch (e) {
@@ -11919,7 +11922,7 @@ async function fetchApprovedTotals(monthKey) {
 // "no badges/shoutouts yet" instead of breaking the page.
 async function fetchBadgesData() {
   try {
-    const data = await authedFetch('/api/badges/data', { cache: 'no-store' });
+    const data = await authedFetchRetry('/api/badges/data', { cache: 'no-store' }, 'Badges');
     BADGE_TOGGLES_CACHE = Object.assign({}, DEFAULT_BADGE_TOGGLES, data.toggles || {});
     CUSTOM_BADGES_CACHE = data.custom || [];
     MANUAL_BADGES_CACHE = data.assignments || {};
@@ -11932,7 +11935,7 @@ async function fetchBadgesData() {
 
 async function fetchShoutouts() {
   try {
-    const data = await authedFetch('/api/shoutouts/list', { cache: 'no-store' });
+    const data = await authedFetchRetry('/api/shoutouts/list', { cache: 'no-store' }, 'Shoutouts');
     SHOUTOUTS_CACHE = data.shoutouts || {};
   } catch (e) {
     console.warn('Could not load shoutouts', e);
@@ -12302,7 +12305,7 @@ function applyLiveActualsPayload(data, wantFull, prevDigest) {
 }
 
 /**
- * Delays between live-feed attempts. Short on purpose.
+ * Delays between attempts on a read. Short on purpose.
  *
  * The 500 this recovers from comes back in well under a second and never reaches
  * the function's own error handling, so a retry is usually answered normally.
@@ -12310,9 +12313,20 @@ function applyLiveActualsPayload(data, wantFull, prevDigest) {
  * until the next poll, 90 seconds later — or, on a page load, leaves every tile
  * reading 0.0%.
  */
-const LIVE_ACTUALS_RETRY_DELAYS_MS = [1200, 3500];
+const READ_RETRY_DELAYS_MS = [1200, 3500];
 
-async function fetchLiveActualsWithRetry(path, opts) {
+/**
+ * `authedFetch` for reads, with the live feed's retry behaviour behind it.
+ *
+ * A page load fires eight of these at once, and every one of them was a single
+ * attempt with no second chance — so one cold instance anywhere in that fan-out
+ * took down a panel, and a rep whose auth needs a round trip on every call was
+ * rolling that dice eight times before the dashboard had drawn anything. Only
+ * GETs come through here: a retried POST is a second write, which is a worse
+ * bug than the one being fixed.
+ */
+async function authedFetchRetry(path, opts, label) {
+  const what = label || 'Read';
   for (let attempt = 0; ; attempt++) {
     try {
       return await authedFetch(path, opts);
@@ -12321,11 +12335,15 @@ async function fetchLiveActualsWithRetry(path, opts) {
       // A 4xx is an answer, not a hiccup — signed out, bad month, bad request.
       // Anything 5xx, or a bare network failure, is worth another try.
       const retryable = (!status || status >= 500) && e.message !== 'Not signed in';
-      if (!retryable || attempt >= LIVE_ACTUALS_RETRY_DELAYS_MS.length) throw e;
-      console.warn(`Live actuals attempt ${attempt + 1} failed — retrying`, e.message);
-      await new Promise((resolve) => setTimeout(resolve, LIVE_ACTUALS_RETRY_DELAYS_MS[attempt]));
+      if (!retryable || attempt >= READ_RETRY_DELAYS_MS.length) throw e;
+      console.warn(`${what} attempt ${attempt + 1} failed — retrying`, e.message);
+      await new Promise((resolve) => setTimeout(resolve, READ_RETRY_DELAYS_MS[attempt]));
     }
   }
+}
+
+async function fetchLiveActualsWithRetry(path, opts) {
+  return authedFetchRetry(path, opts, 'Live actuals');
 }
 
 /** Does the in-memory feed already hold real numbers for the live month? */
@@ -12562,7 +12580,7 @@ function startTeamCalendarWatch() {
 
 async function fetchDashboardData() {
   try {
-    const data = await authedFetch('/api/dashboard/data', { cache: 'no-store' });
+    const data = await authedFetchRetry('/api/dashboard/data', { cache: 'no-store' }, 'Dashboard data');
     if (data.roster) ROSTER_CACHE = data.roster;
     if (data.rosterMonths && typeof data.rosterMonths === 'object') ROSTER_MONTHS_CACHE = data.rosterMonths;
     if (data.goals) GOALS_CACHE = normalizeGoalsDoc(data.goals);
@@ -13209,7 +13227,7 @@ async function refreshMyAttributions() {
   if (actionedStatus) actionedStatus.textContent = 'Loading…';
 
   try {
-    const { isAdmin, canViewTeam, records } = await authedFetch('/api/attributions/list');
+    const { isAdmin, canViewTeam, records } = await authedFetchRetry('/api/attributions/list', undefined, 'Attributions');
     lastAttrRecords = records;
     lastAttrIsAdmin = !!isAdmin;
     lastAttrCanViewTeam = canViewTeam !== undefined ? !!canViewTeam : !!isAdmin;
@@ -14179,7 +14197,7 @@ function getPersonalGoal(repDisplay) {
 async function fetchPersonalGoals() {
   try {
     const month = liveMonthKey();
-    const data = await authedFetch('/api/personal-goals?month=' + encodeURIComponent(month), { cache: 'no-store' });
+    const data = await authedFetchRetry('/api/personal-goals?month=' + encodeURIComponent(month), { cache: 'no-store' }, 'Personal goals');
     PERSONAL_GOALS_MONTH = data.month || month;
     PERSONAL_GOALS_CACHE = data.goals || {};
   } catch (e) {

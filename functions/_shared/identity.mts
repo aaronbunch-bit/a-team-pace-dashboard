@@ -1,4 +1,5 @@
 import type { Context } from "@netlify/functions";
+import { getStore } from "@netlify/blobs";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 /** Only @varsitytutors.com Google / Identity accounts may call dashboard APIs. */
@@ -33,6 +34,66 @@ function emailFromPayload(payload: Record<string, any> | null): string {
 
 function isUsableEmail(email: string): boolean {
   return !!email && email.endsWith(ALLOWED_EMAIL_DOMAIN);
+}
+
+/**
+ * Last address Identity gave for a user id.
+ *
+ * Not every Identity record carries the address in the token. For those people
+ * `emailFromPayload` returns "" and the round trip below is the only thing that
+ * can name the caller — so a single blip on that lookup fails a request that a
+ * colleague's token answers without touching the network at all. One rep hitting
+ * that on every call is indistinguishable, from the outside, from the dashboard
+ * being broken for him alone.
+ *
+ * Remembering the address turns that lookup into an optimisation rather than a
+ * dependency. Read on the verified path only — see `getIdentityUser`.
+ */
+const IDENTITY_EMAIL_STORE = "identity-emails";
+/** Per-container memo, so a warm instance never re-reads or re-writes. */
+const identityEmailMemo = new Map<string, string>();
+
+function identityEmailKey(id: unknown): string {
+  return String(id || "").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 128);
+}
+
+/**
+ * `id` MUST be the id Identity itself returned, never the token's `sub`. On the
+ * unverified path `sub` is caller-supplied text: keying on it would let anyone
+ * holding a real session of their own write their address against someone else's
+ * id, and be handed that person's access on the next lookup that blips.
+ */
+async function rememberIdentityEmail(id: unknown, email: string): Promise<void> {
+  const key = identityEmailKey(id);
+  if (!key || !isUsableEmail(email)) return;
+  if (identityEmailMemo.get(key) === email) return;
+  identityEmailMemo.set(key, email);
+  try {
+    await getStore(IDENTITY_EMAIL_STORE).setJSON(key, {
+      email,
+      seenAt: new Date().toISOString(),
+    });
+  } catch {
+    // Best effort — the memo still covers the rest of this container's life.
+  }
+}
+
+async function recallIdentityEmail(sub: unknown): Promise<string> {
+  const key = identityEmailKey(sub);
+  if (!key) return "";
+  const memo = identityEmailMemo.get(key);
+  if (memo) return memo;
+  try {
+    const stored = await getStore(IDENTITY_EMAIL_STORE).get(key, { type: "json" });
+    const email = normalizeEmail((stored as Record<string, unknown> | null)?.email);
+    if (isUsableEmail(email)) {
+      identityEmailMemo.set(key, email);
+      return email;
+    }
+  } catch {
+    // Store unavailable — fall through to the refusal in the caller.
+  }
+  return "";
 }
 
 function jwtSecret(): string {
@@ -147,6 +208,8 @@ export async function getIdentityUser(req: Request, context: Context): Promise<I
       };
       email = normalizeEmail(user.email);
       identityConfirmed = true;
+      // Keyed on Identity's own id for the reason spelled out above the helper.
+      await rememberIdentityEmail((profile as Record<string, unknown>)?.id, email);
     }
   } catch {
     // Unreachable Identity is handled by the check below, not by trusting the
@@ -165,6 +228,20 @@ export async function getIdentityUser(req: Request, context: Context): Promise<I
   // Set JWT_SECRET (the Netlify Identity JWT secret) and the signature is
   // verified locally, which is both stricter and cheaper than this round trip.
   if (!signatureVerified && !identityConfirmed) return null;
+
+  // A verified token that carries no address of its own.
+  //
+  // The signature has already proved which Identity user this is, so `sub` is
+  // trustworthy here in a way it never is above. Records without an inline email
+  // otherwise depend on the round trip landing every single time — the shape that
+  // made the dashboard fail for one person and nobody else.
+  //
+  // Deliberately only when the payload names no address at all: a token that does
+  // name one is answered by that claim (or overridden by Identity), never by this.
+  if (signatureVerified && !email) {
+    email = await recallIdentityEmail(payload.sub);
+    if (email) user.email = email;
+  }
 
   if (!isUsableEmail(email)) return null;
   user.email = email;
