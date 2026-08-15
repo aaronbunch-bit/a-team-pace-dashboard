@@ -691,6 +691,47 @@ assert.equal(typeof context.actualsCarryItems, "function", "actualsCarryItems mu
     );
     assert.equal(calls, 1, "a 401 must not be retried");
 
+    // The retry is not special to live actuals — every GET gets it, which is
+    // what stops a single transient 500 on /api/dashboard/data from dropping the
+    // reps who only exist in the live roster (the "Amanda/Nicki/Michele/Jordan
+    // are missing" report: the client fell back to the 9 baked-in defaults).
+    calls = 0;
+    context.fetch = () => {
+      calls += 1;
+      if (calls < 2) return Promise.resolve(crash());
+      return Promise.resolve(res(200, JSON.stringify({ roster: ["everyone"] }), "application/json"));
+    };
+    const dash = await context.authedFetch("/api/dashboard/data", { cache: "no-store" });
+    assert.equal(calls, 2, "a GET read retries a transient 500");
+    assert.deepEqual(dash.roster, ["everyone"], "and returns the real data once an instance answers");
+
+    // A write must NOT be replayed by default — a committed POST that failed to
+    // respond could double-write.
+    calls = 0;
+    context.fetch = () => { calls += 1; return Promise.resolve(crash()); };
+    await assert.rejects(
+      () => context.authedFetch("/api/thing", { method: "POST", body: "{}" }),
+      /Runtime\.ImportModuleError/
+    );
+    assert.equal(calls, 1, "a POST is not retried unless the caller opts in");
+
+    // ...unless it opts in. Attribution submit does, because the server rejects
+    // real duplicates and an init-level 500 wrote nothing — so a rep does not
+    // have to retype the whole request over one blip.
+    calls = 0;
+    context.fetch = () => {
+      calls += 1;
+      if (calls < 3) return Promise.resolve(crash());
+      return Promise.resolve(res(200, JSON.stringify({ record: { id: "attr1" } }), "application/json"));
+    };
+    const submitted = await context.authedFetch("/api/attributions/submit", {
+      method: "POST",
+      body: "{}",
+      retry: true,
+    });
+    assert.equal(calls, 3, "an opted-in write retries transient failures");
+    assert.equal(submitted.record.id, "attr1");
+
     // The salvage path: the feed is down for every attempt, but this browser
     // already holds real numbers for this month, so they stay on screen.
     assert.equal(typeof context.actualsHaveLiveMonthNumbers, "function");
