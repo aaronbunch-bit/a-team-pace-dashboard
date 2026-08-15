@@ -12340,6 +12340,13 @@ async function authedFetchRetry(path, opts, label) {
       await new Promise((resolve) => setTimeout(resolve, READ_RETRY_DELAYS_MS[attempt]));
     }
   }
+ * Live actuals is a GET, so `authedFetch` already retries transient 5xx/network
+ * failures. This wrapper stays as the call site's name; the retry lives in one
+ * place now instead of being duplicated here (which used to stack both loops and
+ * multiply the backoff).
+ */
+function fetchLiveActualsWithRetry(path, opts) {
+  return authedFetch(path, opts);
 }
 
 async function fetchLiveActualsWithRetry(path, opts) {
@@ -12624,13 +12631,64 @@ async function fetchDashboardData() {
   }
 }
 
+/**
+ * Backoff between retries of a transient server failure. Short — these 500s
+ * come back in under a second and heal on the next attempt.
+ */
+const AUTHED_FETCH_RETRY_DELAYS_MS = [700, 2000, 4500];
+
+/**
+ * Should this failure be retried?
+ *
+ * The 500s that have dogged this dashboard are platform-level: the function
+ * never runs, returns a plain-text body with a Netlify request id, and the next
+ * request to a warm instance succeeds. They come in bursts and clear on their
+ * own — exactly what a retry papers over. A 4xx is a real answer (signed out,
+ * bad input) and must not be retried. A bare network error (no status) is worth
+ * another go.
+ */
+function isTransientFetchError(err) {
+  if (!err || err.message === 'Not signed in') return false;
+  const status = Number(err.status);
+  return !status || status >= 500;
+}
+
+/**
+ * `authedFetch`, retried.
+ *
+ * Reads retry by default: they are idempotent, so replaying one is free. Writes
+ * do not retry unless the caller opts in with `retry: true`, because replaying a
+ * POST that already committed could double-write — though when the failure is an
+ * init-level 500 the handler never ran, so nothing was written. Attribution
+ * submits opt in for that reason: the request lands in an admin-reviewed Pending
+ * queue, so a rare duplicate is visible and harmless, while a silent drop makes a
+ * rep type the whole thing again.
+ */
 async function authedFetch(path, options) {
+  const opts = options || {};
+  const method = String(opts.method || 'GET').toUpperCase();
+  const retry = opts.retry !== undefined ? opts.retry : method === 'GET';
+  const maxRetries = retry ? AUTHED_FETCH_RETRY_DELAYS_MS.length : 0;
+
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await authedFetchOnce(path, opts);
+    } catch (e) {
+      if (attempt >= maxRetries || !isTransientFetchError(e)) throw e;
+      console.warn(`${method} ${path} attempt ${attempt + 1} failed — retrying`, e.message);
+      await new Promise((resolve) => setTimeout(resolve, AUTHED_FETCH_RETRY_DELAYS_MS[attempt]));
+    }
+  }
+}
+
+async function authedFetchOnce(path, options) {
   const user = window.netlifyIdentity && netlifyIdentity.currentUser();
   if (!user) throw new Error('Not signed in');
   const token = await user.jwt();
   const opts = Object.assign({}, options);
   const acceptNotModified = !!(opts && opts.acceptNotModified);
   if (opts) delete opts.acceptNotModified;
+  if (opts) delete opts.retry;
   opts.headers = Object.assign({ Authorization: 'Bearer ' + token }, options && options.headers);
   const res = await fetch(path, opts);
   if (acceptNotModified && res.status === 304) {
@@ -13991,6 +14049,10 @@ async function postManualAttrSubmit(payload, onBehalf, selectedRep, forceDuplica
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    // Safe to replay a transient 500: the server rejects a real duplicate
+    // (unless forceDuplicate), and an init-level failure never wrote anything.
+    // A rep should not have to retype the whole request because one poll blipped.
+    retry: true,
   });
 }
 
