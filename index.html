@@ -9624,6 +9624,16 @@ document.getElementById('closeOutCommitBtn').addEventListener('click', async (e)
     await saveExtraSip(extra);
     applyExtraSipHistory();
 
+    // The month is official as of now, so the landing page's Last-month toggle
+    // should go immediately rather than on the next reload — and if someone is
+    // sitting on that view, move them back to the live month before it becomes
+    // unreachable.
+    if (!priorMonthOpenForLanding() && opsMonthMode === 'prior') {
+      await setOpsMonthMode('current');
+    } else {
+      syncOpsMonthToggleUI();
+    }
+
     // This month is now official — drop its "Preliminary" snapshot (if any).
     try {
       await clearPrelimSnapshot(k);
@@ -9948,6 +9958,27 @@ function previousMonthKeyFromActuals() {
 // State (opsMonthMode, PRIOR_*) is declared near the top of this script, above
 // the first top-level applyLayout() call — see the note there.
 
+/**
+ * Is last month still worth offering on the landing page?
+ *
+ * Once its SIP is uploaded the month is official, and the live ledger behind the
+ * landing pacer can keep drifting afterwards (late cancels, re-bookings). Leaving
+ * the toggle up invites someone to read a number that no longer agrees with the
+ * SIP everybody was paid on. Closed means closed: the landing page shows the live
+ * month only, and the settled figures live on Historical Performance.
+ *
+ * The Cancels and Quotas panels keep their own month toggles — those are audit
+ * tools, and an admin still needs to look at a closed month there.
+ */
+function priorMonthOpenForLanding() {
+  const prev = previousMonthKeyFromActuals();
+  if (!prev) return null;
+  // `sipHasMonth` reads SIP_HISTORY, which fetchDashboardData merges the uploaded
+  // months into — the same signal `lastMonthFrozenSource` already treats as
+  // "officially frozen".
+  return sipHasMonth(prev.key) ? null : prev;
+}
+
 function isPriorMonthMode() {
   return opsMonthMode === 'prior';
 }
@@ -10102,10 +10133,22 @@ async function ensurePriorMonthBundle(opts) {
 function syncOpsMonthToggleUI() {
   const can = typeof canViewTeamDetails === 'function' && canViewTeamDetails();
   const prev = previousMonthKeyFromActuals();
-  const show = !!(can && prev);
-  ['opsMonthToggle', 'cancelsMonthToggle', 'goalsMonthToggle'].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.hidden = !show;
+  const landingPrev = priorMonthOpenForLanding();
+  // A closed month must not stay selected once its toggle is gone, or the landing
+  // page sits on last month with no visible way back.
+  if (!landingPrev && opsMonthMode === 'prior') {
+    opsMonthMode = 'current';
+    try { localStorage.setItem(OPS_MONTH_KEY, opsMonthMode); } catch (_) {}
+  }
+  // The landing toggle follows SIP close-out; the ops panels keep theirs so a
+  // closed month can still be audited.
+  const showLanding = !!(can && landingPrev);
+  const showOps = !!(can && prev);
+  const el = document.getElementById('opsMonthToggle');
+  if (el) el.hidden = !showLanding;
+  ['cancelsMonthToggle', 'goalsMonthToggle'].forEach((id) => {
+    const panel = document.getElementById(id);
+    if (panel) panel.hidden = !showOps;
   });
   // Body carries the view state under its own attribute name. It must NOT be
   // the same attribute the buttons use: `[data-ops-month]` would then match
@@ -12584,6 +12627,10 @@ async function fetchDashboardData() {
       }
     }
     applyExtraSipHistory();
+    // Re-run after the merge: syncRoleChrome above ran before the closed-out SIP
+    // months were folded into SIP_HISTORY, so the landing page's Last-month
+    // toggle was decided on incomplete history.
+    if (typeof syncOpsMonthToggleUI === 'function') syncOpsMonthToggleUI();
   } catch (e) {
     console.warn('Could not load roster/goals/actuals', e);
   }

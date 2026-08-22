@@ -924,6 +924,102 @@ assert.equal(typeof context.actualsCarryItems, "function", "actualsCarryItems mu
   }
 }
 
+/**
+ * Uploading a month's SIP closes it, and the landing page stops offering it.
+ *
+ * Once the SIP is published the month is official, while the live ledger behind
+ * the landing pacer keeps moving (late cancels, re-bookings). Leaving the
+ * Last-month toggle up invites someone to read a number that no longer agrees
+ * with the SIP everyone was paid on. Uploading July 2026 left the toggle sitting
+ * there because nothing connected the two: `previousMonthKeyFromActuals` always
+ * returns last calendar month regardless of what has been closed out.
+ *
+ * The Cancels and Quotas toggles are deliberately unaffected — those are audit
+ * tools and a closed month still has to be reviewable there.
+ */
+{
+  assert.equal(typeof context.priorMonthOpenForLanding, "function");
+  assert.equal(typeof context.sipHasMonth, "function");
+
+  const landingToggle = documentStub.getElementById("opsMonthToggle");
+  const cancelsToggle = documentStub.getElementById("cancelsMonthToggle");
+  const goalsToggle = documentStub.getElementById("goalsMonthToggle");
+  const prevKey = context.previousMonthKeyFromActuals().key;
+
+  // Admin, so the toggles are permitted to show at all.
+  context.applyIdentityBackendDiagnosis({ status: "ready", settings: { external: { google: true } } });
+  const originalCurrentUser = context.netlifyIdentity.currentUser;
+  const originalFetch = context.fetch;
+  context.netlifyIdentity.currentUser = () => ({
+    email: "aaron.bunch@varsitytutors.com",
+    jwt: () => Promise.resolve("test-token"),
+  });
+  // EXTRA_SIP_CACHE is a top-level `let`, so it cannot be set from out here —
+  // go through the real save path, which is what the importer uses anyway.
+  context.fetch = () => Promise.resolve({
+    ok: true,
+    status: 200,
+    headers: { get: () => null },
+    text: () => Promise.resolve('{"ok":true}'),
+    json: () => Promise.resolve({ ok: true }),
+  });
+  const closeOutMonths = async (entries) => {
+    await context.saveExtraSip(entries);
+    context.applyExtraSipHistory();
+  };
+
+  try {
+    // Last month not closed out: the landing toggle is available.
+    await closeOutMonths([]);
+    assert.ok(!context.sipHasMonth(prevKey), "last month has no SIP yet");
+    assert.ok(context.priorMonthOpenForLanding(), "so last month is still offered");
+    context.syncOpsMonthToggleUI();
+    assert.equal(landingToggle.hidden, false, "the landing toggle shows before close-out");
+
+    // July's SIP is uploaded.
+    await closeOutMonths([{
+      month: { k: prevKey, l: "Closed month", avg: 101, n: 3, reps: [] },
+      rollup: { sA: 1, sG: 1, mA: 1, mG: 1 },
+    }]);
+
+    assert.ok(context.sipHasMonth(prevKey), "the upload lands in SIP history");
+    assert.equal(context.priorMonthOpenForLanding(), null, "and closes last month for the landing page");
+
+    context.syncOpsMonthToggleUI();
+    assert.equal(landingToggle.hidden, true, "the landing toggle goes away once the SIP is uploaded");
+
+    // A closed month must not be selectable either, or the landing page could sit
+    // on it with no visible way back.
+    await context.setOpsMonthMode("prior");
+    assert.equal(
+      context.isPriorMonthMode(),
+      false,
+      "selecting a closed month must snap back to the live month"
+    );
+
+    // The audit panels keep theirs.
+    assert.equal(cancelsToggle.hidden, false, "Cancels keeps its month toggle for auditing");
+    assert.equal(goalsToggle.hidden, false, "Quotas keeps its month toggle for auditing");
+
+    // A different (older) month closing must not touch last month.
+    await closeOutMonths([{
+      month: { k: "2020-01", l: "January 2020", avg: 100, n: 1, reps: [] },
+      rollup: null,
+    }]);
+    assert.ok(
+      context.priorMonthOpenForLanding(),
+      "closing an unrelated month must not hide last month"
+    );
+    context.syncOpsMonthToggleUI();
+    assert.equal(landingToggle.hidden, false);
+  } finally {
+    await closeOutMonths([]);
+    context.netlifyIdentity.currentUser = originalCurrentUser;
+    context.fetch = originalFetch;
+    context.opsMonthMode = "current";
+  }
+}
+
 if (bodyWipes.length) {
   console.error("\nSomething wrote to <body> in a way that deletes the page:\n");
   bodyWipes.forEach((w) => console.error("  " + w));
