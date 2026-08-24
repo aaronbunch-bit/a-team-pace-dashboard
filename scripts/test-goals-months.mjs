@@ -13,6 +13,7 @@ import {
   isMonthKey,
   previousMonthKey,
 } from "../functions/_shared/goals.mts";
+import { normalizeGoalRecord } from "../functions/update-goals.mts";
 
 assert.ok(isMonthKey("2026-07"));
 assert.ok(isMonthKey("2026-12"));
@@ -26,6 +27,21 @@ assert.ok(!isMonthKey(null));
 assert.equal(previousMonthKey("2026-08"), "2026-07");
 assert.equal(previousMonthKey("2026-01"), "2025-12", "January's previous month is last December");
 assert.equal(previousMonthKey("nonsense"), "");
+
+assert.equal(
+  normalizeGoalRecord({ hideFromLanding: true }).hideFromLanding,
+  true,
+  "the update API persists landing visibility",
+);
+assert.equal(
+  normalizeGoalRecord({ hideFromLanding: false }).hideFromLanding,
+  false,
+);
+assert.equal(
+  normalizeGoalRecord({}).hideFromLanding,
+  false,
+  "existing quota rows stay visible by default",
+);
 
 /**
  * The archive rule, as `recordLiveMonthGoals` applies it. Kept as a pure
@@ -42,15 +58,31 @@ function settle(byMonth, month, goals, previousGoals) {
   return out;
 }
 
-const july = { "Becky Ruffer": { members: 8, sessions: 60, excludeFromRollUp: true } };
-const august = { "Becky Ruffer": { members: 9, sessions: 64, excludeFromRollUp: false } };
+const july = {
+  "Becky Ruffer": {
+    members: 8,
+    sessions: 60,
+    excludeFromRollUp: true,
+    hideFromLanding: true,
+  },
+};
+const august = {
+  "Becky Ruffer": {
+    members: 9,
+    sessions: 64,
+    excludeFromRollUp: false,
+    hideFromLanding: false,
+  },
+};
 
 // Saving August for the first time after rollover freezes July as it stood.
 const first = settle({}, "2026-08", august, july);
 assert.deepEqual(first["2026-07"], july, "last month keeps the quotas it ran under");
 assert.equal(first["2026-07"]["Becky Ruffer"].excludeFromRollUp, true, "exclude-from-roll-up freezes with last month");
+assert.equal(first["2026-07"]["Becky Ruffer"].hideFromLanding, true, "landing visibility freezes with last month");
 assert.deepEqual(first["2026-08"], august);
 assert.equal(first["2026-08"]["Becky Ruffer"].excludeFromRollUp, false);
+assert.equal(first["2026-08"]["Becky Ruffer"].hideFromLanding, false);
 
 // Editing August again must not touch July, even to a cleared document.
 const cleared = { "Becky Ruffer": { members: 0, sessions: 0 } };

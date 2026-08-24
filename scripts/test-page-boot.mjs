@@ -470,6 +470,77 @@ assert.equal(
 }
 
 /**
+ * Monthly Quotas can hide a rep from landing surfaces without removing them.
+ *
+ * This is intentionally not a roster filter and not Excluded from roll-up:
+ * production remains in A-Team Total, schedules/contests still know the rep,
+ * and their Individual Pacer remains reachable. Only the already-computed row
+ * collection handed to landing cards / leaderboards is filtered.
+ */
+assert.equal(typeof context.filterLandingRepRows, "function", "landing visibility filter must exist");
+{
+  assert.match(
+    script,
+    /data-field="hideFromLanding"/,
+    "Monthly Quotas must render the Hide from landing checkbox",
+  );
+  assert.match(
+    script,
+    /field === 'hideFromLanding'/,
+    "Save quotas must read the Hide from landing checkbox",
+  );
+  assert.match(
+    script,
+    /filter\(\(item\) => !repIsHiddenFromLanding\(item\.rep\)\)/,
+    "hidden reps must leave the landing recognition wall",
+  );
+  assert.match(
+    script,
+    /getRoster\(\)\.filter\(\(r\) => !repIsHiddenFromLanding\(r\.display\)\)/,
+    "hidden reps must leave the Most Improved landing board",
+  );
+  const rows = [
+    {
+      rep: { display: "Visible Rep" },
+      g: { members: 10, sessions: 60, hideFromLanding: false },
+      a: { members: 3, sessions: 20 },
+    },
+    {
+      rep: { display: "Hidden Rep" },
+      g: { members: 10, sessions: 60, hideFromLanding: true },
+      a: { members: 4, sessions: 24 },
+    },
+  ];
+  const landing = context.filterLandingRepRows(rows);
+  assert.deepEqual(
+    landing.map((row) => row.rep.display),
+    ["Visible Rep"],
+    "a checked rep leaves landing cards and leaderboards",
+  );
+  assert.equal(rows.length, 2, "the source roster remains intact");
+  assert.equal(
+    rows.reduce((sum, row) => sum + row.a.members, 0),
+    7,
+    "hidden production remains available to the team-total calculation",
+  );
+  assert.equal(
+    context.normalizeGoalRecord({ hideFromLanding: true }).excludeFromRollUp,
+    false,
+    "Hide from landing does not imply Excluded from roll-up",
+  );
+  assert.equal(
+    context.normalizeGoalRecord({ excludeFromRollUp: true }).hideFromLanding,
+    false,
+    "Excluded from roll-up does not hide the rep",
+  );
+  assert.equal(
+    context.filterLandingRepRows([{ rep: { display: "Legacy" }, g: {} }]).length,
+    1,
+    "existing quota rows remain visible by default",
+  );
+}
+
+/**
  * Attributions in the Individual Pacer must bucket by Central saleDate — the
  * same key approved-totals uses — so August credits show on August pacers.
  */
