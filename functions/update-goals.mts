@@ -17,7 +17,7 @@ const LEVEL_DEFAULT_OTE: Record<string, number> = {
   3: 1667,
 };
 
-function normalizeGoalRecord(raw: any) {
+export function normalizeGoalRecord(raw: any) {
   const source = raw && typeof raw === "object" ? raw : {};
   const rawLevel = String(raw?.level || "").trim().toLowerCase();
   const parsedLevel = Number(rawLevel);
@@ -36,6 +36,9 @@ function normalizeGoalRecord(raw: any) {
     // When true, this rep's members/sessions (incl. approved attro) and refunds
     // stay on their own board but do not feed A-Team Total for that month.
     excludeFromRollUp: !!raw?.excludeFromRollUp,
+    // Presentation-only and month-scoped. The rep still counts toward totals
+    // and keeps their Individual Pacer.
+    hideFromLanding: !!raw?.hideFromLanding,
   };
 }
 

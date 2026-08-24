@@ -1173,14 +1173,14 @@
           </div>
           <div class="pgc-admin-rows" id="pgcMetricRows"></div>
         </div>
-        <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Level</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Individual Pacer access)</div><div>Cap bonus @ 200%</div><div class="has-tip" data-tip="When checked, this person’s members, sessions, approved attributions, and refunds do not count toward A-Team Total for this month. Their own Individual Pacer is unchanged.">Excluded from roll-up</div></div>
+        <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Level</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Individual Pacer access)</div><div>Cap bonus @ 200%</div><div class="has-tip" data-tip="When checked, this person’s members, sessions, approved attributions, and refunds do not count toward A-Team Total for this month. Their own Individual Pacer is unchanged.">Excluded from roll-up</div><div class="has-tip" data-tip="Hides this person’s card, leaderboard appearances, and recognition from the landing page for this month. They still count toward A-Team Total and keep their Individual Pacer.">Hide from landing</div></div>
         <div id="goalsForm"></div>
         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px;">
           <button id="saveGoals">Save quotas</button>
           <span class="meta-note" id="goalsSaveStatus" style="margin:0;"></span>
           <span class="field-toggle-tag" id="toggleAdvancedFields">+ Tag / Email / Cap</span>
         </div>
-        <div class="meta-note">PT: $500 OTE (no leveling planner) · L1: $41,600 salary / $1,000 OTE · L2: $50,000 / $1,333 · L3: $60,000 / $1,667. Changing Level fills the standard OTE; OTE remains editable. <b>Excluded from roll-up</b> keeps that person off A-Team Total (members, sessions, attro &amp; refunds) for the month you are editing. ✕ removes someone (restorable in Removed).</div>
+        <div class="meta-note">PT: $500 OTE (no leveling planner) · L1: $41,600 salary / $1,000 OTE · L2: $50,000 / $1,333 · L3: $60,000 / $1,667. Changing Level fills the standard OTE; OTE remains editable. <b>Excluded from roll-up</b> keeps that person off A-Team Total (members, sessions, attro &amp; refunds) for the month you are editing. <b>Hide from landing</b> removes their landing card, leaderboard appearances, and recognition; their production still counts and their Individual Pacer remains available. ✕ removes someone (restorable in Removed).</div>
       </div>
     </div>
     <div class="ops-subpanel" data-goals-panel="removed" id="removedBody">
@@ -1826,6 +1826,9 @@ function normalizeGoalRecord(raw) {
     capAt200: !!source.capAt200,
     // Month-scoped: when true, actuals/attro/refunds stay off A-Team Total.
     excludeFromRollUp: !!source.excludeFromRollUp,
+    // Month-scoped presentation only: keep production in totals and the rep's
+    // Individual Pacer, but omit them from landing cards and leaderboards.
+    hideFromLanding: !!source.hideFromLanding,
   };
 }
 function normalizeGoalsDoc(doc) {
@@ -1834,6 +1837,15 @@ function normalizeGoalsDoc(doc) {
     out[name] = normalizeGoalRecord(goal);
   });
   return out;
+}
+/** Presentation-only filter. Never use this for totals or non-landing views. */
+function filterLandingRepRows(repRows) {
+  return (repRows || []).filter((row) => !normalizeGoalRecord(row && row.g).hideFromLanding);
+}
+function repIsHiddenFromLanding(repDisplay) {
+  const prior = typeof viewingPriorMonthForOps === 'function' && viewingPriorMonthForOps();
+  const goals = prior && typeof loadViewGoals === 'function' ? loadViewGoals(false) : loadGoals();
+  return normalizeGoalRecord(goals && goals[repDisplay]).hideFromLanding;
 }
 
 // Goals and actuals are backed by real Netlify Functions + Blobs now (same
@@ -2709,15 +2721,19 @@ function render() {
     }
     return { rep: r, g, a, memMetric, sesMetric, composite, idx: i };
   }); // getRoster() already returns reps in alphabetical order
+  // Build totals from every rep first, then filter only the landing surfaces.
+  // `hideFromLanding` is presentation-only: it must never alter team totals,
+  // payouts, cancels, contests, or the rep's own Individual Pacer.
+  const landingRepRows = filterLandingRepRows(repRows);
   pacingContext = prevCtx;
 
   {
     // Top pacer, team-wide — computed off repRows directly rather than
     // waiting on sortedRepRows below, since this doesn't depend on the
     // person's own sort preference.
-    const eligible = repRows.filter(r => !r.composite.goalIsZero && r.composite.current !== null);
+    const eligible = landingRepRows.filter(r => !r.composite.goalIsZero && r.composite.current !== null);
     const topRow = eligible.length ? eligible.reduce((best, r) => r.composite.current > best.composite.current ? r : best, eligible[0]) : null;
-    const messages = buildMiniHeaderMessages({ repRows, eligible, topRow, dim, d, monthName });
+    const messages = buildMiniHeaderMessages({ repRows: landingRepRows, eligible, topRow, dim, d, monthName });
     startMiniHeaderRotation(messages);
   }
 
@@ -2786,14 +2802,14 @@ function render() {
   });
 
   // Display order only — team totals above were already computed off the
-  // unsorted repRows, and row.idx (used for avatar color) still points back to
+  // unsorted landingRepRows, and row.idx (used for avatar color) still points back to
   // each rep's alphabetical getRoster() position, so switching sort modes never
   // reshuffles anyone's avatar color.
-  const newlyGoalMet = trackGoalMetTransitions(repRows);
+  const newlyGoalMet = trackGoalMetTransitions(landingRepRows);
   const doubleGoalChampion = getDoubleGoalChampion();
 
   const [sortDim, sortDir] = repSortMode.split(':');
-  const sortedRepRows = repRows.slice().sort((a, b) => {
+  const sortedRepRows = landingRepRows.slice().sort((a, b) => {
     if (sortDim === 'name') {
       const cmp = a.rep.display.localeCompare(b.rep.display);
       return sortDir === 'desc' ? -cmp : cmp;
@@ -2905,14 +2921,14 @@ function render() {
     });
   });
 
-  renderLeaderboards(repRows);
+  renderLeaderboards(landingRepRows);
   renderImprovedBoards();
   // The quota grid is large and admin-only; rebuilding it on every landing
   // poll/month toggle adds noticeable latency for a surface that is closed.
   if (document.getElementById('goalsOverlay')?.classList.contains('open')) {
     renderGoalsForm();
   }
-  renderCultureSide(repRows, teamComposite, expectedPct, cal.ymd, monthName, d, dim);
+  renderCultureSide(landingRepRows, teamComposite, expectedPct, cal.ymd, monthName, d, dim);
   syncLandingGridHeight();
   syncLandingBoardsScrollCap();
   forceStackTeamExpanded();
@@ -3316,7 +3332,9 @@ function buildRecognitionFeed(limit) {
     used.add(key);
     autos.push(item);
   });
-  const all = timed.concat(autos).sort(recognitionByRecency);
+  const all = timed.concat(autos)
+    .filter((item) => !repIsHiddenFromLanding(item.rep))
+    .sort(recognitionByRecency);
   return typeof limit === 'number' ? all.slice(0, limit) : all;
 }
 /** Today's congratulations only — what the wall rotates through. */
@@ -3875,7 +3893,7 @@ function improvedWindowForPeriod(period) {
 function computeMostImprovedDepth(period) {
   const win = improvedWindowForPeriod(period);
   if (!win) return [];
-  const results = getRoster().map((r) => {
+  const results = getRoster().filter((r) => !repIsHiddenFromLanding(r.display)).map((r) => {
     const current = distinctClientIdsInRange(r.display, win.currentStart, win.currentEnd).size;
     const prior = distinctClientIdsInRange(r.display, win.priorStart, win.priorEnd).size;
     return {
@@ -5533,6 +5551,7 @@ function renderGoalsForm() {
       <div><input type="email" data-name="${r.display}" data-field="email" placeholder="name@varsitytutors.com" value="${g.email || ''}"></div>
       <div class="cap-cell"><input type="checkbox" data-name="${r.display}" data-field="capAt200" ${g.capAt200 ? 'checked' : ''}></div>
       <div class="cap-cell"><input type="checkbox" data-name="${r.display}" data-field="excludeFromRollUp" ${g.excludeFromRollUp ? 'checked' : ''} title="Exclude from A-Team roll-up" aria-label="${r.display} excluded from roll-up"></div>
+      <div class="cap-cell"><input type="checkbox" data-name="${r.display}" data-field="hideFromLanding" ${g.hideFromLanding ? 'checked' : ''} title="Hide from landing page for ${monthNameFromKey(goalsEditMonthKey())}" aria-label="${r.display} hidden from landing page"></div>
     `;
     container.appendChild(row);
   });
@@ -5611,7 +5630,7 @@ document.getElementById('saveGoals').addEventListener('click', async (e) => {
     const field = input.getAttribute('data-field');
     if (!goals[name]) goals[name] = normalizeGoalRecord({});
     if (field === 'tag' || field === 'email') goals[name][field] = input.value.trim();
-    else if (field === 'capAt200' || field === 'excludeFromRollUp') goals[name][field] = input.checked;
+    else if (field === 'capAt200' || field === 'excludeFromRollUp' || field === 'hideFromLanding') goals[name][field] = input.checked;
     else if (field === 'level') goals[name][field] = normalizeCompLevel(input.value);
     else goals[name][field] = parseFloat(input.value) || 0;
   });
@@ -12112,9 +12131,10 @@ function quietRefreshFromActuals() {
           const composite = compositeOf(memMetric, sesMetric);
           return { rep: r, g, a, memMetric, sesMetric, composite, idx: i };
         });
-        renderLeaderboards(repRows);
+        const landingRepRows = filterLandingRepRows(repRows);
+        renderLeaderboards(landingRepRows);
         renderImprovedBoards();
-        renderCultureSide(repRows, null, cal.expectedPct, cal.ymd, cal.monthName, cal.d, cal.dim);
+        renderCultureSide(landingRepRows, null, cal.expectedPct, cal.ymd, cal.monthName, cal.d, cal.dim);
       } catch (_) { /* keep patched numbers */ }
     }
     if (/^#(?:individual-pacer|client-detail)=/.test(location.hash || '')) {
@@ -12135,13 +12155,14 @@ function patchLandingPaceNumbers() {
   const actuals = loadActuals();
   const cal = teamCalendarParts();
   const roster = getRoster();
+  const visibleRoster = roster.filter((r) => !normalizeGoalRecord(goals[r.display]).hideFromLanding);
   const cards = [...list.querySelectorAll('.card.rep-card, .card[data-rep], .rep-card')];
   // Prefer cards that expose a data-toggle uid matching roster index pattern used in render().
   const headers = [...list.querySelectorAll('[data-toggle]')];
-  if (!headers.length || headers.length !== roster.length) return false;
+  if (!headers.length || headers.length !== visibleRoster.length) return false;
 
   let teamMembersActual = 0, teamMembersGoal = 0, teamSessionsActual = 0, teamSessionsGoal = 0;
-  const rows = roster.map((r, i) => {
+  const allRows = roster.map((r) => {
     const g = goals[r.display] || { sessions: 0, members: 0, tag: '' };
     const raw = (actuals.perRep && actuals.perRep[r.display]) || { members: 0, sessions: 0 };
     const approved = APPROVED_TOTALS[r.display] || { members: 0, sessions: 0 };
@@ -12155,8 +12176,11 @@ function patchLandingPaceNumbers() {
       if ((Number(g.members) || 0) > 0) teamMembersGoal += g.members;
       if ((Number(g.sessions) || 0) > 0) teamSessionsGoal += g.sessions;
     }
-    return { rep: r, a, composite, memMetric, sesMetric, uid: headers[i].getAttribute('data-toggle') };
+    return { rep: r, g, a, composite, memMetric, sesMetric };
   });
+  const rows = allRows
+    .filter((row) => !normalizeGoalRecord(row.g).hideFromLanding)
+    .map((row, i) => ({ ...row, uid: headers[i].getAttribute('data-toggle') }));
 
   // Verify card order still matches roster display names when available.
   for (let i = 0; i < rows.length; i++) {
