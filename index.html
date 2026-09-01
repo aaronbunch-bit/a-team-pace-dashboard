@@ -14915,7 +14915,7 @@ function syncAttrRepSelect() {
 //
 // IMPORTANT: Netlify Identity must be enabled on THIS exact site, and Site
 // protection / Edge Access / SAML team-login must be OFF. We verified
-// a-team-pacer.netlify.app returns 404 for /.netlify/identity/* (Identity not
+// A stale/incorrect Netlify subdomain returns 404 for /.netlify/identity/* (Identity not
 // enabled) and lizards-autopacer.netlify.app returns 401 edge-access with
 // strict_saml=true (Netlify team SSO blocks Identity Google for staff).
 const ALLOWED_EMAIL_DOMAIN = '@varsitytutors.com';
