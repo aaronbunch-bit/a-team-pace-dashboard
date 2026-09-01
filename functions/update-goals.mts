@@ -34,7 +34,7 @@ export function normalizeGoalRecord(raw: any) {
     email: String(raw?.email || "").trim().toLowerCase().slice(0, 160),
     capAt200: !!raw?.capAt200,
     // When true, this rep's members/sessions (incl. approved attro) and refunds
-    // stay on their own board but do not feed A-Team Total for that month.
+    // stay on their own board but do not feed Lizards Total for that month.
     excludeFromRollUp: !!raw?.excludeFromRollUp,
     // Presentation-only and month-scoped. The rep still counts toward totals
     // and keeps their Individual Pacer.

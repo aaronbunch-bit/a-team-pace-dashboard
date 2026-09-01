@@ -1,5 +1,5 @@
 /**
- * Branded confirm / alert / prompt dialogs for A-Team Pacer.
+ * Branded confirm / alert / prompt dialogs for Lizards Autopacer.
  * Loaded before the main dashboard script; exposes window.uiDialog.
  */
 (function () {

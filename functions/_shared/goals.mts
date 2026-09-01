@@ -36,6 +36,46 @@ export function liveMonthKey(): string {
   return teamTodayMonthKey();
 }
 
+/**
+ * Carry stable rep metadata into a new month, but never carry quota amounts or
+ * month-only participation choices. The first save for the month persists the
+ * blank document as that month's own record.
+ */
+export function blankGoalsForNewMonth(goals: GoalsDoc | null | undefined): GoalsDoc {
+  if (!goals || typeof goals !== "object") return {};
+  return Object.fromEntries(
+    Object.entries(goals).map(([name, raw]) => {
+      const goal = raw && typeof raw === "object"
+        ? { ...(raw as Record<string, unknown>) }
+        : {};
+      return [name, {
+        ...goal,
+        members: 0,
+        sessions: 0,
+        // These choices are explicitly month-scoped.
+        excludeFromRollUp: false,
+        hideFromLanding: false,
+      }];
+    })
+  );
+}
+
+/**
+ * Resolve today's quota document. A month present in the archive has been
+ * explicitly saved; otherwise this is the first load after rollover and starts
+ * with blank Members/Sessions instead of silently carrying last month.
+ */
+export function goalsForLiveMonth(
+  storedGoals: GoalsDoc | null | undefined,
+  byMonth: GoalsByMonth | null | undefined,
+  month = liveMonthKey()
+): GoalsDoc {
+  const saved = byMonth && byMonth[month];
+  return saved && typeof saved === "object"
+    ? saved
+    : blankGoalsForNewMonth(storedGoals);
+}
+
 export async function loadGoalsByMonth(): Promise<GoalsByMonth> {
   try {
     const doc = await getStore(GOALS_MONTHS_STORE).get(GOALS_MONTHS_KEY, { type: "json" });

@@ -2,7 +2,13 @@ import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { requireSignedIn } from "./_shared/identity.mts";
 import { resolveAccess } from "./_shared/access.mts";
-import { GOALS_MONTHS_KEY, GOALS_MONTHS_STORE, isMonthKey } from "./_shared/goals.mts";
+import {
+  GOALS_MONTHS_KEY,
+  GOALS_MONTHS_STORE,
+  goalsForLiveMonth,
+  isMonthKey,
+  liveMonthKey,
+} from "./_shared/goals.mts";
 import { ROSTER_MONTHS_KEY, ROSTER_MONTHS_STORE, normalizeRosterEntries } from "./_shared/roster-months.mts";
 import { withApiErrors } from "./_shared/api-errors.mts";
 import {
@@ -56,7 +62,7 @@ export default withApiErrors("get-dashboard-data", async (req: Request, context:
   const prelimStore = getStore("prelim-snapshots");
   // Admin/Sales Coach access lists — unlike roster/goals/actuals above, these
   // have no baked-in front-end default worth protecting (an empty list IS the
-  // correct starting point, since Aaron is always admin regardless of what's
+  // correct starting point, since permanent admins are allowed regardless of what's
   // in here), so they resolve to `[]` rather than `null` when nothing's been
   // saved yet.
   const adminListStore = getStore("admin-list");
@@ -81,17 +87,24 @@ export default withApiErrors("get-dashboard-data", async (req: Request, context:
     rosterMonthsStore.get(ROSTER_MONTHS_KEY, { type: "json" }),
     teamMonthSettingsStore.get(TEAM_MONTH_SETTINGS_KEY, { type: "json" }),
   ]);
-  const safeGoals = redactCompensation(goals, viewerEmail, !!access?.isFullAdmin);
-  const safeGoalsMonths = goalsMonths && typeof goalsMonths === "object" && !Array.isArray(goalsMonths)
+  const normalizedGoalsMonths = goalsMonths && typeof goalsMonths === "object" && !Array.isArray(goalsMonths)
     ? Object.fromEntries(
         Object.entries(goalsMonths as Record<string, any>)
           .filter(([month, doc]) => isMonthKey(month) && !!doc && typeof doc === "object")
-          .map(([month, doc]) => [
-            month,
-            redactCompensation(doc, viewerEmail, !!access?.isFullAdmin),
-          ])
       )
     : {};
+  const liveGoals = goalsForLiveMonth(
+    goals as Record<string, Record<string, unknown>> | null,
+    normalizedGoalsMonths,
+    liveMonthKey(),
+  );
+  const safeGoals = redactCompensation(liveGoals, viewerEmail, !!access?.isFullAdmin);
+  const safeGoalsMonths = Object.fromEntries(
+    Object.entries(normalizedGoalsMonths).map(([month, doc]) => [
+      month,
+      redactCompensation(doc, viewerEmail, !!access?.isFullAdmin),
+    ])
+  );
   const safeRosterMonths = rosterMonths && typeof rosterMonths === "object" && !Array.isArray(rosterMonths)
     ? Object.fromEntries(
         Object.entries(rosterMonths as Record<string, any>)
