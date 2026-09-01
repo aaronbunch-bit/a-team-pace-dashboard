@@ -15,6 +15,7 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { getIdentityUser } from "../functions/_shared/identity.mts";
+import { resolveAccess } from "../functions/_shared/access.mts";
 
 const b64 = (obj) => Buffer.from(JSON.stringify(obj)).toString("base64url");
 const future = Math.floor(Date.now() / 1000) + 3600;
@@ -127,5 +128,9 @@ await withIdentity(identityDown, async () => {
 assert.equal(await getIdentityUser(req(null), {}), null, "no Authorization header, no user");
 
 delete process.env.JWT_SECRET;
+
+const lizAccess = await resolveAccess("liz.weiss@varsitytutors.com");
+assert.equal(lizAccess?.isFullAdmin, true, "Liz Weiss is a permanent full admin");
+assert.equal(lizAccess?.canViewTeam, true);
 
 console.log("ok — unsigned tokens are refused unless Identity confirms them, and signatures win when JWT_SECRET is set");

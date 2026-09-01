@@ -25,7 +25,7 @@ export async function runSupabaseSql<T = any>(query: string): Promise<T[]> {
       headers: {
         Authorization: `Bearer ${cfg.token}`,
         "Content-Type": "application/json",
-        "User-Agent": "a-team-pacer-netlify/1.0",
+        "User-Agent": "lizards-autopacer-netlify/1.0",
       },
       body: JSON.stringify({ query }),
     }

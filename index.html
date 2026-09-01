@@ -2,17 +2,17 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>A-Team Pacer</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
-<link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/assets/app.css?v=20260802-pgc-multi">
+<title>Lizards Autopacer</title>
+<link rel="icon" href="/favicon.svg?v=20260901-lizards" type="image/svg+xml" sizes="any">
+<link rel="shortcut icon" href="/favicon.svg?v=20260901-lizards" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/app.css?v=20260901-lizards">
 <script src="/assets/ui-dialog.js?v=20260731-income-pt-ux"></script>
 
 </head>
 <body>
 <div id="loginGate" class="login-gate" role="dialog" aria-modal="true" aria-labelledby="loginGateTitle">
   <div class="login-gate-panel">
-    <h1 id="loginGateTitle" class="login-gate-brand"><span class="grad-text">A-Team</span> Pacer</h1>
+    <h1 id="loginGateTitle" class="login-gate-brand"><span class="grad-text">Lizards</span> Autopacer</h1>
     <p class="login-gate-sub">Sign in with your Varsity Tutors Google account to open the dashboard.</p>
     <!-- Real link so Google login works even if later dashboard JS fails or the
          Identity widget iframe tries to swallow clicks. -->
@@ -85,9 +85,9 @@
   </div>
   <div class="landing-title-row">
     <div class="header-aura" aria-hidden="true"></div>
-    <span class="title-blood-badge" aria-hidden="true"><span class="title-blood-emoji">🅰️</span></span>
-    <h1><span class="grad-text">A-Team</span> <span id="titleMonth">Monthly</span> Pacer</h1>
-    <span class="title-blood-badge" aria-hidden="true"><span class="title-blood-emoji">🅰️</span></span>
+    <span class="title-lizard-badge" aria-hidden="true"><span class="title-lizard-emoji">🦎</span></span>
+    <h1><span class="grad-text">Lizards</span> <span id="titleMonth">Monthly</span> Autopacer</h1>
+    <span class="title-lizard-badge" aria-hidden="true"><span class="title-lizard-emoji">🦎</span></span>
   </div>
   <!-- contest banner moved to #contestStickyHost (fixed top) -->
   </div>
@@ -175,7 +175,7 @@
   </div>
 
   <!-- Two-column grid ends at the bottom of the team card — the leaderboard
-       sidebar rides alongside A-Team Total only. Sort toggle + rep list live
+       sidebar rides alongside Lizards Total only. Sort toggle + rep list live
        outside this grid entirely, back at full page width, so the rep list
        isn't squeezed narrower than it needs to be for the sidebar's sake. -->
   <div class="landing-region landing-region-left" id="landingLeft">
@@ -568,7 +568,7 @@
           <option value="arcade">👾 Arcade Run — Pac-Man vibes</option>
           <option value="neon-night">🌃 Neon Night</option>
           <option value="carnival">🎡 Carnival Wheel</option>
-          <option value="blood-type-a">🅰️ Blood Type A</option>
+          <option value="blood-type-a">🦎 Lizard League</option>
           <option value="dragon-cup">🐉 Dragon Cup</option>
           <option value="space-race">🚀 Space Race</option>
           <option value="stadium">🏟️ Stadium</option>
@@ -1024,7 +1024,7 @@
     <div class="workspace-panel" id="teamPanelSchedule" data-team-panel="schedule">
       <div class="card ops-panel-shell">
         <h2>📅 Weekly team schedule</h2>
-        <div class="meta-note" style="margin-top:0;">Typical weekly shifts (not a date-specific calendar). Mark days off as <b>Off</b> — Rebound won’t fire the day after an Off. Capacity counts anyone not Off.</div>
+        <div class="meta-note" style="margin-top:0;">Typical weekly shifts (not a date-specific calendar). Mark days off as <b>Off</b> — Rebound won’t fire the day after an Off. Capacity counts anyone not Off. Daily member goals calculate automatically as <b>day capacity ÷ weekly capacity × monthly team Members quota ÷ 4</b>.</div>
         <div class="meta-note" id="teamScheduleReadOnlyNote" style="display:none;margin-top:0;">View only — ask a coach or admin if a shift needs updating.</div>
         <div class="schedule-wrap" id="teamScheduleWrap"></div>
         <div class="schedule-toolbar">
@@ -1173,14 +1173,14 @@
           </div>
           <div class="pgc-admin-rows" id="pgcMetricRows"></div>
         </div>
-        <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Level</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Individual Pacer access)</div><div>Cap bonus @ 200%</div><div class="has-tip" data-tip="When checked, this person’s members, sessions, approved attributions, and refunds do not count toward A-Team Total for this month. Their own Individual Pacer is unchanged.">Excluded from roll-up</div><div class="has-tip" data-tip="Hides this person’s card, leaderboard appearances, and recognition from the landing page for this month. They still count toward A-Team Total and keep their Individual Pacer.">Hide from landing</div></div>
+        <div class="goal-grid header"><div>Rep</div><div>Sessions goal</div><div>Members goal</div><div>Level</div><div>Monthly OTE ($)</div><div>Goal tag (optional)</div><div>Email (Individual Pacer access)</div><div>Cap bonus @ 200%</div><div class="has-tip" data-tip="When checked, this person’s members, sessions, approved attributions, and refunds do not count toward Lizards Total for this month. Their own Individual Pacer is unchanged.">Excluded from roll-up</div><div class="has-tip" data-tip="Hides this person’s card, leaderboard appearances, and recognition from the landing page for this month. They still count toward Lizards Total and keep their Individual Pacer.">Hide from landing</div></div>
         <div id="goalsForm"></div>
         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:6px;">
           <button id="saveGoals">Save quotas</button>
           <span class="meta-note" id="goalsSaveStatus" style="margin:0;"></span>
           <span class="field-toggle-tag" id="toggleAdvancedFields">+ Tag / Email / Cap</span>
         </div>
-        <div class="meta-note">PT: $500 OTE (no leveling planner) · L1: $41,600 salary / $1,000 OTE · L2: $50,000 / $1,333 · L3: $60,000 / $1,667. Changing Level fills the standard OTE; OTE remains editable. <b>Excluded from roll-up</b> keeps that person off A-Team Total (members, sessions, attro &amp; refunds) for the month you are editing. <b>Hide from landing</b> removes their landing card, leaderboard appearances, and recognition; their production still counts and their Individual Pacer remains available. ✕ removes someone (restorable in Removed).</div>
+        <div class="meta-note">PT: $500 OTE (no leveling planner) · L1: $41,600 salary / $1,000 OTE · L2: $50,000 / $1,333 · L3: $60,000 / $1,667. Changing Level fills the standard OTE; OTE remains editable. <b>Excluded from roll-up</b> keeps that person off Lizards Total (members, sessions, attro &amp; refunds) for the month you are editing. <b>Hide from landing</b> removes their landing card, leaderboard appearances, and recognition; their production still counts and their Individual Pacer remains available. ✕ removes someone (restorable in Removed).</div>
       </div>
     </div>
     <div class="ops-subpanel" data-goals-panel="removed" id="removedBody">
@@ -1606,8 +1606,12 @@ async function saveRoster(newRoster) {
     ROSTER_MONTHS_CACHE = result.rosterMonths;
   }
 }
-// Permanent primary admin. Listed admins (ADMIN_LIST_CACHE) get the same access.
+// Permanent admins. Listed admins (ADMIN_LIST_CACHE) get the same access.
 const ADMIN_EMAIL = 'aaron.bunch@varsitytutors.com';
+const PERMANENT_ADMIN_EMAILS = [
+  ADMIN_EMAIL,
+  'liz.weiss@varsitytutors.com',
+];
 
 // Local UX preview (?ux-preview=1) — unlocks the dashboard with baked-in data
 // so design changes can be screenshotted without Identity.
@@ -1619,9 +1623,9 @@ function isUxPreviewMode() {
     return false;
   }
 }
-// Additional admins beyond ADMIN_EMAIL (Aaron), managed from the Admin access
-// card on Edit Monthly Goals. ADMIN_EMAIL itself is never stored here — it's
-// the one permanent admin and can't be removed through this UI. Backed by
+// Additional admins beyond the permanent list, managed from the Admin access
+// card on Edit Monthly Goals. Permanent admins are never stored here and can't
+// be removed through this UI. Backed by
 // Netlify Functions + Blobs now (update-admin-list.mts / get-dashboard-data.mts),
 // same pattern as roster/goals — see ADMIN_LIST_CACHE and fetchDashboardData().
 let ADMIN_LIST_CACHE = [];
@@ -1637,7 +1641,7 @@ async function saveAdminList(list) {
 function isAdminEmail(email) {
   if (!email) return false;
   const e = String(email).toLowerCase();
-  if (e === ADMIN_EMAIL) return true;
+  if (PERMANENT_ADMIN_EMAILS.includes(e)) return true;
   return loadAdminList().includes(e);
 }
 // Sales Coach list — managed from its own card on Edit Monthly Goals, separate
@@ -1687,16 +1691,43 @@ function getRosterForMonth(monthKey) {
     .map((r) => Object.assign({}, r, { active: true }))
     .sort((a, b) => a.display.localeCompare(b.display));
 }
+/**
+ * Roster used by month accounting views.
+ *
+ * Deactivation sets `active:false` immediately. The old landing render started
+ * from active reps only, so a resignation erased that rep's current-month row
+ * before totals were calculated even though their quota and ledger lines still
+ * existed. Keep an inactive rep in any month where they still have a Members or
+ * Sessions quota; the next month starts those quotas at zero, so they disappear
+ * naturally without carrying forward.
+ */
+function retainQuotaBearingInactiveReps(visible, fullRoster, goals) {
+  const names = new Set(visible.map((r) => r.display));
+  const retained = fullRoster.filter((r) => {
+    if (names.has(r.display)) return false;
+    const goal = normalizeGoalRecord(goals && goals[r.display]);
+    return goal.members > 0 || goal.sessions > 0;
+  });
+  return visible.concat(retained).sort((a, b) => a.display.localeCompare(b.display));
+}
+function getAccountingRosterForMonth(monthKey) {
+  const key = String(monthKey || '') || liveMonthKey();
+  return retainQuotaBearingInactiveReps(
+    getRosterForMonth(key),
+    getFullRoster(),
+    goalsForMonth(key),
+  );
+}
 /** Roster for the current ops / detail month view. */
 function getViewRoster(forDetail) {
   const prior = forDetail
     ? (typeof viewingPriorMonthForDetail === 'function' && viewingPriorMonthForDetail())
     : (typeof viewingPriorMonthForOps === 'function' && viewingPriorMonthForOps());
-  if (!prior) return getRoster();
+  if (!prior) return getAccountingRosterForMonth(liveMonthKey());
   const key = forDetail
     ? (typeof detailViewMonthKey === 'function' ? detailViewMonthKey() : liveMonthKey())
     : (typeof opsViewMonthKey === 'function' ? opsViewMonthKey() : liveMonthKey());
-  return getRosterForMonth(key);
+  return getAccountingRosterForMonth(key);
 }
 /** Short month name for a YYYY-MM key ("2026-08" → "August"). */
 function monthNameFromKey(monthKey) {
@@ -1824,7 +1855,7 @@ function normalizeGoalRecord(raw) {
     tag: String(source.tag || ''),
     email: String(source.email || ''),
     capAt200: !!source.capAt200,
-    // Month-scoped: when true, actuals/attro/refunds stay off A-Team Total.
+    // Month-scoped: when true, actuals/attro/refunds stay off Lizards Total.
     excludeFromRollUp: !!source.excludeFromRollUp,
     // Month-scoped presentation only: keep production in totals and the rep's
     // Individual Pacer, but omit them from landing cards and leaderboards.
@@ -2710,7 +2741,7 @@ function render() {
     // Always count actuals/cancels toward the team total — even with no goal or
     // a 0 goal — so production still shows on the landing board and team card.
     // Goals only roll in when set (> 0), so "No Goal" does not dilute % targets.
-    // Excluded-from-roll-up reps still appear on the board but stay off A-Team Total.
+    // Excluded-from-roll-up reps still appear on the board but stay off Lizards Total.
     if (!normalizeGoalRecord(g).excludeFromRollUp) {
       teamMembersActual += a.members;
       teamSessionsActual += a.sessions;
@@ -2754,10 +2785,10 @@ function render() {
 
   document.getElementById('teamCard').innerHTML = `
     <div class="rep-header" data-toggle="team">
-      <div class="avatar" style="background:linear-gradient(135deg,#f472b6,#a855f7,#6366f1,#38bdf8); font-size:18px;">🅰️</div>
+      <div class="avatar" style="background:linear-gradient(135deg,#84cc16,#22c55e,#14b8a6,#38bdf8); font-size:18px;">🦎</div>
       <div class="rep-meta">
         <div class="rep-name-row">
-          <span class="rep-name" style="font-size:16px;">A-Team Total</span>
+          <span class="rep-name" style="font-size:16px;">Lizards Total</span>
           <span class="status-pill ${teamSt.cls} has-tip" data-tip="${teamSt.tip}">${teamSt.label}</span>
         </div>
         <div class="bar-track"><div class="bar-fill${teamSt.special ? ' bar-shimmer' : ''}" id="teamBar" style="background:${teamSt.barGrad};"></div>
@@ -2787,7 +2818,7 @@ function render() {
   animateBarWidth(document.querySelector('[data-mini="team-members"]'), teamMemMetric.currentPct ?? 0, 250);
 
   document.querySelector('[data-toggle="team"]').addEventListener('click', () => {
-    // Stack keeps A-Team Total permanently expanded.
+    // Stack keeps Lizards Total permanently expanded.
     if ((document.body.dataset.layout || '') === 'split-stack') return;
     const wrapper = document.querySelector('[data-wrapper="team"]');
     const chevron = document.querySelector('[data-chevron="team"]');
@@ -2843,7 +2874,7 @@ function render() {
   // (not persisted across re-renders, since repList is rebuilt from scratch
   // every time anyway) — reset here, then tracked by each row's own click
   // handler below as rows open/close. Deliberately excludes the separate
-  // "A-Team Total" card above (#teamCard, open by default) since that isn't
+  // "Lizards Total" card above (#teamCard, open by default) since that isn't
   // one of "the reps."
   let openRepUid = null;
   sortedRepRows.forEach((row, order) => {
@@ -5219,7 +5250,7 @@ function maybeShowDoubleGoalCelebration(repName) {
   const firstName = champion.split(' ')[0];
   document.getElementById('celebrationModalTitle').textContent = `You did it, ${firstName}! 🏆`;
   document.getElementById('celebrationModalBody').textContent =
-    `You're the most recent A-Teamer to hit 100% of BOTH Members and Sessions this month — the total package. Congratulations, keep that momentum rolling!`;
+    `You're the most recent Lizard to hit 100% of BOTH Members and Sessions this month — the total package. Congratulations, keep that momentum rolling!`;
   backdrop.classList.add('open');
 }
 document.getElementById('celebrationModalClose').addEventListener('click', () => {
@@ -5523,8 +5554,8 @@ function renderGoalsForm() {
   // A rep removed from the roster this month still had a quota last month, so
   // the prior-month grid lists whoever that month's roster / quotas name.
   const rosterRows = goalsEditMonthMode === 'prior'
-    ? getRosterForMonth(goalsEditMonthKey())
-    : getRoster();
+    ? getAccountingRosterForMonth(goalsEditMonthKey())
+    : getAccountingRosterForMonth(liveMonthKey());
   const named = new Set(rosterRows.map(r => r.display));
   const extra = goalsEditMonthMode === 'prior'
     ? Object.keys(goals || {}).filter(name => !named.has(name)).sort().map(display => ({ display }))
@@ -5550,7 +5581,7 @@ function renderGoalsForm() {
       <div><input type="text" data-name="${r.display}" data-field="tag" value="${g.tag || ''}"></div>
       <div><input type="email" data-name="${r.display}" data-field="email" placeholder="name@varsitytutors.com" value="${g.email || ''}"></div>
       <div class="cap-cell"><input type="checkbox" data-name="${r.display}" data-field="capAt200" ${g.capAt200 ? 'checked' : ''}></div>
-      <div class="cap-cell"><input type="checkbox" data-name="${r.display}" data-field="excludeFromRollUp" ${g.excludeFromRollUp ? 'checked' : ''} title="Exclude from A-Team roll-up" aria-label="${r.display} excluded from roll-up"></div>
+      <div class="cap-cell"><input type="checkbox" data-name="${r.display}" data-field="excludeFromRollUp" ${g.excludeFromRollUp ? 'checked' : ''} title="Exclude from Lizards roll-up" aria-label="${r.display} excluded from roll-up"></div>
       <div class="cap-cell"><input type="checkbox" data-name="${r.display}" data-field="hideFromLanding" ${g.hideFromLanding ? 'checked' : ''} title="Hide from landing page for ${monthNameFromKey(goalsEditMonthKey())}" aria-label="${r.display} hidden from landing page"></div>
     `;
     container.appendChild(row);
@@ -5570,11 +5601,11 @@ function renderAdminList() {
   const listEl = document.getElementById('adminList');
   if (!listEl) return;
   const admins = loadAdminList();
-  const rows = [`
+  const rows = PERMANENT_ADMIN_EMAILS.map((email) => `
     <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid var(--card-border); font-size:13px;">
-      <span>${ADMIN_EMAIL} <span class="rep-tag" style="margin-left:6px;">Primary admin</span></span>
+      <span>${email} <span class="rep-tag" style="margin-left:6px;">${email === ADMIN_EMAIL ? 'Primary admin' : 'Permanent admin'}</span></span>
     </div>
-  `].concat(admins.map(email => `
+  `).concat(admins.filter((email) => !PERMANENT_ADMIN_EMAILS.includes(email)).map(email => `
     <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid var(--card-border); font-size:13px;">
       <span>${email}</span>
       <button type="button" class="remove-admin-btn" data-remove-admin="${encodeURIComponent(email)}" title="Remove admin">✕</button>
@@ -7414,7 +7445,7 @@ function contestThemeMeta(theme) {
     carnival: { icon: '🎡', name: 'Carnival', tagline: 'Earn tickets. Spin for glory.', track: 'rainbow', vehicle: 'unicorn', accent: 'pink', mascot: '🎡', effects: 'confetti', mode: 'wheel', wheelSkin: 'candy' },
     pirate: { icon: '🏴‍☠️', name: 'Pirate Quest', tagline: 'Hunt credits. Claim the treasure.', track: 'ocean', vehicle: 'boat', accent: 'gold', mascot: '🏴‍☠️', effects: 'sparks', mode: 'race' },
     arcade: { icon: '👾', name: 'Arcade Run', tagline: 'Insert sale to continue.', track: 'pixel', vehicle: 'ghost', accent: 'violet', mascot: '👾', effects: 'max', mode: 'race' },
-    'blood-type-a': { icon: '🅰️', name: 'Blood Type A', tagline: 'A-Team energy only.', track: 'lava', vehicle: 'blood-a', accent: 'blood', mascot: '🅰️', effects: 'max', mode: 'race' },
+    'blood-type-a': { icon: '🦎', name: 'Lizard League', tagline: 'Lizards on the move.', track: 'stadium', vehicle: 'blood-a', accent: 'lime', mascot: '🦎', effects: 'max', mode: 'race' },
     'dragon-cup': { icon: '🐉', name: 'Dragon Cup', tagline: 'Breathe fire. Close deals.', track: 'lava', vehicle: 'dragon', accent: 'orange', mascot: '🐉', effects: 'fireworks', mode: 'race' },
     underwater: { icon: '🐠', name: 'Underwater', tagline: 'Dive deep. Surface first.', track: 'ocean', vehicle: 'boat', accent: 'cyan', mascot: '🐠', effects: 'sparks', mode: 'race' },
     retro: { icon: '📼', name: 'Retro Rally', tagline: 'Old-school pace. New-school wins.', track: 'pixel', vehicle: 'car', accent: 'gold', mascot: '📼', effects: 'confetti', mode: 'race' },
@@ -7441,7 +7472,7 @@ function contestVehicleEmoji(vehicle) {
   const map = {
     car: '🏎️', kart: '🛵', rocket: '🚀', horse: '🐴', turtle: '🐢',
     bolt: '⚡', runner: '🏃', bike: '🚲', boat: '🚤', dragon: '🐉',
-    'blood-a': '🅰️', unicorn: '🦄', alien: '👽', crown: '👑',
+    'blood-a': '🦎', unicorn: '🦄', alien: '👽', crown: '👑',
     pizza: '🍕', ghost: '👻', hotdog: '🌭', phoenix: '🔥',
   };
   return map[vehicle] || '🏎️';
@@ -8198,7 +8229,7 @@ function contestWheelSkinStyle(skin) {
     candy: 'conic-gradient(from 0deg, #fb7185, #f9a8d4, #fda4af, #fbbf24, #fb7185)',
     midnight: 'conic-gradient(from 0deg, #1e1b4b, #4c1d95, #831843, #0f172a, #1e1b4b)',
     gold: 'conic-gradient(from 0deg, #fbbf24, #f59e0b, #fde68a, #d97706, #fbbf24)',
-    blood: 'conic-gradient(from 0deg, #7f1d1d, #dc2626, #f87171, #450a0a, #7f1d1d)',
+    blood: 'conic-gradient(from 0deg, #14532d, #22c55e, #84cc16, #0f766e, #14532d)',
     pixel: 'conic-gradient(from 0deg, #22c55e, #a855f7, #38bdf8, #fbbf24, #22c55e)',
   };
   return map[skin] || map.classic;
@@ -11133,12 +11164,52 @@ function scheduleCapacityForDay(dayKey) {
   });
   return n;
 }
+function scheduleMonthlyMembersQuota() {
+  const goals = goalsForMonth(liveMonthKey());
+  return getAccountingRosterForMonth(liveMonthKey()).reduce((sum, rep) => {
+    const goal = normalizeGoalRecord(goals[rep.display]);
+    return goal.excludeFromRollUp ? sum : sum + (Number(goal.members) || 0);
+  }, 0);
+}
+function calculateScheduleDailyGoals(capacities, monthlyMembersQuota) {
+  const values = Object.fromEntries(
+    SCHEDULE_DAY_KEYS.map((key) => [key, Math.max(0, Number(capacities && capacities[key]) || 0)])
+  );
+  const weeklyCapacity = SCHEDULE_DAY_KEYS.reduce((sum, key) => sum + values[key], 0);
+  const weeklyMembersQuota = Math.max(0, Number(monthlyMembersQuota) || 0) / 4;
+  return Object.fromEntries(SCHEDULE_DAY_KEYS.map((key) => [
+    key,
+    weeklyCapacity > 0 ? Math.round((values[key] / weeklyCapacity) * weeklyMembersQuota) : 0,
+  ]));
+}
+function scheduleCapacitiesFromEditor(wrap) {
+  return Object.fromEntries(SCHEDULE_DAY_KEYS.map((day) => {
+    let capacity = 0;
+    wrap.querySelectorAll(`input.sched-cell[data-day="${day}"]`).forEach((input) => {
+      const value = String(input.value || '').trim();
+      if (value && !/^off$/i.test(value) && value !== '—' && value !== '-') capacity += 1;
+    });
+    return [day, capacity];
+  }));
+}
+function syncCalculatedScheduleGoals(wrap) {
+  const capacities = scheduleCapacitiesFromEditor(wrap);
+  const dailyGoals = calculateScheduleDailyGoals(capacities, scheduleMonthlyMembersQuota());
+  SCHEDULE_DAY_KEYS.forEach((day) => {
+    const cap = wrap.querySelector(`[data-cap="${day}"]`);
+    if (cap) cap.textContent = String(capacities[day]);
+    const goal = wrap.querySelector(`[data-goal-day="${day}"]`);
+    if (goal) goal.textContent = dailyGoals[day] > 0 ? String(dailyGoals[day]) : '—';
+  });
+  return dailyGoals;
+}
 function renderTeamScheduleEditor() {
   const wrap = document.getElementById('teamScheduleWrap');
   if (!wrap) return;
   const canEdit = canEditTeamSchedules();
   syncTeamWorkspaceChrome();
-  const goals = TEAM_SCHEDULES_CACHE.dailyGoals || {};
+  const capacities = Object.fromEntries(SCHEDULE_DAY_KEYS.map((key) => [key, scheduleCapacityForDay(key)]));
+  const goals = calculateScheduleDailyGoals(capacities, scheduleMonthlyMembersQuota());
   const head = SCHEDULE_DAY_LABELS.map((lab) => `<th>${lab}</th>`).join('');
   const rows = getRoster().map((r, idx) => {
     const color = SCHED_ROW_COLORS[idx % SCHED_ROW_COLORS.length];
@@ -11160,10 +11231,7 @@ function renderTeamScheduleEditor() {
   const capCells = SCHEDULE_DAY_KEYS.map((k) => `<td style="text-align:center;" data-cap="${k}">${scheduleCapacityForDay(k)}</td>`).join('');
   const goalCells = SCHEDULE_DAY_KEYS.map((k) => {
     const v = goals[k] != null ? goals[k] : '';
-    if (!canEdit) {
-      return `<td style="text-align:center;">${v === '' ? '—' : v}</td>`;
-    }
-    return `<td style="text-align:center;"><input type="number" min="0" step="1" data-goal-day="${k}" value="${v}"></td>`;
+    return `<td style="text-align:center;" data-goal-day="${k}">${v > 0 ? v : '—'}</td>`;
   }).join('');
   wrap.innerHTML = `
     <table class="schedule-grid">
@@ -11171,7 +11239,7 @@ function renderTeamScheduleEditor() {
       <tbody>${rows || `<tr><td colspan="8" style="text-align:center;color:var(--text-faint);padding:16px;">No roster yet.</td></tr>`}</tbody>
       <tfoot>
         <tr class="sched-summary"><td>Capacity</td>${capCells}</tr>
-        <tr class="sched-summary"><td>Daily goal</td>${goalCells}</tr>
+        <tr class="sched-summary"><td>Daily member goal</td>${goalCells}</tr>
       </tfoot>
     </table>`;
   if (!canEdit) return;
@@ -11179,17 +11247,7 @@ function renderTeamScheduleEditor() {
     input.addEventListener('input', () => {
       const off = /^off$/i.test(String(input.value || '').trim());
       input.classList.toggle('is-off', off);
-      const day = input.getAttribute('data-day');
-      const capEl = wrap.querySelector(`[data-cap="${day}"]`);
-      // Live capacity from current inputs for that day.
-      if (capEl) {
-        let n = 0;
-        wrap.querySelectorAll(`input.sched-cell[data-day="${day}"]`).forEach((el) => {
-          const v = String(el.value || '').trim();
-          if (v && !/^off$/i.test(v) && v !== '—' && v !== '-') n += 1;
-        });
-        capEl.textContent = String(n);
-      }
+      syncCalculatedScheduleGoals(wrap);
     });
   });
 }
@@ -11211,10 +11269,7 @@ async function saveTeamScheduleFromEditor() {
     if (!reps[rep]) reps[rep] = emptyScheduleRow();
     reps[rep][day] = String(input.value || '').trim();
   });
-  const dailyGoals = {};
-  wrap.querySelectorAll('input[data-goal-day]').forEach((input) => {
-    dailyGoals[input.getAttribute('data-goal-day')] = Number(input.value) || 0;
-  });
+  const dailyGoals = syncCalculatedScheduleGoals(wrap);
   try {
     await withSaveFeedback({
       btn,
@@ -14860,8 +14915,8 @@ function syncAttrRepSelect() {
 //
 // IMPORTANT: Netlify Identity must be enabled on THIS exact site, and Site
 // protection / Edge Access / SAML team-login must be OFF. We verified
-// a-team-pacer.netlify.app returns 404 for /.netlify/identity/* (Identity not
-// enabled) and a-team-autopacer.netlify.app returns 401 edge-access with
+// A stale/incorrect Netlify subdomain returns 404 for /.netlify/identity/* (Identity not
+// enabled) and lizards-autopacer.netlify.app returns 401 edge-access with
 // strict_saml=true (Netlify team SSO blocks Identity Google for staff).
 const ALLOWED_EMAIL_DOMAIN = '@varsitytutors.com';
 const IDENTITY_API = window.location.origin + '/.netlify/identity';
@@ -15385,7 +15440,7 @@ function guidedTourSteps() {
   return [
     {
       id: 'welcome',
-      title: 'Welcome to your A-Team Pacer',
+      title: 'Welcome to Lizards Autopacer',
       body: 'This short tour shows where you stand, how to celebrate teammates, how to claim a missing sale, and how to use your Individual Pacer. Use Next / Back anytime — about two minutes.',
       selector: null,
       surface: 'landing',
@@ -15439,7 +15494,7 @@ function guidedTourSteps() {
     },
     {
       id: 'team',
-      title: 'A-Team Total',
+      title: 'Lizards Total',
       body: 'The whole crew’s combined pace — same math as your own row. Celebrate team wins here.',
       selector: '#teamCard',
       surface: 'landing',

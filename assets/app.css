@@ -1,4 +1,4 @@
-/* A-Team Pacer — extracted from index.html for cleaner maintenance */
+/* Lizards Autopacer — extracted from index.html for cleaner maintenance */
   :root {
     color-scheme: light;
     --bg: #f6f5fb;
@@ -174,7 +174,7 @@
   /* Static / Freeze — pause every looping gradient / glow motion.
      Open My Individual Pacer (.my-pacer-btn) was missing and kept shimmering. */
   body.motion-static .header-aura,
-  body.motion-static .title-blood-badge,
+  body.motion-static .title-lizard-badge,
   body.motion-static .manual-attro-btn,
   body.motion-static .my-pacer-btn,
   body.motion-static .bar-shimmer,
@@ -195,7 +195,7 @@
   /* Prefer reduced motion OS setting even before JS applies .motion-static */
   @media (prefers-reduced-motion: reduce) {
     .header-aura,
-    .title-blood-badge,
+    .title-lizard-badge,
     .manual-attro-btn,
     .my-pacer-btn,
     .bar-shimmer,
@@ -274,21 +274,21 @@
      title on wider screens. Gradient lives on the round badge behind the
      emoji (the emoji glyph itself renders in its own fixed colors and can't
      be gradient-text-clipped the way .grad-text works for real text), with a
-     slow shifting animation + soft red glow so it reads as "alive" rather
+     slow shifting animation + soft green glow so it reads as "alive" rather
      than a static sticker. Hidden below 700px — no spare width for it once
      the title row gets tight, and it isn't load-bearing information. */
-  .title-blood-badge {
+  .title-lizard-badge {
     flex: none; width: 72px; height: 72px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(135deg, #fca5a5, #dc2626 45%, #7f1d1d 85%, #dc2626);
+    background: linear-gradient(135deg, #bef264, #22c55e 45%, #0f766e 85%, #38bdf8);
     background-size: 220% 220%;
-    animation: bloodBadgeShift 5s ease-in-out infinite, bloodBadgePulse 3s ease-in-out infinite;
-    box-shadow: 0 6px 22px rgba(220,38,38,0.45), 0 0 0 3px rgba(220,38,38,0.15);
+    animation: lizardBadgeShift 5s ease-in-out infinite, lizardBadgePulse 3s ease-in-out infinite;
+    box-shadow: 0 6px 22px rgba(34,197,94,0.38), 0 0 0 3px rgba(20,184,166,0.16);
   }
-  .title-blood-emoji { font-size: 38px; line-height: 1; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.3)); }
-  @keyframes bloodBadgeShift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
-  @keyframes bloodBadgePulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
-  @media (max-width: 700px) { .title-blood-badge { display: none; } }
+  .title-lizard-emoji { font-size: 38px; line-height: 1; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.3)); }
+  @keyframes lizardBadgeShift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+  @keyframes lizardBadgePulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  @media (max-width: 700px) { .title-lizard-badge { display: none; } }
   .grad-text {
     background: linear-gradient(90deg, #f472b6, #a855f7 45%, #6366f1 75%, #38bdf8);
     -webkit-background-clip: text; background-clip: text; color: transparent;
@@ -892,8 +892,8 @@
   /* Split chrome: left-align header with the content columns (centered title
      over a 38/62 body reads as "off-center"). */
   body[data-layout^="split"] .landing-actions-row { margin: 8px 0 12px; }
-  body[data-layout^="split"] .title-blood-badge { width: 56px; height: 56px; }
-  body[data-layout^="split"] .title-blood-emoji { font-size: 30px; }
+  body[data-layout^="split"] .title-lizard-badge { width: 56px; height: 56px; }
+  body[data-layout^="split"] .title-lizard-emoji { font-size: 30px; }
   /* Stack: center the top chrome (title / tools / status). */
   body[data-layout="split-stack"] .landing-title-row {
     justify-content: center; text-align: center; gap: 14px;
@@ -1216,10 +1216,10 @@
   .contest-sticky-bar.theme-arcade { --contest-sticky-bg: linear-gradient(90deg, #2e1065, #7c3aed 50%, #db2777); color: #fdf4ff; }
   .contest-sticky-bar.theme-arcade .contest-sticky-meta { color: rgba(255,255,255,0.75); }
   .contest-sticky-bar.theme-arcade .contest-sticky-place { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); color: #fff; }
-  .contest-sticky-bar.theme-blood-type-a { --contest-sticky-bg: linear-gradient(90deg, #450a0a, #991b1b 40%, #e11d48 80%, #7f1d1d); color: #fff1f2; }
+  .contest-sticky-bar.theme-blood-type-a { --contest-sticky-bg: linear-gradient(90deg, #14532d, #15803d 40%, #0f766e 80%, #164e63); color: #f0fdf4; }
   .contest-sticky-bar.theme-blood-type-a .contest-sticky-meta { color: rgba(255,255,255,0.78); }
   .contest-sticky-bar.theme-blood-type-a .contest-sticky-place { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.22); color: #fff; }
-  .contest-sticky-bar.theme-blood-type-a .contest-sticky-live { background: rgba(255,255,255,0.16); color: #fecdd3; border-color: rgba(254,205,211,0.35); }
+  .contest-sticky-bar.theme-blood-type-a .contest-sticky-live { background: rgba(255,255,255,0.16); color: #bbf7d0; border-color: rgba(187,247,208,0.35); }
   .contest-sticky-bar.theme-dragon-cup { --contest-sticky-bg: linear-gradient(90deg, #7c2d12, #ea580c 50%, #fbbf24); color: #fff7ed; }
   .contest-sticky-bar.theme-dragon-cup .contest-sticky-meta { color: rgba(255,255,255,0.78); }
   .contest-sticky-bar.theme-dragon-cup .contest-sticky-place { background: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.2); color: #fff; }
@@ -1413,7 +1413,7 @@
   .contest-speedway.accent-orange { --sw-accent: #fb923c; }
   .contest-speedway.accent-violet { --sw-accent: #a78bfa; }
   .contest-speedway.accent-red { --sw-accent: #ef4444; }
-  .contest-speedway.accent-blood { --sw-accent: #e11d48; }
+  .contest-speedway.accent-blood { --sw-accent: #22c55e; }
   .contest-speedway.track-neon {
     --sw-sky: linear-gradient(180deg, #14061f 0%, #2a0a3d 50%, #0c1a2e 100%);
     --sw-road: #1a1030; --sw-mark: #f0abfc;
@@ -4297,7 +4297,7 @@
   .preset-btn:hover { opacity: 1; border-color: #a855f7; color: #a855f7; }
 
   /* Landing page sidebar leaderboard. Two-column grid, but it only spans the
-     team card row — the sidebar sits next to A-Team Total and stops there.
+     team card row — the sidebar sits next to Lizards Total and stops there.
      Sort toggle + rep list live outside this grid entirely (back at full
      .wrap width) so the rep list never loses the room it had before the
      leaderboard existed; only the team card row gives up width to make room
@@ -4653,7 +4653,7 @@
 #contestOverlay.theme-carnival, .contest-experience.theme-carnival { --arena-a:#f472b6; --arena-b:#f59e0b; --arena-c:#a78bfa; --arena-night:#180815; --arena-deep:#31102b; }
 #contestOverlay.theme-pirate, .contest-experience.theme-pirate { --arena-a:#fbbf24; --arena-b:#b45309; --arena-c:#a8a29e; --arena-night:#120d08; --arena-deep:#292016; }
 #contestOverlay.theme-arcade, .contest-experience.theme-arcade { --arena-a:#f0abfc; --arena-b:#7c3aed; --arena-c:#22d3ee; --arena-night:#0c0318; --arena-deep:#230640; }
-#contestOverlay.theme-blood-type-a, .contest-experience.theme-blood-type-a { --arena-a:#fb7185; --arena-b:#e11d48; --arena-c:#fca5a5; --arena-night:#180307; --arena-deep:#380712; }
+#contestOverlay.theme-blood-type-a, .contest-experience.theme-blood-type-a { --arena-a:#84cc16; --arena-b:#22c55e; --arena-c:#5eead4; --arena-night:#052e16; --arena-deep:#064e3b; }
 #contestOverlay.theme-dragon-cup, .contest-experience.theme-dragon-cup { --arena-a:#fb923c; --arena-b:#dc2626; --arena-c:#fbbf24; --arena-night:#1b0702; --arena-deep:#3b0e04; }
 #contestOverlay.theme-underwater, .contest-experience.theme-underwater { --arena-a:#22d3ee; --arena-b:#0284c7; --arena-c:#2dd4bf; --arena-night:#02131b; --arena-deep:#052d3c; }
 #contestOverlay.theme-retro, .contest-experience.theme-retro { --arena-a:#fbbf24; --arena-b:#ec4899; --arena-c:#a78bfa; --arena-night:#190e08; --arena-deep:#332014; }

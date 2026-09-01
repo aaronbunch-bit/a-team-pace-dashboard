@@ -244,7 +244,7 @@ const THEME_DEFAULTS: Record<ContestTheme, Partial<ContestRecord>> = {
   carnival: { vehicle: "unicorn", trackTheme: "rainbow", accent: "pink", mascot: "🎡", effects: "confetti", mode: "wheel", wheelSkin: "candy" },
   pirate: { vehicle: "boat", trackTheme: "ocean", accent: "gold", mascot: "🏴‍☠️", effects: "sparks", mode: "race" },
   arcade: { vehicle: "ghost", trackTheme: "pixel", accent: "violet", mascot: "👾", effects: "max", mode: "race" },
-  "blood-type-a": { vehicle: "blood-a", trackTheme: "lava", accent: "blood", mascot: "🅰️", effects: "max", mode: "race" },
+  "blood-type-a": { vehicle: "blood-a", trackTheme: "stadium", accent: "lime", mascot: "🦎", effects: "max", mode: "race" },
   "dragon-cup": { vehicle: "dragon", trackTheme: "lava", accent: "orange", mascot: "🐉", effects: "fireworks", mode: "race" },
   underwater: { vehicle: "boat", trackTheme: "ocean", accent: "cyan", mascot: "🐠", effects: "sparks", mode: "race" },
   retro: { vehicle: "car", trackTheme: "pixel", accent: "gold", mascot: "📼", effects: "confetti", mode: "race" },

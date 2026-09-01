@@ -1,6 +1,10 @@
 import { getStore } from "@netlify/blobs";
 
 const ADMIN_EMAIL = "aaron.bunch@varsitytutors.com";
+const PERMANENT_ADMIN_EMAILS = new Set([
+  ADMIN_EMAIL,
+  "liz.weiss@varsitytutors.com",
+]);
 
 async function loadEmailList(storeName: string): Promise<string[]> {
   try {
@@ -14,8 +18,10 @@ async function loadEmailList(storeName: string): Promise<string[]> {
 
 export type AccessFlags = {
   email: string;
-  /** Permanent primary admin (Aaron) — always has full access. */
+  /** Primary admin (Aaron). */
   isPrimaryAdmin: boolean;
+  /** Hard-coded full admin who cannot be removed through the UI. */
+  isPermanentAdmin: boolean;
   /** On the shared Admin access list — same write + read access as Aaron. */
   isListedAdmin: boolean;
   /** Full admin = Aaron OR listed admin (writes, approvals, admin tools). */
@@ -26,7 +32,7 @@ export type AccessFlags = {
   canViewTeam: boolean;
 };
 
-/** Resolve elevated-access flags from the caller's email + Blobs lists. */
+/** Resolve elevated-access flags from permanent admins + shared Blobs lists. */
 export async function resolveAccess(email: string | null | undefined): Promise<AccessFlags | null> {
   const normalized = String(email || "").trim().toLowerCase();
   if (!normalized) return null;
@@ -37,13 +43,15 @@ export async function resolveAccess(email: string | null | undefined): Promise<A
   ]);
 
   const isPrimaryAdmin = normalized === ADMIN_EMAIL;
+  const isPermanentAdmin = PERMANENT_ADMIN_EMAILS.has(normalized);
   const isListedAdmin = admins.includes(normalized);
-  const isFullAdmin = isPrimaryAdmin || isListedAdmin;
+  const isFullAdmin = isPermanentAdmin || isListedAdmin;
   const isCoach = coaches.includes(normalized);
 
   return {
     email: normalized,
     isPrimaryAdmin,
+    isPermanentAdmin,
     isListedAdmin,
     isFullAdmin,
     isCoach,
@@ -52,8 +60,8 @@ export async function resolveAccess(email: string | null | undefined): Promise<A
 }
 
 /**
- * Gate for every admin write path. Aaron always passes; anyone on the shared
- * admin-list Blobs store also passes. Sales Coaches never pass here.
+ * Gate for every admin write path. Permanent admins always pass; anyone on the
+ * shared admin-list Blobs store also passes. Sales Coaches never pass here.
  */
 export async function requireAdmin(user: { email?: string } | null): Promise<Response | null> {
   if (!user?.email) {

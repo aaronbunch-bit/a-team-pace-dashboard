@@ -10,6 +10,8 @@
  */
 import assert from "node:assert/strict";
 import {
+  blankGoalsForNewMonth,
+  goalsForLiveMonth,
   isMonthKey,
   previousMonthKey,
 } from "../functions/_shared/goals.mts";
@@ -27,6 +29,41 @@ assert.ok(!isMonthKey(null));
 assert.equal(previousMonthKey("2026-08"), "2026-07");
 assert.equal(previousMonthKey("2026-01"), "2025-12", "January's previous month is last December");
 assert.equal(previousMonthKey("nonsense"), "");
+
+const priorQuotas = {
+  "Chris Jones": {
+    members: 51,
+    sessions: 276,
+    email: "christopher.jones@varsitytutors.com",
+    level: 4,
+    tag: "HS-100",
+    hideFromLanding: true,
+    excludeFromRollUp: true,
+  },
+};
+const blankSeptember = blankGoalsForNewMonth(priorQuotas);
+assert.equal(blankSeptember["Chris Jones"].members, 0);
+assert.equal(blankSeptember["Chris Jones"].sessions, 0);
+assert.equal(
+  blankSeptember["Chris Jones"].email,
+  "christopher.jones@varsitytutors.com",
+  "stable rep metadata carries into the new month",
+);
+assert.equal(blankSeptember["Chris Jones"].hideFromLanding, false);
+assert.equal(blankSeptember["Chris Jones"].excludeFromRollUp, false);
+assert.deepEqual(
+  goalsForLiveMonth(priorQuotas, { "2026-08": priorQuotas }, "2026-09"),
+  blankSeptember,
+  "an unsaved new month starts blank",
+);
+const savedSeptember = {
+  "Chris Jones": { ...blankSeptember["Chris Jones"], members: 12, sessions: 70 },
+};
+assert.deepEqual(
+  goalsForLiveMonth(priorQuotas, { "2026-09": savedSeptember }, "2026-09"),
+  savedSeptember,
+  "once September is saved, its own quotas load",
+);
 
 assert.equal(
   normalizeGoalRecord({ hideFromLanding: true }).hideFromLanding,

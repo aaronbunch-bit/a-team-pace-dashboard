@@ -50,6 +50,9 @@ function mainInlineScript(source) {
 
 const script = mainInlineScript(html);
 assert.ok(script.length > 100_000, "found the main inline script");
+assert.match(html, /<title>Lizards Autopacer<\/title>/);
+assert.match(html, /🦎/, "Lizards branding includes the lizard emoji");
+assert.doesNotMatch(html, /🅰️|Blood Type A|A-Team Pacer/, "old blood-type branding is gone");
 
 /** Ids the script wires listeners on — collected so we can assert on them. */
 const wired = new Map();
@@ -224,14 +227,14 @@ const errors = [];
 const windowStub = {
   document: documentStub,
   location: {
-    href: "https://a-team-autopacer.netlify.app/",
-    origin: "https://a-team-autopacer.netlify.app",
-    hostname: "a-team-autopacer.netlify.app",
+    href: "https://lizards-autopacer.netlify.app/",
+    origin: "https://lizards-autopacer.netlify.app",
+    hostname: "lizards-autopacer.netlify.app",
     protocol: "https:",
     pathname: "/",
     search: "",
     hash: "",
-    host: "a-team-autopacer.netlify.app",
+    host: "lizards-autopacer.netlify.app",
     assign() {}, replace() {}, reload() {},
   },
   localStorage: makeStorage(),
@@ -373,6 +376,11 @@ const mustExist = [
 ];
 const missing = mustExist.filter((name) => typeof context[name] !== "function");
 assert.deepEqual(missing, [], `the inline script stopped before defining: ${missing.join(", ")}`);
+assert.equal(
+  context.isAdminEmail("liz.weiss@varsitytutors.com"),
+  true,
+  "Liz Weiss is hard-coded as a full admin in client role chrome",
+);
 
 // Sign-in is what broke, and it is wired in the last few hundred lines.
 const googleClicks = wired.get("googleLoginBtn");
@@ -473,7 +481,7 @@ assert.equal(
  * Monthly Quotas can hide a rep from landing surfaces without removing them.
  *
  * This is intentionally not a roster filter and not Excluded from roll-up:
- * production remains in A-Team Total, schedules/contests still know the rep,
+ * production remains in Lizards Total, schedules/contests still know the rep,
  * and their Individual Pacer remains reachable. Only the already-computed row
  * collection handed to landing cards / leaderboards is filtered.
  */
@@ -545,6 +553,59 @@ assert.equal(typeof context.filterLandingRepRows, "function", "landing visibilit
  * same key approved-totals uses — so August credits show on August pacers.
  */
 assert.equal(typeof context.attrMonthKey, "function", "attrMonthKey must exist");
+
+assert.equal(typeof context.retainQuotaBearingInactiveReps, "function");
+{
+  const active = [{ display: "Chris Jones", active: true }];
+  const full = active.concat([
+    { display: "David Valverde", active: false },
+    { display: "Old Rep", active: false },
+  ]);
+  const monthRoster = context.retainQuotaBearingInactiveReps(active, full, {
+    "David Valverde": { members: 20, sessions: 100 },
+    "Old Rep": { members: 0, sessions: 0 },
+  });
+  assert.deepEqual(
+    monthRoster.map((rep) => rep.display),
+    ["Chris Jones", "David Valverde"],
+    "a resigned rep remains in the month they still carry quota",
+  );
+  assert.equal(
+    context.retainQuotaBearingInactiveReps(active, full, {
+      "David Valverde": { members: 0, sessions: 0 },
+    }).some((rep) => rep.display === "David Valverde"),
+    false,
+    "once a new month starts blank, the resigned rep drops naturally",
+  );
+}
+
+assert.equal(typeof context.calculateScheduleDailyGoals, "function");
+{
+  const capacities = { sun: 6, mon: 7, tue: 9, wed: 9, thu: 8, fri: 5, sat: 5 };
+  const daily = context.calculateScheduleDailyGoals(capacities, 448);
+  // 448 / 4 = 112 weekly members; Sunday = 6 / 49 * 112 = 13.71.
+  assert.equal(daily.sun, 14);
+  assert.equal(daily.tue, 21);
+  assert.equal(daily.wed, 21);
+  assert.deepEqual(
+    Object.keys(daily),
+    ["sun", "mon", "tue", "wed", "thu", "fri", "sat"],
+  );
+  assert.deepEqual(
+    context.calculateScheduleDailyGoals(
+      { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0 },
+      448,
+    ),
+    { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0 },
+    "zero capacity never divides by zero",
+  );
+  assert.equal(
+    context.calculateScheduleDailyGoals(capacities, 0).sun,
+    0,
+    "blank monthly quotas produce blank/zero daily goals",
+  );
+}
+
 assert.equal(
   context.attrMonthKey({
     saleDate: "2026-08-01",

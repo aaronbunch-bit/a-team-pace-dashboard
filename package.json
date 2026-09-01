@@ -1,7 +1,7 @@
 {
-  "name": "team-pace-dashboard",
+  "name": "lizards-autopacer",
   "version": "1.0.0",
-  "description": "A-Team pace dashboard — static site + Netlify Functions (Identity + Blobs)",
+  "description": "Lizards Autopacer — static site + Netlify Functions (Identity + Blobs)",
   "private": true,
   "scripts": {
     "test": "npm run test:identity && npm run test:api-errors && npm run test:ledger && npm run test:ledger-sql && npm run test:export-join && npm run test:goals-months && npm run test:team-month-settings && npm run test:roster-months && npm run test:month-scope && npm run test:badge-day && npm run test:boot && npm run test:browser",
