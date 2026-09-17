@@ -14,6 +14,7 @@ import {
   lineInLiveMonth,
   cancelLineItems,
   livePayloadEtag,
+  buildActuals,
 } from "../functions/get-live-actuals.mts";
 
 const EMAIL = "becky.ruffer@varsitytutors.com";
@@ -748,4 +749,54 @@ assert.notEqual(
   "a cancel moving must break the tag, or tiles freeze on a stale number"
 );
 
-console.log("ok — journal rows, cancel classification, month window, dedupe, line items, period duplicates, credit-join wash, re-booked credit, etags");
+// ---- Unmatched review queue ------------------------------------------------
+const unmatchedLine = {
+  ...line({ ledgerId: 990001, attributionId: 99001, members: 1, sessions: 8 }),
+  email: "not-an-email",
+  manager_name: "CRM Mystery Rep",
+  kind: "credit",
+};
+const pendingUnmatched = buildActuals([unmatchedLine], DISPLAY);
+assert.equal(pendingUnmatched.matchedRows, 0, "pending unmatched credit stays out of pace");
+assert.equal(pendingUnmatched.perRep["Becky Ruffer"].sessions, 0);
+assert.deepEqual(pendingUnmatched.unmatchedManagers, ["CRM Mystery Rep"]);
+assert.equal(pendingUnmatched.unmatchedRecords[0].status, "pending");
+assert.equal(pendingUnmatched.unmatchedRecords[0].reviewKey, "ledger:990001");
+
+const approvedUnmatched = buildActuals([unmatchedLine], DISPLAY, [{
+  reviewKey: "ledger:990001",
+  status: "approved",
+  repDisplay: "Becky Ruffer",
+  reviewedBy: "admin@varsitytutors.com",
+  reviewedAt: "2026-09-17T14:00:00.000Z",
+}]);
+assert.equal(approvedUnmatched.matchedRows, 1, "approved unmatched credit enters pace");
+assert.equal(approvedUnmatched.perRep["Becky Ruffer"].sessions, 8);
+assert.deepEqual(approvedUnmatched.unmatchedManagers, []);
+assert.equal(approvedUnmatched.unmatchedRecords[0].status, "approved");
+
+const deniedUnmatched = buildActuals([unmatchedLine], DISPLAY, [{
+  reviewKey: "ledger:990001",
+  status: "denied",
+  reviewedBy: "admin@varsitytutors.com",
+  reviewedAt: "2026-09-17T14:00:00.000Z",
+}]);
+assert.equal(deniedUnmatched.matchedRows, 0, "denied unmatched credit stays out of pace");
+assert.equal(deniedUnmatched.perRep["Becky Ruffer"].sessions, 0);
+assert.equal(deniedUnmatched.unmatchedRecords[0].status, "denied");
+
+const pendingPayload = {
+  ...samePayload,
+  ledgerIntegrity: { unmatchedRecords: pendingUnmatched.unmatchedRecords },
+};
+const deniedPayload = {
+  ...samePayload,
+  ledgerIntegrity: { unmatchedRecords: deniedUnmatched.unmatchedRecords },
+};
+assert.notEqual(
+  livePayloadEtag(pendingPayload, false),
+  livePayloadEtag(deniedPayload, false),
+  "a review decision must break the full-feed ETag"
+);
+
+console.log("ok — journal rows, cancel classification, month window, dedupe, line items, period duplicates, credit-join wash, re-booked credit, unmatched reviews, etags");

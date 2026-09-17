@@ -3683,6 +3683,11 @@
   }
   .ops-list-v { font-size: 13px; font-weight: 700; color: var(--text); }
   .ops-list-v.muted { color: var(--text-faint); font-weight: 600; }
+  .unmatched-rep-select {
+    width: 100%; min-width: 130px; margin-top: 6px; padding: 7px 9px;
+    border: 1px solid var(--card-border); border-radius: 9px;
+    background: var(--glass); color: var(--text); font: inherit;
+  }
   .ops-meter {
     height: 8px; border-radius: 999px; background: rgba(148,163,184,0.22); overflow: hidden; margin-top: 5px;
   }

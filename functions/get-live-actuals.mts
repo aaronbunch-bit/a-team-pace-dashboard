@@ -13,6 +13,11 @@ import {
   liveActualsCacheKey,
   loadLedgerExclusionIds,
 } from "./_shared/ledger-exclusions.mts";
+import {
+  loadUnmatchedReviewList,
+  unmatchedReviewKey,
+  type UnmatchedReviewDecision,
+} from "./_shared/unmatched-reviews.mts";
 import { TEAM_TIME_ZONE, clampAsOfToTeamToday, teamTodayYmd, teamTodayMonthKey } from "./_shared/time.mts";
 
 /** Shared warm cache so N open tabs don't each hit Supabase every poll. */
@@ -1318,12 +1323,37 @@ function summarizeCancelTypes(rows: LedgerRow[]) {
   return { ledger: summarize(byLedger), attribution: summarize(byAttr) };
 }
 
-function buildActuals(
+type UnmatchedLedgerRecord = {
+  reviewKey: string;
+  ledgerId: string;
+  managerName: string;
+  clientId: string;
+  date: string;
+  members: number;
+  sessions: number;
+  status: "pending" | "approved" | "denied";
+  repDisplay?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+};
+
+export function buildActuals(
   rows: LedgerRow[],
-  emailToDisplay: Record<string, string>
-): { asOf: string; perRep: Record<string, PerRep>; matchedRows: number; unmatchedManagers: string[] } {
+  emailToDisplay: Record<string, string>,
+  reviewDecisions: UnmatchedReviewDecision[] = []
+): {
+  asOf: string;
+  perRep: Record<string, PerRep>;
+  matchedRows: number;
+  unmatchedManagers: string[];
+  unmatchedRecords: UnmatchedLedgerRecord[];
+} {
   const perRep: Record<string, PerRep> = {};
-  for (const display of new Set(Object.values(emailToDisplay))) {
+  const reviewDisplays = reviewDecisions
+    .filter((entry) => entry.status === "approved" && entry.repDisplay)
+    .map((entry) => String(entry.repDisplay));
+  for (const display of new Set([...Object.values(emailToDisplay), ...reviewDisplays])) {
+    if (!display) continue;
     perRep[display] = {
       members: 0,
       sessions: 0,
@@ -1336,15 +1366,46 @@ function buildActuals(
   let maxDate: string | null = null;
   let matchedRows = 0;
   const unmatched = new Set<string>();
+  const unmatchedRecords: UnmatchedLedgerRecord[] = [];
+  const reviewByKey = new Map(reviewDecisions.map((entry) => [entry.reviewKey, entry]));
 
   for (const row of rows) {
     const email = safeEmail(row.email);
-    const display = email ? emailToDisplay[email] : null;
+    let display = email ? emailToDisplay[email] : null;
     const d = String(row.attribution_date || "").slice(0, 10);
     if (d && (!maxDate || d > maxDate)) maxDate = d;
     if (!display) {
-      if (row.manager_name) unmatched.add(String(row.manager_name));
-      continue;
+      const reviewKey = unmatchedReviewKey(row);
+      const decision = reviewByKey.get(reviewKey);
+      const approvedDisplay =
+        decision?.status === "approved" && decision.repDisplay && perRep[decision.repDisplay]
+          ? decision.repDisplay
+          : null;
+      if (approvedDisplay) display = approvedDisplay;
+      const status = approvedDisplay
+        ? "approved"
+        : decision?.status === "denied"
+          ? "denied"
+          : "pending";
+      unmatchedRecords.push({
+        reviewKey,
+        ledgerId: String(row.ledger_id || "").trim(),
+        managerName: String(row.manager_name || "").trim() || "Unknown rep",
+        clientId: String(row.client_id || "").trim(),
+        date: d,
+        members: Number(row.members) || 0,
+        sessions: Number(row.sessions) || 0,
+        status,
+        ...(approvedDisplay ? { repDisplay: approvedDisplay } : {}),
+        ...(decision?.reviewedBy ? { reviewedBy: decision.reviewedBy } : {}),
+        ...(decision?.reviewedAt ? { reviewedAt: decision.reviewedAt } : {}),
+      });
+      if (!display) {
+        if (status === "pending" && row.manager_name) {
+          unmatched.add(String(row.manager_name));
+        }
+        continue;
+      }
     }
     matchedRows++;
     const m = Number(row.members) || 0;
@@ -1383,6 +1444,7 @@ function buildActuals(
     perRep,
     matchedRows,
     unmatchedManagers: [...unmatched].sort(),
+    unmatchedRecords,
   };
 }
 
@@ -1499,7 +1561,14 @@ export function livePayloadEtag(payload: Record<string, unknown>, compact: boole
     return `${k}:${Number(r.members) || 0}:${Number(r.sessions) || 0}:${Number(r.membersCancels) || 0}:${Number(r.sessionsCancels) || 0}`;
   }).join(",");
   const cancels = Array.isArray(payload.cancelItems) ? payload.cancelItems.length : 0;
-  return `"${compact ? "c" : "f"}|${actuals?.asOf || ""}|${cancels}|${body}"`;
+  const integrity = payload.ledgerIntegrity as any;
+  const unmatched = Array.isArray(integrity?.unmatchedRecords)
+    ? integrity.unmatchedRecords
+        .map((row: any) => `${row.reviewKey}:${row.status}:${row.repDisplay || ""}`)
+        .sort()
+        .join(",")
+    : String(integrity?.unmatchedPendingCount || 0);
+  return `"${compact ? "c" : "f"}|${actuals?.asOf || ""}|${cancels}|${unmatched}|${body}"`;
 }
 
 function liveJsonResponse(payload: Record<string, unknown>, etag: string) {
@@ -1523,6 +1592,9 @@ function stripIntegrityForCompact(payload: Record<string, unknown>) {
     suppressedCount: Array.isArray(integrity.suppressed) ? integrity.suppressed.length : 0,
     flaggedCount: Array.isArray(integrity.flagged) ? integrity.flagged.length : 0,
     nettedCount: Array.isArray(integrity.netted) ? integrity.netted.length : 0,
+    unmatchedPendingCount: Array.isArray((integrity as any).unmatchedRecords)
+      ? (integrity as any).unmatchedRecords.filter((row: any) => row?.status === "pending").length
+      : 0,
     // A handful of numbers — small enough to keep on every poll, and the fastest
     // way to see the window the tiles were built from.
     window: integrity.window,
@@ -1593,7 +1665,10 @@ export default async (req: Request, context: Context) => {
       }
     }
 
-    const emailToDisplay = await loadEmailToDisplay();
+    const [emailToDisplay, unmatchedReviewDecisions] = await Promise.all([
+      loadEmailToDisplay(),
+      loadUnmatchedReviewList(),
+    ]);
     const emails = Object.keys(emailToDisplay);
     if (!emails.length) {
       return new Response(JSON.stringify({ error: "No roster emails configured" }), {
@@ -1959,7 +2034,7 @@ order by l.created_at asc, l.id asc;
     const exclusions = await loadLedgerExclusionIds();
     const reconciled = netLedgerJournal(rawRows, emailToDisplay, exclusions, monthYmd);
     const rows = reconciled.rows;
-    const built = buildActuals(rows, emailToDisplay);
+    const built = buildActuals(rows, emailToDisplay, unmatchedReviewDecisions);
     const actuals = { asOf: built.asOf, perRep: built.perRep };
     const cancelItems = cancelLineItems(rows, emailToDisplay);
     // Only the live month freezes a prelim snapshot on rollover. Fetching July
@@ -1988,6 +2063,7 @@ order by l.created_at asc, l.id asc;
         flagged: reconciled.flagged,
         netted: reconciled.netted,
         washed: reconciled.washed,
+        unmatchedRecords: built.unmatchedRecords,
         excludedIds: [...exclusions],
         window: {
           // Bumped whenever the counting rule changes, so "is this the build

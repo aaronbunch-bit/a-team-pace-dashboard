@@ -1044,7 +1044,15 @@
     </div>
     <div class="workspace-panel" id="teamPanelDupes" data-team-panel="dupes">
       <div class="card ops-panel-shell">
-        <h2>Duplicate credit review</h2>
+        <h2>Ledger review</h2>
+        <section id="teamUnmatchedSection" style="display:none;">
+          <h3 style="margin:4px 0; font-size:14px;">Unmatched records</h3>
+          <div class="meta-note" style="margin:0 0 10px;">These records are not counted until an admin chooses a rep and approves them. Deny keeps a record out of the pacer. Reviewed records stay here as an audit trail.</div>
+          <div class="ops-list-head ops-dupes"><span>CRM name</span><span>Client</span><span>Date</span><span>Credit</span><span>Status / rep</span><span>Decision</span></div>
+          <div class="ops-list" id="teamUnmatchedBody"></div>
+          <div class="meta-note" id="teamUnmatchedEmpty" style="display:none;">No unmatched records. Everything has a home.</div>
+        </section>
+        <h3 style="margin:22px 0 4px; font-size:14px;">Duplicate credit review</h3>
         <div class="meta-note" style="margin:0 0 12px;">The ledger is a journal, so every line of one attribution is summed and reported as a single credit row — an attribution corrected from 100% to 50% shows once at 50%, not twice. Cancellations stay on their own row and date. Anything genuinely ambiguous is listed for a human, and admins can exclude a specific ledger row from every total.</div>
         <h3 style="margin:16px 0 4px; font-size:14px;">Needs review</h3>
         <div class="meta-note" style="margin:0 0 10px;">One client credited by two separate attributions for the same rep, both still netting positive. This is also what a genuine second purchase or a cancel/rebook looks like, so nothing is removed until someone decides.</div>
@@ -11066,6 +11074,12 @@ function setTeamWorkspaceTab(tab) {
     panel.classList.toggle('active', panel.getAttribute('data-team-panel') === active);
   });
   if (active === 'schedule') renderTeamScheduleEditor();
+  if (active === 'dupes') {
+    renderLedgerIntegrityTables();
+    fetchLiveActuals({ full: true })
+      .then(() => renderLedgerIntegrityTables())
+      .catch(() => {});
+  }
 }
 function teamWorkspaceHashTab() {
   if (location.hash === '#team-goals') return 'goals';
@@ -11317,19 +11331,73 @@ function ledgerIntegrityCounts(payload) {
   const suppressed = Number.isFinite(data.suppressedCount)
     ? data.suppressedCount
     : (data.suppressed || []).length;
-  return { flagged, suppressed };
+  const unmatchedPending = Number.isFinite(data.unmatchedPendingCount)
+    ? data.unmatchedPendingCount
+    : (data.unmatchedRecords || []).filter((row) => row && row.status === 'pending').length;
+  return { flagged, suppressed, unmatchedPending };
 }
 
 function syncLedgerIntegrityBadge(payload) {
   const badge = document.getElementById('teamDupesTabBadge');
   if (!badge) return;
-  const { flagged } = ledgerIntegrityCounts(payload);
-  badge.textContent = String(flagged);
-  badge.hidden = flagged <= 0;
+  const { flagged, unmatchedPending } = ledgerIntegrityCounts(payload);
+  const needsReview = flagged + unmatchedPending;
+  badge.textContent = String(needsReview);
+  badge.hidden = needsReview <= 0;
 }
 
 function ledgerCreditLabel(members, sessions) {
   return `${fmt(Number(members) || 0, 1)} members · ${fmt(Number(sessions) || 0, 1)} sessions`;
+}
+
+function renderUnmatchedLedgerTable() {
+  const section = document.getElementById('teamUnmatchedSection');
+  const body = document.getElementById('teamUnmatchedBody');
+  const empty = document.getElementById('teamUnmatchedEmpty');
+  const canEdit = canViewAdminTools();
+  if (section) section.style.display = canEdit ? '' : 'none';
+  if (!body || !canEdit) return;
+
+  const records = [...(LEDGER_INTEGRITY.unmatchedRecords || [])].sort((a, b) => {
+    if (a.status === 'pending' && b.status !== 'pending') return -1;
+    if (b.status === 'pending' && a.status !== 'pending') return 1;
+    return String(b.date || '').localeCompare(String(a.date || ''));
+  });
+  if (!records.length) {
+    body.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  const roster = getRoster().filter((rep) => rep && rep.active !== false && rep.display);
+  body.innerHTML = records.map((row) => {
+    const options = ['<option value="">Choose a rep…</option>', ...roster.map((rep) => {
+      const selected = rep.display === row.repDisplay ? ' selected' : '';
+      return `<option value="${escapeAttr(rep.display)}"${selected}>${escapeHtml(rep.display)}</option>`;
+    })].join('');
+    const status = row.status === 'approved'
+      ? `Approved for ${row.repDisplay || 'rep'}`
+      : row.status === 'denied'
+        ? 'Denied — not counted'
+        : 'Waiting for review';
+    const audit = row.reviewedBy
+      ? `<div class="meta-note">${escapeHtml(row.reviewedBy)}${row.reviewedAt ? ' · ' + escapeHtml(new Date(row.reviewedAt).toLocaleString()) : ''}</div>`
+      : '';
+    return `
+    <div class="ops-list-row ops-dupes" data-unmatched-row="${escapeAttr(row.reviewKey)}">
+      <div><span class="ops-list-k">CRM name</span><div class="ops-list-v">${escapeHtml(row.managerName || 'Unknown rep')}</div></div>
+      <div><span class="ops-list-k">Client</span><div class="ops-list-v">${detailClientIdCellHTML(row.clientId)}</div></div>
+      <div><span class="ops-list-k">Date</span><div class="ops-list-v">${escapeHtml(row.date || '—')}</div></div>
+      <div><span class="ops-list-k">Credit</span><div class="ops-list-v">${escapeHtml(ledgerCreditLabel(row.members, row.sessions))}</div></div>
+      <div><span class="ops-list-k">Status / rep</span><div class="ops-list-v">${escapeHtml(status)}</div>${audit}<select class="unmatched-rep-select" aria-label="Rep for ${escapeAttr(row.managerName || 'unmatched record')}">${options}</select></div>
+      <div class="ops-span-all"><span class="ops-list-k">Decision</span>
+        <button type="button" class="theme-btn" style="margin:0 5px 5px 0;" data-unmatched-action="approve">Approve</button>
+        <button type="button" class="theme-btn" style="margin:0 5px 5px 0;" data-unmatched-action="deny">Deny</button>
+        ${row.status !== 'pending' ? '<button type="button" class="theme-btn" style="margin:0 0 5px;" data-unmatched-action="reopen">Reopen</button>' : ''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderLedgerDupesTable() {
@@ -11433,10 +11501,42 @@ function renderLedgerNettedTable() {
 
 function renderLedgerIntegrityTables() {
   syncLedgerIntegrityBadge();
+  renderUnmatchedLedgerTable();
   renderLedgerDupesTable();
   renderLedgerNettedTable();
   renderLedgerSuppressedTable();
 }
+
+async function postUnmatchedLedgerReview(payload) {
+  await authedFetch('/api/ledger/unmatched-review', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  await fetchLiveActuals({ full: true, fresh: true });
+  quietRefreshFromActuals();
+  renderLedgerIntegrityTables();
+}
+
+document.getElementById('teamUnmatchedBody')?.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-unmatched-action]');
+  if (!btn) return;
+  const row = btn.closest('[data-unmatched-row]');
+  const action = btn.getAttribute('data-unmatched-action');
+  const reviewKey = row?.getAttribute('data-unmatched-row') || '';
+  const repDisplay = row?.querySelector('.unmatched-rep-select')?.value || '';
+  if (action === 'approve' && !repDisplay) {
+    alert('Choose the rep who should receive this record first.');
+    return;
+  }
+  row.querySelectorAll('button, select').forEach((control) => { control.disabled = true; });
+  try {
+    await postUnmatchedLedgerReview({ action, reviewKey, repDisplay });
+  } catch (err) {
+    alert('Could not save that decision: ' + (err && err.message ? err.message : 'unknown error'));
+    row.querySelectorAll('button, select').forEach((control) => { control.disabled = false; });
+  }
+});
 
 async function postLedgerExclusion(payload) {
   const data = await authedFetch('/api/ledger/exclusions', {
@@ -12397,6 +12497,10 @@ function applyLiveActualsPayload(data, wantFull, prevDigest) {
     LEDGER_INTEGRITY = { ...LEDGER_INTEGRITY, window: data.ledgerIntegrity.window };
   }
   syncLedgerIntegrityBadge(data.ledgerIntegrity);
+  if (data.ledgerIntegrity && !data.ledgerIntegrity.compact
+      && document.getElementById('teamPanelDupes')?.classList.contains('active')) {
+    renderLedgerIntegrityTables();
+  }
   lastLiveActualsOk = true;
   const statusEl = document.getElementById('liveActualsStatus');
   if (statusEl) {
@@ -14801,6 +14905,8 @@ function syncTeamWorkspaceChrome() {
   if (saveBtn) saveBtn.style.display = canEdit ? '' : 'none';
   const roNote = document.getElementById('teamScheduleReadOnlyNote');
   if (roNote) roNote.style.display = canEdit ? 'none' : '';
+  const unmatchedSection = document.getElementById('teamUnmatchedSection');
+  if (unmatchedSection) unmatchedSection.style.display = canViewAdminTools() ? '' : 'none';
   const intro = document.getElementById('teamWorkspaceIntro');
   if (intro) {
     intro.innerHTML = team
