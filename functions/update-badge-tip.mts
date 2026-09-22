@@ -1,0 +1,44 @@
+import type { Context, Config } from "@netlify/functions";
+import { getStore } from "@netlify/blobs";
+import { getIdentityUser } from "./_shared/identity.mts";
+import { requireAdmin } from "./_shared/access.mts";
+
+// Admin-only tip/description overrides for Badge Bank hover text.
+// Applies to automatic, built-in manual, and custom badge keys.
+export default async (req: Request, context: Context) => {
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
+  }
+
+  const user = await getIdentityUser(req, context);
+  const denied = await requireAdmin(user);
+  if (denied) return denied;
+
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid request body" }), { status: 400 });
+  }
+
+  const key = String(body?.key || "").trim();
+  if (!key || key.length > 80) {
+    return new Response(JSON.stringify({ error: "Unknown badge key" }), { status: 400 });
+  }
+  const tip = String(body?.tip ?? "").trim().slice(0, 280);
+
+  const store = getStore("badge-tip-overrides");
+  const current = (await store.get("current", { type: "json" })) || {};
+  if (tip) current[key] = tip;
+  else delete current[key];
+  await store.setJSON("current", current);
+
+  return new Response(JSON.stringify({ ok: true, tipOverrides: current }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+};
+
+export const config: Config = {
+  path: "/api/badges/tip",
+};

@@ -1,9 +1,40 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
+import { requireSignedIn } from "./_shared/identity.mts";
+import { resolveAccess } from "./_shared/access.mts";
+import {
+  GOALS_MONTHS_KEY,
+  GOALS_MONTHS_STORE,
+  goalsForLiveMonth,
+  isMonthKey,
+  liveMonthKey,
+} from "./_shared/goals.mts";
+import { ROSTER_MONTHS_KEY, ROSTER_MONTHS_STORE, normalizeRosterEntries } from "./_shared/roster-months.mts";
+import { withApiErrors } from "./_shared/api-errors.mts";
+import {
+  TEAM_MONTH_SETTINGS_KEY,
+  TEAM_MONTH_SETTINGS_STORE,
+  normalizeTeamMonthSettingsDoc,
+} from "./_shared/team-month-settings.mts";
 
-// Deliberately PUBLIC / no auth check, same reasoning as approved-totals.mts
-// and get-badges-data.mts — every viewer needs the roster/goals/actuals to
-// render the dashboard at all, not just whoever's signed in.
+function redactCompensation(goals: any, viewerEmail: string, fullAccess: boolean) {
+  if (!goals || typeof goals !== "object" || fullAccess) return goals || null;
+  const email = String(viewerEmail || "").trim().toLowerCase();
+  return Object.fromEntries(Object.entries(goals).map(([name, raw]) => {
+    const goal = raw && typeof raw === "object" ? { ...(raw as Record<string, any>) } : {};
+    const isOwn = String(goal.email || "").trim().toLowerCase() === email;
+    if (!isOwn) {
+      goal.partTime = String(goal.level || "").trim().toLowerCase() === "pt" || goal.partTime === true;
+      delete goal.ote;
+      delete goal.level;
+      goal.compensationRestricted = true;
+    }
+    return [name, goal];
+  }));
+}
+
+// Identity-gated (@varsitytutors.com). Roster / goals / actuals / access lists
+// are team-internal — never serve them to anonymous callers with the URL.
 //
 // Each of these stores holds ONE blob under the key "current" — roster,
 // goals, and actuals (and the derived prelim-snapshot record) are each a
@@ -18,43 +49,102 @@ import { getStore } from "@netlify/blobs";
 // keeping two copies in sync across two files/languages. Instead, a `null`
 // field here means "nothing saved yet" and the front end's own cache just
 // keeps showing its baked-in default until the first real write happens
-// (Save Goals / Add Person / Update Actuals) — see fetchDashboardData() in
-// team-pace-dashboard.html. From that point on every browser reads the real
-// shared value instead of its own local default.
-export default async (req: Request, context: Context) => {
+// (Save Goals / Add Person / Update Actuals) — see fetchDashboardData().
+export default withApiErrors("get-dashboard-data", async (req: Request, context: Context) => {
+  const auth = await requireSignedIn(req, context);
+  if (auth.response) return auth.response;
+  const viewerEmail = String(auth.user?.email || "").trim().toLowerCase();
+  const access = await resolveAccess(viewerEmail);
+
   const rosterStore = getStore("roster");
   const goalsStore = getStore("goals");
   const actualsStore = getStore("actuals");
   const prelimStore = getStore("prelim-snapshots");
   // Admin/Sales Coach access lists — unlike roster/goals/actuals above, these
   // have no baked-in front-end default worth protecting (an empty list IS the
-  // correct starting point, since Aaron is always admin regardless of what's
+  // correct starting point, since permanent admins are allowed regardless of what's
   // in here), so they resolve to `[]` rather than `null` when nothing's been
   // saved yet.
   const adminListStore = getStore("admin-list");
   const coachListStore = getStore("coach-list");
+  const sipExtraStore = getStore("sip-extra");
+  // Quotas as they stood in each closed month, so a last-month view reads that
+  // month's numbers instead of whatever is set today.
+  const goalsMonthsStore = getStore(GOALS_MONTHS_STORE);
+  // Who was on the team in each closed month — same idea for roster removals.
+  const rosterMonthsStore = getStore(ROSTER_MONTHS_STORE);
+  const teamMonthSettingsStore = getStore(TEAM_MONTH_SETTINGS_STORE);
 
-  const [roster, goals, actuals, prelim, admins, coaches] = await Promise.all([
+  const [roster, goals, actuals, prelim, admins, coaches, sipExtra, goalsMonths, rosterMonths, teamMonthSettings] = await Promise.all([
     rosterStore.get("current", { type: "json" }),
     goalsStore.get("current", { type: "json" }),
     actualsStore.get("current", { type: "json" }),
     prelimStore.get("current", { type: "json" }),
     adminListStore.get("current", { type: "json" }),
     coachListStore.get("current", { type: "json" }),
+    sipExtraStore.get("current", { type: "json" }),
+    goalsMonthsStore.get(GOALS_MONTHS_KEY, { type: "json" }),
+    rosterMonthsStore.get(ROSTER_MONTHS_KEY, { type: "json" }),
+    teamMonthSettingsStore.get(TEAM_MONTH_SETTINGS_KEY, { type: "json" }),
   ]);
+  const normalizedGoalsMonths = goalsMonths && typeof goalsMonths === "object" && !Array.isArray(goalsMonths)
+    ? Object.fromEntries(
+        Object.entries(goalsMonths as Record<string, any>)
+          .filter(([month, doc]) => isMonthKey(month) && !!doc && typeof doc === "object")
+      )
+    : {};
+  const liveGoals = goalsForLiveMonth(
+    goals as Record<string, Record<string, unknown>> | null,
+    normalizedGoalsMonths,
+    liveMonthKey(),
+  );
+  const safeGoals = redactCompensation(liveGoals, viewerEmail, !!access?.isFullAdmin);
+  const safeGoalsMonths = Object.fromEntries(
+    Object.entries(normalizedGoalsMonths).map(([month, doc]) => [
+      month,
+      redactCompensation(doc, viewerEmail, !!access?.isFullAdmin),
+    ])
+  );
+  const safeRosterMonths = rosterMonths && typeof rosterMonths === "object" && !Array.isArray(rosterMonths)
+    ? Object.fromEntries(
+        Object.entries(rosterMonths as Record<string, any>)
+          .filter(([month, list]) => isMonthKey(month) && Array.isArray(list))
+          .map(([month, list]) => [month, normalizeRosterEntries(list)])
+      )
+    : {};
+  const safePrelim = prelim && typeof prelim === "object"
+    ? Object.fromEntries(Object.entries(prelim as Record<string, any>).map(([month, snapshot]) => [
+        month,
+        snapshot && typeof snapshot === "object"
+          ? {
+              ...snapshot,
+              goals: redactCompensation(snapshot.goals, viewerEmail, !!access?.isFullAdmin),
+            }
+          : snapshot,
+      ]))
+    : prelim;
 
   return new Response(
     JSON.stringify({
       roster: roster || null,
-      goals: goals || null,
+      rosterMonths: safeRosterMonths,
+      goals: safeGoals,
+      goalsMonths: safeGoalsMonths,
+      teamMonthSettings: normalizeTeamMonthSettingsDoc(teamMonthSettings),
       actuals: actuals || null,
-      prelim: prelim || null,
+      prelim: safePrelim || null,
       admins: admins || [],
       coaches: coaches || [],
+      // Closed-out SIP months from the Historical Performance importer.
+      // Empty array (not null) when nothing has been closed out yet.
+      sipExtra: Array.isArray(sipExtra) ? sipExtra : [],
     }),
-    { status: 200, headers: { "Content-Type": "application/json" } }
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    }
   );
-};
+});
 
 export const config: Config = {
   path: "/api/dashboard/data",

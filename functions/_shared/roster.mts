@@ -39,6 +39,28 @@ export async function resolveRepNameFromEmail(email: string): Promise<string | n
   return FALLBACK_ROSTER_EMAILS[normalized] || null;
 }
 
+/** Reverse of resolveRepNameFromEmail — display name → goals email (or fallback). */
+export async function resolveEmailFromRepDisplay(display: string): Promise<string | null> {
+  const name = String(display || "").trim();
+  if (!name) return null;
+
+  try {
+    const goals = await getStore("goals").get("current", { type: "json" });
+    if (goals && typeof goals === "object") {
+      const g = (goals as Record<string, any>)[name];
+      const email = String(g?.email || "").trim().toLowerCase();
+      if (email) return email;
+    }
+  } catch {
+    // Fall through.
+  }
+
+  for (const [email, disp] of Object.entries(FALLBACK_ROSTER_EMAILS)) {
+    if (disp === name) return email;
+  }
+  return null;
+}
+
 /** Active (or all known) rep display names from the roster Blob. */
 export async function loadValidRepDisplays(): Promise<Set<string>> {
   try {

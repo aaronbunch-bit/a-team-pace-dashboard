@@ -1,15 +1,18 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
+import { requireSignedIn } from "./_shared/identity.mts";
+import { teamTodayMonthKey } from "./_shared/time.mts";
+import { withApiErrors } from "./_shared/api-errors.mts";
 
-// Deliberately PUBLIC / no auth check — every viewer of the dashboard needs these
-// aggregate numbers to see accurate pace, not just the rep who submitted them or
-// the admin. Only approved totals per rep are exposed here; the underlying
-// request details (client IDs, reasons, who submitted) stay behind the
-// Identity-gated list/review endpoints.
-export default async (req: Request, context: Context) => {
+// Identity-gated (@varsitytutors.com). Only aggregate approved totals per rep
+// are returned — request details stay on the list/review endpoints.
+export default withApiErrors("approved-totals", async (req: Request, context: Context) => {
+  const auth = await requireSignedIn(req, context);
+  if (auth.response) return auth.response;
+
   const url = new URL(req.url);
   const month = url.searchParams.get("month"); // "YYYY-MM"; defaults to current month
-  const targetMonth = month || new Date().toISOString().slice(0, 7);
+  const targetMonth = month || teamTodayMonthKey();
 
   const store = getStore("manual-attributions");
   const { blobs } = await store.list();
@@ -26,9 +29,9 @@ export default async (req: Request, context: Context) => {
 
   return new Response(JSON.stringify({ month: targetMonth, totals }), {
     status: 200,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
-};
+});
 
 export const config: Config = {
   path: "/api/attributions/approved-totals",

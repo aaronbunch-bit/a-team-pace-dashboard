@@ -3,6 +3,7 @@ import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
 import { ADMIN_EMAIL } from "./_shared/access.mts";
 import { resolveRepNameFromEmail } from "./_shared/roster.mts";
+import { teamTodayYmd } from "./_shared/time.mts";
 
 // Open to any signed-in user, not just Aaron/admins — deliberate design.
 // Still requires real sign-in so `from` can be attributed truthfully instead
@@ -26,6 +27,7 @@ export default async (req: Request, context: Context) => {
 
   const rep = String(body?.rep || "").trim();
   const text = String(body?.text || "").trim();
+  const hidden = !!body?.hidden;
   if (!rep || !text) {
     return new Response(JSON.stringify({ error: "Pick a teammate and write a quick message first" }), { status: 400 });
   }
@@ -42,7 +44,8 @@ export default async (req: Request, context: Context) => {
     id,
     rep,
     text,
-    date: now.toISOString().slice(0, 10),
+    hidden,
+    date: teamTodayYmd(now),
     createdAt: now.toISOString(),
     fromEmail: email,
     fromDisplayName,
@@ -51,7 +54,10 @@ export default async (req: Request, context: Context) => {
   await store.setJSON(id, record);
 
   return new Response(
-    JSON.stringify({ ok: true, shoutout: { id, text, date: record.date, from: fromDisplayName } }),
+    JSON.stringify({
+      ok: true,
+      shoutout: { id, text, date: record.date, from: fromDisplayName, hidden },
+    }),
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
 };

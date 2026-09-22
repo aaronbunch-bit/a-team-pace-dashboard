@@ -2,7 +2,16 @@ import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
 import { resolveRepNameFromEmail } from "./_shared/roster.mts";
+import { teamTodayYmd } from "./_shared/time.mts";
+import {
+  findAttrDuplicates,
+  membersValidationError,
+  normalizeAttrMembers,
+} from "./_shared/attribution.mts";
 
+// Self-submit path: repName is always derived from the caller's own email so
+// nobody can claim credit as a different rep. Admins/coaches submitting on
+// behalf of someone else use submit-attribution-admin.mts instead.
 export default async (req: Request, context: Context) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
@@ -29,32 +38,65 @@ export default async (req: Request, context: Context) => {
     return new Response(JSON.stringify({ error: "Invalid request body" }), { status: 400 });
   }
 
-  const { clientId, members, sessions, saleDate, reason } = body || {};
-  const membersNum = Number(members) || 0;
+  const { clientLink, contact, members, sessions, adjustmentReason, comments } = body || {};
+  const membersNum = normalizeAttrMembers(members);
   const sessionsNum = Number(sessions) || 0;
-  if (!clientId || (!membersNum && !sessionsNum) || !saleDate || !reason) {
+  const contactStr = contact != null ? String(contact).trim() : "";
+  const membersErr = membersValidationError(members);
+  if (membersErr) {
+    return new Response(JSON.stringify({ error: membersErr }), { status: 400 });
+  }
+  if (!clientLink || !contactStr || !membersNum || !adjustmentReason || !comments) {
     return new Response(
-      JSON.stringify({ error: "Missing required fields (clientId, members or sessions, saleDate, reason)" }),
+      JSON.stringify({
+        error: "Missing required fields (clientLink, contact, members, adjustmentReason, comments)",
+      }),
       { status: 400 }
     );
+  }
+
+  const store = getStore("manual-attributions");
+  const forceDuplicate = !!(body?.forceDuplicate || body?.confirmDuplicate);
+  if (!forceDuplicate) {
+    const { blobs } = await store.list();
+    const existing = (await Promise.all(blobs.map((b) => store.get(b.key, { type: "json" })))).filter(
+      Boolean
+    );
+    const matches = findAttrDuplicates(existing as any[], {
+      clientLink,
+      contact: contactStr,
+    });
+    if (matches.length) {
+      return new Response(
+        JSON.stringify({
+          error: "A request for this client has already been submitted",
+          duplicate: true,
+          matches: matches.slice(0, 5),
+        }),
+        { status: 409, headers: { "Content-Type": "application/json" } }
+      );
+    }
   }
 
   const record = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     repEmail: email,
     repName,
-    clientId: String(clientId).trim(),
+    clientLink: String(clientLink).trim(),
+    contact: contactStr,
     members: membersNum,
     sessions: sessionsNum,
-    saleDate: String(saleDate).slice(0, 10),
-    reason: String(reason).trim(),
+    adjustmentReason: String(adjustmentReason).trim(),
+    comments: String(comments).trim(),
+    // No sale-date field in the UI — approved-totals buckets by submission date
+    // on the team calendar (America/Chicago).
+    saleDate: teamTodayYmd(),
     status: "pending",
     submittedAt: new Date().toISOString(),
     reviewedAt: null as string | null,
     reviewedBy: null as string | null,
   };
 
-  const store = getStore("manual-attributions");
   await store.setJSON(record.id, record);
 
   return new Response(JSON.stringify({ ok: true, record }), {

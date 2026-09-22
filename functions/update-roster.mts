@@ -2,6 +2,10 @@ import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
 import { requireAdmin } from "./_shared/access.mts";
+import {
+  normalizeRosterEntries,
+  recordLiveMonthRoster,
+} from "./_shared/roster-months.mts";
 
 // Full admins (Aaron or admin-list) may write. Sales Coaches
 // (isLimitedAdminEmail() on the front end) are NOT granted write access here.
@@ -38,9 +42,14 @@ export default async (req: Request, context: Context) => {
   }
 
   const store = getStore("roster");
-  await store.setJSON("current", roster);
+  const previous = normalizeRosterEntries(await store.get("current", { type: "json" }));
+  const normalized = normalizeRosterEntries(roster);
+  await store.setJSON("current", normalized);
+  // Archive this month and settle last month on first write after rollover so
+  // removing someone today does not erase them from last month's boards.
+  const rosterMonths = await recordLiveMonthRoster(normalized, previous);
 
-  return new Response(JSON.stringify({ ok: true, roster }), {
+  return new Response(JSON.stringify({ ok: true, roster: normalized, rosterMonths }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });

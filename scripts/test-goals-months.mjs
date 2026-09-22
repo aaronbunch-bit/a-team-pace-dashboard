@@ -1,0 +1,139 @@
+/**
+ * Locks in month-scoped team quotas.
+ * Run: npm test
+ *
+ * Quotas were one document with no month on it, so a last-month view read
+ * whatever was set today: change or clear a quota for the new month and last
+ * month's board changed with it. These checks cover the two rules that stop
+ * that — a month, once settled, is never rewritten by a later edit, and the
+ * month before the live one is settled the first time the live one is saved.
+ */
+import assert from "node:assert/strict";
+import {
+  blankGoalsForNewMonth,
+  goalsForLiveMonth,
+  isMonthKey,
+  previousMonthKey,
+} from "../functions/_shared/goals.mts";
+import { normalizeGoalRecord } from "../functions/update-goals.mts";
+
+assert.ok(isMonthKey("2026-07"));
+assert.ok(isMonthKey("2026-12"));
+assert.ok(!isMonthKey("2026-13"), "month 13 is not a month");
+assert.ok(!isMonthKey("2026-00"), "month 0 is not a month");
+assert.ok(!isMonthKey("2026-7"), "unpadded months would sort wrong");
+assert.ok(!isMonthKey("2026-07-01"), "a day is not a month key");
+assert.ok(!isMonthKey(""));
+assert.ok(!isMonthKey(null));
+
+assert.equal(previousMonthKey("2026-08"), "2026-07");
+assert.equal(previousMonthKey("2026-01"), "2025-12", "January's previous month is last December");
+assert.equal(previousMonthKey("nonsense"), "");
+
+const priorQuotas = {
+  "Chris Jones": {
+    members: 51,
+    sessions: 276,
+    email: "christopher.jones@varsitytutors.com",
+    level: 4,
+    tag: "HS-100",
+    hideFromLanding: true,
+    excludeFromRollUp: true,
+  },
+};
+const blankSeptember = blankGoalsForNewMonth(priorQuotas);
+assert.equal(blankSeptember["Chris Jones"].members, 0);
+assert.equal(blankSeptember["Chris Jones"].sessions, 0);
+assert.equal(
+  blankSeptember["Chris Jones"].email,
+  "christopher.jones@varsitytutors.com",
+  "stable rep metadata carries into the new month",
+);
+assert.equal(blankSeptember["Chris Jones"].hideFromLanding, false);
+assert.equal(blankSeptember["Chris Jones"].excludeFromRollUp, false);
+assert.deepEqual(
+  goalsForLiveMonth(priorQuotas, { "2026-08": priorQuotas }, "2026-09"),
+  blankSeptember,
+  "an unsaved new month starts blank",
+);
+const savedSeptember = {
+  "Chris Jones": { ...blankSeptember["Chris Jones"], members: 12, sessions: 70 },
+};
+assert.deepEqual(
+  goalsForLiveMonth(priorQuotas, { "2026-09": savedSeptember }, "2026-09"),
+  savedSeptember,
+  "once September is saved, its own quotas load",
+);
+
+assert.equal(
+  normalizeGoalRecord({ hideFromLanding: true }).hideFromLanding,
+  true,
+  "the update API persists landing visibility",
+);
+assert.equal(
+  normalizeGoalRecord({ hideFromLanding: false }).hideFromLanding,
+  false,
+);
+assert.equal(
+  normalizeGoalRecord({}).hideFromLanding,
+  false,
+  "existing quota rows stay visible by default",
+);
+
+/**
+ * The archive rule, as `recordLiveMonthGoals` applies it. Kept as a pure
+ * function here so the behaviour is asserted without a Blobs client: the real
+ * one is the same three lines around a store read and write.
+ */
+function settle(byMonth, month, goals, previousGoals) {
+  const out = { ...byMonth };
+  const prior = previousMonthKey(month);
+  if (prior && !out[prior] && previousGoals && Object.keys(previousGoals).length) {
+    out[prior] = previousGoals;
+  }
+  out[month] = goals;
+  return out;
+}
+
+const july = {
+  "Becky Ruffer": {
+    members: 8,
+    sessions: 60,
+    excludeFromRollUp: true,
+    hideFromLanding: true,
+  },
+};
+const august = {
+  "Becky Ruffer": {
+    members: 9,
+    sessions: 64,
+    excludeFromRollUp: false,
+    hideFromLanding: false,
+  },
+};
+
+// Saving August for the first time after rollover freezes July as it stood.
+const first = settle({}, "2026-08", august, july);
+assert.deepEqual(first["2026-07"], july, "last month keeps the quotas it ran under");
+assert.equal(first["2026-07"]["Becky Ruffer"].excludeFromRollUp, true, "exclude-from-roll-up freezes with last month");
+assert.equal(first["2026-07"]["Becky Ruffer"].hideFromLanding, true, "landing visibility freezes with last month");
+assert.deepEqual(first["2026-08"], august);
+assert.equal(first["2026-08"]["Becky Ruffer"].excludeFromRollUp, false);
+assert.equal(first["2026-08"]["Becky Ruffer"].hideFromLanding, false);
+
+// Editing August again must not touch July, even to a cleared document.
+const cleared = { "Becky Ruffer": { members: 0, sessions: 0 } };
+const second = settle(first, "2026-08", cleared, august);
+assert.deepEqual(second["2026-07"], july, "clearing this month's quota cannot clear last month's");
+assert.deepEqual(second["2026-08"], cleared);
+
+// A month already settled is never overwritten by a later live-month save.
+const third = settle(second, "2026-08", august, { "Becky Ruffer": { members: 99, sessions: 99 } });
+assert.deepEqual(third["2026-07"], july, "a settled month is history, not a mirror of today");
+
+// Nothing to freeze when there is nothing to freeze.
+const empty = settle({}, "2026-08", august, null);
+assert.equal(empty["2026-07"], undefined);
+assert.deepEqual(empty["2026-08"], august);
+
+console.log("ok — month keys, and a settled month survives every later quota edit");
