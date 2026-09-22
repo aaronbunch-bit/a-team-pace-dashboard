@@ -12472,6 +12472,14 @@ function claimLiveActualsLeadership() {
   }
 }
 
+/** Which engine served this payload — Supabase or the Starburst warehouse. */
+function liveFeedSourceLabel(data) {
+  const source = String((data && data.source) || '').toLowerCase();
+  if (source === 'starburst' || source === 'trino') return 'Starburst';
+  if (source === 'supabase') return 'Supabase';
+  return 'Supabase';
+}
+
 function applyLiveActualsPayload(data, wantFull, prevDigest) {
   if (!data.actuals || !data.actuals.perRep) {
     lastLiveActualsOk = false;
@@ -12509,13 +12517,13 @@ function applyLiveActualsPayload(data, wantFull, prevDigest) {
     if (data.stale) {
       const ageMs = Date.now() - Number(data.fetchedAtMs || 0);
       const mins = Number.isFinite(ageMs) && ageMs >= 0 ? Math.round(ageMs / 60000) : null;
-      statusEl.textContent = 'Live Supabase feed unavailable — showing the last numbers that loaded'
+      statusEl.textContent = `Live ${liveFeedSourceLabel(data)} feed unavailable — showing the last numbers that loaded`
         + (mins != null ? `, from ${mins} min ago` : '')
         + ` · as of ${data.actuals.asOf}`
         + (data.staleReason ? ` · ${data.staleReason}` : '');
       statusEl.style.color = '#b45309';
     } else {
-      statusEl.textContent = `Live Supabase feed OK · as of ${data.actuals.asOf}` +
+      statusEl.textContent = `Live ${liveFeedSourceLabel(data)} feed OK · as of ${data.actuals.asOf}` +
         (data.matchedRows != null ? ` · ${data.matchedRows} ledger rows` : '') +
         (data.cacheHit ? ' · cached' : '') +
         (data.sharedHit ? ' · sibling tab' : '') +
@@ -12600,7 +12608,7 @@ async function fetchLiveActuals(opts) {
     if (data && data.__notModified) {
       lastLiveActualsOk = true;
       if (statusEl) {
-        statusEl.textContent = (statusEl.textContent || 'Live Supabase feed OK') + ' · unchanged';
+        statusEl.textContent = (statusEl.textContent || 'Live feed OK') + ' · unchanged';
         statusEl.style.color = '#16a34a';
       }
       return 'unchanged';
@@ -12636,7 +12644,7 @@ async function fetchLiveActuals(opts) {
       }
     }
     if (statusEl) {
-      statusEl.textContent = 'Live Supabase feed unavailable — showing last Blobs/CSV actuals. ' +
+      statusEl.textContent = 'Live warehouse feed unavailable — showing last Blobs/CSV actuals. ' +
         ((e && e.message) || 'Sign-in required');
       statusEl.style.color = '#b45309';
     }

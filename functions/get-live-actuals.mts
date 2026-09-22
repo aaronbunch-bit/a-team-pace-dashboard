@@ -1,7 +1,12 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { requireSignedIn } from "./_shared/identity.mts";
-import { runSupabaseSql, supabaseConfig } from "./_shared/supabase.mts";
+import {
+  runWarehouseSql,
+  warehouseDialect,
+  warehouseStatus,
+} from "./_shared/warehouse.mts";
+import { postgresDialect, type SqlDialect } from "./_shared/sql-dialect.mts";
 import { loadGoalsByMonth, saveGoalsByMonth } from "./_shared/goals.mts";
 import {
   loadRosterByMonth,
@@ -61,13 +66,15 @@ function liveCacheKeyFor(month: string, _isCurrent: boolean): string {
  * SQL bounds for one Chicago calendar month: ledger lines created in the
  * month, sales that occurred in that month or the one before (scoring range).
  */
-function monthBoundsCte(month: string, tz: string): string {
+export function monthBoundsCte(month: string, tz: string, d: SqlDialect = postgresDialect): string {
   // month is validated YYYY-MM before it reaches here.
+  const start = d.zonedTimestampLiteral(`${month}-01`, tz);
+  const oneMonth = d.interval(1, "month");
   return `bounds as (
   select
-    (timestamp '${month}-01' at time zone '${tz}') as month_start,
-    ((timestamp '${month}-01' at time zone '${tz}') + interval '1 month') as month_end,
-    ((timestamp '${month}-01' at time zone '${tz}') - interval '1 month') as scoring_start
+    ${start} as month_start,
+    (${start} + ${oneMonth}) as month_end,
+    (${start} - ${oneMonth}) as scoring_start
 )`;
 }
 
@@ -137,6 +144,20 @@ const MONTH_KEY_NAME_RE =
 
 /** Keeps the generated select (and the CSV) to a readable width. */
 const MONTH_KEY_CANDIDATE_LIMIT = 32;
+
+/**
+ * A candidate column rendered as a calendar day in the team zone.
+ *
+ * Date columns are already a day; timestamps are shifted into the zone first;
+ * anything else is clipped from its text form, so a text or numeric store of
+ * the export's attribution_date still scores instead of being skipped.
+ */
+export function candidateDayExpr(expr: string, type: string, tz: string, d: SqlDialect): string {
+  if (!MONTH_KEY_DATE_TYPES.has(type)) return d.leftText(expr, 10);
+  if (type === "date") return d.text(expr);
+  if (type === "timestamp without time zone") return d.dayTextFromLocal(expr, tz);
+  return d.dayTextFromInstant(expr, tz);
+}
 
 type MonthKeyCandidate = {
   /** Alias used in SQL (`cand_…`) and in the CSV header. */
@@ -1011,7 +1032,10 @@ function summarizeCancelsBySaleMonth(rows: LedgerRow[], month: string) {
  * The col-probe dump proved ledger + attributions have no business-date column
  * matching the export. `credits` is the remaining join via `l.credit_id`.
  */
-async function loadLedgerSchema(): Promise<{
+async function loadLedgerSchema(
+  d: SqlDialect = postgresDialect,
+  tz = TEAM_TIME_ZONE.replace(/'/g, "''")
+): Promise<{
   columns: Record<string, string[]> | null;
   candidates: MonthKeyCandidate[];
   tables: string[];
@@ -1027,14 +1051,14 @@ async function loadLedgerSchema(): Promise<{
     businessAtExpr: null,
   };
   try {
-    const cols = await runSupabaseSql<{
+    const cols = await runWarehouseSql<{
       table_name: string;
       column_name: string;
       data_type: string;
     }>(`
 select table_name, column_name, data_type
-from information_schema.columns
-where table_schema = 'sales_attribution'
+from ${d.informationSchema("columns")}
+where table_schema = '${d.schemaName()}'
   and table_name in (
     'rep_scores_ledger_entries', 'attributions', 'credits',
     'sessions', 'calls', 'clients'
@@ -1055,7 +1079,7 @@ order by
     for (const c of cols) {
       const table = String(c.table_name);
       const name = String(c.column_name);
-      const type = String(c.data_type);
+      const type = d.normalizeColumnType(String(c.data_type));
       (columns[table] ||= []).push(`${name}:${type}`);
       if (table === "credits") creditColRows.push({ name, type });
       if (
@@ -1102,10 +1126,10 @@ order by
 
     let tables: string[] = [];
     try {
-      const tableRows = await runSupabaseSql<{ table_name: string }>(`
+      const tableRows = await runWarehouseSql<{ table_name: string }>(`
 select table_name
-from information_schema.tables
-where table_schema = 'sales_attribution'
+from ${d.informationSchema("tables")}
+where table_schema = '${d.schemaName()}'
 order by table_name;
 `);
       tables = tableRows.map((r) => String(r.table_name));
@@ -1115,17 +1139,22 @@ order by table_name;
 
     let attributionDateColumns: string[] = [];
     try {
-      const dateRows = await runSupabaseSql<{
+      // Unscoped on Postgres (the probe is meant to find the column anywhere).
+      // Trino enumerates every schema in the catalog for that, which is slow
+      // enough to blow the function's budget, so there it stays schema-scoped.
+      const schemaFilter =
+        d.name === "trino" ? `\n  and table_schema = '${d.schemaName()}'` : "";
+      const dateRows = await runWarehouseSql<{
         table_schema: string;
         table_name: string;
         column_name: string;
         data_type: string;
       }>(`
 select table_schema, table_name, column_name, data_type
-from information_schema.columns
+from ${d.informationSchema("columns")}
 where column_name in (
   'attribution_date', 'business_date', 'effective_date', 'score_date', 'scoring_date'
-)
+)${schemaFilter}
 order by table_schema, table_name, column_name;
 `);
       attributionDateColumns = dateRows.map(
@@ -1135,7 +1164,7 @@ order by table_schema, table_name, column_name;
       console.warn("get-live-actuals attribution_date search failed", err?.message || err);
     }
 
-    const creditJoin = buildCreditJoinPlan(creditColRows);
+    const creditJoin = buildCreditJoinPlan(creditColRows, tz, d);
 
     return { columns, candidates, tables, attributionDateColumns, creditJoin };
   } catch (err: any) {
@@ -1158,7 +1187,8 @@ order by table_schema, table_name, column_name;
  */
 export function buildCreditJoinPlan(
   creditCols: { name: string; type: string }[],
-  tz = TEAM_TIME_ZONE.replace(/'/g, "''")
+  tz = TEAM_TIME_ZONE.replace(/'/g, "''"),
+  d: SqlDialect = postgresDialect
 ): CreditJoinPlan {
   if (!creditCols.length) {
     return {
@@ -1192,19 +1222,25 @@ export function buildCreditJoinPlan(
 
   const idMatch =
     idColumns.length > 0
-      ? idColumns.map((col) => `c.${col}::text = btrim(l.credit_id)`).join("\n      or ")
+      ? idColumns
+          .map((col) => `${d.text(`c.${col}`)} = ${d.trim("l.credit_id")}`)
+          .join("\n      or ")
       : "false";
   const onClause = `(
-    nullif(btrim(coalesce(l.credit_id, '')), '') is not null
+    nullif(${d.trim("coalesce(l.credit_id, '')")}, '') is not null
     and (
       ${idMatch}
     )
   )`;
 
-  const businessParts = dateColumns.map(({ name, type }) => {
-    if (type === "date") return `c.${name}::text`;
-    return `(c.${name} at time zone '${tz}')::date::text`;
-  });
+  const dayText = (name: string, type: string) =>
+    type === "date"
+      ? d.text(`c.${name}`)
+      : type === "timestamp without time zone"
+        ? d.dayTextFromLocal(`c.${name}`, tz)
+        : d.dayTextFromInstant(`c.${name}`, tz);
+
+  const businessParts = dateColumns.map(({ name, type }) => dayText(name, type));
   const businessDateExpr = businessParts.length ? `coalesce(${businessParts.join(", ")})` : null;
 
   // Raw timestamp behind the same preference order, for windowing the month.
@@ -1216,7 +1252,7 @@ export function buildCreditJoinPlan(
     .map(({ name }) => `c.${name}`);
   const dateOnlyParts = dateColumns
     .filter(({ type }) => type === "date")
-    .map(({ name }) => `(c.${name}::timestamp at time zone '${tz}')`);
+    .map(({ name }) => d.dateToInstant(`c.${name}`, tz));
   const allParts = [...timestampParts, ...dateOnlyParts];
   const businessAtExpr = allParts.length
     ? allParts.length === 1
@@ -1229,11 +1265,9 @@ export function buildCreditJoinPlan(
   const occurredColumns = CREDIT_OCCURRED_DATE_PRIORITY
     .map((name) => dateColumns.find((c) => c.name === name))
     .filter((c): c is { name: string; type: string } => !!c);
-  const occurredDayParts = occurredColumns.map(({ name, type }) =>
-    type === "date" ? `c.${name}::text` : `(c.${name} at time zone '${tz}')::date::text`
-  );
+  const occurredDayParts = occurredColumns.map(({ name, type }) => dayText(name, type));
   const occurredAtParts = occurredColumns.map(({ name, type }) =>
-    type === "date" ? `(c.${name}::timestamp at time zone '${tz}')` : `c.${name}`
+    type === "date" ? d.dateToInstant(`c.${name}`, tz) : `c.${name}`
   );
   const coalesced = (parts: string[]) =>
     parts.length ? (parts.length === 1 ? parts[0] : `coalesce(${parts.join(", ")})`) : null;
@@ -1610,11 +1644,14 @@ export default async (req: Request, context: Context) => {
   const auth = await requireSignedIn(req, context);
   if (auth.response) return auth.response;
 
-  if (!supabaseConfig()) {
+  const warehouse = warehouseStatus();
+  if (!warehouse.configured) {
     return new Response(
       JSON.stringify({
-        error: "Supabase not configured",
-        hint: "Set SUPABASE_ACCESS_TOKEN (and optional SUPABASE_PROJECT_REF) in Netlify env",
+        error: `${warehouse.driver === "starburst" ? "Starburst" : "Supabase"} not configured`,
+        hint: `Set ${warehouse.missingEnv.join(", ")} in the Netlify site env`,
+        driver: warehouse.driver,
+        missingEnv: warehouse.missingEnv,
       }),
       { status: 503, headers: { "Content-Type": "application/json" } }
     );
@@ -1681,12 +1718,15 @@ export default async (req: Request, context: Context) => {
     // one. Soft-deleted attributions and orphan/transfer washes run in JS.
     // `?month=` selects a closed month for Last-month views; default is today.
     const tz = TEAM_TIME_ZONE.replace(/'/g, "''");
-    const bounds = monthBoundsCte(monthYmd, tz);
+    // Every engine-specific fragment below comes from the dialect, so the same
+    // generator serves Supabase (Postgres) and Starburst (Trino).
+    const d = warehouseDialect();
+    const bounds = monthBoundsCte(monthYmd, tz, d);
 
     // Read the ledger's shape before querying it, so every date column it has
     // can be carried on the row and measured against the month. Best effort:
     // the query below runs with no candidates if this fails.
-    const schema = await loadLedgerSchema();
+    const schema = await loadLedgerSchema(d, tz);
     const creditJoin = schema.creditJoin;
     // Credits date candidates need the join; drop them when the join is off so
     // the select list never references alias `c` without a FROM entry.
@@ -1699,11 +1739,7 @@ export default async (req: Request, context: Context) => {
         // and clipped to a calendar day so a text/numeric store of the export's
         // attribution_date still scores. Credits columns are null when the join
         // misses — left() of null stays null and is dropped from candidates.
-        const asDay = MONTH_KEY_DATE_TYPES.has(type)
-          ? type === "date"
-            ? `${expr}::text`
-            : `(${expr} at time zone '${tz}')::date::text`
-          : `left((${expr})::text, 10)`;
+        const asDay = candidateDayExpr(expr, type, tz, d);
         return `  ${asDay} as "cand_${alias}"`;
       })
       .join(",\n");
@@ -1715,7 +1751,7 @@ export default async (req: Request, context: Context) => {
       c.startsWith("deleted_at:")
     );
     const creditJoinSql = creditJoin.enabled
-      ? `left join sales_attribution.credits c
+      ? `left join ${d.table("credits")} c
     on ${creditJoin.onClause}${creditHasDeletedAt ? "\n   and c.deleted_at is null" : ""}`
       : "";
     const creditMatchedExpr =
@@ -1757,13 +1793,13 @@ export default async (req: Request, context: Context) => {
     case
       when l.net_client_credit_amount < 0 or l.hours_amount < 0 then exists (
         select 1
-        from sales_attribution.rep_scores_ledger_entries t
+        from ${d.table("rep_scores_ledger_entries")} t
         where t.attribution_id = l.attribution_id
           and t.deleted_at is null
           and t.manager_id <> l.manager_id
           and t.net_client_credit_amount > 0
-          and t.created_at between l.created_at - interval '5 seconds'
-                               and l.created_at + interval '5 seconds'
+          and t.created_at between l.created_at - ${d.interval(5, "second")}
+                               and l.created_at + ${d.interval(5, "second")}
       )
       else false
     end as transferred_out`;
@@ -1788,18 +1824,18 @@ export default async (req: Request, context: Context) => {
         ? `,\n    ${creditMatchedExpr} as credit_matched${
             creditJoin.businessDateExpr
               ? `,\n    ${creditJoin.businessDateExpr} as credit_business_date`
-              : `,\n    null::text as credit_business_date`
+              : `,\n    ${d.nullText()} as credit_business_date`
           }${
             creditJoin.occurredDateExpr
               ? `,\n    ${creditJoin.occurredDateExpr} as credit_occurred_date`
-              : `,\n    null::text as credit_occurred_date`
+              : `,\n    ${d.nullText()} as credit_occurred_date`
           }`
         : ""
     }${candidateSelect ? `,\n${candidateSelect}` : ""}
-  from sales_attribution.rep_scores_ledger_entries l
-  join sales_attribution.attributions a
+  from ${d.table("rep_scores_ledger_entries")} l
+  join ${d.table("attributions")} a
     on a.id = l.attribution_id
-  join sales_attribution.flex_team_members f
+  join ${d.table("flex_team_members")} f
     on f.manager_id = l.manager_id
    and f.deleted_at is null
   ${creditJoinSql}
@@ -1824,9 +1860,9 @@ life as (
   select
     l2.attribution_id,
     l2.manager_id,
-    sum(l2.net_client_credit_amount)::float8 as lifetime_members,
-    sum(l2.hours_amount)::float8 as lifetime_sessions
-  from sales_attribution.rep_scores_ledger_entries l2
+    ${d.float("sum(l2.net_client_credit_amount)")} as lifetime_members,
+    ${d.float("sum(l2.hours_amount)")} as lifetime_sessions
+  from ${d.table("rep_scores_ledger_entries")} l2
   join journals j
     on j.attribution_id = l2.attribution_id
    and j.manager_id = l2.manager_id
@@ -1837,20 +1873,20 @@ select
   win.email,
   win.manager_name,
   win.client_id,
-  win.ledger_id::text as ledger_id,
-  win.attribution_id::text as attribution_id,
-  win.manager_id::text as manager_id,
-  win.created_at::text as ledger_created_at,
-  (win.created_at at time zone '${tz}')::date::text as attribution_date,
-  (win.created_at at time zone '${tz}')::text as occurred_at,
-  (win.sale_occurred_at at time zone '${tz}')::text as sale_occurred_at,
+  ${d.text("win.ledger_id")} as ledger_id,
+  ${d.text("win.attribution_id")} as attribution_id,
+  ${d.text("win.manager_id")} as manager_id,
+  ${d.text("win.created_at")} as ledger_created_at,
+  ${d.dayTextFromInstant("win.created_at", tz)} as attribution_date,
+  ${d.zonedText("win.created_at", tz)} as occurred_at,
+  ${d.zonedText("win.sale_occurred_at", tz)} as sale_occurred_at,
   win.attribution_deleted,
   win.transferred_out,
   win.ledger_type,
   win.attr_type,
   win.credit_id,
-  win.net_client_credit_amount::float8 as members,
-  win.hours_amount::float8 as sessions,
+  ${d.float("win.net_client_credit_amount")} as members,
+  ${d.float("win.hours_amount")} as sessions,
   life.lifetime_members,
   life.lifetime_sessions${creditJoin.enabled ? `,\n  win.credit_matched,\n  win.credit_business_date,\n  win.credit_occurred_date` : ""}${
       candidateSelectFromWin ? `,\n${candidateSelectFromWin}` : ""
@@ -1868,31 +1904,31 @@ select
   lower(f.email) as email,
   f.name as manager_name,
   a.client_id,
-  l.id::text as ledger_id,
-  a.id::text as attribution_id,
-  l.manager_id::text as manager_id,
-  l.created_at::text as ledger_created_at,
-  (l.created_at at time zone '${tz}')::date::text as attribution_date,
-  (l.created_at at time zone '${tz}')::text as occurred_at,
-  (a.occurred_at at time zone '${tz}')::text as sale_occurred_at,
+  ${d.text("l.id")} as ledger_id,
+  ${d.text("a.id")} as attribution_id,
+  ${d.text("l.manager_id")} as manager_id,
+  ${d.text("l.created_at")} as ledger_created_at,
+  ${d.dayTextFromInstant("l.created_at", tz)} as attribution_date,
+  ${d.zonedText("l.created_at", tz)} as occurred_at,
+  ${d.zonedText("a.occurred_at", tz)} as sale_occurred_at,
   (a.deleted_at is not null) as attribution_deleted,${transferredOut},
   l.type as ledger_type,
   a.type as attr_type,
   l.credit_id,
-  l.net_client_credit_amount::float8 as members,
-  l.hours_amount::float8 as sessions${
+  ${d.float("l.net_client_credit_amount")} as members,
+  ${d.float("l.hours_amount")} as sessions${
     creditJoin.enabled
       ? `,\n  ${creditMatchedExpr} as credit_matched${
           creditJoin.businessDateExpr
             ? `,\n  ${creditJoin.businessDateExpr} as credit_business_date`
-            : `,\n  null::text as credit_business_date`
+            : `,\n  ${d.nullText()} as credit_business_date`
         }`
       : ""
   }${candidateSelect ? `,\n${candidateSelect}` : ""}
-from sales_attribution.rep_scores_ledger_entries l
-join sales_attribution.attributions a
+from ${d.table("rep_scores_ledger_entries")} l
+join ${d.table("attributions")} a
   on a.id = l.attribution_id
-join sales_attribution.flex_team_members f
+join ${d.table("flex_team_members")} f
   on f.manager_id = l.manager_id
  and f.deleted_at is null
 ${creditJoinSql}
@@ -1913,35 +1949,28 @@ select
   lower(f.email) as email,
   f.name as manager_name,
   a.client_id,
-  l.id::text as ledger_id,
-  a.id::text as attribution_id,
-  l.manager_id::text as manager_id,
-  l.created_at::text as ledger_created_at,
-  (l.created_at at time zone '${tz}')::date::text as attribution_date,
-  (l.created_at at time zone '${tz}')::text as occurred_at,
-  (a.occurred_at at time zone '${tz}')::text as sale_occurred_at,
+  ${d.text("l.id")} as ledger_id,
+  ${d.text("a.id")} as attribution_id,
+  ${d.text("l.manager_id")} as manager_id,
+  ${d.text("l.created_at")} as ledger_created_at,
+  ${d.dayTextFromInstant("l.created_at", tz)} as attribution_date,
+  ${d.zonedText("l.created_at", tz)} as occurred_at,
+  ${d.zonedText("a.occurred_at", tz)} as sale_occurred_at,
   (a.deleted_at is not null) as attribution_deleted,${transferredOut},
   l.type as ledger_type,
   a.type as attr_type,
   l.credit_id,
-  l.net_client_credit_amount::float8 as members,
-  l.hours_amount::float8 as sessions${
+  ${d.float("l.net_client_credit_amount")} as members,
+  ${d.float("l.hours_amount")} as sessions${
     candidateColumns
       .filter((c) => c.table !== "credits")
-      .map(({ alias, expr, type }) => {
-        const asDay = MONTH_KEY_DATE_TYPES.has(type)
-          ? type === "date"
-            ? `${expr}::text`
-            : `(${expr} at time zone '${tz}')::date::text`
-          : `left((${expr})::text, 10)`;
-        return `,\n  ${asDay} as "cand_${alias}"`;
-      })
+      .map(({ alias, expr, type }) => `,\n  ${candidateDayExpr(expr, type, tz, d)} as "cand_${alias}"`)
       .join("")
   }
-from sales_attribution.rep_scores_ledger_entries l
-join sales_attribution.attributions a
+from ${d.table("rep_scores_ledger_entries")} l
+join ${d.table("attributions")} a
   on a.id = l.attribution_id
-join sales_attribution.flex_team_members f
+join ${d.table("flex_team_members")} f
   on f.manager_id = l.manager_id
  and f.deleted_at is null
 cross join bounds b
@@ -1964,17 +1993,17 @@ order by l.created_at asc, l.id asc;
     let lifetimeAvailable = true;
     let creditJoinActive = creditJoin.enabled;
     try {
-      rawRows = await runSupabaseSql<LedgerRow>(sql);
+      rawRows = await runWarehouseSql<LedgerRow>(sql);
     } catch (enrichedErr: any) {
       console.error("get-live-actuals lifetime query failed, falling back", enrichedErr);
       try {
-        rawRows = await runSupabaseSql<LedgerRow>(fallbackSql);
+        rawRows = await runWarehouseSql<LedgerRow>(fallbackSql);
         lifetimeAvailable = false;
       } catch (fallbackErr: any) {
         if (!creditJoin.enabled) throw fallbackErr;
         console.error("get-live-actuals credit join failed, retrying without credits", fallbackErr);
         creditJoinActive = false;
-        rawRows = await runSupabaseSql<LedgerRow>(plainFallbackSql);
+        rawRows = await runWarehouseSql<LedgerRow>(plainFallbackSql);
         lifetimeAvailable = false;
       }
     }
@@ -2048,8 +2077,9 @@ order by l.created_at asc, l.id asc;
 
     const fullPayload: Record<string, unknown> = {
       ok: true,
-      source: "supabase",
-      project: process.env.SUPABASE_PROJECT_REF || "oervjdxjjkhkyledsqag",
+      source: warehouse.driver,
+      // Never the credentials — just enough to tell which engine answered.
+      project: warehouse.target,
       rowCount: rows.length,
       rawRowCount: rawRows.length,
       matchedRows: built.matchedRows,
