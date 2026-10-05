@@ -1,3 +1,4 @@
+import { expandTransfers } from "./_shared/attribution-transfer.mts";
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
@@ -27,10 +28,11 @@ export default withApiErrors("list-attributions", async (req: Request, context: 
   const { blobs } = await store.list();
   const records = (await Promise.all(blobs.map((b) => store.get(b.key, { type: "json" })))).filter(Boolean);
 
-  let visible = records as any[];
+  const expanded = expandTransfers(records as any[]);
+  let visible = expanded;
   if (!access.canViewTeam) {
     const ownName = await resolveRepNameFromEmail(access.email);
-    visible = records.filter((r: any) => {
+    visible = expanded.filter((r: any) => {
       const byEmail = String(r.repEmail || "").toLowerCase() === access.email;
       const byName = !!ownName && String(r.repName || "") === ownName;
       return byEmail || byName;

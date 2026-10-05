@@ -1,0 +1,21 @@
+{
+  "source": "Synthetic regression examples",
+  "rep": "Example Rep 1",
+  "managerId": "40000064",
+  "scope": "Selected reference rows, not complete daily totals",
+  "cases": [
+    {"date":"2026-09-14","attributionId":40000078,"clientId":40000069,"amount":-239.39,"members":-1,"hours":-2.88,"case":"refund"},
+    {"date":"2026-09-14","attributionId":40000084,"clientId":40000073,"amount":261.00,"members":0,"hours":4,"case":"additional hours"},
+    {"date":"2026-09-14","attributionId":40000085,"clientId":40000074,"amount":314.10,"members":1,"hours":4,"case":"full member"},
+    {"date":"2026-09-14","attributionId":40000084,"clientId":40000073,"amount":314.10,"members":1,"hours":4,"case":"full member sharing attribution ID with additional hours"},
+    {"date":"2026-09-12","attributionId":40000083,"clientId":40000072,"amount":157.05,"members":0.5,"hours":2,"case":"rep split"},
+    {"date":"2026-09-12","attributionId":40000082,"clientId":40000071,"amount":184.50,"members":0.5,"hours":2,"case":"rep split replacing an earlier full-credit export row"}
+  ],
+  "cutoverRequirements": [
+    "Use a stable ledger-entry or credit identifier; client and dollar matching is insufficient.",
+    "Preserve separate original purchase and additional-hours entries sharing an attribution ID.",
+    "Exclude superseded split records without dropping legitimate additional purchases.",
+    "Match credited member values and credited hours, including refunds and splits.",
+    "Do not infer membership credit from purchased hours. Half credits are rep splits."
+  ]
+}

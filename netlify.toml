@@ -1,5 +1,10 @@
+[build]
+  command = "node scripts/build-static.mjs"
+  publish = "public"
+
 [functions]
   directory = "functions"
+  node_bundler = "esbuild"
 
 # Pin the runtime. Nothing here specified a Node version, so builds and functions
 # ran on whatever Netlify's default happened to be that day — a version that can

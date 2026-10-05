@@ -8,6 +8,8 @@
 <link rel="stylesheet" href="/assets/app.css?v=20260901-lizards">
 <script src="/assets/ui-dialog.js?v=20260731-income-pt-ux"></script>
 
+<link rel="stylesheet" href="/assets/unmatched-review.css?v=5">
+<script defer src="/assets/unmatched-review.js?v=4"></script>
 </head>
 <body>
 <div id="loginGate" class="login-gate" role="dialog" aria-modal="true" aria-labelledby="loginGateTitle">
@@ -159,6 +161,7 @@
     <span class="landing-actions-cluster" id="myPacerShoutoutCluster" style="display:none;" aria-hidden="true"></span>
   </div>
   <div class="landing-menu-hint" id="landingMenuHint" style="display:none;">Use <b>Team</b> for contests &amp; ops · <b>Schedules</b> for shifts · <b>Admin</b> for quotas &amp; access · open a rep below for Individual Pacer.</div>
+  <div id="landingLiveStatus" role="status" class="meta-note" style="margin:10px auto;max-width:900px;text-align:center;color:#b45309;">Checking live attribution feed…</div>
   </div>
 
   <div class="landing-region landing-region-status" id="landingStatus">
@@ -1071,7 +1074,7 @@
 <div class="celebration-modal-backdrop" id="ledgerExcludeBackdrop">
   <div class="celebration-modal shoutout-modal-glow" style="text-align:left; max-width:420px;">
     <div class="celebration-modal-title" style="text-align:center;">Exclude ledger row</div>
-    <div class="meta-note" style="margin:0 0 10px;">Removes this row from pacing, Activity, contests, and Income Planning. Nothing in Supabase changes, and it can be restored here at any time.</div>
+    <div class="meta-note" style="margin:0 0 10px;">Removes this row from pacing, Activity, contests, and Income Planning. Nothing in the source data changes, and it can be restored here at any time.</div>
     <div class="attribution-form-grid" style="margin-top:10px;">
       <label>Rep <input type="text" id="ledgerExcludeRep" disabled></label>
       <label>Client ID <input type="text" id="ledgerExcludeClient" disabled></label>
@@ -9782,7 +9785,7 @@ function fillDetailActivity(repName) {
   if (summaryEl) {
     summaryEl.textContent = items.length
       ? ''
-      : 'No client-level detail yet — live Supabase actuals (or a CSV fallback) will populate this.';
+      : 'No client-level detail yet — live attribution actuals (or a CSV fallback) will populate this.';
   }
   statsEl.innerHTML = `
     <div class="detail-stat"><span class="detail-stat-label">Members Sold</span><span class="detail-stat-val positive">${fmt(sum(attributions, 'members'), 1)}</span></div>
@@ -10964,12 +10967,14 @@ document.getElementById('repList').addEventListener('click', (e) => {
 function attrHashTab() {
   const h = location.hash || '';
   if (h === '#manual-attribution-pending' || h === '#manual-attribution-approvals') return 'pending';
+  if (h === '#manual-attribution-unmatched') return 'unmatched';
   if (h === '#manual-attribution-actioned') return 'actioned';
   if (h === '#manual-attribution') return 'submit';
   return null;
 }
 function attrHashForTab(tab) {
   if (tab === 'pending') return 'manual-attribution-pending';
+  if (tab === 'unmatched') return 'manual-attribution-unmatched';
   if (tab === 'actioned') return 'manual-attribution-actioned';
   return 'manual-attribution';
 }
@@ -10978,6 +10983,7 @@ function isManualAttroHash() {
 }
 function setAttrPageTab(tab, opts) {
   const allowed = ['submit', 'pending', 'actioned'];
+  if (isRealAdmin() && !getViewAsRepRaw()) allowed.push('unmatched');
   const next = allowed.includes(tab) ? tab : 'submit';
   // Full admins land on queues — they don't get a "my requests" dump.
   // Submit stays available for on-behalf creates.
@@ -10993,6 +10999,7 @@ function setAttrPageTab(tab, opts) {
   if (title) {
     title.textContent = next === 'pending' ? 'Pending attributions'
       : next === 'actioned' ? 'Actioned attributions'
+      : next === 'unmatched' ? 'Unmatched records'
       : 'Manual Attribution';
   }
   if (opts && opts.syncHash) {
@@ -11009,7 +11016,7 @@ function renderManualAttroPage() {
   const tab = attrHashTab();
   if (tab) {
     // Legacy approvals URL → pending tab for admins; everyone else to submit.
-    if (location.hash === '#manual-attribution-approvals' && !isRealAdmin()) {
+    if ((location.hash === '#manual-attribution-approvals' && !isRealAdmin()) || (tab === 'unmatched' && (!isRealAdmin() || getViewAsRepRaw()))) {
       location.hash = 'manual-attribution';
       return;
     }
@@ -12065,8 +12072,8 @@ async function fetchShoutouts() {
 // baked-in default keeps showing until the first real write.
 // Live MTD actuals from Supabase (acquisition-call-center ledger). Preferred
 // over Blobs/CSV when available; Manual Attribution approved totals stay additive.
-const LIVE_ACTUALS_POLL_MS = 90_000;
-const LIVE_ACTUALS_POLL_MAX_MS = 180_000;
+const LIVE_ACTUALS_POLL_MS = 30_000;
+const LIVE_ACTUALS_POLL_MAX_MS = 60_000;
 const LIVE_ACTUALS_SHARE_KEY = 'pace_live_actuals_share_v1';
 const LIVE_ACTUALS_LEADER_KEY = 'pace_live_actuals_leader_v1';
 let liveActualsTimer = null;
@@ -12398,28 +12405,26 @@ function applyLiveActualsPayload(data, wantFull, prevDigest) {
   }
   syncLedgerIntegrityBadge(data.ledgerIntegrity);
   lastLiveActualsOk = true;
+  if(Number.isFinite(data.unresolvedCount))window.dispatchEvent(new CustomEvent('pacer:unmatched',{detail:{count:data.unresolvedCount,month:data.viewMonth||liveMonthKey(),stale:!!data.stale}}));
   const statusEl = document.getElementById('liveActualsStatus');
   if (statusEl) {
-    // Salvaged numbers are real but not current, so this must never read as a
-    // healthy sync — the age is the whole point.
-    if (data.stale) {
-      const ageMs = Date.now() - Number(data.fetchedAtMs || 0);
-      const mins = Number.isFinite(ageMs) && ageMs >= 0 ? Math.round(ageMs / 60000) : null;
-      statusEl.textContent = 'Live Supabase feed unavailable — showing the last numbers that loaded'
-        + (mins != null ? `, from ${mins} min ago` : '')
-        + ` · as of ${data.actuals.asOf}`
-        + (data.staleReason ? ` · ${data.staleReason}` : '');
-      statusEl.style.color = '#b45309';
-    } else {
-      statusEl.textContent = `Live Supabase feed OK · as of ${data.actuals.asOf}` +
-        (data.matchedRows != null ? ` · ${data.matchedRows} ledger rows` : '') +
-        (data.cacheHit ? ' · cached' : '') +
-        (data.sharedHit ? ' · sibling tab' : '') +
-        (data.notModified ? ' · unchanged' : '') +
-        (data.fetchedAt ? ` · synced ${new Date(data.fetchedAt).toLocaleTimeString()}` : '');
-      statusEl.style.color = '#16a34a';
-    }
+    const delayed = !!(data.sourceStale || data.stale || data.staleReason);
+    const checked = new Date(data.fetchedAt || data.fetchedAtMs || NaN);
+    const checkedText = Number.isFinite(checked.getTime())
+      ? 'Last checked ' + checked.toLocaleString('en-US', {timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) + ' CT'
+      : 'Not checked yet';
+    statusEl.pacerLastChecked = checkedText;
+    statusEl.textContent = `● Sync ${delayed ? 'delayed' : 'working'} · ${checkedText}`;
+    statusEl.style.color = delayed ? '#dc2626' : '#16a34a';
+    statusEl.title = [
+      data.provisional ? 'Totals are provisional.' : '',
+      data.combined ? `${data.combined.addedPurchases || 0} purchases reconstructed from purchase and call history.` : '',
+      data.unresolvedCount ? `${data.unresolvedCount} records awaiting review, excluded from totals.` : '',
+      data.exportStale ? 'The attribution export is delayed; purchase and call history supplement it.' : '',
+      data.sourceStaleReason || '', data.staleReason || ''
+    ].filter(Boolean).join(' ');
   }
+  syncLandingLiveStatus();
   return actualsDigest(ACTUALS_CACHE) === prevDigest ? 'unchanged' : 'changed';
 }
 
@@ -12429,6 +12434,12 @@ function applyLiveActualsPayload(data, wantFull, prevDigest) {
  * place now instead of being duplicated here (which used to stack both loops and
  * multiply the backoff).
  */
+function syncLandingLiveStatus() {
+  const from = document.getElementById('liveActualsStatus');
+  const to = document.getElementById('landingLiveStatus');
+  if (from && to) { to.textContent = from.textContent; to.style.color = from.style.color; to.title = from.title; }
+}
+
 function fetchLiveActualsWithRetry(path, opts) {
   return authedFetch(path, opts);
 }
@@ -12496,8 +12507,8 @@ async function fetchLiveActuals(opts) {
     if (data && data.__notModified) {
       lastLiveActualsOk = true;
       if (statusEl) {
-        statusEl.textContent = (statusEl.textContent || 'Live Supabase feed OK') + ' · unchanged';
-        statusEl.style.color = '#16a34a';
+        // An unchanged response must preserve the source-health status and timestamp.
+        syncLandingLiveStatus();
       }
       return 'unchanged';
     }
@@ -12532,10 +12543,11 @@ async function fetchLiveActuals(opts) {
       }
     }
     if (statusEl) {
-      statusEl.textContent = 'Live Supabase feed unavailable — showing last Blobs/CSV actuals. ' +
-        ((e && e.message) || 'Sign-in required');
-      statusEl.style.color = '#b45309';
+      statusEl.textContent = '● Sync unavailable · ' + (statusEl.pacerLastChecked || 'Not checked yet');
+      statusEl.title = (e && e.message) || 'Sign-in required';
+      statusEl.style.color = '#dc2626';
     }
+    syncLandingLiveStatus();
     return 'error';
   }
   })();
@@ -12885,6 +12897,7 @@ function isAllowedAttrMembers(value) {
   return n === 0.5 || n === 1;
 }
 function canEditAttrClientLink(r) {
+  if(r?.transferDebit)return false;
   // Approved BUCA rows: client-link-only edit for owners/coaches.
   // Full admins use the full Edit control instead (including approved).
   if (!r || !isBucaAttrReason(r) || r.status !== 'approved') return false;
@@ -12893,6 +12906,7 @@ function canEditAttrClientLink(r) {
 }
 /** Owner (self / on-behalf name) or admin/coach (not while View-as-rep). */
 function canOwnOrManageAttr(r) {
+  if(r?.transferDebit)return false;
   if (!r || !r.id) return false;
   if (attrSeesTeamQueue()) return true;
   const email = ((typeof effectiveRoleEmail === 'function' ? effectiveRoleEmail() : null) || currentUserEmail() || '').toLowerCase();
@@ -12903,6 +12917,7 @@ function canOwnOrManageAttr(r) {
 }
 /** Full edit: pending/rejected for owners+coaches+admins; approved for full admins only. */
 function canEditAttrRequest(r) {
+  if(r?.transferDebit)return false;
   if (!r || !r.id) return false;
   if (r.status === 'approved') return attrCanDecide();
   if (r.status !== 'pending' && r.status !== 'rejected') return false;
@@ -12937,6 +12952,7 @@ function wireAttrSessionsInput(input) {
 }
 /** Rep owns the row (self-submit or on-behalf under their name); admins/coaches delete any. */
 function canDeleteAttr(r) {
+  if(r?.transferDebit)return false;
   return canOwnOrManageAttr(r);
 }
 function attrEditBtnHTML(r) {
@@ -12979,7 +12995,7 @@ function attrCanDecide() {
 }
 /** Client-side scope so View-as-rep never shows the full team queue (API still uses real JWT). */
 function scopedAttrRecords(records) {
-  const all = Array.isArray(records) ? records : (lastAttrRecords || []);
+  const all = (Array.isArray(records) ? records : (lastAttrRecords || [])).filter(r=>!r.transferDebit);
   if (attrSeesTeamQueue()) return all.slice();
   const ownName = typeof ownRepDisplayName === 'function' ? ownRepDisplayName() : '';
   const ownEmail = (typeof effectiveRoleEmail === 'function' ? effectiveRoleEmail() : currentUserEmail() || '') || '';
@@ -13206,7 +13222,7 @@ function attrDecisionAuditHTML(r) {
   return '';
 }
 function attrDecisionActionsHTML(r, mode) {
-  if (!attrCanDecide() || !r || !r.id) return '';
+  if (!attrCanDecide() || !r || !r.id || r.transferDebit) return '';
   const id = escapeAttr(r.id);
   const status = r.status || 'pending';
   if (mode === 'pending' || status === 'pending') {
@@ -13281,6 +13297,7 @@ function attrRequestCardHTML(r, mode) {
         <span class="attr-approval-meta-label">Submitter comments</span>
         <p class="attr-approval-comments-body">${escapeHtml(r.comments || '—')}</p>
       </div>
+      ${r.transferFrom?.repName ? `<div class="attr-approval-comments"><span class="attr-approval-meta-label">Credit transferred from</span><p>${escapeHtml(r.transferFrom.repName)} · Manager: ${escapeHtml(r.transferFrom.managerName)} · −${fmt(r.sessions,1)} sessions / −${fmt(r.members,1)} members</p></div>` : ''}
       ${adminNote}
       ${audit}
       <div class="attr-approvals-actions" data-attr-actions="${escapeAttr(r.id)}">
@@ -13452,9 +13469,10 @@ function buildApprovedAttrCsv(records) {
     'URL',
     'Notes',
   ];
-  const rows = records.map((r) => [
+  const exportRows = records.filter(r=>!r.transferDebit).flatMap(r=>r.status==='approved' && (r.adjustmentReason||r.reason)==='Shifting Attro Between Reps' && r.transferFrom?.repName ? [r,{...r,repName:r.transferFrom.repName,managerName:r.transferFrom.managerName,sessions:-Number(r.sessions),members:-Number(r.members)}] : [r]);
+  const rows = exportRows.map((r) => [
     r.repName || '',
-    '', // Manager not stored on roster/goals yet
+    r.managerName || '',
     r.sessions != null ? Number(r.sessions) : '',
     r.members != null ? Number(r.members) : '',
     '', // ISC gross not captured in Manual Attribution
@@ -13598,6 +13616,12 @@ function closeAttrInlineDecisions() {
     bar.style.display = '';
   });
 }
+function attrTransferFields(id, action) {
+ const r=lastAttrRecords.find(r=>r.id===id);
+ if(action!=='approve'||(r?.adjustmentReason||r?.reason)!=='Shifting Attro Between Reps')return '';
+ const names=(typeof getFullRoster==='function'?getFullRoster():getRoster());
+ return `<div class="attr-transfer-fields"><p>Take ${fmt(r.sessions,1)} sessions and ${fmt(r.members,1)} members from:</p><label>Rep losing credit (required)<input data-transfer-rep list="attrTransferRoster" maxlength="150" value="${escapeAttr(r.transferFrom?.repName||'')}" placeholder="Full rep name"></label><datalist id="attrTransferRoster">${names.map(n=>`<option value="${escapeAttr(n.display)}"></option>`).join('')}</datalist><label>That rep’s manager (required)<input data-transfer-manager maxlength="150" value="${escapeAttr(r.transferFrom?.managerName||'')}" placeholder="Manager name"></label><small>Both adjustments appear in the CSV. A roster-matched rep also receives the deduction on this pacer.</small></div>`;
+}
 function openAttrInlineDecision(id, action) {
   if (!attrCanDecide()) return;
   closeAttrInlineDecisions();
@@ -13626,6 +13650,7 @@ function openAttrInlineDecision(id, action) {
       <button type="button" class="theme-btn" data-inline-cancel>Cancel</button>
       <span class="attr-inline-decision-status" data-inline-status hidden></span>
     </div>`;
+  panel.insertAdjacentHTML('afterbegin',attrTransferFields(id,action));
   actions.style.display = 'none';
   actions.insertAdjacentElement('afterend', panel);
   panel.querySelector('textarea')?.focus();
@@ -13674,6 +13699,8 @@ function openAttrDecisionModal(id, action) {
       : 'Review this Manual Attribution request.';
   }
   if (status) { status.textContent = ''; status.style.color = ''; }
+  backdrop?.querySelector('.attr-transfer-fields')?.remove();
+  comment?.insertAdjacentHTML('beforebegin',attrTransferFields(id,action));
   backdrop?.classList.add('open');
   comment?.focus();
 }
@@ -13741,12 +13768,19 @@ async function undoAttrDecision(prev, action) {
     undoAction = prevStatus === 'approved' ? 'approve' : 'reject';
     note = prev.reviewComment || note;
   }
-  await reviewAttributionRequest(prev.id, undoAction, note, { skipUndo: true, skipExitAnim: true });
+  await reviewAttributionRequest(prev.id, undoAction, note, { skipUndo: true, skipExitAnim: true, transferFrom: prev.transferFrom });
 }
 async function reviewAttributionRequest(id, action, comment, opts) {
   const options = opts || {};
   const prev = lastAttrRecords.find((r) => r.id === id);
   const prevSnap = prev ? JSON.parse(JSON.stringify(prev)) : null;
+  let transferFrom=options.transferFrom;
+  if(action==='approve' && (prev?.adjustmentReason||prev?.reason)==='Shifting Attro Between Reps') {
+    const fields=document.querySelector('.attr-inline-decision .attr-transfer-fields')||document.querySelector('#attrRejectBackdrop .attr-transfer-fields');
+    transferFrom=transferFrom || (fields ? {repName:fields.querySelector('[data-transfer-rep]').value.trim(),managerName:fields.querySelector('[data-transfer-manager]').value.trim()} : prev.transferFrom);
+    if(!transferFrom?.repName||!transferFrom?.managerName)throw Error('Enter the rep losing credit and their manager.');
+    if(transferFrom.repName.toLowerCase()===prev.repName.toLowerCase())throw Error('Choose a different rep to take credit from.');
+  }
   const card = document.querySelector(`#attrPendingList [data-attr-id="${CSS.escape(id)}"], #attrActionedList [data-attr-id="${CSS.escape(id)}"]`);
   const leavingPending = !options.skipExitAnim && card && card.closest('#attrPendingList') && (action === 'approve' || action === 'reject');
   if (leavingPending) {
@@ -13756,7 +13790,7 @@ async function reviewAttributionRequest(id, action, comment, opts) {
   const { record } = await authedFetch('/api/attributions/review', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, action, comment: comment || '' }),
+    body: JSON.stringify({ id, action, comment: comment || '', transferFrom }),
   });
   // Optimistic local update — Blob list lag used to leave the row "pending"
   // until a second click. Apply the returned record immediately.
@@ -13772,6 +13806,7 @@ async function reviewAttributionRequest(id, action, comment, opts) {
   renderMyAttributionsTable();
   if (!options.skipUndo && prevSnap) showAttrUndoToast(prevSnap, action);
   APPROVED_TOTALS = await fetchApprovedTotals();
+  if(attrMonthKey(prev)===previousMonthKeyFromActuals()?.key)await ensurePriorMonthBundle({fresh:true});
   if (typeof render === 'function') render();
   if (document.getElementById('clientDetailOverlay')?.classList.contains('open')) {
     const rep = currentBonusRep || activityFilterRep;

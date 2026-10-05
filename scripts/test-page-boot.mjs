@@ -903,10 +903,10 @@ assert.equal(typeof context.actualsCarryItems, "function", "actualsCarryItems mu
     assert.ok(context.actualsHaveLiveMonthNumbers(), "the board is no longer blank");
     assert.match(
       status.textContent,
-      /last numbers that loaded/,
+      /Sync delayed/,
       "and it must say the numbers are not current"
     );
-    assert.match(status.textContent, /20 min ago/, "with their age, so nobody reads them as live");
+    assert.match(status.textContent, /Last checked .* CT/, "with a Central timestamp");
 
     // Salvaged numbers are real but stale: nothing may badge them as live.
     assert.equal(context.lastLiveActualsOk, undefined, "lastLiveActualsOk is script-local");

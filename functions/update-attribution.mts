@@ -160,7 +160,7 @@ export default async (req: Request, context: Context) => {
   record.updatedAt = new Date().toISOString();
   record.updatedBy = email;
 
-  if (wasRejected) {
+  if (wasRejected || (isApproved && adjustmentReason === "Shifting Attro Between Reps" && !record.transferFrom?.repName)) {
     // Fix-and-resubmit: send back through the approvals queue.
     record.status = "pending";
     record.reviewedAt = null;

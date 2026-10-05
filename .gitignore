@@ -8,3 +8,5 @@ deploy.log
 mcp.json
 .mcp.json
 .cursor/mcp.json
+
+public/
