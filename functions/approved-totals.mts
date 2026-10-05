@@ -1,3 +1,4 @@
+import { expandTransfers } from "./_shared/attribution-transfer.mts";
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { requireSignedIn } from "./_shared/identity.mts";
@@ -19,7 +20,7 @@ export default withApiErrors("approved-totals", async (req: Request, context: Co
   const records = (await Promise.all(blobs.map((b) => store.get(b.key, { type: "json" })))).filter(Boolean);
 
   const totals: Record<string, { members: number; sessions: number }> = {};
-  for (const r of records as any[]) {
+  for (const r of expandTransfers(records as any[])) {
     if (r.status !== "approved") continue;
     if (String(r.saleDate || "").slice(0, 7) !== targetMonth) continue;
     if (!totals[r.repName]) totals[r.repName] = { members: 0, sessions: 0 };

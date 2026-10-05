@@ -1,3 +1,5 @@
+import { isTransfer, validateTransfer } from "./_shared/attribution-transfer.mts";
+import { loadValidRepDisplays, resolveEmailFromRepDisplay } from "./_shared/roster.mts";
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 import { getIdentityUser } from "./_shared/identity.mts";
@@ -60,12 +62,20 @@ export default async (req: Request, context: Context) => {
     });
   }
 
+  const previousTransfer = JSON.stringify(record.transferFrom || null);
+  if (action === "approve" && isTransfer(record)) {
+    try {
+      const transfer = validateTransfer(record, body.transferFrom || record.transferFrom, [...await loadValidRepDisplays()]);
+      record.transferFrom = {...transfer, repEmail: await resolveEmailFromRepDisplay(transfer.repName)};
+    } catch (e:any) { return new Response(JSON.stringify({error:e.message}), {status:400,headers:{"Content-Type":"application/json"}}); }
+  }
+
   const nextStatus =
     action === "approve" ? "approved" : action === "reject" ? "rejected" : "pending";
 
   // Idempotent: same decision again is OK (Blob list lag / double click).
-  if (record.status === nextStatus && action !== "reopen") {
-    if (reviewComment && record.reviewComment !== reviewComment) {
+  if (record.status === nextStatus && action !== "reopen" && previousTransfer === JSON.stringify(record.transferFrom || null)) {
+    if (reviewComment && (record.reviewComment !== reviewComment || (action === "approve" && isTransfer(record)))) {
       record.reviewComment = reviewComment;
       record.reviewedAt = new Date().toISOString();
       record.reviewedBy = user.email;
@@ -87,6 +97,7 @@ export default async (req: Request, context: Context) => {
     by: user.email,
     at: new Date().toISOString(),
     note: reviewComment || null,
+    transferFrom: record.transferFrom || null,
   });
 
   if (action === "reopen") {

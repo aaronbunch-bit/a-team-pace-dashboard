@@ -1,0 +1,27 @@
+.review-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:12px 0}.review-controls label{display:grid;gap:6px;flex:1;min-width:150px}.review-record{padding:20px;margin:16px 0;border:1px solid var(--card-border);border-radius:14px;background:var(--card-bg)}.review-record h3{margin:0 0 8px}.review-record>label{display:grid;gap:6px}.review-record textarea{min-height:70px;width:100%;box-sizing:border-box}.review-record button{min-height:40px}.review-record input{width:100%;box-sizing:border-box}
+.unmatched-home-alert{display:block;width:100%;padding:16px 20px;margin:16px 0;border:2px solid #b78b3b;border-radius:14px;background:var(--card-bg)!important;color:var(--text)!important;text-align:left;font-weight:800;cursor:pointer;animation:unmatchedAttention 2.8s ease-in-out infinite}.unmatched-home-alert[hidden]{display:none!important}@keyframes unmatchedAttention{0%,100%{box-shadow:0 0 0 0 rgba(183,139,59,.12)}50%{box-shadow:0 0 0 5px rgba(183,139,59,.3),0 0 24px rgba(183,139,59,.2)}}body.motion-static .unmatched-home-alert{animation:none}@media(prefers-reduced-motion:reduce){.unmatched-home-alert{animation:none}}.pacer-client-check{border-left:4px solid #b78b3b;background:var(--metric-box-bg);padding:14px;margin:12px 0;border-radius:8px}.pacer-client-check a{color:var(--text);font-weight:700;text-decoration:underline}
+
+[data-attr-tab="unmatched"][hidden]{display:none!important}
+
+/* Compact navigation and consistent controls for the review queue. */
+#attrPageTabs{display:flex;gap:6px;padding:6px;border-radius:14px;margin-bottom:22px}
+#attrPageTabs .attr-page-tab{flex:1;min-width:0;min-height:44px;padding:10px 12px;border-radius:10px;font-size:14px;white-space:nowrap}
+[data-attr-panel="unmatched"]{max-width:1040px;margin:0 auto}
+[data-attr-panel="unmatched"]>h2{font-size:20px;margin:0 0 6px}
+[data-attr-panel="unmatched"] p{line-height:1.5}
+[data-attr-panel="unmatched"]>.meta-note{font-size:13px;margin:6px 0 18px}
+[data-attr-panel="unmatched"]>.review-controls{padding:16px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;gap:12px;margin:18px 0 12px}
+[data-attr-panel="unmatched"] input,[data-attr-panel="unmatched"] select,[data-attr-panel="unmatched"] textarea{font:inherit;font-size:14px;color:var(--text);background:var(--card-bg);border:1px solid var(--pill-border);border-radius:9px;padding:10px 12px;min-height:42px;box-sizing:border-box}
+[data-attr-panel="unmatched"] input:focus-visible,[data-attr-panel="unmatched"] select:focus-visible,[data-attr-panel="unmatched"] textarea:focus-visible{outline:2px solid var(--text-muted);outline-offset:2px}
+[data-attr-panel="unmatched"] button{font-size:14px;min-height:42px;padding:10px 18px;margin:0}
+[data-attr-panel="unmatched"] .review-controls label{font-size:12px;font-weight:700;flex:0 1 220px;gap:6px}
+[data-attr-panel="unmatched"] .review-record{padding:22px;margin:14px 0;border-radius:16px}
+[data-attr-panel="unmatched"] .review-record h3{font-size:18px}
+[data-attr-panel="unmatched"] .review-record>p{font-size:13px;margin:6px 0}
+[data-attr-panel="unmatched"] .review-record>label{font-size:12px;font-weight:700;margin-top:16px}
+[data-attr-panel="unmatched"] .pacer-client-check{font-size:13px;padding:12px 16px}
+[data-attr-panel="unmatched"] .pacer-client-check p{margin:6px 0}
+[data-attr-panel="unmatched"] details{font-size:13px;margin:12px 0}
+@media(max-width:640px){#attrPageTabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}#attrPageTabs .attr-page-tab{font-size:12px;padding:10px 6px;white-space:normal;gap:5px}[data-attr-panel="unmatched"]>.review-controls>*{flex:1 1 100%;width:100%}[data-attr-panel="unmatched"] .review-record{padding:16px}[data-attr-panel="unmatched"] .review-controls label{flex:1 1 120px}}
+
+.attr-transfer-fields{display:grid;gap:12px;padding:16px;margin-bottom:16px;border:1px solid var(--card-border);border-radius:12px;background:var(--metric-box-bg)}.attr-transfer-fields label{display:grid;gap:6px;font-size:13px;font-weight:700}.attr-transfer-fields input{font:inherit;padding:10px 12px;min-height:42px;border:1px solid var(--pill-border);border-radius:8px;background:var(--card-bg);color:var(--text)}.attr-transfer-fields p{margin:0}.attr-transfer-fields small{color:var(--text-muted)}

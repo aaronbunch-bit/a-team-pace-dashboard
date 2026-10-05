@@ -1,7 +1,11 @@
+import { sourceFreshness } from "./_shared/starburst-freshness.mts";
+import {reviewStore,applyReviews} from "./_shared/unmatched-reviews.mts";
+import { liveEnabled, liveStore, liveMonth, liveRoster, rosterAliases, requestLiveRefresh, LIVE_REFRESH_MS, refreshDue } from "./_shared/starburst-live.mts";
 import type { Context, Config } from "@netlify/functions";
+import { withStarburstBudget } from "./_shared/starburst.mts";
 import { getStore } from "@netlify/blobs";
 import { requireSignedIn } from "./_shared/identity.mts";
-import { runSupabaseSql, supabaseConfig } from "./_shared/supabase.mts";
+import { runAttributionSql, attributionSource, attributionConfigError, attributionSourceKey, verifyAttributionSource } from "./_shared/attribution-source.mts";
 import { loadGoalsByMonth, saveGoalsByMonth } from "./_shared/goals.mts";
 import {
   loadRosterByMonth,
@@ -49,7 +53,7 @@ function resolveRequestedMonth(url: URL): { month: string; isCurrent: boolean } 
 function liveCacheKeyFor(month: string, _isCurrent: boolean): string {
   // Always month-scoped. Sharing one key for "whatever is current" lets a
   // July warm cache answer the first August poll after midnight.
-  return liveActualsCacheKey(month);
+  return attributionSource() === "supabase" ? liveActualsCacheKey(month) : `${liveActualsCacheKey(month)}:${attributionSourceKey()}`;
 }
 
 /**
@@ -1022,7 +1026,7 @@ async function loadLedgerSchema(): Promise<{
     businessAtExpr: null,
   };
   try {
-    const cols = await runSupabaseSql<{
+    const cols = await runAttributionSql<{
       table_name: string;
       column_name: string;
       data_type: string;
@@ -1097,7 +1101,7 @@ order by
 
     let tables: string[] = [];
     try {
-      const tableRows = await runSupabaseSql<{ table_name: string }>(`
+      const tableRows = await runAttributionSql<{ table_name: string }>(`
 select table_name
 from information_schema.tables
 where table_schema = 'sales_attribution'
@@ -1110,7 +1114,7 @@ order by table_name;
 
     let attributionDateColumns: string[] = [];
     try {
-      const dateRows = await runSupabaseSql<{
+      const dateRows = await runAttributionSql<{
         table_schema: string;
         table_name: string;
         column_name: string;
@@ -1408,7 +1412,7 @@ async function maybeFreezePrelimAndCache(actuals: { asOf: string; perRep: Record
       perRep: existing.perRep,
       goals: goals || {},
       computedAt: new Date().toISOString(),
-      source: "supabase-live-rollover",
+      source: `${attributionSource()}-live-rollover`,
     };
     await prelimStore.setJSON("current", prelim);
     prelimChanged = true;
@@ -1530,7 +1534,7 @@ function stripIntegrityForCompact(payload: Record<string, unknown>) {
   };
 }
 
-export default async (req: Request, context: Context) => {
+export default withStarburstBudget(async (req: Request, context: Context) => {
   if (req.method !== "GET") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
   }
@@ -1538,11 +1542,47 @@ export default async (req: Request, context: Context) => {
   const auth = await requireSignedIn(req, context);
   if (auth.response) return auth.response;
 
-  if (!supabaseConfig()) {
+  if (liveEnabled()) {
+    try {
+      const month = liveMonth(new URL(req.url).searchParams.get("month"));
+      const store = liveStore();
+      const snapshot = await store.get(`month:${month}`, {type:"json"}) as any;
+      const status = await store.get(`status:${month}`, {type:"json"}) as any;
+      const age = snapshot ? Date.now() - snapshot.fetchedAtMs : Infinity;
+      let refreshFailed = false;
+      if (refreshDue(snapshot,status)) {
+        try { await requestLiveRefresh(month); } catch { refreshFailed = true; }
+      }
+      if (!snapshot) return new Response(JSON.stringify({error: status?.state === "failed" ? (status.message || "Starburst refresh failed. Please retry shortly.") : "Starburst live view is refreshing. Please retry shortly."}), {status:503,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Retry-After":"15"}});
+      const roster = await liveRoster(), aliases = rosterAliases(roster);
+      const exclusions = await loadLedgerExclusionIds();
+      const reviewDoc = await reviewStore().get(month,{type:"json"}) as any;
+      const reviewed = applyReviews(snapshot,reviewDoc?.decisions||{});
+      const mapped = reviewed.rows.map((r:any) => ({...r,email:aliases[String(r.manager_name).trim().toLowerCase()] || ""}));
+      const rows = mapped.filter((r:any) => r.email && !exclusions.has(String(r.ledger_id)));
+      const built = buildActuals(rows, roster);
+      const unresolved = reviewed.pending.filter((r:any) => aliases[String(r.manager).trim().toLowerCase()]);
+      const freshness=sourceFreshness(snapshot,teamTodayMonthKey());
+      const payload = {...freshness,ok:true,source:"starburst",provisional:true,viewMonth:month,viewMonthIsCurrent:month===teamTodayMonthKey(),
+        rule:snapshot.rule,actuals:{asOf:built.asOf,perRep:built.perRep},cancelItems:cancelLineItems(rows,roster),
+        rowCount:rows.length,matchedRows:built.matchedRows,rawRowCount:snapshot.rawRowCount,
+        unresolvedCount:unresolved.length,unresolved,adminApprovedCount:reviewed.approved.filter((r:any)=>aliases[String(r.manager).trim().toLowerCase()]).length,adminDeniedCount:reviewed.denied.filter((r:any)=>aliases[String(r.manager).trim().toLowerCase()]).length,sourceUpdatedAt:snapshot.sourceUpdatedAt,
+        fetchedAt:snapshot.fetchedAt,fetchedAtMs:snapshot.fetchedAtMs,queryId:snapshot.queryId,
+        stale:freshness.sourceStale || age>180000 || (age>=LIVE_REFRESH_MS && (status?.state==="failed" || refreshFailed)),refreshing:refreshDue(snapshot,status),
+        staleReason:status?.state==="failed" ? status.message : refreshFailed ? "Refresh worker could not start" : undefined,
+        cacheHit:true,notice:"Starburst totals use the latest purchase allocation, with half credit per rep on matched splits. Records not yet matched by this feed are excluded from totals."};
+      return new Response(JSON.stringify(payload),{headers:{"Content-Type":"application/json","Cache-Control":"no-store","Vary":"Authorization"}});
+    } catch {
+      return new Response(JSON.stringify({error:"Starburst live view could not be loaded"}),{status:503,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
+    }
+  }
+
+  const configurationError = attributionConfigError();
+  if (configurationError) {
     return new Response(
       JSON.stringify({
-        error: "Supabase not configured",
-        hint: "Set SUPABASE_ACCESS_TOKEN (and optional SUPABASE_PROJECT_REF) in Netlify env",
+        error: "Live attribution source not configured",
+        hint: configurationError,
       }),
       { status: 503, headers: { "Content-Type": "application/json" } }
     );
@@ -1593,6 +1633,7 @@ export default async (req: Request, context: Context) => {
       }
     }
 
+    await verifyAttributionSource();
     const emailToDisplay = await loadEmailToDisplay();
     const emails = Object.keys(emailToDisplay);
     if (!emails.length) {
@@ -1889,17 +1930,17 @@ order by l.created_at asc, l.id asc;
     let lifetimeAvailable = true;
     let creditJoinActive = creditJoin.enabled;
     try {
-      rawRows = await runSupabaseSql<LedgerRow>(sql);
+      rawRows = await runAttributionSql<LedgerRow>(sql);
     } catch (enrichedErr: any) {
       console.error("get-live-actuals lifetime query failed, falling back", enrichedErr);
       try {
-        rawRows = await runSupabaseSql<LedgerRow>(fallbackSql);
+        rawRows = await runAttributionSql<LedgerRow>(fallbackSql);
         lifetimeAvailable = false;
       } catch (fallbackErr: any) {
         if (!creditJoin.enabled) throw fallbackErr;
         console.error("get-live-actuals credit join failed, retrying without credits", fallbackErr);
         creditJoinActive = false;
-        rawRows = await runSupabaseSql<LedgerRow>(plainFallbackSql);
+        rawRows = await runAttributionSql<LedgerRow>(plainFallbackSql);
         lifetimeAvailable = false;
       }
     }
@@ -1973,8 +2014,8 @@ order by l.created_at asc, l.id asc;
 
     const fullPayload: Record<string, unknown> = {
       ok: true,
-      source: "supabase",
-      project: process.env.SUPABASE_PROJECT_REF || "oervjdxjjkhkyledsqag",
+      source: attributionSource(),
+      project: attributionSource() === "supabase" ? (process.env.SUPABASE_PROJECT_REF || "oervjdxjjkhkyledsqag") : "starburst",
       rowCount: rows.length,
       rawRowCount: rawRows.length,
       matchedRows: built.matchedRows,
@@ -2080,7 +2121,7 @@ order by l.created_at asc, l.id asc;
       { status: 502, headers: { "Content-Type": "application/json" } }
     );
   }
-};
+});
 
 export const config: Config = {
   path: "/api/actuals/live",

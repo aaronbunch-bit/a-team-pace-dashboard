@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import { runStarburstSql, ledgerPassthroughSql, starburstConfig } from '../functions/_shared/starburst.mts';
+import { attributionSource, attributionConfigError, attributionSourceKey, runAttributionSql, verifyAttributionSource } from '../functions/_shared/attribution-source.mts';
+
+const cfg = { endpoint: 'https://cluster.example', user: 'service', password: 'secret', catalog: 'ledger_catalog' };
+const reply = x => new Response(JSON.stringify(x), { headers: { 'Content-Type': 'application/json' } });
+let calls = [];
+const rows = await runStarburstSql('SELECT example', cfg, async (url, init) => {
+  calls.push({ url: String(url), ...init });
+  return calls.length === 1 ? reply({ columns: [{name:'members'},{name:'sessions'}], data:[[0.5,2]], nextUri: cfg.endpoint+'/v1/statement/next' })
+    : reply({data:[[-0.5,-2]]});
+});
+assert.deepEqual(rows, [{members:0.5,sessions:2},{members:-0.5,sessions:-2}]);
+assert.equal(calls[0].method, 'POST'); assert.equal(calls[1].method, 'GET');
+assert.equal(calls[1].body, undefined);
+assert.equal(calls[0].redirect, 'error');
+assert.match(ledgerPassthroughSql("SELECT 'x'::text;", cfg.catalog), /SELECT ''x''::text;/);
+assert.throws(() => ledgerPassthroughSql('SELECT 1', 'catalog;drop'), /Invalid/);
+assert.deepEqual(await runStarburstSql('SELECT 1 WHERE FALSE', cfg, async()=>reply({columns:[{name:'x'}]})), []);
+await assert.rejects(runStarburstSql('SELECT 1', cfg, async()=>new Response('',{status:403})), /rejected/);
+await assert.rejects(runStarburstSql('SELECT 1', cfg, async()=>reply({error:{errorName:'TABLE_NOT_FOUND',message:'private upstream details'}})), /TABLE_NOT_FOUND/);
+let destinations = [];
+await assert.rejects(runStarburstSql('SELECT 1', cfg, async(url)=>{
+  destinations.push(String(url)); return reply({nextUri:'https://evil.example/v1/statement/steal'});
+}), /unexpected result URL/);
+assert.deepEqual(destinations, [cfg.endpoint+'/v1/statement']);
+await assert.rejects(runStarburstSql('SELECT 1', cfg, async()=>reply({data:[[1]]})), /without column/);
+await assert.rejects(runStarburstSql('SELECT 1', cfg, async()=>reply({columns:[{name:'x'}],data:[[1,2]]})), /invalid row/);
+process.env.ATTRIBUTION_SOURCE = 'starburst';
+assert.match(attributionConfigError(), /Starburst needs/);
+Object.assign(process.env, { STARBURST_QUERY_URL:cfg.endpoint, STARBURST_USER:cfg.user, STARBURST_PASSWORD:cfg.password, STARBURST_ATTRIBUTION_CATALOG:cfg.catalog });
+assert.equal(attributionConfigError(), null);
+assert.equal(attributionSource(), 'starburst');
+assert.match(attributionSourceKey(), /ledger_catalog/);
+process.env.STARBURST_QUERY_URL='http://cluster.example';
+assert.throws(starburstConfig, /HTTPS/); process.env.STARBURST_QUERY_URL=cfg.endpoint;
+const oldFetch = globalThis.fetch;
+let queries = [];
+globalThis.fetch = async (url, init) => { queries.push(init.body); return reply({columns:[]}); };
+await verifyAttributionSource();
+assert.match(queries[0], /net_client_credit_amount/); assert.match(queries[0], /hours_amount/);
+assert.match(queries[0], /system.query/);
+await runAttributionSql("SELECT 'test' AS name");
+assert.match(queries[1], /SELECT ''test'' AS name/);
+globalThis.fetch = oldFetch;
+process.env.ATTRIBUTION_SOURCE = 'typo'; assert.match(attributionConfigError(), /must be/);
+delete process.env.ATTRIBUTION_SOURCE;
+assert.equal(attributionSource(), 'supabase');
+assert.equal(attributionSourceKey(), 'supabase');
+console.log('Starburst client/provider: paging, decimals, empty results, access errors, URL safety, query quoting, configuration and ledger preflight passed.');
