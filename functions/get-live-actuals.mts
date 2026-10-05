@@ -1564,13 +1564,13 @@ export default withStarburstBudget(async (req: Request, context: Context) => {
       const unresolved = reviewed.pending.filter((r:any) => aliases[String(r.manager).trim().toLowerCase()]);
       const freshness=sourceFreshness(snapshot,teamTodayMonthKey());
       const payload = {...freshness,ok:true,source:"starburst",provisional:true,viewMonth:month,viewMonthIsCurrent:month===teamTodayMonthKey(),
-        rule:snapshot.rule,actuals:{asOf:built.asOf,perRep:built.perRep},cancelItems:cancelLineItems(rows,roster),
+        rule:snapshot.rule,combined:snapshot.combined,combinedWatermarks:snapshot.combinedWatermarks,actuals:{asOf:built.asOf,perRep:built.perRep},cancelItems:cancelLineItems(rows,roster),
         rowCount:rows.length,matchedRows:built.matchedRows,rawRowCount:snapshot.rawRowCount,
         unresolvedCount:unresolved.length,unresolved,adminApprovedCount:reviewed.approved.filter((r:any)=>aliases[String(r.manager).trim().toLowerCase()]).length,adminDeniedCount:reviewed.denied.filter((r:any)=>aliases[String(r.manager).trim().toLowerCase()]).length,sourceUpdatedAt:snapshot.sourceUpdatedAt,
         fetchedAt:snapshot.fetchedAt,fetchedAtMs:snapshot.fetchedAtMs,queryId:snapshot.queryId,
         stale:freshness.sourceStale || age>180000 || (age>=LIVE_REFRESH_MS && (status?.state==="failed" || refreshFailed)),refreshing:refreshDue(snapshot,status),
         staleReason:status?.state==="failed" ? status.message : refreshFailed ? "Refresh worker could not start" : undefined,
-        cacheHit:true,notice:"Starburst totals use the latest purchase allocation, with half credit per rep on matched splits. Records not yet matched by this feed are excluded from totals."};
+        cacheHit:true,notice:snapshot.combined ? "Provisional totals combine exported allocations with purchase and call history. Refunds and uncertain allocations remain excluded pending review." : "Starburst totals use the latest purchase allocation, with half credit per rep on matched splits. Records not yet matched by this feed are excluded from totals."};
       return new Response(JSON.stringify(payload),{headers:{"Content-Type":"application/json","Cache-Control":"no-store","Vary":"Authorization"}});
     } catch {
       return new Response(JSON.stringify({error:"Starburst live view could not be loaded"}),{status:503,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});

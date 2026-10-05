@@ -12410,7 +12410,15 @@ function applyLiveActualsPayload(data, wantFull, prevDigest) {
   if (statusEl) {
     // Salvaged numbers are real but not current, so this must never read as a
     // healthy sync — the age is the whole point.
-    if (data.sourceStale) {
+    if (data.combined) {
+      statusEl.textContent = `Combined Starburst · provisional totals · ${data.combined.addedPurchases || 0} purchases reconstructed`
+        + ` · ${data.unresolvedCount || 0} records awaiting review, excluded from totals`
+        + (data.exportStale ? ' · attribution export delayed; purchase and call history supplement it' : '')
+        + (data.fetchedAt ? ` · checked ${new Date(data.fetchedAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago'})} CT` : '')
+        + (data.sourceStaleReason ? ` · ${data.sourceStaleReason}` : '')
+        + (data.staleReason ? ` · ${data.staleReason}` : data.stale ? ' · refresh delayed' : '');
+      statusEl.style.color = '#b45309';
+    } else if (data.sourceStale) {
       const sourceTime=data.sourceUpdatedAt ? new Date(String(data.sourceUpdatedAt).replace(/ UTC$/, "Z").replace(" ", "T")).toLocaleString('en-US', {timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) + ' CT' : 'unknown';
       statusEl.textContent = `Attribution source is outdated · latest export ${sourceTime} · totals may be incomplete`
         + (data.fetchedAt ? ` · Starburst checked ${new Date(data.fetchedAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago'})} CT` : '')

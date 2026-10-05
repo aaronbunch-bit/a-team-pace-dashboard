@@ -29,7 +29,7 @@ export function applyReviews(snapshot:any, decisions:Record<string,any>) {
 }
 export function validateDecision(body:any) {
   if(!['approve','deny','reopen'].includes(body?.action))throw Error('Choose approve, deny, or reopen.');
-  if(!/^\d{1,24}$/.test(String(body.ledgerId||'')))throw Error('Invalid record identifier.');
+  if(!/^(?:\d{1,24}|combined:\d{1,24}:\d{1,24})$/.test(String(body.ledgerId||'')))throw Error('Invalid record identifier.');
   const note=String(body.note||'').trim();if(!note||note.length>2000)throw Error('Enter a review note (up to 2,000 characters).');
   if(body.action==='approve') {
     for(const key of ['members','sessions'])if(body[key]===null||body[key]===undefined||String(body[key]).trim()===''||!Number.isFinite(Number(body[key])))throw Error('Enter verified member and session amounts, including zero when applicable.');

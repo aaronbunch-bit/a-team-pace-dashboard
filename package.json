@@ -4,7 +4,7 @@
   "description": "Lizards Autopacer \u2014 static site + Netlify Functions (Identity + Blobs)",
   "private": true,
   "scripts": {
-    "test": "npm run test:starburst-freshness && npm run test:starburst-live && npm run test:starburst-oauth && npm run test:starburst && npm run test:identity && npm run test:api-errors && npm run test:ledger && npm run test:ledger-sql && npm run test:export-join && npm run test:goals-months && npm run test:team-month-settings && npm run test:roster-months && npm run test:month-scope && npm run test:badge-day && npm run test:boot && npm run test:browser",
+    "test": "npm run test:starburst-combined && npm run test:starburst-freshness && npm run test:starburst-live && npm run test:starburst-oauth && npm run test:starburst && npm run test:identity && npm run test:api-errors && npm run test:ledger && npm run test:ledger-sql && npm run test:export-join && npm run test:goals-months && npm run test:team-month-settings && npm run test:roster-months && npm run test:month-scope && npm run test:badge-day && npm run test:boot && npm run test:browser",
     "test:identity": "node --experimental-strip-types --no-warnings scripts/test-identity-gate.mjs",
     "test:api-errors": "node --experimental-strip-types --no-warnings scripts/test-api-error-envelope.mjs",
     "test:ledger": "node --experimental-strip-types --no-warnings scripts/test-ledger-journal.mjs",
@@ -22,7 +22,8 @@
     "test:starburst-oauth": "node --experimental-strip-types --no-warnings scripts/test-starburst-oauth.mjs",
     "test:starburst": "node --experimental-strip-types --no-warnings scripts/test-starburst.mjs",
     "test:starburst-live": "node --experimental-strip-types --no-warnings scripts/test-starburst-live.mjs",
-    "test:starburst-freshness": "node --experimental-strip-types scripts/test-starburst-freshness.mjs && node --experimental-strip-types scripts/test-starburst-freshness-ui.mjs"
+    "test:starburst-freshness": "node --experimental-strip-types scripts/test-starburst-freshness.mjs && node --experimental-strip-types scripts/test-starburst-freshness-ui.mjs",
+    "test:starburst-combined": "node --experimental-strip-types scripts/test-starburst-combined.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "10.7.10"

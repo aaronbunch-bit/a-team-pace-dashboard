@@ -1,10 +1,12 @@
 import {loadReviewedLedgerRules} from './_shared/starburst-reviewed-ledgers.mts';
 import { randomUUID } from 'node:crypto';
+import {getStore} from '@netlify/blobs';
 import { accessToken, queryStarburst } from './_shared/starburst-oauth.mts';
 import { allowed, connectionStore, setting } from './_shared/starburst-connection-test.mts';
 import { liveMonth, liveStore, liveRoster, rosterAliases, liveEnabled, refreshDue, refreshRetryDelay } from './_shared/starburst-live.mts';
 import { liveQuery } from './_shared/starburst-live-query.mts';
 import { parseLiveResult, reconstruct, inheritRefundMembership, parentMembershipQuery } from './_shared/starburst-reconstruction.mts';
+import {combinedQuery,parseCombinedResult,combineAllocations} from './_shared/starburst-combined.mts';
 export default async (req: Request) => {
   if (req.method !== 'POST' || !allowed(req) || !liveEnabled()) return;
   let month: string;
@@ -54,10 +56,25 @@ export default async (req: Request) => {
       queryIds.push(parentData.queryId);
     }
     classified=inheritRefundMembership(classified,parents);
-    const result=reconstruct(classified,await loadReviewedLedgerRules());
+    let result:any=reconstruct(classified,await loadReviewedLedgerRules());
+    const purchases:any[]=[]; let combinedTotal=0,combinedWatermarks:any=null;
+    for(let page=0;page<=200;page++) {
+      if(Date.now()-now>720000) throw new Error('Refresh time limit');
+      const data=await queryStarburst(token,combinedQuery(month,names,page,asOf));
+      const part=parseCombinedResult(data);queryIds.push(data.queryId);
+      if(page===0) {combinedTotal=part.total;combinedWatermarks=part.watermarks;}
+      if(part.total!==combinedTotal) throw new Error('Incomplete combined snapshot');
+      purchases.push(...part.records);
+      if(purchases.length===combinedTotal) break;
+      if(!part.records.length||purchases.length>combinedTotal) throw new Error('Incomplete combined snapshot');
+    }
+    if(purchases.length!==combinedTotal) throw new Error('Incomplete combined snapshot');
+    const manualStore=getStore('manual-attributions'),manualList=await manualStore.list();
+    const manuals=(await Promise.all(manualList.blobs.map(b=>manualStore.get(b.key,{type:'json'})))).filter(Boolean);
+    result=combineAllocations(result,purchases,classified,rosterAliases(roster),manuals);
     const fetchedAtMs=Date.now();
     await store.setJSON(key,{...result,rawRowCount:records.length,queryId:queryIds.at(-1),queryIds,month,fetchedAtMs,
-      fetchedAt:new Date(fetchedAtMs).toISOString(),sourceWatermarkVersion:1,sourceUpdatedAt,teamSourceUpdatedAt:records.map(r=>String(r.capturedAt||'')).sort().at(-1)||null});
+      fetchedAt:new Date(fetchedAtMs).toISOString(),sourceWatermarkVersion:1,sourceUpdatedAt,combinedWatermarks,teamSourceUpdatedAt:records.map(r=>String(r.capturedAt||'')).sort().at(-1)||null});
     await store.setJSON(`status:${month}`,{state:'succeeded',checkedAt:new Date().toISOString(),queryId:queryIds.at(-1),queryIds});
   } catch (error) {
     // These transport errors are generated locally and contain no tokens or query data.

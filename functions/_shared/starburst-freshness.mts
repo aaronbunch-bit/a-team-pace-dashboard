@@ -9,6 +9,18 @@ export function sourceTimestampMs(value: unknown): number | null {
   return Number.isFinite(ms) ? ms : null;
 }
 export function sourceFreshness(snapshot: any, currentMonth: string, now=Date.now()) {
+  if(snapshot?.combined && snapshot?.combinedWatermarks) {
+    const stamps=['calls','purchases','matches'].map(k=>sourceTimestampMs(snapshot.combinedWatermarks[k]));
+    const known=stamps.every(ms=>ms!==null&&ms<=now+60_000);
+    const oldest=known?Math.min(...stamps as number[]):null;
+    const sourceAgeMs=oldest===null?null:Math.max(0,now-oldest);
+    const sourceStale=snapshot.month===currentMonth&&(!known||sourceAgeMs!>SOURCE_MAX_AGE_MS);
+    const exportMs=sourceTimestampMs(snapshot.sourceUpdatedAt);
+    return {sourceStale,sourceAgeMs,sourceFreshnessKnown:known,sourceMaxAgeMs:SOURCE_MAX_AGE_MS,
+      exportStale:snapshot.month===currentMonth&&(exportMs===null||now-exportMs>SOURCE_MAX_AGE_MS),
+      combinedSourceUpdatedAt:oldest===null?null:new Date(oldest).toISOString(),
+      sourceStaleReason:sourceStale?'One or more purchase/call sources are delayed or their freshness is unknown. Reconstructed totals may be incomplete.':undefined};
+  }
   const ms=snapshot?.sourceWatermarkVersion===1 ? sourceTimestampMs(snapshot.sourceUpdatedAt) : null;
   const known=ms!==null && ms<=now+60_000;
   const sourceAgeMs=known ? Math.max(0,now-ms!) : null;
