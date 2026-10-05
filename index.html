@@ -12408,48 +12408,21 @@ function applyLiveActualsPayload(data, wantFull, prevDigest) {
   if(Number.isFinite(data.unresolvedCount))window.dispatchEvent(new CustomEvent('pacer:unmatched',{detail:{count:data.unresolvedCount,month:data.viewMonth||liveMonthKey(),stale:!!data.stale}}));
   const statusEl = document.getElementById('liveActualsStatus');
   if (statusEl) {
-    // Salvaged numbers are real but not current, so this must never read as a
-    // healthy sync — the age is the whole point.
-    if (data.combined) {
-      statusEl.textContent = `Combined Starburst · provisional totals · ${data.combined.addedPurchases || 0} purchases reconstructed`
-        + ` · ${data.unresolvedCount || 0} records awaiting review, excluded from totals`
-        + (data.exportStale ? ' · attribution export delayed; purchase and call history supplement it' : '')
-        + (data.fetchedAt ? ` · checked ${new Date(data.fetchedAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago'})} CT` : '')
-        + (data.sourceStaleReason ? ` · ${data.sourceStaleReason}` : '')
-        + (data.staleReason ? ` · ${data.staleReason}` : data.stale ? ' · refresh delayed' : '');
-      statusEl.style.color = '#b45309';
-    } else if (data.sourceStale) {
-      const sourceTime=data.sourceUpdatedAt ? new Date(String(data.sourceUpdatedAt).replace(/ UTC$/, "Z").replace(" ", "T")).toLocaleString('en-US', {timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) + ' CT' : 'unknown';
-      statusEl.textContent = `Attribution source is outdated · latest export ${sourceTime} · totals may be incomplete`
-        + (data.fetchedAt ? ` · Starburst checked ${new Date(data.fetchedAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago'})} CT` : '')
-        + (data.sourceStaleReason ? ` · ${data.sourceStaleReason}` : '')
-        + (data.staleReason ? ` · ${data.staleReason}` : '');
-      statusEl.style.color = '#b45309';
-    } else if (data.stale) {
-      const ageMs = Date.now() - Number(data.fetchedAtMs || 0);
-      const mins = Number.isFinite(ageMs) && ageMs >= 0 ? Math.round(ageMs / 60000) : null;
-      statusEl.textContent = (data.provisional ? 'Starburst refresh delayed — showing the last loaded totals' : 'Live attribution feed unavailable — showing the last numbers that loaded')
-        + (mins != null ? `, from ${mins} min ago` : '')
-        + ` · as of ${data.actuals.asOf}`
-        + (data.staleReason ? ` · ${data.staleReason}` : '');
-      statusEl.style.color = '#b45309';
-    } else if (data.provisional) {
-      statusEl.textContent = `Starburst totals · ${data.unresolvedCount || 0} records awaiting admin review · excluded from totals`
-        + (data.fetchedAt ? ` · checked ${new Date(data.fetchedAt).toLocaleTimeString()}` : '')
-        + (data.sourceUpdatedAt ? ` · data updated ${new Date(String(data.sourceUpdatedAt).replace(/ UTC$/, "Z").replace(" ", "T")).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : '')
-        + (data.adminApprovedCount ? ` · ${data.adminApprovedCount} admin-approved` : '')
-        + (data.adminDeniedCount ? ` · ${data.adminDeniedCount} denied` : '')
-        + (data.refreshing ? ' · refresh in progress' : '');
-      statusEl.style.color = '#b45309';
-    } else {
-      statusEl.textContent = `Live ${data.source === "starburst" ? "Starburst" : "Supabase"} feed OK · as of ${data.actuals.asOf}` +
-        (data.matchedRows != null ? ` · ${data.matchedRows} ledger rows` : '') +
-        (data.cacheHit ? ' · cached' : '') +
-        (data.sharedHit ? ' · sibling tab' : '') +
-        (data.notModified ? ' · unchanged' : '') +
-        (data.fetchedAt ? ` · synced ${new Date(data.fetchedAt).toLocaleTimeString()}` : '');
-      statusEl.style.color = '#16a34a';
-    }
+    const delayed = !!(data.sourceStale || data.stale || data.staleReason);
+    const checked = new Date(data.fetchedAt || data.fetchedAtMs || NaN);
+    const checkedText = Number.isFinite(checked.getTime())
+      ? 'Last checked ' + checked.toLocaleString('en-US', {timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) + ' CT'
+      : 'Not checked yet';
+    statusEl.pacerLastChecked = checkedText;
+    statusEl.textContent = `● Sync ${delayed ? 'delayed' : 'working'} · ${checkedText}`;
+    statusEl.style.color = delayed ? '#dc2626' : '#16a34a';
+    statusEl.title = [
+      data.provisional ? 'Totals are provisional.' : '',
+      data.combined ? `${data.combined.addedPurchases || 0} purchases reconstructed from purchase and call history.` : '',
+      data.unresolvedCount ? `${data.unresolvedCount} records awaiting review, excluded from totals.` : '',
+      data.exportStale ? 'The attribution export is delayed; purchase and call history supplement it.' : '',
+      data.sourceStaleReason || '', data.staleReason || ''
+    ].filter(Boolean).join(' ');
   }
   syncLandingLiveStatus();
   return actualsDigest(ACTUALS_CACHE) === prevDigest ? 'unchanged' : 'changed';
@@ -12464,7 +12437,7 @@ function applyLiveActualsPayload(data, wantFull, prevDigest) {
 function syncLandingLiveStatus() {
   const from = document.getElementById('liveActualsStatus');
   const to = document.getElementById('landingLiveStatus');
-  if (from && to) { to.textContent = from.textContent; to.style.color = from.style.color; }
+  if (from && to) { to.textContent = from.textContent; to.style.color = from.style.color; to.title = from.title; }
 }
 
 function fetchLiveActualsWithRetry(path, opts) {
@@ -12534,8 +12507,8 @@ async function fetchLiveActuals(opts) {
     if (data && data.__notModified) {
       lastLiveActualsOk = true;
       if (statusEl) {
-        statusEl.textContent = (statusEl.textContent || 'Live attribution feed OK') + ' · unchanged';
-        statusEl.style.color = '#16a34a';
+        // An unchanged response must preserve the source-health status and timestamp.
+        syncLandingLiveStatus();
       }
       return 'unchanged';
     }
@@ -12570,9 +12543,9 @@ async function fetchLiveActuals(opts) {
       }
     }
     if (statusEl) {
-      statusEl.textContent = 'Live attribution feed unavailable — showing last Blobs/CSV actuals. ' +
-        ((e && e.message) || 'Sign-in required');
-      statusEl.style.color = '#b45309';
+      statusEl.textContent = '● Sync unavailable · ' + (statusEl.pacerLastChecked || 'Not checked yet');
+      statusEl.title = (e && e.message) || 'Sign-in required';
+      statusEl.style.color = '#dc2626';
     }
     syncLandingLiveStatus();
     return 'error';
